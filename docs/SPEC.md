@@ -3,7 +3,11 @@
 Specyfikacja projektu dla Claude Code. Stan wiedzy zweryfikowany: 2026-09-28.
 
 > Kopia specyfikacji dostarczonej przez użytkownika 2026-10-01. Odstępstwa i decyzje podjęte
-> w trakcie realizacji są w `docs/ROADMAP.md` (sekcja „Decyzje”), nie w tym pliku.
+> w trakcie realizacji są w `docs/ROADMAP.md`, nie w tym pliku.
+>
+> **Od 2026-10-01 `ROADMAP.md` zastępuje: §10 (plan pracy — etapy M2–M9 mają nową treść
+> i kolejność), §4 (klucz konta, tabele deduplikacji), §5.2 (deduplikacja), §5.3 (bez MCC),
+> §5.4 i §6 (budżet Flex i encje).** Pozostałe sekcje obowiązują.
 
 ---
 
