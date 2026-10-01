@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+*.egg-info/
+
+# Sekrety i dane finansowe — nigdy w repo
+.env
+*.pem
+*.key
+*.crt
+*.db
+*.db-*
+*.csv
+!budget/app/tests/fixtures/**/*.csv
