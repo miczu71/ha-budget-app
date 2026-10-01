@@ -14,7 +14,7 @@ jawne „go” przed następnym).
 | M0 | Szkielet repo, CI, `settings.py`, maskowanie w logach | ✅ |
 | M1 | Klient Enable Banking + CLI, flow na Sandboxie | ✅ |
 | M1b | Sonda Production Restricted na Millennium → `FINDINGS_millennium.md` | ✅ (drugi zrzut: start M2) |
-| M2 | **Rdzeń danych** — jedna księga bez duplikatów (CSV + API, karta↔konto, uzgadnianie salda) | następny |
+| M2 | **Rdzeń danych** — jedna księga bez duplikatów (CSV + API, karta↔konto, uzgadnianie salda) | plan zaakceptowany (`PLAN_M2.md`), start ≥ 2026-10-02 |
 | M3 | **Add-on w HA** — instalacja, synchronizacja 3×/dobę, panel (status, bank, import, transakcje), podstawowe encje | — |
 | M4 | **Kategoryzacja v1** — słownik polskich sieci, reguły, pamięć poprawek, kolejka + HA to-do | — |
 | M5 | **Budżet Flex w HA** — stałe/elastyczne/nieregularne, cykliczne płatności, encje, statystyki, dashboard | — |
