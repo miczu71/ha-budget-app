@@ -13,7 +13,7 @@ i checkpointem (przegląd użytkownika + jawne „go” przed kolejnym etapem).
 | M4 | Kategoryzacja (reguły, MCC, przelewy własne) + `budget_engine` | — |
 | M5 | HA publisher: MQTT Discovery, fallback REST, zdarzenia, powiadomienia | — |
 | M6 | Panel Ingress (FastAPI + htmx) | — |
-| M7 | Import CSV z Millenetu (fixture zanonimizowany narzędziem `tools/anonymize_millenet.py`) | — |
+| M7 | Import CSV z Millenetu (fixture zanonimizowany narzędziem `tools/anonymize_millenet.py`) | format rozpoznany (`FINDINGS_millenet_csv.md`), fixture czeka na przegląd |
 | M8 | Pakowanie add-onu (Dockerfile, AppArmor, tłumaczenia, DOCS, build multi-arch) | — |
 | M9 | Test end-to-end na produkcji (Millennium, tryb Restricted) | — |
 
