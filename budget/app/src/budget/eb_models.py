@@ -134,8 +134,22 @@ class Party(_Model):
     name: str | None = None
 
 
+class OtherIdentification(_Model):
+    identification: str | None = None
+    scheme_name: str | None = None
+
+
 class GenericIdentification(_Model):
     iban: str | None = None
+    other: OtherIdentification | None = None
+
+    @property
+    def number(self) -> str | None:
+        """IBAN albo `other.identification` — Millennium podaje numer kontrahenta jako
+        `other` ze schematem BBAN, choć wartość ma postać IBAN (PL + 26 cyfr)."""
+        if self.iban:
+            return self.iban
+        return self.other.identification if self.other else None
 
 
 class BankTransactionCode(_Model):
@@ -180,7 +194,7 @@ class Transaction(_RawModel):
     @property
     def counterparty_iban(self) -> str | None:
         acc = self.debtor_account if self.is_credit else self.creditor_account
-        return acc.iban if acc else None
+        return acc.number if acc else None
 
     @property
     def description(self) -> str:

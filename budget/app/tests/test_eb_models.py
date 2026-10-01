@@ -49,6 +49,31 @@ def test_credit_counterparty_is_debtor() -> None:
     assert t.counterparty_iban == "PL99"
 
 
+def test_counterparty_number_from_other_bban() -> None:
+    """Kształt z produkcyjnego Millennium (wartości fikcyjne): numer w `other`, schemat BBAN."""
+    t = Transaction.from_api(
+        {
+            "entry_reference": "ABCDEF|PL61109010140000071219812874|2026-09-30|2",
+            "transaction_amount": {"currency": "PLN", "amount": "120.0"},
+            "credit_debit_indicator": "DBIT",
+            "status": "BOOK",
+            "booking_date": "2026-09-30",
+            "creditor": {"name": "ODBIORCA TESTOWY"},
+            "creditor_account": {
+                "other": {"identification": "PL27114020040000300201355387", "scheme_name": "BBAN"}
+            },
+            "debtor": {"name": "JAN TESTOWY", "postal_address": {"address_line": ["UL. X 1"]}},
+            "debtor_account": {
+                "other": {"identification": "PL61109010140000071219812874", "scheme_name": "BBAN"}
+            },
+            "remittance_information": ["Przelew"],
+        }
+    )
+    assert t.counterparty_iban == "PL27114020040000300201355387"
+    assert t.counterparty_name == "ODBIORCA TESTOWY"
+    assert t.signed_amount == Decimal("-120.0")
+
+
 def test_page_without_key() -> None:
     page = TransactionsPage.from_api({"transactions": [], "continuation_key": None})
     assert page.continuation_key is None

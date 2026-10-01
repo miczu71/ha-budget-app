@@ -7,7 +7,7 @@ i checkpointem (przegląd użytkownika + jawne „go” przed kolejnym etapem).
 |---|---|---|
 | M0 | Szkielet repo, pyproject, ruff/mypy/pytest, CI, `settings.py`, maskowanie w logach | zrobione — czeka na checkpoint |
 | M1 | Klient Enable Banking (JWT, AIS, PSU, paginacja), modele pydantic, CLI, flow na **Sandboxie** | zrobione — czeka na checkpoint |
-| M1b | Sonda Production Restricted na realnym Millennium → `docs/FINDINGS_millennium.md` (§11) | — |
+| M1b | Sonda Production Restricted na realnym Millennium → `docs/FINDINGS_millennium.md` (§11) | zrobione, poza drugim zrzutem (stabilność `entry_reference` po ≥ 1 dniu) |
 | M2 | Storage: migracje, repozytoria, deduplikacja (PDNG→BOOK) | — |
 | M3 | `sync_service`: harmonogram, licznik dzienny, backfill, `sync_log` | — |
 | M4 | Kategoryzacja (reguły, MCC, przelewy własne) + `budget_engine` | — |
@@ -30,8 +30,12 @@ i checkpointem (przegląd użytkownika + jawne „go” przed kolejnym etapem).
 - **Dane prywatne w dev** (PEM, `.env`, zrzuty z prawdziwego banku, surowy CSV) trzymamy poza
   repo, w `/data/home/budget_dev/` w kontenerze deweloperskim. Do repo trafiają wyłącznie dane
   syntetyczne, z Sandboxa albo zanonimizowane i przejrzane przez użytkownika.
-- **2026-10-01 — M7 (CSV) warunkowy.** Jeśli M1b pokaże, że Millennium przez PSD2 oddaje
-  wystarczająco długą historię, import CSV odpada albo schodzi na dalszy plan.
+- **2026-10-01 — M7 (CSV) warunkowy** → **potwierdzony po M1b**: Millennium przez PSD2 oddaje
+  tylko 90 dni (także zaraz po SCA i ze `strategy=longest`). CSV potrzebny do starszej historii.
+- **2026-10-01 — wnioski M1b do przeniesienia w M2–M4** (szczegóły: `FINDINGS_millennium.md`):
+  brak MCC → kategoryzacja na opisie; spłaty karty kredytowej nie wykrywalne po IBAN → reguła
+  na opis/parowanie, inaczej podwójne liczenie wydatków kartą; `entry_reference` rachunku
+  bieżącego zawiera licznik w obrębie dnia (stabilność do potwierdzenia).
 - **Do rozstrzygnięcia w M8:** obraz bazowy (`ghcr.io/home-assistant/base` wg SPEC
   vs `python:3.12-alpine` jak w innych add-onach autora).
 
