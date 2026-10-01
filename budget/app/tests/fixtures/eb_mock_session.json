@@ -1,0 +1,96 @@
+{
+  "session_id": "efb181ee-5f7c-4faf-9d66-df355ad27abd",
+  "accounts": [
+    {
+      "account_id": {
+        "iban": "PL61109010140000071219812874",
+        "other": null
+      },
+      "all_account_ids": [
+        {
+          "identification": "PL61109010140000071219812874",
+          "scheme_name": "IBAN",
+          "issuer": null
+        }
+      ],
+      "account_servicer": null,
+      "name": "Jan Testowy",
+      "details": null,
+      "usage": "PRIV",
+      "cash_account_type": "CACC",
+      "product": "Konto 360",
+      "currency": "PLN",
+      "psu_status": "Account Holder",
+      "credit_limit": null,
+      "legal_age": null,
+      "postal_address": null,
+      "uid": "68660253-a2c4-42ec-a6f9-c1fd588b647b",
+      "identification_hash": "WwpbCiJhY2NvdW50IiwKImFjY291bnRfaWQiLAoiaWJhbiIKXSwKWwoiYWNjb3VudCIsCiJjdXJyZW5jeSIKXQpd.ZysGm7Jj2ppTYcTgJYyahq7JbbsiHzudgNm1VTsUR0Q=",
+      "identification_hashes": [
+        "WwpbCiJhY2NvdW50IiwKImFjY291bnRfaWQiLAoiaWJhbiIKXQpd.FMW5uOKPX5fyyMG6iTPLsS5XWJ8mudHXsCU5OKxB/Uw=",
+        "WwpbCiJhY2NvdW50IiwKImFjY291bnRfaWQiLAoiaWJhbiIKXSwKWwoiYWNjb3VudCIsCiJjdXJyZW5jeSIKXQpd.ZysGm7Jj2ppTYcTgJYyahq7JbbsiHzudgNm1VTsUR0Q=",
+        "WwpbCiJhc3BzcF9uYW1lIgpdLApbCiJhc3BzcF9jb3VudHJ5IgpdLApbCiJhY2NvdW50IiwKInJlc291cmNlX2lkIgpdCl0=.bew9FCCILafDDKT2/ch2bG9XRb9GN0VXkzUT5uv5fFs=",
+        "WwpbCiJhc3BzcF9uYW1lIgpdLApbCiJhc3BzcF9jb3VudHJ5IgpdLApbCiJhY2NvdW50IiwKIm5hbWUiCl0KXQ==.Zkr1LT8bVF1goJTWG3M+5a/w7G4GopsUOW8tkn5vD1g="
+      ]
+    },
+    {
+      "account_id": {
+        "iban": "PL61109010140000071219812874",
+        "other": null
+      },
+      "all_account_ids": [],
+      "account_servicer": null,
+      "name": "Jan Testowy",
+      "details": "Konto 360",
+      "usage": "PRIV",
+      "cash_account_type": "CACC",
+      "product": "Konto 360",
+      "currency": "PLN",
+      "psu_status": "Account Holder",
+      "credit_limit": null,
+      "legal_age": null,
+      "postal_address": null,
+      "uid": "a76060db-ac27-4053-8305-1d039456e708",
+      "identification_hash": "WwpbCiJhY2NvdW50IiwKImFjY291bnRfaWQiLAoiaWJhbiIKXSwKWwoiYWNjb3VudCIsCiJjdXJyZW5jeSIKXQpd.ZysGm7Jj2ppTYcTgJYyahq7JbbsiHzudgNm1VTsUR0Q=",
+      "identification_hashes": [
+        "WwpbCiJhc3BzcF9uYW1lIgpdLApbCiJhc3BzcF9jb3VudHJ5IgpdLApbCiJhY2NvdW50IiwKInJlc291cmNlX2lkIgpdCl0=.ulKPr6pue1+Ew4vEF8jEepzitYxXdI+Mxa/pjvNnA1U=",
+        "WwpbCiJhc3BzcF9uYW1lIgpdLApbCiJhc3BzcF9jb3VudHJ5IgpdLApbCiJhY2NvdW50IiwKIm5hbWUiCl0KXQ==.Zkr1LT8bVF1goJTWG3M+5a/w7G4GopsUOW8tkn5vD1g="
+      ]
+    },
+    {
+      "account_id": {
+        "iban": "PL27114020040000300201355387",
+        "other": null
+      },
+      "all_account_ids": [],
+      "account_servicer": null,
+      "name": "Jan Testowy",
+      "details": "Konto Oszczędnościowe",
+      "usage": "PRIV",
+      "cash_account_type": "SVGS",
+      "product": "Konto Oszczędnościowe",
+      "currency": "PLN",
+      "psu_status": "Account Holder",
+      "credit_limit": null,
+      "legal_age": null,
+      "postal_address": null,
+      "uid": "f289adcf-5b1c-4610-90ec-5bb35ab46e60",
+      "identification_hash": "WwpbCiJhY2NvdW50IiwKImFjY291bnRfaWQiLAoiaWJhbiIKXSwKWwoiYWNjb3VudCIsCiJjdXJyZW5jeSIKXQpd./nJxz0Jtd7hDr0g9tT5cJzTF3rRxk9esnZpyi8eEf1k=",
+      "identification_hashes": [
+        "WwpbCiJhc3BzcF9uYW1lIgpdLApbCiJhc3BzcF9jb3VudHJ5IgpdLApbCiJhY2NvdW50IiwKInJlc291cmNlX2lkIgpdCl0=.Uua9ZxeZHIT3yL2Ye+1GeafNL+7Z6vci05K89sE0XrU=",
+        "WwpbCiJhc3BzcF9uYW1lIgpdLApbCiJhc3BzcF9jb3VudHJ5IgpdLApbCiJhY2NvdW50IiwKIm5hbWUiCl0KXQ==.Zkr1LT8bVF1goJTWG3M+5a/w7G4GopsUOW8tkn5vD1g="
+      ]
+    }
+  ],
+  "aspsp": {
+    "name": "Mock ASPSP",
+    "country": "PL"
+  },
+  "psu_type": "personal",
+  "access": {
+    "accounts": null,
+    "balances": true,
+    "transactions": true,
+    "valid_until": "2027-03-30T10:57:35Z"
+  }
+}

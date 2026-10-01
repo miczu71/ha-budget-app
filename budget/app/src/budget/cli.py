@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import os
 import sys
@@ -76,7 +77,7 @@ def _print_accounts(accounts: Sequence[dict[str, Any]]) -> None:
         print(
             f"  #{i} {mask_iban(iban) or '(brak IBAN)'} {acc.get('currency')} "
             f"{acc.get('cash_account_type') or ''} {acc.get('product') or ''} "
-            f"hash={str(acc.get('identification_hash'))[:12]}…"
+            f"hash=…{str(acc.get('identification_hash'))[-10:]}"
         )
 
 
@@ -126,10 +127,27 @@ async def cmd_auth(settings: Settings, args: argparse.Namespace) -> None:
         )
         print(f"Bank: {aspsp.name} ({aspsp.country}), zgoda do {valid_until:%Y-%m-%d %H:%M} UTC")
         print(f"Otwórz w przeglądarce i przejdź logowanie + SCA:\n\n{auth.url}\n")
+        if args.no_prompt:
+            print("Po przekierowaniu: python -m budget.cli finish --url '<adres z paska>'")
+            return
         pasted = input("Wklej adres, na który zostałeś przekierowany (albo sam kod): ")
-        result = parse_redirect(pasted, expected_state=state)
-        session = await eb.create_session(result.code)
+        await _finish(eb, state_dir, pasted, state)
 
+
+async def cmd_finish(settings: Settings, args: argparse.Namespace) -> None:
+    """Drugi krok `auth --no-prompt`: adres zwrotny przekazany jako argument."""
+    state_dir = _state_dir(settings)
+    pending = state_dir / "pending_auth.json"
+    if not pending.is_file():
+        raise CliError("brak rozpoczętej autoryzacji — najpierw `auth`")
+    state = json.loads(pending.read_text(encoding="utf-8"))["state"]
+    async with _client(settings) as eb:
+        await _finish(eb, state_dir, args.url, state)
+
+
+async def _finish(eb: EBClient, state_dir: Path, pasted: str, state: str) -> None:
+    result = parse_redirect(pasted, expected_state=state)
+    session = await eb.create_session(result.code)
     # Pełna odpowiedź — część danych EB zwraca tylko tutaj (SPEC §2.2 pkt 4)
     _write_private(state_dir / "sessions" / f"{session.session_id}.json", session.raw)
     (state_dir / "current_session").write_text(session.session_id, encoding="utf-8")
@@ -163,7 +181,7 @@ async def cmd_balances(settings: Settings, args: argparse.Namespace) -> None:
     async with _client(settings) as eb:
         for acc in _accounts(session, args.account):
             balances = await eb.get_balances(acc["uid"])
-            dump[acc["identification_hash"]] = [b.raw for b in balances]
+            dump[acc["uid"]] = [b.raw for b in balances]
             iban = (acc.get("account_id") or {}).get("iban")
             print(f"{mask_iban(iban)} ({acc.get('currency')}):")
             for b in balances:
@@ -185,19 +203,25 @@ async def cmd_transactions(settings: Settings, args: argparse.Namespace) -> None
     )
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     async with _client(settings) as eb:
-        for acc in _accounts(session, args.account):
+        for i, acc in enumerate(_accounts(session, args.account)):
             pages = 0
             raw: list[dict[str, Any]] = []
             async for page in eb.iter_transaction_pages(acc["uid"], date_from):
                 pages += 1
                 raw.extend(t.raw for t in page.transactions)
-            short = str(acc["identification_hash"])[:8]
+            # Początek identification_hash jest wspólny (zakodowany opis pól) — skrót z całości
+            # …a ten sam IBAN dwa razy w sesji daje ten sam hash — stąd też numer konta
+            digest = hashlib.sha256(str(acc["identification_hash"]).encode()).hexdigest()[:8]
+            short = f"{args.account if args.account is not None else i}_{digest}"
             _write_private(
                 state_dir / "dumps" / f"transactions_{short}_{stamp}.json",
                 {"date_from": date_from.isoformat(), "pages": pages, "transactions": raw},
             )
             iban = (acc.get("account_id") or {}).get("iban")
-            print(f"{mask_iban(iban)}: {len(raw)} transakcji, {pages} stron(y) od {date_from}")
+            print(
+                f"{mask_iban(iban)} [{short}]: {len(raw)} transakcji, "
+                f"{pages} stron(y) od {date_from}"
+            )
             _print_summary(raw)
 
 
@@ -246,6 +270,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     au.add_argument("--country", default="PL")
     au.add_argument("--days", type=int, help="ważność zgody (domyślnie maksimum banku)")
+    au.add_argument(
+        "--no-prompt", action="store_true", help="nie pytaj o adres zwrotny — dokończ `finish`"
+    )
+
+    f = sub.add_parser("finish", help="dokończ autoryzację adresem zwrotnym (po auth --no-prompt)")
+    f.add_argument("--url", required=True, help="adres z paska przeglądarki albo sam kod")
 
     s = sub.add_parser("session", help="status zapisanej sesji")
     s.add_argument("--id", help="session_id (domyślnie ostatnia)")
@@ -267,6 +297,7 @@ _ASYNC = {
     "app": cmd_app,
     "aspsps": cmd_aspsps,
     "auth": cmd_auth,
+    "finish": cmd_finish,
     "session": cmd_session,
     "balances": cmd_balances,
     "transactions": cmd_transactions,

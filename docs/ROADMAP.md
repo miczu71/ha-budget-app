@@ -6,7 +6,7 @@ i checkpointem (przegląd użytkownika + jawne „go” przed kolejnym etapem).
 | Etap | Zakres | Status |
 |---|---|---|
 | M0 | Szkielet repo, pyproject, ruff/mypy/pytest, CI, `settings.py`, maskowanie w logach | zrobione — czeka na checkpoint |
-| M1 | Klient Enable Banking (JWT, AIS, PSU, paginacja), modele pydantic, CLI, flow na **Sandboxie** | — |
+| M1 | Klient Enable Banking (JWT, AIS, PSU, paginacja), modele pydantic, CLI, flow na **Sandboxie** | zrobione — czeka na checkpoint |
 | M1b | Sonda Production Restricted na realnym Millennium → `docs/FINDINGS_millennium.md` (§11) | — |
 | M2 | Storage: migracje, repozytoria, deduplikacja (PDNG→BOOK) | — |
 | M3 | `sync_service`: harmonogram, licznik dzienny, backfill, `sync_log` | — |
@@ -30,5 +30,27 @@ i checkpointem (przegląd użytkownika + jawne „go” przed kolejnym etapem).
 - **Dane prywatne w dev** (PEM, `.env`, zrzuty z prawdziwego banku, surowy CSV) trzymamy poza
   repo, w `/data/home/budget_dev/` w kontenerze deweloperskim. Do repo trafiają wyłącznie dane
   syntetyczne, z Sandboxa albo zanonimizowane i przejrzane przez użytkownika.
+- **2026-10-01 — M7 (CSV) warunkowy.** Jeśli M1b pokaże, że Millennium przez PSD2 oddaje
+  wystarczająco długą historię, import CSV odpada albo schodzi na dalszy plan.
 - **Do rozstrzygnięcia w M8:** obraz bazowy (`ghcr.io/home-assistant/base` wg SPEC
   vs `python:3.12-alpine` jak w innych add-onach autora).
+
+## Wnioski z Sandboxa (M1, 2026-10-01)
+
+- Aplikacja Sandbox `HA budget`, klucz z `cli keygen` przyjęty przez Control Panel
+  (opcja „Generate outside the browser and import public certificate”). Pola Privacy/Terms URL
+  muszą być prawdziwymi URL-ami („Invalid URL” przy `none`).
+- `GET /aspsps?country=PL`: **„Bank Millennium”** (beta) i „Mock ASPSP”; oba
+  `maximum_consent_validity` = 180 d, **brak `required_psu_headers`** (Sandbox — do
+  potwierdzenia na produkcji w M1b).
+- Sandbox Millennium: 3 konta (PLN/EUR), salda ITBD/ITAV, **zero transakcji** w każdym zakresie
+  dat — do testów transakcji służy Mock ASPSP z `tools/make_mock_dataset.py`.
+- Mock ASPSP: wszystkie transakcje w **jednej stronie** (bez `continuation_key`, choć docs mówią
+  o paczkach po 10) — paginację pokrywają testy `respx`, nie Sandbox. Mock **gubi
+  `transaction_id`** (0/78) — zostaje `entry_reference`.
+- **`identification_hash` to hash z (IBAN, waluta)** — dwa konta z tym samym IBAN-em w jednej
+  sesji mają ten sam hash. W M2 PK `account.identification_hash` musi to obsłużyć
+  (np. ostrzeżenie + dołączenie `uid`/produktu); `uid` jest unikalny w sesji.
+- Błąd po stronie banku przychodzi jako `?state=…&error=server_error` — CLI pokazuje go czytelnie.
+  Link do autoryzacji utworzony *przed* wgraniem danych do Mock ASPSP kończył się
+  `server_error`; nowy link zadziałał.

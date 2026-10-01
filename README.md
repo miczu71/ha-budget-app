@@ -20,3 +20,24 @@ Konfiguracja dev: bez `/data/options.json` ustawienia czytane są z `.env`
 (`BUDGET_ENV_FILE`, zmienne `BUDGET_*`, np. `BUDGET_EB_APPLICATION_ID`,
 `BUDGET_CONFIG_DIR` — katalog z kluczem `.pem`). Klucze, `.env` i dane bankowe nigdy nie trafiają
 do repo (zob. `.gitignore`).
+
+> **Pułapka:** uruchamiając CLI wewnątrz innego add-onu (np. Claude Code), `/data/options.json`
+> istnieje i należy do *tamtego* add-onu. Ustaw `BUDGET_OPTIONS_PATH=/nonexistent`, żeby wymusić
+> `.env`.
+
+### Flow Enable Banking z CLI (Sandbox)
+
+```bash
+export BUDGET_OPTIONS_PATH=/nonexistent BUDGET_ENV_FILE=~/budget_dev/.env BUDGET_DEV_DIR=~/budget_dev
+python -m budget.cli keygen --out ~/budget_dev/eb_sandbox   # .crt wklej w Control Panelu EB
+python -m budget.cli app                                    # weryfikacja klucza i redirect URL
+python -m budget.cli aspsps --country PL
+python -m budget.cli auth --aspsp "Mock ASPSP" --no-prompt  # otwórz URL, przejdź SCA
+python -m budget.cli finish --url '<adres z paska po przekierowaniu>'
+python -m budget.cli balances
+python -m budget.cli transactions --days 90                 # zrzut JSON + podsumowanie pól
+```
+
+Mock ASPSP (Sandbox) jest pusty, dopóki nie wgrasz danych w zakładce *Mock ASPSP* Control Panelu:
+`python tools/make_mock_dataset.py --out mock.json` generuje syntetyczne polskie konto
+(karta + MCC, BLIK, wypłata, przelewy własne, PDNG, bliźniacze transakcje).

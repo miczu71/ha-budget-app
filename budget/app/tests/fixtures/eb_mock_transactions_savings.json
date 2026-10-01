@@ -1,0 +1,182 @@
+{
+  "date_from": "2024-10-01",
+  "pages": 1,
+  "transactions": [
+    {
+      "entry_reference": "MCK000073S",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "1500.00"
+      },
+      "creditor": null,
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "Jan Testowy",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "PL61109010140000071219812874",
+        "other": null
+      },
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "ReceivedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-09-12",
+      "value_date": "2026-09-12",
+      "transaction_date": "2026-09-12",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Przelew własny oszczędności"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000069S",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "1500.00"
+      },
+      "creditor": null,
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "Jan Testowy",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "PL61109010140000071219812874",
+        "other": null
+      },
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "ReceivedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-08-12",
+      "value_date": "2026-08-12",
+      "transaction_date": "2026-08-12",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Przelew własny oszczędności"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000065S",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "1500.00"
+      },
+      "creditor": null,
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "Jan Testowy",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "PL61109010140000071219812874",
+        "other": null
+      },
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "ReceivedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-07-12",
+      "value_date": "2026-07-12",
+      "transaction_date": "2026-07-12",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Przelew własny oszczędności"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000061S",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "1500.00"
+      },
+      "creditor": null,
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "Jan Testowy",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "PL61109010140000071219812874",
+        "other": null
+      },
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "ReceivedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-06-12",
+      "value_date": "2026-06-12",
+      "transaction_date": "2026-06-12",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Przelew własny oszczędności"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    }
+  ]
+}

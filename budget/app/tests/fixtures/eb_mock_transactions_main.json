@@ -1,0 +1,3240 @@
+{
+  "date_from": "2024-10-01",
+  "pages": 1,
+  "transactions": [
+    {
+      "entry_reference": null,
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "89.99"
+      },
+      "creditor": {
+        "name": "ZABKA Z1234",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "PDNG",
+      "booking_date": null,
+      "value_date": null,
+      "transaction_date": "2026-10-01",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Blokada środków ZABKA Z1234"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000059",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "53.59"
+      },
+      "creditor": {
+        "name": "LIDL WROCLAW KRZYKI",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-01",
+      "value_date": "2026-10-01",
+      "transaction_date": "2026-09-30",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 30.09.2026 LIDL WROCLAW KRZYKI"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000058",
+      "merchant_category_code": "5812",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "118.63"
+      },
+      "creditor": {
+        "name": "RESTAURACJA PIEROGARNIA",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-28",
+      "value_date": "2026-09-28",
+      "transaction_date": "2026-09-27",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 27.09.2026 RESTAURACJA PIEROGARNIA"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": null,
+      "merchant_category_code": "5814",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "4.50"
+      },
+      "creditor": {
+        "name": "AUTOMAT KAWA MPK",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-26",
+      "value_date": "2026-09-26",
+      "transaction_date": "2026-09-26",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą AUTOMAT KAWA MPK"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": null,
+      "merchant_category_code": "5814",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "4.50"
+      },
+      "creditor": {
+        "name": "AUTOMAT KAWA MPK",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-26",
+      "value_date": "2026-09-26",
+      "transaction_date": "2026-09-26",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą AUTOMAT KAWA MPK"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000057",
+      "merchant_category_code": "5812",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "83.80"
+      },
+      "creditor": {
+        "name": "RESTAURACJA PIEROGARNIA",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-25",
+      "value_date": "2026-09-25",
+      "transaction_date": "2026-09-24",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 24.09.2026 RESTAURACJA PIEROGARNIA"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000056",
+      "merchant_category_code": "5912",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "76.09"
+      },
+      "creditor": {
+        "name": "ROSSMANN 112",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-23",
+      "value_date": "2026-09-23",
+      "transaction_date": "2026-09-22",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 22.09.2026 ROSSMANN 112"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000075",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "45.52"
+      },
+      "creditor": {
+        "name": "ALLEGRO.PL",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "IssuedCreditTransfers",
+        "sub_code": "MobilePayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-20",
+      "value_date": "2026-09-20",
+      "transaction_date": "2026-09-20",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "BLIK zakup w internecie ALLEGRO.PL"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000055",
+      "merchant_category_code": "5815",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "23.99"
+      },
+      "creditor": {
+        "name": "SPOTIFY P1A2B3C4",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-20",
+      "value_date": "2026-09-20",
+      "transaction_date": "2026-09-19",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 19.09.2026 SPOTIFY P1A2B3C4"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000054",
+      "merchant_category_code": "5541",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "234.59"
+      },
+      "creditor": {
+        "name": "ORLEN STACJA NR 4021",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-18",
+      "value_date": "2026-09-18",
+      "transaction_date": "2026-09-17",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 17.09.2026 ORLEN STACJA NR 4021"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000074",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "182.63"
+      },
+      "creditor": {
+        "name": "TAURON SPRZEDAŻ SP. Z O.O.",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "PL10105000997603123456789123",
+        "other": null
+      },
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "IssuedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-15",
+      "value_date": "2026-09-15",
+      "transaction_date": "2026-09-15",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Faktura P/28409/09/2026"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000053",
+      "merchant_category_code": "5912",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "52.88"
+      },
+      "creditor": {
+        "name": "ROSSMANN 112",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-15",
+      "value_date": "2026-09-15",
+      "transaction_date": "2026-09-14",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 14.09.2026 ROSSMANN 112"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000052",
+      "merchant_category_code": "5912",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "27.36"
+      },
+      "creditor": {
+        "name": "ROSSMANN 112",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-13",
+      "value_date": "2026-09-13",
+      "transaction_date": "2026-09-12",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 12.09.2026 ROSSMANN 112"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000073",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "1500.00"
+      },
+      "creditor": {
+        "name": "Jan Testowy",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "PL27114020040000300201355387",
+        "other": null
+      },
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "IssuedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-12",
+      "value_date": "2026-09-12",
+      "transaction_date": "2026-09-12",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Przelew własny oszczędności"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000051",
+      "merchant_category_code": "5815",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "23.99"
+      },
+      "creditor": {
+        "name": "SPOTIFY P1A2B3C4",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-11",
+      "value_date": "2026-09-11",
+      "transaction_date": "2026-09-10",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 10.09.2026 SPOTIFY P1A2B3C4"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000072",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "8450.00"
+      },
+      "creditor": null,
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "FIRMA PRZYKŁADOWA SP. Z O.O.",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "PL83101010230000261395100000",
+        "other": null
+      },
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "ReceivedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-09-10",
+      "value_date": "2026-09-10",
+      "transaction_date": "2026-09-10",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Wynagrodzenie za 09/2026"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000050",
+      "merchant_category_code": "5541",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "214.12"
+      },
+      "creditor": {
+        "name": "ORLEN STACJA NR 4021",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-09",
+      "value_date": "2026-09-09",
+      "transaction_date": "2026-09-08",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 08.09.2026 ORLEN STACJA NR 4021"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000049",
+      "merchant_category_code": "5815",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "23.99"
+      },
+      "creditor": {
+        "name": "SPOTIFY P1A2B3C4",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-08",
+      "value_date": "2026-09-08",
+      "transaction_date": "2026-09-07",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 07.09.2026 SPOTIFY P1A2B3C4"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000048",
+      "merchant_category_code": "5815",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "23.99"
+      },
+      "creditor": {
+        "name": "SPOTIFY P1A2B3C4",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-06",
+      "value_date": "2026-09-06",
+      "transaction_date": "2026-09-05",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 05.09.2026 SPOTIFY P1A2B3C4"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000047",
+      "merchant_category_code": "5815",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "23.99"
+      },
+      "creditor": {
+        "name": "SPOTIFY P1A2B3C4",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-04",
+      "value_date": "2026-09-04",
+      "transaction_date": "2026-09-03",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 03.09.2026 SPOTIFY P1A2B3C4"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000046",
+      "merchant_category_code": "5812",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "73.33"
+      },
+      "creditor": {
+        "name": "RESTAURACJA PIEROGARNIA",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-09-01",
+      "value_date": "2026-09-01",
+      "transaction_date": "2026-08-31",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 31.08.2026 RESTAURACJA PIEROGARNIA"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000045",
+      "merchant_category_code": "5912",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "53.39"
+      },
+      "creditor": {
+        "name": "ROSSMANN 112",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-30",
+      "value_date": "2026-08-30",
+      "transaction_date": "2026-08-29",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 29.08.2026 ROSSMANN 112"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000044",
+      "merchant_category_code": "5912",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "58.87"
+      },
+      "creditor": {
+        "name": "ROSSMANN 112",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-28",
+      "value_date": "2026-08-28",
+      "transaction_date": "2026-08-27",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 27.08.2026 ROSSMANN 112"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000043",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "240.17"
+      },
+      "creditor": {
+        "name": "LIDL WROCLAW KRZYKI",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-25",
+      "value_date": "2026-08-25",
+      "transaction_date": "2026-08-24",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 24.08.2026 LIDL WROCLAW KRZYKI"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000042",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "115.14"
+      },
+      "creditor": {
+        "name": "LIDL WROCLAW KRZYKI",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-22",
+      "value_date": "2026-08-22",
+      "transaction_date": "2026-08-21",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 21.08.2026 LIDL WROCLAW KRZYKI"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000071",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "73.40"
+      },
+      "creditor": {
+        "name": "ALLEGRO.PL",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "IssuedCreditTransfers",
+        "sub_code": "MobilePayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-20",
+      "value_date": "2026-08-20",
+      "transaction_date": "2026-08-20",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "BLIK zakup w internecie ALLEGRO.PL"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000041",
+      "merchant_category_code": "5812",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "115.28"
+      },
+      "creditor": {
+        "name": "RESTAURACJA PIEROGARNIA",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-20",
+      "value_date": "2026-08-20",
+      "transaction_date": "2026-08-19",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 19.08.2026 RESTAURACJA PIEROGARNIA"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000040",
+      "merchant_category_code": "5541",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "266.38"
+      },
+      "creditor": {
+        "name": "ORLEN STACJA NR 4021",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-19",
+      "value_date": "2026-08-19",
+      "transaction_date": "2026-08-18",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 18.08.2026 ORLEN STACJA NR 4021"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000039",
+      "merchant_category_code": "5912",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "55.08"
+      },
+      "creditor": {
+        "name": "ROSSMANN 112",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-16",
+      "value_date": "2026-08-16",
+      "transaction_date": "2026-08-15",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 15.08.2026 ROSSMANN 112"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000070",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "288.80"
+      },
+      "creditor": {
+        "name": "TAURON SPRZEDAŻ SP. Z O.O.",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "PL10105000997603123456789123",
+        "other": null
+      },
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "IssuedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-15",
+      "value_date": "2026-08-15",
+      "transaction_date": "2026-08-15",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Faktura P/11899/08/2026"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000038",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "139.89"
+      },
+      "creditor": {
+        "name": "LIDL WROCLAW KRZYKI",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-13",
+      "value_date": "2026-08-13",
+      "transaction_date": "2026-08-12",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 12.08.2026 LIDL WROCLAW KRZYKI"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000069",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "1500.00"
+      },
+      "creditor": {
+        "name": "Jan Testowy",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "PL27114020040000300201355387",
+        "other": null
+      },
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "IssuedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-12",
+      "value_date": "2026-08-12",
+      "transaction_date": "2026-08-12",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Przelew własny oszczędności"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000037",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "174.52"
+      },
+      "creditor": {
+        "name": "BIEDRONKA 1234 WROCLAW",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-11",
+      "value_date": "2026-08-11",
+      "transaction_date": "2026-08-10",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 10.08.2026 BIEDRONKA 1234 WROCLAW"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000068",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "8450.00"
+      },
+      "creditor": null,
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "FIRMA PRZYKŁADOWA SP. Z O.O.",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "PL83101010230000261395100000",
+        "other": null
+      },
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "ReceivedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-08-10",
+      "value_date": "2026-08-10",
+      "transaction_date": "2026-08-10",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Wynagrodzenie za 08/2026"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000036",
+      "merchant_category_code": "5912",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "80.71"
+      },
+      "creditor": {
+        "name": "ROSSMANN 112",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-09",
+      "value_date": "2026-08-09",
+      "transaction_date": "2026-08-08",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 08.08.2026 ROSSMANN 112"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000035",
+      "merchant_category_code": "5815",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "23.99"
+      },
+      "creditor": {
+        "name": "SPOTIFY P1A2B3C4",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-07",
+      "value_date": "2026-08-07",
+      "transaction_date": "2026-08-06",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 06.08.2026 SPOTIFY P1A2B3C4"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000034",
+      "merchant_category_code": "5541",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "203.00"
+      },
+      "creditor": {
+        "name": "ORLEN STACJA NR 4021",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-04",
+      "value_date": "2026-08-04",
+      "transaction_date": "2026-08-03",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 03.08.2026 ORLEN STACJA NR 4021"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000033",
+      "merchant_category_code": "5541",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "289.74"
+      },
+      "creditor": {
+        "name": "ORLEN STACJA NR 4021",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-08-02",
+      "value_date": "2026-08-02",
+      "transaction_date": "2026-08-01",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 01.08.2026 ORLEN STACJA NR 4021"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000032",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "258.69"
+      },
+      "creditor": {
+        "name": "LIDL WROCLAW KRZYKI",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-31",
+      "value_date": "2026-07-31",
+      "transaction_date": "2026-07-30",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 30.07.2026 LIDL WROCLAW KRZYKI"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000031",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "240.86"
+      },
+      "creditor": {
+        "name": "LIDL WROCLAW KRZYKI",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-30",
+      "value_date": "2026-07-30",
+      "transaction_date": "2026-07-29",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 29.07.2026 LIDL WROCLAW KRZYKI"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000030",
+      "merchant_category_code": "5812",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "129.91"
+      },
+      "creditor": {
+        "name": "RESTAURACJA PIEROGARNIA",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-29",
+      "value_date": "2026-07-29",
+      "transaction_date": "2026-07-28",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 28.07.2026 RESTAURACJA PIEROGARNIA"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000029",
+      "merchant_category_code": "5541",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "298.57"
+      },
+      "creditor": {
+        "name": "ORLEN STACJA NR 4021",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-28",
+      "value_date": "2026-07-28",
+      "transaction_date": "2026-07-27",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 27.07.2026 ORLEN STACJA NR 4021"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000028",
+      "merchant_category_code": "5912",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "80.68"
+      },
+      "creditor": {
+        "name": "ROSSMANN 112",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-27",
+      "value_date": "2026-07-27",
+      "transaction_date": "2026-07-26",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 26.07.2026 ROSSMANN 112"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000027",
+      "merchant_category_code": "5812",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "102.38"
+      },
+      "creditor": {
+        "name": "RESTAURACJA PIEROGARNIA",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-24",
+      "value_date": "2026-07-24",
+      "transaction_date": "2026-07-23",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 23.07.2026 RESTAURACJA PIEROGARNIA"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000026",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "156.06"
+      },
+      "creditor": {
+        "name": "BIEDRONKA 1234 WROCLAW",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-23",
+      "value_date": "2026-07-23",
+      "transaction_date": "2026-07-22",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 22.07.2026 BIEDRONKA 1234 WROCLAW"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000025",
+      "merchant_category_code": "5815",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "23.99"
+      },
+      "creditor": {
+        "name": "SPOTIFY P1A2B3C4",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-22",
+      "value_date": "2026-07-22",
+      "transaction_date": "2026-07-21",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 21.07.2026 SPOTIFY P1A2B3C4"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000024",
+      "merchant_category_code": "5912",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "73.58"
+      },
+      "creditor": {
+        "name": "ROSSMANN 112",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-20",
+      "value_date": "2026-07-20",
+      "transaction_date": "2026-07-19",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 19.07.2026 ROSSMANN 112"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000067",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "52.76"
+      },
+      "creditor": {
+        "name": "ALLEGRO.PL",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "IssuedCreditTransfers",
+        "sub_code": "MobilePayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-20",
+      "value_date": "2026-07-20",
+      "transaction_date": "2026-07-20",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "BLIK zakup w internecie ALLEGRO.PL"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000023",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "129.25"
+      },
+      "creditor": {
+        "name": "BIEDRONKA 1234 WROCLAW",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-17",
+      "value_date": "2026-07-17",
+      "transaction_date": "2026-07-16",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 16.07.2026 BIEDRONKA 1234 WROCLAW"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000022",
+      "merchant_category_code": "5812",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "131.00"
+      },
+      "creditor": {
+        "name": "RESTAURACJA PIEROGARNIA",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-15",
+      "value_date": "2026-07-15",
+      "transaction_date": "2026-07-14",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 14.07.2026 RESTAURACJA PIEROGARNIA"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000066",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "335.93"
+      },
+      "creditor": {
+        "name": "TAURON SPRZEDAŻ SP. Z O.O.",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "PL10105000997603123456789123",
+        "other": null
+      },
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "IssuedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-15",
+      "value_date": "2026-07-15",
+      "transaction_date": "2026-07-15",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Faktura P/32263/07/2026"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000021",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "75.34"
+      },
+      "creditor": {
+        "name": "LIDL WROCLAW KRZYKI",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-13",
+      "value_date": "2026-07-13",
+      "transaction_date": "2026-07-12",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 12.07.2026 LIDL WROCLAW KRZYKI"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000065",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "1500.00"
+      },
+      "creditor": {
+        "name": "Jan Testowy",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "PL27114020040000300201355387",
+        "other": null
+      },
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "IssuedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-12",
+      "value_date": "2026-07-12",
+      "transaction_date": "2026-07-12",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Przelew własny oszczędności"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000020",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "56.71"
+      },
+      "creditor": {
+        "name": "BIEDRONKA 1234 WROCLAW",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-10",
+      "value_date": "2026-07-10",
+      "transaction_date": "2026-07-09",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 09.07.2026 BIEDRONKA 1234 WROCLAW"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000064",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "8450.00"
+      },
+      "creditor": null,
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "FIRMA PRZYKŁADOWA SP. Z O.O.",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "PL83101010230000261395100000",
+        "other": null
+      },
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "ReceivedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-07-10",
+      "value_date": "2026-07-10",
+      "transaction_date": "2026-07-10",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Wynagrodzenie za 07/2026"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000019",
+      "merchant_category_code": "5912",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "79.47"
+      },
+      "creditor": {
+        "name": "ROSSMANN 112",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-08",
+      "value_date": "2026-07-08",
+      "transaction_date": "2026-07-07",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 07.07.2026 ROSSMANN 112"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000018",
+      "merchant_category_code": "5812",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "122.09"
+      },
+      "creditor": {
+        "name": "RESTAURACJA PIEROGARNIA",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-05",
+      "value_date": "2026-07-05",
+      "transaction_date": "2026-07-04",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 04.07.2026 RESTAURACJA PIEROGARNIA"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000017",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "61.60"
+      },
+      "creditor": {
+        "name": "LIDL WROCLAW KRZYKI",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-04",
+      "value_date": "2026-07-04",
+      "transaction_date": "2026-07-03",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 03.07.2026 LIDL WROCLAW KRZYKI"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000016",
+      "merchant_category_code": "5812",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "63.80"
+      },
+      "creditor": {
+        "name": "RESTAURACJA PIEROGARNIA",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-03",
+      "value_date": "2026-07-03",
+      "transaction_date": "2026-07-02",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 02.07.2026 RESTAURACJA PIEROGARNIA"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000015",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "63.95"
+      },
+      "creditor": {
+        "name": "BIEDRONKA 1234 WROCLAW",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-07-02",
+      "value_date": "2026-07-02",
+      "transaction_date": "2026-07-01",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 01.07.2026 BIEDRONKA 1234 WROCLAW"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000014",
+      "merchant_category_code": "5912",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "44.83"
+      },
+      "creditor": {
+        "name": "ROSSMANN 112",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-29",
+      "value_date": "2026-06-29",
+      "transaction_date": "2026-06-28",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 28.06.2026 ROSSMANN 112"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000013",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "94.25"
+      },
+      "creditor": {
+        "name": "LIDL WROCLAW KRZYKI",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-26",
+      "value_date": "2026-06-26",
+      "transaction_date": "2026-06-25",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 25.06.2026 LIDL WROCLAW KRZYKI"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000012",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "63.71"
+      },
+      "creditor": {
+        "name": "BIEDRONKA 1234 WROCLAW",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-25",
+      "value_date": "2026-06-25",
+      "transaction_date": "2026-06-24",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 24.06.2026 BIEDRONKA 1234 WROCLAW"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000011",
+      "merchant_category_code": "5812",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "182.99"
+      },
+      "creditor": {
+        "name": "RESTAURACJA PIEROGARNIA",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-22",
+      "value_date": "2026-06-22",
+      "transaction_date": "2026-06-21",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 21.06.2026 RESTAURACJA PIEROGARNIA"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000063",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "58.42"
+      },
+      "creditor": {
+        "name": "ALLEGRO.PL",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "IssuedCreditTransfers",
+        "sub_code": "MobilePayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-20",
+      "value_date": "2026-06-20",
+      "transaction_date": "2026-06-20",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "BLIK zakup w internecie ALLEGRO.PL"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000010",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "110.68"
+      },
+      "creditor": {
+        "name": "LIDL WROCLAW KRZYKI",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-20",
+      "value_date": "2026-06-20",
+      "transaction_date": "2026-06-19",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 19.06.2026 LIDL WROCLAW KRZYKI"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000009",
+      "merchant_category_code": "5812",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "144.28"
+      },
+      "creditor": {
+        "name": "RESTAURACJA PIEROGARNIA",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-19",
+      "value_date": "2026-06-19",
+      "transaction_date": "2026-06-18",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 18.06.2026 RESTAURACJA PIEROGARNIA"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000008",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "78.89"
+      },
+      "creditor": {
+        "name": "BIEDRONKA 1234 WROCLAW",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-18",
+      "value_date": "2026-06-18",
+      "transaction_date": "2026-06-17",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 17.06.2026 BIEDRONKA 1234 WROCLAW"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000007",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "116.85"
+      },
+      "creditor": {
+        "name": "LIDL WROCLAW KRZYKI",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-17",
+      "value_date": "2026-06-17",
+      "transaction_date": "2026-06-16",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 16.06.2026 LIDL WROCLAW KRZYKI"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000062",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "308.31"
+      },
+      "creditor": {
+        "name": "TAURON SPRZEDAŻ SP. Z O.O.",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "PL10105000997603123456789123",
+        "other": null
+      },
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "IssuedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-15",
+      "value_date": "2026-06-15",
+      "transaction_date": "2026-06-15",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Faktura P/69227/06/2026"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000006",
+      "merchant_category_code": "5541",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "308.27"
+      },
+      "creditor": {
+        "name": "ORLEN STACJA NR 4021",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-15",
+      "value_date": "2026-06-15",
+      "transaction_date": "2026-06-14",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 14.06.2026 ORLEN STACJA NR 4021"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000061",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "1500.00"
+      },
+      "creditor": {
+        "name": "Jan Testowy",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": {
+        "iban": "PL27114020040000300201355387",
+        "other": null
+      },
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "IssuedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-12",
+      "value_date": "2026-06-12",
+      "transaction_date": "2026-06-12",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Przelew własny oszczędności"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000005",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "150.94"
+      },
+      "creditor": {
+        "name": "BIEDRONKA 1234 WROCLAW",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-12",
+      "value_date": "2026-06-12",
+      "transaction_date": "2026-06-11",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 11.06.2026 BIEDRONKA 1234 WROCLAW"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000060",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "8450.00"
+      },
+      "creditor": null,
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "FIRMA PRZYKŁADOWA SP. Z O.O.",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "debtor_account": {
+        "iban": "PL83101010230000261395100000",
+        "other": null
+      },
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "ReceivedCreditTransfers",
+        "sub_code": "DomesticCreditTransfer"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-06-10",
+      "value_date": "2026-06-10",
+      "transaction_date": "2026-06-10",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Wynagrodzenie za 06/2026"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000004",
+      "merchant_category_code": "5411",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "117.14"
+      },
+      "creditor": {
+        "name": "BIEDRONKA 1234 WROCLAW",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-09",
+      "value_date": "2026-06-09",
+      "transaction_date": "2026-06-08",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 08.06.2026 BIEDRONKA 1234 WROCLAW"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000003",
+      "merchant_category_code": "5541",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "164.75"
+      },
+      "creditor": {
+        "name": "ORLEN STACJA NR 4021",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-06",
+      "value_date": "2026-06-06",
+      "transaction_date": "2026-06-05",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 05.06.2026 ORLEN STACJA NR 4021"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000002",
+      "merchant_category_code": "5541",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "317.09"
+      },
+      "creditor": {
+        "name": "ORLEN STACJA NR 4021",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-05",
+      "value_date": "2026-06-05",
+      "transaction_date": "2026-06-04",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 04.06.2026 ORLEN STACJA NR 4021"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    },
+    {
+      "entry_reference": "MCK000001",
+      "merchant_category_code": "5541",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "236.44"
+      },
+      "creditor": {
+        "name": "ORLEN STACJA NR 4021",
+        "postal_address": null,
+        "organisation_id": null,
+        "private_id": null,
+        "contact_details": null
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": null,
+      "debtor_account": null,
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": null,
+        "code": "CustomerCardTransactions",
+        "sub_code": "DebitCardPayment"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-06-04",
+      "value_date": "2026-06-04",
+      "transaction_date": "2026-06-03",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "reference_number_schema": null,
+      "remittance_information": [
+        "Płatność kartą 03.06.2026 ORLEN STACJA NR 4021"
+      ],
+      "debtor_account_additional_identification": null,
+      "creditor_account_additional_identification": null,
+      "exchange_rate": null,
+      "note": null,
+      "transaction_id": null
+    }
+  ]
+}
