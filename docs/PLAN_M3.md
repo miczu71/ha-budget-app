@@ -165,3 +165,24 @@ Przed każdym commitem obowiązuje blokujący skan diffu na nazwy i miejsca z pr
 - **Dane finansowe w kopiach HA:** opisane w DOCS.md. Zrzuty Playwright na żywo nie trafiają
   do repo.
 - **Rozmiar etapu (jeden checkpoint):** łagodzą to commity per krok i zielone CI na każdym.
+
+## Odstępstwa od planu (wykonanie 2026-10-02)
+
+- **Harmonogram bez APScheduler:** własna pętla `next_run()` na `sync_times` w strefie HA (test
+  na zmianie czasu) — mniej zależności, nic do typowania.
+- **Przycisk `button.budget_sync_now` liczy się do limitu:** z HA nie ma danych użytkownika
+  (IP, przeglądarka), a podrabianie nagłówków PSU byłoby nieuczciwe wobec banku. Poza limitem
+  działa tylko „Synchronizuj teraz” z panelu.
+- **CLI `ingest-eb --live` bez zmian** (nie współdzieli kodu z `sync_service`) — po przeniesieniu
+  sesji do add-onu nie jest używane.
+- **`default_entity_id` zamiast `object_id`** w discovery — od HA 2026.4 `object_id` jest
+  ignorowane.
+- **Encje sald jako „Dostępne — …” (ITAV):** dla karty kredytowej ITAV > ITBD i oba dodatnie,
+  więc ITAV to dostępny limit, nie saldo. ITBD idzie w atrybutach; znaczenie ITBD karty
+  rozstrzygnie suma kontrolna przy drugiej migawce (akceptacja M3), zadłużenie karty → M9.
+- **Synchronizacja obejmuje wszystkie konta ze zgody**; „w budżecie” dotyczy tylko budżetu
+  (M5).
+- **Lokalny serwer dev z `env -u SUPERVISOR_TOKEN`**: wewnątrz innego add-onu token istnieje,
+  więc serwer dev wysyłałby powiadomienia do prawdziwego HA.
+- **Do M4:** heurystyka typu z API na danych Mock ASPSP oznacza „Płatność kartą” na rachunku
+  jako BLIK (na prawdziwych danych zgodność 90%).
