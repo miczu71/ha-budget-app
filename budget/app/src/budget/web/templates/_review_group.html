@@ -21,18 +21,21 @@
   {% if month %}<input type="hidden" name="month" value="{{ month.strftime('%Y-%m') }}">{% endif %}
   {% if error %}<div class="msg error" role="alert">{{ error }}</div>{% endif %}
   <div class="rv-actions">
-    <select name="category_id" aria-label="kategoria" required>{{ category_options(tree, None, "— wybierz kategorię —") }}</select>
+    <select name="category_id" aria-label="kategoria" required>{{ category_options(tree, pick, "— wybierz kategorię —") }}</select>
     {% if g.can_rule %}<label class="check"><input type="checkbox" name="only"> tylko te transakcje (bez reguły)</label>{% endif %}
     <button type="submit">Zapisz</button>
   </div>
   <div id="p-{{ gid }}" class="rv-preview small" aria-live="polite">
-    {% if g.can_rule %}<p class="muted">Wybierz kategorię — zapis utworzy regułę dla „{{ g.label }}” ({{ "wydatki" if g.key.direction == "out" else "wpływy" }}).</p>
+    {% if pv %}{% include "_review_preview.html" %}
+    {% elif g.can_rule %}<p class="muted">Wybierz kategorię — zapis utworzy regułę dla „{{ g.label }}” ({{ "wydatki" if g.key.direction == "out" else "wpływy" }}).</p>
     {% else %}<p class="muted">Kategoria ręczna dla zaznaczonych pozycji (bez reguły).</p>{% endif %}
   </div>
   <div hidden hx-post="{{ base }}/review/preview" hx-include="#f-{{ gid }}" hx-target="#p-{{ gid }}" hx-swap="innerHTML" hx-trigger="change from:#f-{{ gid }}"></div>
   {% if g.key.kind == "country" %}
     {% for merchant, items in g.merchants() %}
+    {% set mc = ai_candidates(merchant, g.key.direction) %}
     <div class="rv-sub"><span class="cat-name">{{ merchant or "(bez nazwy)" }}</span>
+      {% if mc %}<span class="small muted">AI: {{ mc | map(attribute="category.name") | join(", ") }}</span>{% endif %}
       <a class="small" href="{{ base }}/rules/new?txn={{ items[0].id }}">reguła…</a></div>
     {{ items_list(items) }}
     {% endfor %}

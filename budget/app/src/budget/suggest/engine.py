@@ -1,10 +1,11 @@
 """Podpowiedzi kategorii z LLM: kto dostaje podpowiedź, prompt, walidacja, zapis, pomiar.
 
-Jednostka = sprzedawca + kierunek (jak grupa kolejki „Do przejrzenia”). Przebieg (`run`) bierze
-grupy z kolejki bez podpowiedzi, od największej kwoty, paczkami po `BATCH`, w limicie wywołań
-na dobę (`Settings.ai_daily_calls`). Pomiar (`evaluate`) pyta o sprzedawców, którzy już mają
-kategorię (ręczną, z reguły albo ze słownika), i porównuje odpowiedź z nią; przykłady w
-prompcie pomiaru nie zawierają mierzonych sprzedawców.
+Jednostka = sprzedawca + kierunek (jak grupa kolejki „Do przejrzenia”); odpowiedź = do `TOP`
+kandydatów (podkategoria + pewność), z których użytkownik wybiera sam (M4c, etap 3).
+Przebieg (`run`) bierze grupy z kolejki bez podpowiedzi, od największej kwoty, paczkami po
+`BATCH`, w limicie wywołań na dobę (`Settings.ai_daily_calls`). Pomiar (`evaluate`) pyta
+o sprzedawców, którzy już mają kategorię (ręczną, z reguły albo ze słownika), i porównuje
+odpowiedź z nią; przykłady w prompcie pomiaru nie zawierają mierzonych sprzedawców.
 
 Do LLM trafia wyłącznie to, co zwraca `redact.describe`, lista kategorii użytkownika i
 przykłady „sprzedawca kartowy → kategoria” — nigdy nazwy odbiorców przelewów.
@@ -36,6 +37,7 @@ from budget.suggest.redact import CARD_KINDS, Txn, describe
 log = logging.getLogger(__name__)
 
 BATCH = 40
+TOP = 3
 CALLS_PER_RUN = 3
 EXAMPLES = 40
 EVAL_SAMPLE = 80
@@ -60,10 +62,20 @@ SCHEMA: dict[str, Any] = {
                 "type": "object",
                 "properties": {
                     "i": {"type": "integer"},
-                    "category_id": {"type": "integer"},  # 0 = nie wiadomo (bez unii z null)
-                    "confidence": {"type": "number"},
+                    "candidates": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "category_id": {"type": "integer"},
+                                "confidence": {"type": "number"},
+                            },
+                            "required": ["category_id", "confidence"],
+                            "additionalProperties": False,
+                        },
+                    },
                 },
-                "required": ["i", "category_id", "confidence"],
+                "required": ["i", "candidates"],
                 "additionalProperties": False,
             },
         }
@@ -91,8 +103,15 @@ class Group:
 @dataclass(frozen=True)
 class Answer:
     group: Group
-    category_id: int | None
-    confidence: float
+    candidates: tuple[tuple[int, float], ...] = ()  # od najpewniejszego; puste = nie wiadomo
+
+    @property
+    def category_id(self) -> int | None:
+        return self.candidates[0][0] if self.candidates else None
+
+    @property
+    def confidence(self) -> float:
+        return self.candidates[0][1] if self.candidates else 0.0
 
 
 @dataclass
@@ -195,8 +214,9 @@ def build_prompt(categories: list[str], shots: list[str], items: list[dict[str, 
     return "\n".join(
         [
             "Kategoryzujesz transakcje z polskiego konta osobistego do kategorii budżetu domowego.",
-            "Dla każdej pozycji wybierz JEDNĄ podkategorię z listy (podaj jej id) i pewność 0–1.",
-            "Jeśli nie da się rozsądnie zgadnąć, podaj category_id 0 i pewność 0.",
+            f"Dla każdej pozycji podaj do {TOP} najbardziej prawdopodobnych podkategorii z listy",
+            "(id i pewność 0–1), od najbardziej prawdopodobnej; różne podkategorie.",
+            "Jeśli nie da się rozsądnie zgadnąć, podaj pustą listę kandydatów.",
             "Wydatek nie może dostać kategorii z grupy „przychód”.",
             "Pozycja to sprzedawca albo odbiorca z kilkoma opisami (dane częściowo wycięte).",
             "",
@@ -209,29 +229,35 @@ def build_prompt(categories: list[str], shots: list[str], items: list[dict[str, 
             "Pozycje (JSON, pole i = numer):",
             json.dumps(items, ensure_ascii=False),
             "",
-            'Odpowiedz JSON-em: {"items": [{"i": …, "category_id": …, "confidence": …}]}, '
-            "po jednej odpowiedzi na każdą pozycję.",
+            'Odpowiedz JSON-em: {"items": [{"i": …, "candidates": [{"category_id": …, '
+            '"confidence": …}, …]}]}, po jednej odpowiedzi na każdą pozycję.',
         ]
     )
 
 
 def parse(result: dict[str, Any], batch: list[Group], leaves: dict[int, Category]) -> list[Answer]:
-    """Odpowiedzi modelu → `Answer` dla każdej grupy paczki (brak/błąd = „nie wiadomo”)."""
-    got: dict[int, tuple[int, float]] = {}
+    """Odpowiedzi modelu → `Answer` dla każdej grupy paczki: kandydaci sprawdzeni (istniejąca
+    podkategoria, wydatek ≠ przychód), bez powtórzeń, od najpewniejszego, najwyżej `TOP`."""
+    got: dict[int, list[Any]] = {}
     for row in result.get("items") or []:
         try:
-            i, cid, conf = int(row["i"]), int(row["category_id"]), float(row["confidence"])
+            got.setdefault(int(row["i"]), list(row["candidates"]))
         except (KeyError, TypeError, ValueError):
             continue
-        got.setdefault(i, (cid, conf))
     answers = []
     for i, g in enumerate(batch):
-        cid, conf = got.get(i, (0, 0.0))
-        c = leaves.get(cid)
-        if c is None or (g.direction == "out" and c.flex_group == "income"):
-            answers.append(Answer(g, None, 0.0))
-        else:
-            answers.append(Answer(g, cid, min(max(conf, 0.0), 1.0)))
+        best: dict[int, float] = {}
+        for cand in got.get(i, []):
+            try:
+                cid, conf = int(cand["category_id"]), float(cand["confidence"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            c = leaves.get(cid)
+            if c is None or (g.direction == "out" and c.flex_group == "income"):
+                continue
+            best[cid] = max(best.get(cid, 0.0), min(max(conf, 0.0), 1.0))
+        ranked = sorted(best.items(), key=lambda kv: -kv[1])[:TOP]
+        answers.append(Answer(g, tuple(ranked)))
     return answers
 
 
@@ -295,8 +321,16 @@ def _store(conn: sqlite3.Connection, answers: list[Answer], model: str) -> int:
         for a in answers:
             conn.execute(
                 "INSERT OR IGNORE INTO suggestion (merchant, direction, category_id, confidence, "
-                "model, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                (a.group.merchant, a.group.direction, a.category_id, a.confidence, model, now),
+                "candidates, model, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    a.group.merchant,
+                    a.group.direction,
+                    a.category_id,
+                    a.confidence,
+                    json.dumps(a.candidates),
+                    model,
+                    now,
+                ),
             )
     return len(answers)
 
@@ -346,7 +380,8 @@ def _main_of(cats: dict[int, Category], cid: int | None) -> int | None:
 
 
 def score(answers: list[Answer], cats: dict[int, Category]) -> dict[str, Any]:
-    """Trafność wg progu pewności, osobno dla kategorii użytkownika i słownika."""
+    """Trafność wg progu pewności pierwszego kandydata (`leaf`/`main` — pierwszy kandydat,
+    `top` — właściwa podkategoria wśród kandydatów), osobno dla kategorii użytkownika i słownika."""
 
     def table(rows: list[Answer]) -> list[dict[str, Any]]:
         out = []
@@ -358,7 +393,10 @@ def score(answers: list[Answer], cats: dict[int, Category]) -> dict[str, Any]:
                 _main_of(cats, a.category_id) == _main_of(cats, k)
                 for a, k in zip(shown, truth, strict=True)
             )
-            out.append({"threshold": t, "shown": len(shown), "leaf": leaf, "main": main})
+            top = sum(k in {c for c, _ in a.candidates} for a, k in zip(shown, truth, strict=True))
+            out.append(
+                {"threshold": t, "shown": len(shown), "leaf": leaf, "main": main, "top": top}
+            )
         return out
 
     def is_own(a: Answer) -> bool:
@@ -410,29 +448,52 @@ async def evaluate(
 
 
 @dataclass(frozen=True)
-class Suggestion:
-    merchant: str
-    direction: str
+class Candidate:
     category: Category
     main: Category
     confidence: float
 
+    @property
+    def label(self) -> str:
+        return f"{self.main.name} › {self.category.name}"
 
-def for_queue(conn: sqlite3.Connection) -> dict[tuple[str, str], Suggestion]:
-    """Oczekujące podpowiedzi z kategorią, po (sprzedawca, kierunek)."""
+
+def candidates(conn: sqlite3.Connection, merchant: str, direction: str) -> list[Candidate]:
+    """Kandydaci oczekującej podpowiedzi sprzedawcy (pusto: brak, „nie wiadomo”, zdecydowana)."""
+    row = conn.execute(
+        "SELECT candidates, category_id, confidence FROM suggestion "
+        "WHERE merchant = ? AND direction = ? AND status = 'pending'",
+        (merchant, direction),
+    ).fetchone()
+    if row is None:
+        return []
+    pairs = json.loads(row["candidates"]) if row["candidates"] else []
+    if not pairs and row["category_id"] is not None:
+        pairs = [[row["category_id"], row["confidence"]]]
     cats = taxonomy.all_categories(conn)
-    out = {}
-    for r in conn.execute(
-        "SELECT merchant, direction, category_id, confidence FROM suggestion "
-        "WHERE status = 'pending' AND category_id IS NOT NULL"
-    ):
-        c = cats.get(int(r["category_id"]))
-        if c is None or c.parent_id is None:
-            continue
-        out[(r["merchant"], r["direction"])] = Suggestion(
-            r["merchant"], r["direction"], c, cats[c.parent_id], float(r["confidence"])
-        )
+    out = []
+    for cid, conf in pairs:
+        c = cats.get(int(cid))
+        if c is not None and c.parent_id is not None:
+            out.append(Candidate(c, cats[c.parent_id], float(conf)))
     return out
+
+
+def decide(conn: sqlite3.Connection, merchant: str, direction: str, category_id: int) -> None:
+    """Użytkownik nadał kategorię sprzedawcy: podpowiedź przyjęta (to był kandydat) albo
+    odrzucona (inna kategoria). Bez oczekującej podpowiedzi — nic."""
+    row = conn.execute(
+        "SELECT id, candidates, category_id FROM suggestion "
+        "WHERE merchant = ? AND direction = ? AND status = 'pending'",
+        (merchant, direction),
+    ).fetchone()
+    if row is None or row["category_id"] is None:
+        return
+    ids = {int(c) for c, _ in json.loads(row["candidates"] or "[]")} or {int(row["category_id"])}
+    conn.execute(
+        "UPDATE suggestion SET status = ?, decided_at = ? WHERE id = ?",
+        ("accepted" if category_id in ids else "rejected", now_iso(), row["id"]),
+    )
 
 
 def stats(conn: sqlite3.Connection) -> dict[str, int]:

@@ -1,4 +1,5 @@
-{# Wiersz grupy kolejki: g, gid, open (treść od razu zamiast leniwego wczytania), error, month #}
+{# Wiersz grupy kolejki: g, gid, open (treść od razu zamiast leniwego wczytania), error, month,
+   pick (kategoria wybrana z podpowiedzi AI) #}
 {% set params = "kind=" ~ g.key.kind ~ "&value=" ~ (g.key.value | urlencode) ~ "&direction=" ~ g.key.direction ~ "&currency=" ~ g.key.currency ~ "&gid=" ~ gid ~ ("&month=" ~ month.strftime("%Y-%m") if month else "") %}
 <li id="{{ gid }}" class="rv-group">
   <details {% if open %}open{% else %}hx-get="{{ base }}/review/group?{{ params }}" hx-trigger="toggle once" hx-target="find .rv-body" hx-swap="innerHTML"{% endif %}>
@@ -6,6 +7,12 @@
       <span class="cat-name">{{ g.label }}</span>
       <span class="cat-amount">{{ g.total | money(g.key.currency) }}</span>
       <span class="cat-meta small muted">{{ g.count }} tr. · {{ g.first_day | pldate }}{% if g.last_day != g.first_day %} – {{ g.last_day | pldate }}{% endif %}{{ " · wpływ" if g.key.direction == "in" }}</span>
+      {% set cands = ai_candidates(g.key.value, g.key.direction) if g.key.kind == "merchant" else [] %}
+      {% if cands %}
+      <span class="rv-ai"><span class="small muted">AI:</span>
+        {% for c in cands %}<button type="button" class="chip {{ 'on' if pick == c.category.id }}" hx-get="{{ base }}/review/item?{{ params }}&pick={{ c.category.id }}" hx-target="#{{ gid }}" hx-swap="outerHTML" title="{{ c.label }} · pewność {{ '%.0f' | format(c.confidence * 100) }}%">{{ c.category.name }}</button>{% endfor %}
+      </span>
+      {% endif %}
     </summary>
     <div class="rv-body">{% if open %}{% include "_review_group.html" %}{% else %}<p class="muted small">wczytywanie…</p>{% endif %}</div>
   </details>

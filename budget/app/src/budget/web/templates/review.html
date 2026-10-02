@@ -15,6 +15,15 @@
 {% endif %}
 <section class="card rv-head">
   {% with queued = q.pending, oob = False %}{% include "_review_coverage.html" %}{% endwith %}
+  {% if ai_on %}
+  <form class="rv-ai-run" method="post" action="{{ base }}/review/ai-run" hx-boost="true" hx-disabled-elt="find button">
+    <input type="hidden" name="direction" value="{{ direction }}"><input type="hidden" name="sort" value="{{ sort }}">
+    {% if month %}<input type="hidden" name="month" value="{{ month.strftime('%Y-%m') }}">{% endif %}
+    <button type="submit" class="secondary">Podpowiedz teraz (AI)</button>
+    <span class="htmx-indicator muted small">pytam model…</span>
+    <span class="small muted">Do 3 propozycji kategorii pod nazwą sprzedawcy — dotknięcie wybiera kategorię, zapisujesz jak zwykle.</span>
+  </form>
+  {% endif %}
   <p class="small muted">Transakcje bez kategorii, w grupach. Kategoria dla grupy zapisuje regułę „sprzedawca równa się …” — kolejne transakcje skategoryzują się same. „Tylko te transakcje” albo odznaczenie pozycji ustawia kategorię ręcznie, bez reguły.</p>
 </section>
 

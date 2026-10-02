@@ -15,6 +15,7 @@ from budget import __version__, review
 from budget.logging_utils import mask_iban
 from budget.service import Service
 from budget.spending import month_label
+from budget.suggest import engine as suggest
 
 HERE = Path(__file__).parent
 KIND_LABELS = {
@@ -91,7 +92,14 @@ class Panel:
         t.env.globals["kind_labels"] = KIND_LABELS
         t.env.globals["account_kinds"] = ACCOUNT_KINDS
         t.env.globals["month_label"] = month_label
+        t.env.globals["ai_candidates"] = self.ai_candidates
         self.templates = t
+
+    def ai_candidates(self, merchant: str | None, direction: str) -> list[suggest.Candidate]:
+        """Kandydaci kategorii z AI dla sprzedawcy (pusto, gdy AI wyłączone albo brak)."""
+        if not merchant or not self.service.settings.ai_enabled:
+            return []
+        return suggest.candidates(self.conn, merchant, direction)
 
     @staticmethod
     def base(request: Request) -> str:

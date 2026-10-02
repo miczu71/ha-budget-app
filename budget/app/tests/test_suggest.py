@@ -144,7 +144,7 @@ async def test_run_stores_validated_answers(conn: sqlite3.Connection) -> None:
         out = []
         for it in items:
             cid = leaf if it.get("sprzedawca") == "Qwerty" else by_name[it["kierunek"]]
-            out.append({"i": it["i"], "category_id": cid, "confidence": 1.7})
+            out.append({"i": it["i"], "candidates": [{"category_id": cid, "confidence": 1.7}]})
         return out
 
     fake = Fake(answer)
@@ -166,15 +166,16 @@ async def test_run_stores_validated_answers(conn: sqlite3.Connection) -> None:
     # o te same grupy nie pytamy drugi raz
     again = await engine.run(conn, AI, TODAY, call=fake)
     assert again.calls == 0 and len(fake.prompts) == 1
-    sugg = engine.for_queue(conn)
-    assert set(sugg) == {("Qwerty", "out"), ("Firma Abc Sp Z O O", "in")}
-    assert sugg[("Qwerty", "out")].main.name == "Jedzenie"
+    [c] = engine.candidates(conn, "Qwerty", "out")
+    assert c.main.name == "Jedzenie" and c.label == "Jedzenie › Restauracje i kawiarnie"
+    assert engine.candidates(conn, "Jan Testowski", "out") == []  # „nie wiadomo”
+    assert engine.candidates(conn, "Qwerty", "in") == []
     assert engine.stats(conn) == {"pending": 2, "unknown": 1, "waiting": 0}
 
 
 async def test_run_missing_and_bad_answers_are_unknown(conn: sqlite3.Connection) -> None:
     _seed(conn)
-    bad = [{"i": 0, "category_id": 999, "confidence": 0.9}, {"i": "x"}]
+    bad = [{"i": 0, "candidates": [{"category_id": 999, "confidence": 0.9}]}, {"i": "x"}]
     res = await engine.run(conn, AI, TODAY, call=Fake(lambda items: bad))
     assert res.stored == 3
     assert (
@@ -218,17 +219,94 @@ async def test_evaluate_scores_against_known_categories(conn: sqlite3.Connection
 
     def answer(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return [
-            {"i": it["i"], "category_id": truth[it["sprzedawca"]], "confidence": 0.8}
+            {
+                "i": it["i"],
+                "candidates": [{"category_id": truth[it["sprzedawca"]], "confidence": 0.8}],
+            }
             for it in items
         ]
 
     fake = Fake(answer)
     out = await engine.evaluate(conn, AI, TODAY, call=fake)
     assert out["n"] == 2 and out["own"]["n"] == 1 and out["dictionary"]["n"] == 1
-    assert out["all"][0] == {"threshold": 0.0, "shown": 2, "leaf": 2, "main": 2}
+    assert out["all"][0] == {"threshold": 0.0, "shown": 2, "leaf": 2, "main": 2, "top": 2}
     assert out["all"][3]["shown"] == 0  # pewność 0,8 < 0,9
     assert db.kv_get(conn, engine.EVAL_KEY)["n"] == 2
     # mierzeni sprzedawcy nie są przykładami w prompcie
     assert "Qwerty →" not in fake.prompts[0] and "Lidl →" not in fake.prompts[0]
     with pytest.raises(AIError):
         await engine.evaluate(conn, Settings(), TODAY, call=fake)
+
+
+def test_parse_ranks_dedupes_and_validates(conn: sqlite3.Connection) -> None:
+    from budget.categorize import taxonomy
+
+    leaves = taxonomy.leaves(conn)
+    r, s, d, inc = (sid(conn, x) for x in ("restauracje", "spozywcze", "ogrod", "wynagrodzenie"))
+    g = engine.Group("Qwerty", "out")
+    result = {
+        "items": [
+            {
+                "i": 0,
+                "candidates": [
+                    {"category_id": s, "confidence": 0.3},
+                    {"category_id": r, "confidence": 0.6},
+                    {"category_id": s, "confidence": 0.5},  # powtórka — wyższa pewność
+                    {"category_id": inc, "confidence": 0.9},  # przychód dla wydatku
+                    {"category_id": 999, "confidence": 0.9},  # nie ma takiej
+                    {"category_id": d, "confidence": 0.1},
+                    {"category_id": "x"},
+                ],
+            }
+        ]
+    }
+    [a] = engine.parse(result, [g], leaves)
+    assert a.candidates == ((r, 0.6), (s, 0.5), (d, 0.1))
+    assert a.category_id == r and a.confidence == 0.6
+    [empty] = engine.parse({"items": []}, [g], leaves)
+    assert empty.candidates == () and empty.category_id is None
+
+
+async def test_decide_marks_accepted_or_rejected(conn: sqlite3.Connection) -> None:
+    _seed(conn)
+    r, s = sid(conn, "restauracje"), sid(conn, "spozywcze")
+
+    def answer(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {
+                "i": it["i"],
+                "candidates": [
+                    {"category_id": r, "confidence": 0.7},
+                    {"category_id": s, "confidence": 0.2},
+                ],
+            }
+            for it in items
+        ]
+
+    await engine.run(conn, AI, TODAY, call=Fake(answer))
+    assert [c.category.id for c in engine.candidates(conn, "Qwerty", "out")] == [r, s]
+    engine.decide(conn, "Qwerty", "out", s)  # drugi kandydat też się liczy
+    engine.decide(conn, "Firma Abc Sp Z O O", "in", sid(conn, "ogrod"))
+    engine.decide(conn, "Nieznany", "out", s)  # bez podpowiedzi — nic
+    status = dict(conn.execute("SELECT merchant, status FROM suggestion").fetchall())
+    assert status["Qwerty"] == "accepted" and status["Firma Abc Sp Z O O"] == "rejected"
+    assert engine.candidates(conn, "Qwerty", "out") == []  # zdecydowana — bez chipów
+    assert engine.stats(conn)["accepted"] == 1 and engine.stats(conn)["rejected"] == 1
+
+
+def test_score_counts_top_candidates(conn: sqlite3.Connection) -> None:
+    from budget.categorize import taxonomy
+
+    r, s = sid(conn, "restauracje"), sid(conn, "spozywcze")
+    g = engine.Group("Qwerty", "out")
+    g.known[r] += 1
+    g.sources["rule"] += 1
+    out = engine.score([engine.Answer(g, ((s, 0.8), (r, 0.4)))], taxonomy.all_categories(conn))
+    assert out["all"][0] == {"threshold": 0.0, "shown": 1, "leaf": 0, "main": 1, "top": 1}
+
+
+def test_migration_drops_pending_single_suggestions() -> None:
+    from budget.storage.db import migrations
+
+    names = [name for _, name, _ in migrations()]
+    assert names[-1] == "005_suggestion_candidates.sql"

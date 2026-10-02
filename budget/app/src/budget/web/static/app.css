@@ -220,6 +220,20 @@ td.date { white-space: nowrap; }
 .cat-chip.empty { color: var(--warn); border-style: dashed; }
 .cat-chip .src { color: var(--muted); font-size: 11px; margin-left: 6px; }
 .cat-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.rv-ai { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cat-form .rv-ai { flex-basis: 100%; }
+button.chip {
+  background: var(--bg);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-size: 13px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+button.chip.on { background: var(--accent); color: #fff; }
+.rv-ai-run { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 8px 0; }
 .cat-form select { max-width: 220px; }
 td.cat { min-width: 140px; }
 table.rules .actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }

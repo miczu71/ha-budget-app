@@ -116,16 +116,16 @@
   {% if ai.eval %}
   <h3>Trafność <span class="small muted">({{ ai.eval.model }}, {{ ai.eval.at | ts }}, {{ ai.eval.n }} sprzedawców z kategorią)</span></h3>
   <table class="ai-eval">
-    <thead><tr><th>pewność ≥</th><th>pokazane</th><th>podkategoria</th><th>kategoria główna</th></tr></thead>
+    <thead><tr><th>pewność ≥</th><th>pokazane</th><th>1. propozycja</th><th>wśród 3</th><th>kategoria główna</th></tr></thead>
     <tbody>
       {% for row in ai.eval.all %}
-      <tr><td>{{ "%.1f" | format(row.threshold) }}</td><td>{{ row.shown }}</td><td>{{ pct(row.leaf, row.shown) }}%</td><td>{{ pct(row.main, row.shown) }}%</td></tr>
+      <tr><td>{{ "%.1f" | format(row.threshold) }}</td><td>{{ row.shown }}</td><td>{{ pct(row.leaf, row.shown) }}%</td><td>{{ pct(row.top, row.shown) if row.top is defined else "—" }}{{ "%" if row.top is defined }}</td><td>{{ pct(row.main, row.shown) }}%</td></tr>
       {% endfor %}
     </tbody>
   </table>
   {% for name, part in (("Twoje kategorie (ręczne i reguły)", ai.eval.own), ("Słownik sieci", ai.eval.dictionary)) if part.n %}
   {% set row = part.rows[0] %}
-  <p class="small muted">{{ name }}: {{ part.n }} sprzedawców, podkategoria {{ pct(row.leaf, row.shown) }}%, kategoria główna {{ pct(row.main, row.shown) }}%.</p>
+  <p class="small muted">{{ name }}: {{ part.n }} sprzedawców, podkategoria {{ pct(row.leaf, row.shown) }}%{% if row.top is defined %} (wśród 3: {{ pct(row.top, row.shown) }}%){% endif %}, kategoria główna {{ pct(row.main, row.shown) }}%.</p>
   {% endfor %}
   {% endif %}
   {% endif %}

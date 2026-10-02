@@ -9,6 +9,10 @@
   </select>
   <button type="submit">Zapisz</button>
   <button type="button" class="secondary" hx-get="{{ url }}?cancel=1" hx-target="#cat-{{ t.id }}" hx-swap="innerHTML">Anuluj</button>
+  {% set cands = ai_candidates(t.merchant, "out" if t.amount.startswith("-") else "in") if not t.category_id else [] %}
+  {% if cands %}<span class="rv-ai"><span class="small muted">AI:</span>
+    {% for c in cands %}<button type="button" class="chip" title="{{ c.label }}" onclick="this.form.category_id.value='{{ c.category.id }}'; this.form.querySelectorAll('.chip').forEach(function (b) { b.classList.toggle('on', b === this); }, this)">{{ c.category.name }}</button>{% endfor %}
+  </span>{% endif %}
 </form>
 {% else %}
 <button type="button" class="cat-chip {{ 'empty' if not t.category_id }}" hx-get="{{ url }}" hx-target="#cat-{{ t.id }}" hx-swap="innerHTML" title="zmień kategorię">

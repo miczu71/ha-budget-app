@@ -59,7 +59,7 @@ def no_wait(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _answer(cid: int) -> httpx.Response:
-    content = {"items": [{"i": 0, "category_id": cid, "confidence": 0.9}]}
+    content = {"items": [{"i": 0, "candidates": [{"category_id": cid, "confidence": 0.9}]}]}
     return httpx.Response(
         200,
         json={
@@ -127,3 +127,121 @@ async def test_suggest_later_runs_in_background(ai_service: Service) -> None:
     assert ai_service._ai_task is not None
     await ai_service._ai_task
     assert calls == [1]
+
+
+def _suggest(service: Service, merchant: str, direction: str, *slugs: str) -> list[int]:
+    ids = [sid(service.conn, s) for s in slugs]
+    cands = [[cid, 0.9 - n / 10] for n, cid in enumerate(ids)]
+    service.conn.execute(
+        "INSERT INTO suggestion (merchant, direction, category_id, confidence, candidates, model, "
+        "created_at) VALUES (?, ?, ?, ?, ?, 'm', ?)",
+        (merchant, direction, ids[0], cands[0][1], json.dumps(cands), db.now_iso()),
+    )
+    return ids
+
+
+GROUP = {"kind": "merchant", "value": "Qwerty", "direction": "out", "currency": "PLN", "gid": "m1"}
+
+
+async def test_queue_chips_pick_and_assign(ai: httpx.AsyncClient, ai_service: Service) -> None:
+    r, s, o = _suggest(ai_service, "Qwerty", "out", "restauracje", "spozywcze", "ogrod")
+    page = (await ai.get("/review")).text
+    assert "Podpowiedz teraz (AI)" in page
+    assert page.count('class="chip ') == 3 and f"pick={r}" in page and f"pick={o}" in page
+    li = (await ai.get("/review/item", params={**GROUP, "pick": str(s)})).text
+    assert "<details open" in li and f'value="{s}" selected' in li
+    assert "Reguła" in li and "Spożywcze" in li  # gotowy podgląd
+    assert 'class="chip on"' in li  # wybrana propozycja wyróżniona
+    # zapis inną kategorią → podpowiedź odrzucona; chipów już nie ma
+    txn = ai_service.conn.execute("SELECT id FROM txn").fetchone()["id"]
+    await ai.post(
+        "/review/assign",
+        data={**GROUP, "category_id": str(sid(ai_service.conn, "kultura")), "txn": [str(txn)]},
+    )
+    status = ai_service.conn.execute("SELECT status FROM suggestion").fetchone()["status"]
+    assert status == "rejected"
+    assert "1 odrzuconych" in (await ai.get("/")).text
+
+
+async def test_assign_with_candidate_is_accepted(
+    ai: httpx.AsyncClient, ai_service: Service
+) -> None:
+    _, s, _ = _suggest(ai_service, "Qwerty", "out", "restauracje", "spozywcze", "ogrod")
+    txn = ai_service.conn.execute("SELECT id FROM txn").fetchone()["id"]
+    await ai.post("/review/assign", data={**GROUP, "category_id": str(s), "txn": [str(txn)]})
+    assert (
+        ai_service.conn.execute("SELECT status FROM suggestion").fetchone()["status"] == "accepted"
+    )
+
+
+async def test_chips_hidden_when_ai_disabled(service: Service) -> None:
+    service.conn.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (1, 'current', 'PLN', ?)",
+        (db.now_iso(),),
+    )
+    add(service.conn, "-30.00", "card", "QWERTY 12 XYZ POL 2026-09-01", day="2026-09-01")
+    categorize.recategorize(service.conn)
+    _suggest(service, "Qwerty", "out", "restauracje")
+    async with _client(service) as c:
+        page = (await c.get("/review")).text
+    assert "Qwerty" in page and 'class="chip' not in page and "Podpowiedz teraz" not in page
+
+
+async def test_transaction_form_chips(ai: httpx.AsyncClient, ai_service: Service) -> None:
+    r, s = _suggest(ai_service, "Qwerty", "out", "restauracje", "spozywcze")
+    txn = ai_service.conn.execute("SELECT id FROM txn").fetchone()["id"]
+    form = (await ai.get(f"/transactions/{txn}/category")).text
+    assert form.count('class="chip"') == 2 and f"category_id.value='{r}'" in form
+    # transakcja z kategorią — bez propozycji
+    await ai.post(f"/transactions/{txn}/category", data={"category_id": str(s)})
+    form = (await ai.get(f"/transactions/{txn}/category")).text
+    assert 'class="chip"' not in form
+
+
+async def test_country_group_shows_candidates_as_text(
+    ai: httpx.AsyncClient, ai_service: Service
+) -> None:
+    add(ai_service.conn, "-80.00", "card", "ZXCVB 1 XYZ CHE 2026-09-10", day="2026-09-10")
+    categorize.recategorize(ai_service.conn)
+    _suggest(ai_service, "Zxcvb", "out", "noclegi", "restauracje")
+    body = (
+        await ai.get(
+            "/review/group",
+            params={
+                "kind": "country",
+                "value": "CHE",
+                "direction": "out",
+                "currency": "PLN",
+                "gid": "c1",
+            },
+        )
+    ).text
+    assert "AI: Noclegi, Restauracje i kawiarnie" in body and 'class="chip' not in body
+
+
+@respx.mock
+async def test_review_run_now(ai: httpx.AsyncClient, ai_service: Service) -> None:
+    content = {
+        "items": [
+            {
+                "i": 0,
+                "candidates": [
+                    {"category_id": sid(ai_service.conn, "restauracje"), "confidence": 0.8},
+                    {"category_id": sid(ai_service.conn, "spozywcze"), "confidence": 0.4},
+                ],
+            }
+        ]
+    }
+    respx.post(f"{ROUTER}/chat/completions").mock(
+        return_value=httpx.Response(
+            200, json={"choices": [{"message": {"content": json.dumps(content)}}], "usage": {}}
+        )
+    )
+    r = await ai.post(
+        "/review/ai-run", data={"direction": "out", "sort": "count", "month": "2026-09"}
+    )
+    assert r.status_code == 303 and r.headers["location"].endswith(
+        "/review?direction=out&sort=count&month=2026-09"
+    )
+    page = (await ai.get("/review?month=2026-09")).text
+    assert "zapisanych 1, bez podpowiedzi zostało 0" in page and page.count('class="chip ') == 2
