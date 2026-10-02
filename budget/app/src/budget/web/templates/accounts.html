@@ -3,9 +3,9 @@
 <h1>Konta</h1>
 {% for a in rep.accounts %}
 <section class="card">
-  <h2>#{{ a.id }} {{ a.display_name or a.kind }}</h2>
+  <h2>#{{ a.id }} {{ a.display_name or account_kinds.get(a.kind, a.kind) }}</h2>
   <dl class="kv">
-    <dt>Rodzaj</dt><dd>{{ {"current": "rachunek", "card": "karta kredytowa", "fx": "rachunek walutowy", "savings": "oszczędnościowe"}.get(a.kind, a.kind) }}</dd>
+    <dt>Rodzaj</dt><dd>{{ account_kinds.get(a.kind, a.kind) }}</dd>
     <dt>Waluta</dt><dd>{{ a.currency }}</dd>
     <dt>Numer</dt><dd>{{ a.iban_masked or "—" }}</dd>
     <dt>Transakcje</dt><dd>{% for s in a.sources %}{{ "API" if s.source == "eb" else "CSV" }} {{ s.count }}{{ ", " if not loop.last }}{% else %}0{% endfor %}</dd>

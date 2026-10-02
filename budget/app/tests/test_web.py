@@ -19,7 +19,7 @@ from budget.ha_client import HAClient
 from budget.service import Service
 from budget.settings import Settings
 from budget.storage import db
-from budget.web.app import create_app, fmt_money
+from budget.web.app import create_app, fmt_date, fmt_money
 
 from .conftest import BASE
 
@@ -66,6 +66,12 @@ def test_fmt_money() -> None:
     assert fmt_money("0", "EUR") == "0,00 €"
     assert fmt_money("1000000", "USD") == "1 000 000,00 USD"
     assert fmt_money(None) == "—"
+
+
+def test_fmt_date() -> None:
+    assert fmt_date("2026-10-01") == "01.10.2026"
+    assert fmt_date(None) == "—"
+    assert fmt_date("zła") == "zła"
 
 
 async def test_allowlist(service: Service) -> None:

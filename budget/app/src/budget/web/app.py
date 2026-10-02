@@ -52,6 +52,15 @@ KIND_LABELS = {
 }
 
 
+ACCOUNT_KINDS = {
+    "current": "rachunek",
+    "card": "karta kredytowa",
+    "fx": "rachunek walutowy",
+    "savings": "oszczędnościowe",
+    "other": "inne",
+}
+
+
 def fmt_money(value: Any, currency: str | None = None) -> str:
     """`-1234.5` → `−1 234,50 zł` (polski zapis, twarde spacje)."""
     try:
@@ -72,6 +81,16 @@ def fmt_ts(value: str | None, tz: Any) -> str:
     if not value:
         return "—"
     return datetime.fromisoformat(value).astimezone(tz).strftime("%d.%m %H:%M")
+
+
+def fmt_date(value: str | None) -> str:
+    """`2026-10-01` → `01.10.2026`."""
+    if not value:
+        return "—"
+    try:
+        return date.fromisoformat(value[:10]).strftime("%d.%m.%Y")
+    except ValueError:
+        return value
 
 
 def psu_from_request(request: Request) -> PsuHeaders:
@@ -95,8 +114,10 @@ def create_app(service: Service, *, dev: bool = False) -> FastAPI:
     templates.env.filters["money"] = fmt_money
     templates.env.filters["ts"] = lambda v: fmt_ts(v, service.tz)
     templates.env.filters["iban"] = mask_iban
+    templates.env.filters["pldate"] = fmt_date
     templates.env.globals["version"] = __version__
     templates.env.globals["kind_labels"] = KIND_LABELS
+    templates.env.globals["account_kinds"] = ACCOUNT_KINDS
     flash: list[tuple[str, str]] = []  # jeden użytkownik — komunikat do następnego widoku
 
     @app.middleware("http")

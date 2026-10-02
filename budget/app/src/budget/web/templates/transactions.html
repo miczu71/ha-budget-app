@@ -7,7 +7,7 @@
     <label>Konto
       <select name="account">
         <option value="">wszystkie</option>
-        {% for a in accounts %}<option value="{{ a.id }}" {{ "selected" if f.account == a.id }}>#{{ a.id }} {{ a.display_name or a.kind }}</option>{% endfor %}
+        {% for a in accounts %}<option value="{{ a.id }}" {{ "selected" if f.account == a.id }}>#{{ a.id }} {{ a.display_name or account_kinds.get(a.kind, a.kind) }}</option>{% endfor %}
       </select>
     </label>
     <label>Od<input type="date" name="date_from" value="{{ f.date_from }}"></label>
@@ -29,11 +29,11 @@
     <tbody>
     {% for t in rows %}
       <tr>
-        <td class="date">{{ t.booking_date }}</td>
+        <td class="date">{{ t.booking_date | pldate }}</td>
         <td class="tx-desc">{{ t.counterparty_name or "" }}{% if t.counterparty_name and t.description %} · {% endif %}<span class="{{ 'muted' if t.counterparty_name }}">{{ t.description }}</span></td>
         <td class="num {{ 'neg' if t.amount.startswith('-') else 'pos' }}">{{ t.amount | money(t.currency) }}</td>
         <td class="meta small">
-          {{ t.display_name or t.account_kind }} · {{ kind_labels.get(t.kind, t.kind) }}
+          {{ t.display_name or account_kinds.get(t.account_kind, t.account_kind) }} · {{ kind_labels.get(t.kind, t.kind) }}
           {% if t.orig_currency and t.orig_currency != t.currency %} · {{ t.orig_amount | money(t.orig_currency) }}{% endif %}
           <span class="flags">
           {% if t.transfer_group %}<span class="badge" title="przelew między własnymi kontami">przelew własny</span>{% endif %}

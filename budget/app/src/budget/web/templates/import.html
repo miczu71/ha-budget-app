@@ -15,6 +15,7 @@
 <section class="card">
   <h2>Nieprzypisane numery kart</h2>
   <p class="small muted">Automat przypisuje numer, gdy co najmniej 3 transakcje zgadzają się z API karty. Jeśli historia z API jeszcze nie istnieje, przypisz ręcznie:</p>
+  {% if cards %}
   {% for n in unmapped %}
   <form class="inline" method="post" action="{{ base }}/import/map" hx-boost="false" style="margin-bottom:8px">
     <input type="hidden" name="number" value="{{ n.number }}">
@@ -22,9 +23,12 @@
     <select name="account_id" required>
       {% for c in cards %}<option value="{{ c.id }}">#{{ c.id }} {{ c.display_name or c.product or "karta" }}</option>{% endfor %}
     </select>
-    <button type="submit" {{ "disabled" if not cards }}>Przypisz</button>
+    <button type="submit">Przypisz</button>
   </form>
   {% endfor %}
+  {% else %}
+  <p class="small">{% for n in unmapped %}karta {{ n.masked }} · {{ n.rows }} wierszy{{ "; " if not loop.last }}{% endfor %}</p>
+  {% endif %}
   {% if not cards %}<p class="small muted">Brak konta karty — najpierw przenieś sesję albo połącz bank.</p>{% endif %}
 </section>
 {% endif %}
@@ -36,9 +40,9 @@
     <tbody>
     {% for a in rep.accounts %}
       {% for s in a.sources %}
-      <tr><td>#{{ a.id }} {{ a.display_name or a.kind }} {{ a.currency }}</td><td>{{ "API" if s.source == "eb" else "CSV" }}</td><td class="num">{{ s.count }}</td><td class="small">{{ s.first }} … {{ s.last }}</td></tr>
+      <tr><td>#{{ a.id }} {{ a.display_name or account_kinds.get(a.kind, a.kind) }} {{ a.currency }}</td><td>{{ "API" if s.source == "eb" else "CSV" }}</td><td class="num">{{ s.count }}</td><td class="small date">{{ s.first | pldate }} – {{ s.last | pldate }}</td></tr>
       {% else %}
-      <tr><td>#{{ a.id }} {{ a.display_name or a.kind }} {{ a.currency }}</td><td colspan="3" class="muted">brak transakcji</td></tr>
+      <tr><td>#{{ a.id }} {{ a.display_name or account_kinds.get(a.kind, a.kind) }} {{ a.currency }}</td><td colspan="3" class="muted">brak transakcji</td></tr>
       {% endfor %}
     {% endfor %}
     </tbody>
