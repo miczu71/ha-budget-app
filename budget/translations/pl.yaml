@@ -27,5 +27,19 @@ configuration:
     name: Waluta budżetu
   month_start_day:
     name: Pierwszy dzień miesiąca budżetowego
+  ai_base_url:
+    name: Podpowiedzi AI — adres routera
+    description: >-
+      Adres API zgodnego z OpenAI, np. http://<host>:3003/v1 (freellmapi). Puste = podpowiedzi
+      wyłączone. Wysyłane są tylko nazwa sprzedawcy i opis płatności kartą/BLIK oraz tytuły
+      przelewów (bez nazwy odbiorcy), kwota jako przedział — szczegóły w dokumentacji.
+  ai_api_key:
+    name: Podpowiedzi AI — klucz API
+  ai_model:
+    name: Podpowiedzi AI — model
+    description: Nazwany model (np. gemini-3.1-flash-lite); „auto” routera nie obsługuje odpowiedzi według schematu.
+  ai_daily_calls:
+    name: Podpowiedzi AI — limit wywołań na dobę
+    description: Jedno wywołanie obejmuje do 40 sprzedawców. 0 = bez wywołań.
   log_level:
     name: Poziom logów

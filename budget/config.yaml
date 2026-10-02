@@ -1,5 +1,5 @@
 name: "Budżet Domowy"
-version: "0.3.1"
+version: "0.4.0"
 slug: budget
 description: "Budżet domowy z automatycznym pobieraniem transakcji z banku (PSD2 / Enable Banking)"
 url: "https://github.com/miczu71/ha-budget-app"
@@ -31,6 +31,10 @@ options:
   consent_warning_days: 14
   currency: "PLN"
   month_start_day: 1
+  ai_base_url: ""
+  ai_api_key: ""
+  ai_model: "gemini-3.1-flash-lite"
+  ai_daily_calls: 20
   log_level: info
 schema:
   eb_application_id: str?
@@ -43,4 +47,8 @@ schema:
   consent_warning_days: "int(1,60)"
   currency: str
   month_start_day: "int(1,28)"
+  ai_base_url: "match(^(https?://\\S+)?$)?"
+  ai_api_key: password?
+  ai_model: str?
+  ai_daily_calls: "int(0,500)"
   log_level: "list(debug|info|warning|error)"

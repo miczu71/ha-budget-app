@@ -10,6 +10,9 @@ from fastapi.responses import HTMLResponse, Response
 from budget import ledger, report, sessions, sync_service
 from budget.eb_client import PsuHeaders
 from budget.service import ServiceError
+from budget.storage import db
+from budget.suggest import engine as suggest
+from budget.suggest.client import AIError
 from budget.web.common import Panel
 
 
@@ -56,6 +59,19 @@ def router(panel: Panel) -> APIRouter:
             "missing": service.missing_config(),
             "manual_needed": service.manual_sync_needed(),
             "busy": service.lock.locked(),
+            "ai": ai_context(),
+        }
+
+    def ai_context() -> dict[str, Any]:
+        s = service.settings
+        return {
+            "enabled": s.ai_enabled,
+            "model": s.ai_model,
+            "limit": s.ai_daily_calls,
+            "usage": suggest.usage(conn, service.now().date()),
+            "stats": suggest.stats(conn) if s.ai_enabled else {},
+            "eval": db.kv_get(conn, suggest.EVAL_KEY),
+            "busy": service.ai_lock.locked(),
         }
 
     @r.get("/", response_class=HTMLResponse)
@@ -75,5 +91,28 @@ def router(panel: Panel) -> APIRouter:
         if result.detail:
             text += f" — {result.detail}"
         return panel.redirect(request, "/", text, level)
+
+    @r.post("/ai/run")
+    async def ai_run(request: Request) -> Response:
+        if not service.settings.ai_enabled:
+            return panel.redirect(request, "/", "Podpowiedzi AI są wyłączone.", "warn")
+        if service.ai_lock.locked():
+            return panel.redirect(request, "/", "Podpowiedzi AI już się liczą.", "warn")
+        res = await service.suggest()
+        text = f"Podpowiedzi AI: wywołań {res.calls}, zapisanych {res.stored}, czeka {res.waiting}"
+        if res.error:
+            return panel.redirect(request, "/", f"{text} — {res.error}", "error")
+        return panel.redirect(request, "/", text, "ok" if res.calls else "warn")
+
+    @r.post("/ai/eval")
+    async def ai_eval(request: Request) -> Response:
+        if service.ai_lock.locked():
+            return panel.redirect(request, "/", "Podpowiedzi AI już się liczą.", "warn")
+        try:
+            async with service.ai_lock:
+                out = await suggest.evaluate(conn, service.settings, service.now().date())
+        except AIError as exc:
+            return panel.redirect(request, "/", f"Pomiar trafności: {exc}", "error")
+        return panel.redirect(request, "/", f"Pomiar trafności: {out['n']} sprzedawców", "ok")
 
     return r

@@ -36,7 +36,8 @@ SORTS: tuple[Sort, ...] = ("amount", "count")
 NO_NAME = "(bez nazwy)"
 REGULAR_MONTHS = 3
 
-_WHERE = (
+# Transakcje czekające na kategorię (alias `t` dla txn, `a` dla account) — też `budget.suggest`
+PENDING_WHERE = (
     "t.status = 'BOOK' AND t.transfer_group IS NULL AND t.category_id IS NULL "
     "AND a.include_in_budget = 1"
 )
@@ -111,7 +112,7 @@ def _items(conn: sqlite3.Connection) -> Iterable[tuple[sqlite3.Row, Item]]:
     rows = conn.execute(
         "SELECT t.id, coalesce(t.tx_date, t.booking_date) AS day, t.amount, t.currency, "
         "t.merchant, t.description, t.account_id, t.kind, t.orig_currency "
-        f"FROM txn t JOIN account a ON a.id = t.account_id WHERE {_WHERE} "
+        f"FROM txn t JOIN account a ON a.id = t.account_id WHERE {PENDING_WHERE} "
         "ORDER BY day DESC, t.id DESC"
     )
     for r in rows:
@@ -195,6 +196,6 @@ def group(conn: sqlite3.Connection, key: GroupKey, month: date | None = None) ->
 def pending_count(conn: sqlite3.Connection) -> int:
     """Liczba transakcji do przejrzenia (nawigacja panelu, podsumowania M6)."""
     row = conn.execute(
-        f"SELECT count(*) FROM txn t JOIN account a ON a.id = t.account_id WHERE {_WHERE}"
+        f"SELECT count(*) FROM txn t JOIN account a ON a.id = t.account_id WHERE {PENDING_WHERE}"
     ).fetchone()
     return int(row[0])

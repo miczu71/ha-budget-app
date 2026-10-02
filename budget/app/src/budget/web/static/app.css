@@ -123,6 +123,10 @@ button, .button {
   display: inline-block;
 }
 button.secondary { background: var(--line); color: var(--text); }
+.ai-actions { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0 4px; }
+.ai-actions form { display: flex; align-items: center; gap: 8px; }
+.ai-card h3 { font-size: 15px; margin: 16px 0 6px; }
+table.ai-eval td:not(:first-child), table.ai-eval th:not(:first-child) { text-align: right; }
 button:disabled, .htmx-request button { opacity: 0.6; cursor: progress; }
 .htmx-indicator { display: none; }
 .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline; }

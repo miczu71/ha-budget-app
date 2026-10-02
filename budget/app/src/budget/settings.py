@@ -44,6 +44,10 @@ class Settings(BaseModel):
     notify_service: str | None = None  # alias osoby, np. notify.<osoba>
     aspsp_name: str = "Bank Millennium"
     aspsp_country: str = "PL"
+    ai_base_url: str | None = None  # router OpenAI-compatible (np. freellmapi); None = wyłączone
+    ai_api_key: str | None = None
+    ai_model: str = "gemini-3.1-flash-lite"
+    ai_daily_calls: int = Field(default=20, ge=0, le=500)
     dev: bool = False  # tylko env: panel bez allowlisty Ingress (lokalne testy)
     config_dir: Path = Path("/config")
     data_dir: Path = Path("/data")
@@ -71,12 +75,35 @@ class Settings(BaseModel):
             raise ValueError(f"notify_service: oczekiwane notify.<nazwa>, a jest {value!r}")
         return value
 
-    @field_validator("eb_application_id", "eb_redirect_url", "notify_service", mode="before")
+    @field_validator(
+        "eb_application_id",
+        "eb_redirect_url",
+        "notify_service",
+        "ai_base_url",
+        "ai_api_key",
+        mode="before",
+    )
     @classmethod
     def _blank_is_none(cls, value: Any) -> Any:
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @field_validator("ai_model", mode="before")
+    @classmethod
+    def _default_model(cls, value: Any) -> Any:
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return "gemini-3.1-flash-lite"
+        return value
+
+    @field_validator("ai_base_url")
+    @classmethod
+    def _strip_slash(cls, value: str | None) -> str | None:
+        return value.rstrip("/") if value else value
+
+    @property
+    def ai_enabled(self) -> bool:
+        return bool(self.ai_base_url)
 
     @property
     def db_path(self) -> Path:

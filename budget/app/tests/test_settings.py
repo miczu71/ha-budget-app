@@ -124,3 +124,23 @@ def test_notify_service_and_paths(tmp_path: Path) -> None:
 def test_invalid_notify_service(tmp_path: Path, value: str) -> None:
     with pytest.raises(SettingsError, match="notify_service"):
         load_settings({"BUDGET_OPTIONS_PATH": str(_options(tmp_path, notify_service=value))})
+
+
+def test_ai_options(tmp_path: Path) -> None:
+    off = load_settings(
+        {"BUDGET_OPTIONS_PATH": str(_options(tmp_path, ai_base_url="", ai_api_key="", ai_model=""))}
+    )
+    assert not off.ai_enabled and off.ai_api_key is None
+    assert off.ai_model == "gemini-3.1-flash-lite" and off.ai_daily_calls == 20
+    on = load_settings(
+        {
+            "BUDGET_OPTIONS_PATH": str(
+                _options(
+                    tmp_path, ai_base_url="http://r:3003/v1/", ai_api_key="k", ai_daily_calls=7
+                )
+            )
+        }
+    )
+    assert on.ai_enabled and on.ai_base_url == "http://r:3003/v1" and on.ai_daily_calls == 7
+    with pytest.raises(SettingsError):
+        load_settings({"BUDGET_OPTIONS_PATH": str(_options(tmp_path, ai_daily_calls=501))})

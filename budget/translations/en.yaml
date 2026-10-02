@@ -27,5 +27,19 @@ configuration:
     name: Budget currency
   month_start_day:
     name: First day of the budget month
+  ai_base_url:
+    name: AI suggestions — router URL
+    description: >-
+      OpenAI-compatible API URL, e.g. http://<host>:3003/v1 (freellmapi). Empty = suggestions
+      off. Only merchant name and description of card/BLIK payments and transfer titles
+      (without the recipient name) are sent, amount as a range — see the documentation.
+  ai_api_key:
+    name: AI suggestions — API key
+  ai_model:
+    name: AI suggestions — model
+    description: A named model (e.g. gemini-3.1-flash-lite); the router's "auto" does not support schema-constrained responses.
+  ai_daily_calls:
+    name: AI suggestions — daily call limit
+    description: One call covers up to 40 merchants. 0 = no calls.
   log_level:
     name: Log level

@@ -9,6 +9,7 @@ _IBAN_RE = re.compile(r"\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]){11,30}\b")
 _JWT_RE = re.compile(r"\beyJ[\w-]+\.[\w-]+\.[\w-]+")
 _BEARER_RE = re.compile(r"(Bearer\s+)\S+", re.IGNORECASE)
 _CODE_RE = re.compile(r"((?:[?&]|\b)code=)[^&\s\"']+")
+_API_KEY_RE = re.compile(r"\b(sk|freellmapi)-[\w-]{12,}")
 
 
 def mask_iban(iban: str | None) -> str:
@@ -25,6 +26,7 @@ def redact(text: str) -> str:
     text = _BEARER_RE.sub(r"\1***", text)
     text = _JWT_RE.sub("***jwt***", text)
     text = _CODE_RE.sub(r"\1***", text)
+    text = _API_KEY_RE.sub(r"\1-***", text)
     return _IBAN_RE.sub(lambda m: mask_iban(m.group(0)), text)
 
 

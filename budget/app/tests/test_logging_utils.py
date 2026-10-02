@@ -36,6 +36,11 @@ def test_redact_secrets() -> None:
     assert "state=s1" in out
 
 
+def test_redact_ai_keys() -> None:
+    out = redact("klucz freellmapi-0123456789abcdef0123 i sk-ant-api03-abcdefghijklmnop koniec")
+    assert out == "klucz freellmapi-*** i sk-*** koniec"
+
+
 def test_filter_applies_to_args(caplog: pytest.LogCaptureFixture) -> None:
     logger = logging.getLogger("test.redact")
     logger.addFilter(RedactingFilter())

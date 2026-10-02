@@ -17,6 +17,7 @@ from budget import ha_publisher, notifications, sessions, sync_service
 from budget.eb_client import EBClient, EBError, PsuHeaders
 from budget.ha_client import HAClient
 from budget.settings import Settings, SettingsError, resolve_private_key_path
+from budget.suggest import engine as suggest
 from budget.sync_service import SyncResult
 
 log = logging.getLogger(__name__)
@@ -46,6 +47,8 @@ class Service:
         self.notifier = notifications.Notifier(ha, notify_service=settings.notify_service)
         self.lock = asyncio.Lock()
         self.last_result: SyncResult | None = None
+        self.ai_lock = asyncio.Lock()
+        self._ai_task: asyncio.Task[None] | None = None
         self._eb_base_url = eb_base_url or settings.eb_base_url
 
     # --- Enable Banking ---------------------------------------------------------------------
@@ -83,7 +86,27 @@ class Service:
             )
         self.last_result = result
         await self.refresh()
+        self.suggest_later()
         return result
+
+    # --- podpowiedzi AI (M4c) -----------------------------------------------------------------
+
+    async def suggest(self) -> suggest.RunResult:
+        """Podpowiedzi dla kolejki (jeden przebieg naraz)."""
+        async with self.ai_lock:
+            return await suggest.run(self.conn, self.settings, self.now().date())
+
+    async def _suggest_quietly(self) -> None:
+        try:
+            await self.suggest()
+        except Exception:  # podpowiedzi nie mogą zatrzymać add-onu
+            log.exception("Nieoczekiwany błąd podpowiedzi AI")
+
+    def suggest_later(self) -> None:
+        """Przebieg w tle po synchronizacji — odpowiedź panelu nie czeka na router AI."""
+        if not self.settings.ai_enabled or (self._ai_task and not self._ai_task.done()):
+            return
+        self._ai_task = asyncio.create_task(self._suggest_quietly())
 
     async def sync_from_button(self) -> None:
         """Przycisk w HA: bez danych użytkownika (PSU), więc w ramach limitu dziennego."""

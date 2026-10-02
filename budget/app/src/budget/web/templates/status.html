@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% macro pct(a, b) %}{{ "%.0f" | format(100 * a / b) if b else "—" }}{% endmacro %}
 {% block content %}
 <h1>Status</h1>
 
@@ -86,6 +87,48 @@
   {% else %}
   <p class="muted">brak kont</p>
   {% endfor %}
+</section>
+
+<section class="card ai-card">
+  <h2>Podpowiedzi AI</h2>
+  {% if not ai.enabled %}
+  <p class="muted">Wyłączone — ustaw adres routera (opcja <code>ai_base_url</code>) i klucz w konfiguracji add-onu.</p>
+  {% else %}
+  <dl class="kv">
+    <dt>Model</dt><dd>{{ ai.model }}</dd>
+    <dt>Wywołania dziś</dt><dd>{{ ai.usage.calls or 0 }} / {{ ai.limit }}{% if ai.usage.tokens %} <span class="small muted">({{ ai.usage.tokens }} tokenów)</span>{% endif %}</dd>
+    <dt>Podpowiedzi</dt><dd>{{ ai.stats.pending or 0 }} czeka na decyzję · {{ ai.stats.unknown or 0 }} „nie wiadomo” · {{ ai.stats.accepted or 0 }} przyjętych · {{ ai.stats.rejected or 0 }} odrzuconych</dd>
+    <dt>Bez podpowiedzi</dt><dd>{{ ai.stats.waiting or 0 }} sprzedawców w kolejce</dd>
+    {% if ai.usage.last_ok_at %}<dt>Ostatnio OK</dt><dd>{{ ai.usage.last_ok_at | ts }}</dd>{% endif %}
+    {% if ai.usage.last_error %}<dt>Ostatni błąd</dt><dd><span class="small neg">{{ ai.usage.last_error }}</span> <span class="small muted">{{ ai.usage.last_error_at | ts }}</span></dd>{% endif %}
+  </dl>
+  <div class="ai-actions">
+    <form method="post" action="{{ base }}/ai/run" hx-boost="true" hx-disabled-elt="find button">
+      <button type="submit" {{ "disabled" if ai.busy }}>Podpowiedz teraz</button>
+      <span class="htmx-indicator muted small">pytam model…</span>
+    </form>
+    <form method="post" action="{{ base }}/ai/eval" hx-boost="true" hx-disabled-elt="find button">
+      <button type="submit" class="secondary" {{ "disabled" if ai.busy }}>Zmierz trafność</button>
+      <span class="htmx-indicator muted small">mierzę…</span>
+    </form>
+  </div>
+  <p class="small muted">Do modelu trafiają tylko: nazwa sprzedawcy i opis płatności kartą/BLIK, tytuły przelewów bez nazwy odbiorcy, kwota jako przedział oraz Twoje kategorie. Podpowiedzi liczą się w tle po każdej synchronizacji (do 3 wywołań, w limicie dobowym).</p>
+  {% if ai.eval %}
+  <h3>Trafność <span class="small muted">({{ ai.eval.model }}, {{ ai.eval.at | ts }}, {{ ai.eval.n }} sprzedawców z kategorią)</span></h3>
+  <table class="ai-eval">
+    <thead><tr><th>pewność ≥</th><th>pokazane</th><th>podkategoria</th><th>kategoria główna</th></tr></thead>
+    <tbody>
+      {% for row in ai.eval.all %}
+      <tr><td>{{ "%.1f" | format(row.threshold) }}</td><td>{{ row.shown }}</td><td>{{ pct(row.leaf, row.shown) }}%</td><td>{{ pct(row.main, row.shown) }}%</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% for name, part in (("Twoje kategorie (ręczne i reguły)", ai.eval.own), ("Słownik sieci", ai.eval.dictionary)) if part.n %}
+  {% set row = part.rows[0] %}
+  <p class="small muted">{{ name }}: {{ part.n }} sprzedawców, podkategoria {{ pct(row.leaf, row.shown) }}%, kategoria główna {{ pct(row.main, row.shown) }}%.</p>
+  {% endfor %}
+  {% endif %}
+  {% endif %}
 </section>
 
 <section class="card">
