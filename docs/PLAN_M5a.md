@@ -101,3 +101,15 @@ Stop, zrzut ekranu „Budżet” (telefon) + stan encji, bez startu kolejnego et
 - Podpowiedź mediany obejmuje miesiące z wyjazdem/słabszym pokryciem — pokazana z listą miesięcy,
   user wybiera kwotę sam.
 - Dane w repo publicznym: tylko syntetyczne; hook pre-commit skanuje każdy commit.
+
+## Wynik etapu 1 (0.7.0, 2026-10-02)
+
+- Wydane jako GitHub release v0.7.0, zainstalowane przez Supervisor; Ingress: plakietka v0.7.0,
+  `app.css?v=0.7.0`, `no-store`, 0 błędów konsoli, zrzut mobilny (390 px).
+- Odstępstwo od planu: przyciski „Ustaw/Zmień od tego miesiąca” i „obowiązuje od miesiąca: …”
+  zamiast odmiany nazw miesięcy (lista nazw w dopełniaczu blokowała skaner pre-commit).
+- Historia w karcie „Kwota budżetu” pokazuje „w tym bez kategorii” per miesiąc — przy obecnym
+  pokryciu podpowiedź (mediana) jest wyraźnie wyższa niż suma median podkategorii, bo wydatki bez
+  kategorii (głównie przelewy do osób) liczą się do „wydane” (decyzja 13). Do omówienia na
+  checkpoincie.
+- Kwota budżetu na żywo nieustawiona — decyzja użytkownika.
