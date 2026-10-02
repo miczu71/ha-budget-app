@@ -4,8 +4,17 @@ Budżet domowy liczony lokalnie w Home Assistant z transakcji pobieranych automa
 (PSD2 przez [Enable Banking](https://enablebanking.com), tryb Restricted Production — tylko
 własne, podlinkowane rachunki). Tylko odczyt (AIS), żadnych płatności.
 
-> **Status: w budowie.** Add-on nie jest jeszcze instalowalny. Plan i postęp:
-> [`docs/ROADMAP.md`](docs/ROADMAP.md), specyfikacja: [`docs/SPEC.md`](docs/SPEC.md).
+> **Status:** wersja 0.1.0 (etap M3) — synchronizacja z bankiem, panel i encje w HA.
+> Kategoryzacja i budżet w kolejnych etapach: [`docs/ROADMAP.md`](docs/ROADMAP.md),
+> specyfikacja: [`docs/SPEC.md`](docs/SPEC.md).
+
+## Instalacja
+
+Ustawienia → Dodatki → Sklep z dodatkami → ⋮ → Repozytoria → dodaj
+`https://github.com/miczu71/ha-budget-app`, zainstaluj **Budżet Domowy**. Konfiguracja,
+pierwsze uruchomienie, limit zapytań banku i encje: [`budget/DOCS.md`](budget/DOCS.md).
+
+> Kopia zapasowa Home Assistant zawiera bazę add-onu, czyli Twoje dane finansowe.
 
 ## Rozwój
 
@@ -15,6 +24,16 @@ python3.12 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
 ruff check . && ruff format --check . && mypy && pytest
 ```
+
+Panel lokalnie (bez Supervisora, allowlista Ingress wyłączona):
+
+```bash
+env -u SUPERVISOR_TOKEN BUDGET_OPTIONS_PATH=/nonexistent BUDGET_ENV_FILE=~/budget_dev/.env \
+  BUDGET_DATA_DIR=/tmp/budget BUDGET_DEV=1 BUDGET_PORT=8199 python -m budget
+```
+
+`env -u SUPERVISOR_TOKEN` ma znaczenie wewnątrz innego add-onu — inaczej lokalny serwer wysyłałby
+powiadomienia do prawdziwego Home Assistant.
 
 Konfiguracja dev: bez `/data/options.json` ustawienia czytane są z `.env`
 (`BUDGET_ENV_FILE`, zmienne `BUDGET_*`, np. `BUDGET_EB_APPLICATION_ID`,

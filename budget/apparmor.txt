@@ -1,0 +1,41 @@
+#include <tunables/global>
+
+# Profil add-onu „Budżet Domowy” (SPEC §8): odczyt obrazu, zapis wyłącznie do /data (baza),
+# /config (klucz Enable Banking) i /tmp (bufor uploadów). Sieć: HTTP(S) do Enable Banking,
+# Supervisora i brokera MQTT.
+profile budget flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  network inet stream,
+  network inet6 stream,
+  network inet dgram,
+  network inet6 dgram,
+  network unix stream,
+  network netlink raw,
+
+  signal (send, receive) set=(kill, term, int, hup, cont),
+
+  # Obraz: odczyt i mapowanie bibliotek (rozszerzenia .so Pythona), uruchamianie programów
+  / r,
+  /** mr,
+  /run.sh ix,
+  /bin/** ix,
+  /sbin/** ix,
+  /usr/bin/** ix,
+  /usr/sbin/** ix,
+  /usr/local/bin/** ix,
+
+  # Zapis tylko tutaj
+  /data/ rw,
+  /data/** rwk,
+  /config/ rw,
+  /config/** rwk,
+  /tmp/ rw,
+  /tmp/** rwk,
+
+  /dev/null rw,
+  /dev/tty rw,
+  /dev/urandom r,
+  /proc/** r,
+  /sys/** r,
+}

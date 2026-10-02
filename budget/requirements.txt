@@ -1,0 +1,14 @@
+# Zależności uruchomieniowe add-onu — przypięte (obraz budowany lokalnie przez Supervisor,
+# więc wersje muszą być powtarzalne). Źródło prawdy zakresów: app/pyproject.toml.
+aiomqtt==2.5.1
+paho-mqtt==2.1.0
+cryptography==50.0.2
+fastapi==0.142.2
+starlette==1.7.0
+httpx==0.28.1
+Jinja2==3.1.6
+pydantic==2.13.5
+PyJWT==2.15.1
+python-dotenv==1.2.4
+python-multipart==0.0.32
+uvicorn==0.54.0

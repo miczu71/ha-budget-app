@@ -1,0 +1,31 @@
+configuration:
+  eb_application_id:
+    name: Enable Banking application ID
+    description: Application ID (kid) from the Enable Banking Control Panel.
+  eb_private_key_file:
+    name: Private key file
+    description: Name of the .pem file in the add-on config directory. Easiest is to upload it in the panel (Bank → Key).
+  eb_redirect_url:
+    name: Redirect URL
+    description: Empty = first URL registered in the Enable Banking application. It does not need to be reachable — you paste the return address in the panel.
+  aspsp_name:
+    name: Bank
+    description: Bank name in Enable Banking (default when connecting).
+  aspsp_country:
+    name: Bank country
+    description: ISO 3166 country code (e.g. PL).
+  sync_times:
+    name: Sync times
+    description: HH:MM in the Home Assistant time zone. Banks allow 4 unattended requests per account per day — 3 times leave a margin.
+  notify_service:
+    name: Notify service
+    description: Optional, e.g. notify.<person> — in addition to HA notifications (consent expiring, failed syncs).
+  consent_warning_days:
+    name: Consent warning (days)
+    description: How many days before the bank consent expires to remind about renewal.
+  currency:
+    name: Budget currency
+  month_start_day:
+    name: First day of the budget month
+  log_level:
+    name: Log level

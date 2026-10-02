@@ -1,0 +1,31 @@
+configuration:
+  eb_application_id:
+    name: Identyfikator aplikacji Enable Banking
+    description: Application ID (kid) z Control Panelu Enable Banking.
+  eb_private_key_file:
+    name: Plik klucza prywatnego
+    description: Nazwa pliku .pem w katalogu konfiguracji add-onu. Najprościej wgrać go w panelu (Bank → Klucz).
+  eb_redirect_url:
+    name: Adres przekierowania (redirect URL)
+    description: Puste = pierwszy adres zarejestrowany w aplikacji Enable Banking. Nie musi być osiągalny — adres zwrotny wkleja się w panelu.
+  aspsp_name:
+    name: Bank
+    description: Nazwa banku w Enable Banking (domyślna przy łączeniu).
+  aspsp_country:
+    name: Kraj banku
+    description: Kod kraju (ISO 3166, np. PL).
+  sync_times:
+    name: Godziny synchronizacji
+    description: HH:MM w strefie Home Assistant. Bank pozwala na 4 zapytania na konto na dobę bez Twojej obecności — 3 godziny zostawiają zapas.
+  notify_service:
+    name: Usługa powiadomień
+    description: Opcjonalnie, np. notify.<osoba> — dodatkowo do powiadomień w HA (zgoda wygasa, nieudane synchronizacje).
+  consent_warning_days:
+    name: Ostrzeżenie o zgodzie (dni)
+    description: Ile dni przed wygaśnięciem zgody bankowej przypominać o odnowieniu.
+  currency:
+    name: Waluta budżetu
+  month_start_day:
+    name: Pierwszy dzień miesiąca budżetowego
+  log_level:
+    name: Poziom logów
