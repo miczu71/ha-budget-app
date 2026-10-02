@@ -14,6 +14,8 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
+from budget.normalize import fold
+
 _MIGRATION_RE = re.compile(r"^(\d{3})_[\w-]+\.sql$")
 
 
@@ -88,6 +90,8 @@ def connect(path: Path | str) -> sqlite3.Connection:
         Path(path).chmod(0o600)
     conn = sqlite3.connect(path, isolation_level=None)  # transakcje jawnie (BEGIN/COMMIT)
     conn.row_factory = sqlite3.Row
+    # Wyszukiwanie w SQL tak samo jak reguły: bez ogonków i wielkości liter (budget.normalize)
+    conn.create_function("fold", 1, fold, deterministic=True)
     conn.execute("PRAGMA foreign_keys = ON")
     if str(path) != ":memory:":
         conn.execute("PRAGMA journal_mode = WAL")

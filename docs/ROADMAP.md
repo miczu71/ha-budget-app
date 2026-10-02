@@ -20,6 +20,7 @@ jawne „go” przed następnym).
 | M4b | **Kolejka „do przejrzenia”** w panelu (grupy sprzedawców i krajów) | 0.3.0 wydane i zainstalowane 2026-10-02; czeka checkpoint (`PLAN_M4b.md`) |
 | M4c | **Poza planem (2026-10-02):** kolejka dla wybranego miesiąca + podpowiedzi kategorii z AI (freellmapi), zatwierdzane jednym dotknięciem | 0.5.0 (etap 3/3: do 3 podpowiedzi per sprzedawca) wydane i zainstalowane 2026-10-02; czeka checkpoint (`PLAN_M4c.md`) |
 | M4d | **Poza planem (2026-10-02):** nowe kategorie główne, przenoszenie podkategorii, usuwanie pustej głównej | 0.6.0 (`PLAN_categories_move.md`) |
+| M4e | **Poza planem (2026-10-02):** wyszukiwanie na żywo (Reguły — nowe, Słownik, Transakcje), jednolite dopasowanie bez ogonków i wielkości liter, wiele słów | 0.6.1 (`PLAN_live_search.md`) |
 | M5 | **Budżet Flex** — stałe/elastyczne/nieregularne, cykliczne płatności, ekran „Budżet” z wykresami w panelu, encje | — |
 | M6 | **Podsumowania + kalendarz płatności** — tydzień/miesiąc na telefon, kalendarz ICS | — |
 | M7 | **Kategoryzacja v2** — lokalny klasyfikator (LLM przeniesiony do M4c) | — |

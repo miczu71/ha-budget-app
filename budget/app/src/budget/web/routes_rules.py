@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
@@ -18,6 +19,7 @@ from budget import ledger
 from budget.categorize import engine, merchants, rules, taxonomy
 from budget.categorize.rules import Conditions, Rule, RuleError, TextCondition
 from budget.categorize.taxonomy import TaxonomyError
+from budget.normalize import fold, matches_all, search_words
 from budget.web.common import Panel
 
 
@@ -115,15 +117,31 @@ def router(panel: Panel) -> APIRouter:
         with ledger.transaction(conn):
             return engine.recategorize(conn)
 
+    def back_to_rules(form: FormData) -> str:
+        """Lista reguł z filtrem, z którym użytkownik kliknął akcję w wierszu."""
+        q = str(form.get("q") or "").strip()
+        return f"/rules?q={quote(q)}" if q else "/rules"
+
     @r.get("/rules", response_class=HTMLResponse)
-    async def rules_page(request: Request) -> HTMLResponse:
+    async def rules_page(request: Request, q: str = "") -> HTMLResponse:
         cats = taxonomy.all_categories(conn)
         acc = accounts()
-        items = [
-            {"rule": rule, "text": describe(rule, acc), "category": cats.get(rule.category_id)}
-            for rule in rules.all_rules(conn)
-        ]
-        return panel.render(request, "rules.html", items=items, tab="rules")
+        items: list[dict[str, Any]] = []
+        for rule in rules.all_rules(conn):
+            cat = cats.get(rule.category_id)
+            main = cats.get(cat.parent_id) if cat and cat.parent_id else None
+            text = describe(rule, acc)
+            haystack = " ".join(
+                [text, cat.name if cat else "", main.name if main else "", rule.rename or ""]
+                + ([] if rule.enabled else ["wyłączona"])
+            )
+            items.append({"rule": rule, "text": text, "category": cat, "haystack": fold(haystack)})
+        total = len(items)
+        words = search_words(q)
+        items = [it for it in items if matches_all(it["haystack"], words)]
+        return panel.render(
+            request, "rules.html", items=items, total=total, q=q.strip(), tab="rules"
+        )
 
     @r.get("/rules/new", response_class=HTMLResponse)
     async def new_rule(request: Request, txn: int | None = None) -> HTMLResponse:
@@ -192,14 +210,15 @@ def router(panel: Panel) -> APIRouter:
 
     @r.post("/rules/{rule_id}/toggle")
     async def toggle(request: Request, rule_id: int) -> Response:
+        back = back_to_rules(await request.form())
         rule = rules.get(conn, rule_id)
         if rule is None:
-            return panel.redirect(request, "/rules", "Nie ma takiej reguły.", "error")
+            return panel.redirect(request, back, "Nie ma takiej reguły.", "error")
         rules.set_enabled(conn, rule_id, not rule.enabled)
         changed = recategorize()
         state = "wyłączona" if rule.enabled else "włączona"
         return panel.redirect(
-            request, "/rules", f"Reguła {state}; zaktualizowane transakcje: {changed}."
+            request, back, f"Reguła {state}; zaktualizowane transakcje: {changed}."
         )
 
     @r.post("/rules/{rule_id}/move")
@@ -215,10 +234,11 @@ def router(panel: Panel) -> APIRouter:
 
     @r.post("/rules/{rule_id}/delete")
     async def delete(request: Request, rule_id: int) -> Response:
+        back = back_to_rules(await request.form())
         rules.delete(conn, rule_id)
         changed = recategorize()
         return panel.redirect(
-            request, "/rules", f"Reguła usunięta; zaktualizowane transakcje: {changed}."
+            request, back, f"Reguła usunięta; zaktualizowane transakcje: {changed}."
         )
 
     # --- słownik ----------------------------------------------------------------------------
@@ -236,18 +256,22 @@ def router(panel: Panel) -> APIRouter:
             g.patterns.append(" ".join(e.pattern))
             g.hits += hits.get(e.order, 0)
         items = list(groups.values())
-        if q.strip():
-            needle = " ".join(merchants.words(q))
-            items = [
-                g
-                for g in items
-                if needle in " ".join(merchants.words(g.name))
-                or needle in " ".join(merchants.words(g.category))
-                or any(needle in p for p in g.patterns)
-            ]
+        total = len(items)
+        words = search_words(q)
+        items = [
+            g
+            for g in items
+            if matches_all(fold(" ".join([g.name, g.category, *g.patterns])), words)
+        ]
         items.sort(key=lambda g: (-g.hits, g.name))
         return panel.render(
-            request, "dictionary.html", items=items, dict_version=d.version, q=q, tab="dictionary"
+            request,
+            "dictionary.html",
+            items=items,
+            total=total,
+            dict_version=d.version,
+            q=q.strip(),
+            tab="dictionary",
         )
 
     # --- kategorie --------------------------------------------------------------------------

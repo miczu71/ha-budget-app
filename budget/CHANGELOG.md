@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.1
+
+Wyszukiwanie na żywo w całym panelu (poza planem, `docs/PLAN_live_search.md`).
+
+- **Reguły:** nowe pole „Szukaj” — po wartościach warunków, podkategorii, kategorii głównej,
+  nazwie sprzedawcy z reguły i stanie „wyłączona”. Przy aktywnym filtrze nie ma „wyżej/niżej”
+  (kolejność zmieniasz bez filtra); „Wyłącz”/„Usuń” wracają do tej samej przefiltrowanej listy.
+- **Słownik** i **Transakcje:** lista zawęża się w trakcie pisania, bez przycisku. Na
+  Transakcjach na żywo działają też konto, daty, kategoria, kierunek i typ; licznik wyników
+  i „wyczyść filtry” nad listą.
+- Jedno dopasowanie wszędzie, takie samo jak w regułach: bez polskich znaków i wielkości liter
+  („zolw” = „ŻÓŁW”), wszystkie słowa w dowolnej kolejności. Na Transakcjach wcześniej „żółw”
+  nie znajdowało „ŻÓŁW”, a dwa słowa szukały ciągu dokładnie w tej kolejności.
+- Filtr zostaje w adresie strony — odświeżenie i powrót z edycji go nie gubią.
+- Poprawka: filtrowanie Transakcji z kontem „wszystkie” (i przejście na kolejną stronę)
+  kończyło się błędem 422.
+
 ## 0.6.0
 
 Przegrupowanie kategorii (poza planem, `docs/PLAN_categories_move.md`).

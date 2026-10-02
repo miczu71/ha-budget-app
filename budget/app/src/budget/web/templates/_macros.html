@@ -7,3 +7,17 @@
 </optgroup>
 {% endfor %}
 {% endmacro %}
+
+{# Wyszukiwanie na żywo (htmx): formularz GET przerysowuje tylko blok `target`, filtr trafia do adresu #}
+{% macro live_search_attrs(action, target) -%}
+method="get" action="{{ action }}" role="search" hx-get="{{ action }}" hx-trigger="input delay:200ms" hx-target="#{{ target }}" hx-select="#{{ target }}" hx-swap="outerHTML" hx-replace-url="true" hx-sync="this:replace"
+{%- endmacro %}
+
+{% macro search_input(q, placeholder) %}
+<label class="search">Szukaj<input type="search" name="q" value="{{ q }}" placeholder="{{ placeholder }}" autocomplete="off" spellcheck="false" enterkeyhint="search"></label>
+<button type="submit" class="visually-hidden" tabindex="-1">Szukaj</button>
+{% endmacro %}
+
+{% macro search_count(shown, total, q, clear_url) %}
+{% if q %}<p class="search-count small muted">{{ shown }} z {{ total }} · <a href="{{ clear_url }}">wyczyść</a></p>{% endif %}
+{% endmacro %}

@@ -49,6 +49,16 @@ def fold(text: str | None) -> str:
     return re.sub(r"\s+", " ", text.upper()).strip()
 
 
+def search_words(query: str | None) -> list[str]:
+    """Zapytanie z pola „Szukaj” jako słowa po `fold` (wszystkie muszą wystąpić)."""
+    return fold(query).split()
+
+
+def matches_all(haystack: str, words: list[str]) -> bool:
+    """Czy każde słowo zapytania występuje w tekście (już po `fold`), w dowolnej kolejności."""
+    return all(w in haystack for w in words)
+
+
 def desc_key(text: str | None) -> str:
     """Opis do odcisku: tylko litery i cyfry — odporne na miejsca cięcia linii."""
     return re.sub(r"[^A-Z0-9]", "", fold(text))

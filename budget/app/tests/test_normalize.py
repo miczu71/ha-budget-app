@@ -47,3 +47,15 @@ def test_number_after_name_ends_merchant() -> None:
     # CSV karty dokleja miasto, API ma tylko „nazwa numer stacji”
     assert same_merchant("Eko 1005 Testowo", "Eko 1005")
     assert merchant_key("7-ELEVEN 123 TESTOWO") == "7-ELEVEN"
+
+
+def test_search_words_and_matches_all() -> None:
+    from budget.normalize import matches_all, search_words
+
+    assert search_words("  Żółw   czynsz ") == ["ZOLW", "CZYNSZ"]
+    assert search_words("") == [] and search_words(None) == []
+    haystack = fold("Czynsz za miesiąc — Spółdzielnia Qwęrtóś")
+    assert matches_all(haystack, search_words("czyn MIES"))
+    assert matches_all(haystack, search_words("qwertos spoldz"))  # bez ogonków, dowolna kolejność
+    assert not matches_all(haystack, search_words("czynsz prąd"))
+    assert matches_all(haystack, [])  # puste zapytanie pasuje do wszystkiego

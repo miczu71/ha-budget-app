@@ -17,9 +17,15 @@ from fastapi.responses import HTMLResponse
 from budget import ledger
 from budget.categorize import engine, taxonomy
 from budget.categorize.taxonomy import TaxonomyError
+from budget.normalize import search_words
 from budget.web.common import Panel
 
 PAGE_SIZE = 50
+# Tekst do „Szukaj”: po `fold` (funkcja SQL z storage.db) — jak reguły, bez ogonków
+SEARCH_TEXT = (
+    "fold(t.description || ' ' || coalesce(t.counterparty_name, '') || ' ' "
+    "|| coalesce(t.merchant, ''))"
+)
 TXN_DATE = "coalesce(t.tx_date, t.booking_date)"
 SOURCE_LABELS = {
     "manual": "ręczna",
@@ -59,7 +65,7 @@ def router(panel: Panel) -> APIRouter:
     @r.get("/transactions", response_class=HTMLResponse)
     async def transactions(
         request: Request,
-        account: int | None = None,
+        account: str | None = None,  # „wszystkie” w formularzu = pusty parametr
         date_from: str | None = None,
         date_to: str | None = None,
         kind: str | None = None,
@@ -70,9 +76,10 @@ def router(panel: Panel) -> APIRouter:
     ) -> HTMLResponse:
         where: list[str] = ["t.status = 'BOOK'"]
         params: list[Any] = []
-        if account:
+        account_id = int(account) if account and account.isdigit() else None
+        if account_id:
             where.append("t.account_id = ?")
-            params.append(account)
+            params.append(account_id)
         for value, op in ((date_from, ">="), (date_to, "<=")):
             if value:
                 try:
@@ -89,13 +96,10 @@ def router(panel: Panel) -> APIRouter:
             where.append("t.amount LIKE '-%'")
         elif direction == "in":
             where.append("t.amount NOT LIKE '-%'")
-        if q:
-            where.append(
-                "(t.description LIKE ? ESCAPE '\\' OR t.counterparty_name LIKE ? ESCAPE '\\' "
-                "OR t.merchant LIKE ? ESCAPE '\\')"
-            )
-            like = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
-            params += [like, like, like]
+        for word in search_words(q):  # każde słowo w opisie, kontrahencie albo sprzedawcy
+            where.append(f"{SEARCH_TEXT} LIKE ? ESCAPE '\\'")
+            escaped = word.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            params.append(f"%{escaped}%")
         sql_where = " AND ".join(where)
         joins = "LEFT JOIN category c ON c.id = t.category_id"
         total = conn.execute(
@@ -117,11 +121,12 @@ def router(panel: Panel) -> APIRouter:
             total=total,
             page=page,
             pages=max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1),
+            filtered=any((account_id, date_from, date_to, kind, category, direction, q)),
             accounts=conn.execute("SELECT * FROM account ORDER BY id").fetchall(),
             kinds=[r[0] for r in conn.execute("SELECT DISTINCT kind FROM txn ORDER BY 1")],
             tree=taxonomy.tree(conn),
             f={
-                "account": account,
+                "account": account_id,
                 "date_from": date_from or "",
                 "date_to": date_to or "",
                 "kind": kind or "",

@@ -200,6 +200,6 @@ async def test_csv_import_map_accounts_transactions(
     filtered = await client.get(
         "/transactions", params={"q": "100%_\\", "date_from": "zła-data", "account": 1}
     )
-    assert filtered.status_code == 200 and "brak transakcji" in filtered.text
+    assert filtered.status_code == 200 and "Nic nie pasuje do" in filtered.text
     page2 = await client.get("/transactions", params={"page": 2})
     assert page2.status_code == 200
