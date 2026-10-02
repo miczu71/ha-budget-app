@@ -36,3 +36,8 @@ def test_same_merchant() -> None:
     assert same_merchant("ZALANDO SE Berlin DEU 2026-09-01", "Zalando Payments GmbH")
     assert not same_merchant("ZALANDO SE", "LIDL")
     assert not same_merchant("", "")
+
+
+def test_same_merchant_domain_vs_name() -> None:
+    assert same_merchant("www.zalando.pl", "ZALANDO SE TESTOWO DEU 2026-09-01")
+    assert merchant_key("P4 Sp. z o.o. testowa 1 testowo POL 2026-09-28", 1) == "P4"

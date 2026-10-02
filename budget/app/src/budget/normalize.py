@@ -64,9 +64,10 @@ def merchant_tokens(text: str | None) -> list[str]:
     """Znaczące słowa początku opisu (bez prefiksów BLIK, numerów i słów-wypełniaczy)."""
     folded = _BLIK_PREFIX_RE.sub("", fold(text))
     folded = folded.split(",")[0]  # opis z eksportu karty: „SPRZEDAWCA , MIASTO , KRAJ”
+    folded = folded.replace(".", " ")  # domeny („www.sklep.pl”) i skróty („UL.”, „S.A.”)
     out = []
     for i, token in enumerate(_TOKEN_RE.findall(folded)):
-        token = token.strip(".-'")
+        token = token.strip("-'")
         # Za nazwą zaczyna się numer sklepu/kasy albo adres („ZABKA Z1234 UL. …”);
         # cyfry dopuszczalne tylko w pierwszym słowie („P4”)
         if i and (token in _ADDRESS or any(ch.isdigit() for ch in token)):
@@ -82,7 +83,17 @@ def merchant_key(text: str | None, words: int = 2) -> str:
     return " ".join(merchant_tokens(text)[:words])
 
 
+def merchant_ident(text: str | None) -> str:
+    """Identyfikator do porównań: pierwsze słowa, aż razem mają ≥ 4 litery (max 3 słowa) —
+    „LA TRATTORIA”, nie samo „LA”."""
+    out: list[str] = []
+    for token in merchant_tokens(text)[:3]:
+        out.append(token)
+        if sum(len(t) for t in out) >= 4:
+            break
+    return " ".join(out)
+
+
 def same_merchant(a: str | None, b: str | None) -> bool:
-    """Ten sam sprzedawca, jeśli zgadza się pierwsze znaczące słowo (min. 3 znaki)."""
-    ka, kb = merchant_key(a, 1), merchant_key(b, 1)
-    return len(ka) >= 3 and ka == kb
+    ka, kb = merchant_ident(a), merchant_ident(b)
+    return len(ka.replace(" ", "")) >= 3 and ka == kb
