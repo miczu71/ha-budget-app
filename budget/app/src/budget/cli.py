@@ -20,7 +20,8 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from budget import eb_ingest, ledger, report
+from budget import eb_ingest, ledger, report, spending
+from budget.categorize import engine as categorize
 from budget.csv_import import CsvFormatError
 from budget.eb_client import EBAuthError, EBClient, EBError, find_aspsp, parse_redirect
 from budget.eb_models import Account, Balance
@@ -352,6 +353,34 @@ def _print_report(conn: sqlite3.Connection) -> None:
     print("\n".join(report.format_text(report.build(conn))))
 
 
+async def cmd_categorize_report(settings: Settings, args: argparse.Namespace) -> None:
+    """Pokrycie kategoriami (KPI M4a). Nazwy sprzedawców tylko na terminal — nie do repo."""
+    conn = _open_db(settings, args)
+    with ledger.transaction(conn):
+        changed = categorize.recategorize(conn)
+    cov = spending.coverage(conn)
+    print(f"przeliczono: zmienionych {changed}")
+    print(
+        f"wydatki bez przelewów wewnętrznych: {cov.categorized}/{cov.txns} transakcji "
+        f"({cov.pct_txns:.1%}), kwota {cov.pct_amount:.1%}"
+    )
+    sources = conn.execute(
+        "SELECT coalesce(category_source, '—') AS s, count(*) AS n FROM txn "
+        "WHERE transfer_group IS NULL AND status = 'BOOK' GROUP BY 1 ORDER BY 2 DESC"
+    ).fetchall()
+    print("źródła: " + ", ".join(f"{r['s']} {r['n']}" for r in sources))
+    if args.top:
+        rows = conn.execute(
+            "SELECT merchant, count(*) AS n, -sum(CAST(amount AS REAL)) AS total FROM txn "
+            "WHERE category_id IS NULL AND transfer_group IS NULL AND status = 'BOOK' "
+            "AND amount LIKE '-%' GROUP BY merchant ORDER BY total DESC LIMIT ?",
+            (args.top,),
+        ).fetchall()
+        print(f"top {args.top} nieskategoryzowanych (lokalnie, nie publikować):")
+        for r in rows:
+            print(f"  {r['total']:>10.2f}  {r['n']:>4}  {r['merchant']}")
+
+
 # --- main ---------------------------------------------------------------------
 
 
@@ -416,6 +445,10 @@ def _parser() -> argparse.ArgumentParser:
 
     r = sub.add_parser("report", help="raport księgi (same liczby)")
     r.add_argument("--db", help=db_help)
+
+    cr = sub.add_parser("categorize-report", help="przeliczenie kategorii + pokrycie (KPI M4a)")
+    cr.add_argument("--db", help=db_help)
+    cr.add_argument("--top", type=int, default=0, help="top N nieskategoryzowanych sprzedawców")
     return p
 
 
@@ -430,6 +463,7 @@ _ASYNC = {
     "ingest-csv": cmd_ingest_csv,
     "ingest-eb": cmd_ingest_eb,
     "report": cmd_report,
+    "categorize-report": cmd_categorize_report,
 }
 
 

@@ -379,8 +379,7 @@ def create_app(service: Service, *, dev: bool = False) -> FastAPI:
             return redirect(request, "/import", "Nieznany numer albo konto.", "error")
         with ledger.transaction(conn):
             ledger.map_csv_number(conn, number, account_id)
-            ledger.relink_csv(conn)
-            ledger.rebuild_links(conn)
+            ledger.rebuild_derived(conn)
         await service.refresh()
         return redirect(
             request, "/import", f"Numer …{number[-4:]} przypisany do konta #{account_id}."

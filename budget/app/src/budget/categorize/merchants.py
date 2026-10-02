@@ -40,18 +40,14 @@ class Entry:
 
 
 class Dictionary:
-    """Wzorce jednowyrazowe w słowniku (szybkie wyszukiwanie), wielowyrazowe na liście."""
+    """Wzorce indeksowane pierwszym słowem — sprawdzane tylko te, których początek wystąpił."""
 
     def __init__(self, version: int, entries: tuple[Entry, ...]) -> None:
         self.version = version
         self.entries = entries
-        self._single: dict[str, list[Entry]] = {}
-        self._multi: list[Entry] = []
+        self._by_first: dict[str, list[tuple[Entry, str]]] = {}
         for e in entries:
-            if len(e.pattern) == 1:
-                self._single.setdefault(e.pattern[0], []).append(e)
-            else:
-                self._multi.append(e)
+            self._by_first.setdefault(e.pattern[0], []).append((e, f" {' '.join(e.pattern)} "))
 
     def match(self, text: str | None) -> Entry | None:
         """Najdłuższy pasujący wzorzec: więcej słów, przy remisie marka przed słowem ogólnym
@@ -59,9 +55,13 @@ class Dictionary:
         tokens = words(text)
         if not tokens:
             return None
-        found = [e for t in set(tokens) for e in self._single.get(t, ())]
         joined = f" {' '.join(tokens)} "
-        found += [e for e in self._multi if f" {' '.join(e.pattern)} " in joined]
+        found = [
+            e
+            for t in set(tokens)
+            for e, padded in self._by_first.get(t, ())
+            if len(e.pattern) == 1 or padded in joined
+        ]
         if not found:
             return None
         return min(

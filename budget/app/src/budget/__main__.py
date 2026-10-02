@@ -15,7 +15,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import uvicorn
 
-from budget import __version__, ha_publisher
+from budget import __version__, ha_publisher, ledger
+from budget.categorize import engine as categorize
 from budget.ha_client import HAClient
 from budget.logging_utils import setup_logging
 from budget.service import Service
@@ -38,6 +39,10 @@ def _timezone() -> ZoneInfo:
 
 async def serve(settings: Settings) -> None:
     conn = db.connect(settings.db_path)
+    # Słownik i silnik mogły się zmienić z wersją add-onu — kategorie liczone od nowa
+    with ledger.transaction(conn):
+        changed = categorize.recategorize(conn)
+    log.info("Kategorie przeliczone (zmienionych transakcji: %d)", changed)
     ha = HAClient(os.environ.get("SUPERVISOR_TOKEN"))
     service = Service(settings, conn, ha, tz=_timezone())
     if (slug := await ha.self_slug()) is not None:

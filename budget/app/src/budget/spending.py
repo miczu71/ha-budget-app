@@ -1,0 +1,210 @@
+"""Wydatki miesiąca w kategoriach — dane dla ekranu „Wydatki” (wzorzec `report.py`).
+
+Zasady liczenia (`docs/PLAN_M4a.md`):
+- miesiąc kalendarzowy po dacie transakcji (`tx_date`, bez niej data księgowania);
+- tylko zaksięgowane, bez przelewów wewnętrznych (`transfer_group`), konta „w budżecie”;
+- kwoty w PLN; transakcje w innej walucie są pomijane i liczone osobno (przeliczenie → M9);
+- grupa podkategorii decyduje o sekcji: przychody, oszczędności, poza budżetem, reszta to
+  wydatki; zwrot w kategorii wydatku zmniejsza ją (kwota netto);
+- bilans = suma wszystkich uwzględnionych kwot.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import date
+from decimal import Decimal
+
+from budget.categorize import taxonomy
+from budget.categorize.taxonomy import Category
+
+ZERO = Decimal(0)
+BASE_CURRENCY = "PLN"
+
+
+@dataclass
+class Line:
+    category: Category
+    amount: Decimal = ZERO  # dodatnia = wydano (netto) / wpłynęło / odłożono
+    count: int = 0
+    prev: Decimal = ZERO  # poprzedni miesiąc
+
+    @property
+    def delta(self) -> Decimal:
+        return self.amount - self.prev
+
+
+@dataclass
+class MainLine(Line):
+    children: list[Line] = field(default_factory=list)
+    share: float = 0.0  # udział w wydatkach miesiąca
+
+
+@dataclass
+class Coverage:
+    """Pokrycie kategoriami (wydatki: kwoty ujemne bez przelewów wewnętrznych)."""
+
+    txns: int = 0
+    categorized: int = 0
+    amount: Decimal = ZERO
+    categorized_amount: Decimal = ZERO
+
+    @property
+    def pct_txns(self) -> float:
+        return self.categorized / self.txns if self.txns else 0.0
+
+    @property
+    def pct_amount(self) -> float:
+        return float(self.categorized_amount / self.amount) if self.amount else 0.0
+
+
+@dataclass
+class Month:
+    month: date
+    prev_month: date
+    next_month: date | None  # None, gdy następny miesiąc jeszcze się nie zaczął
+    income: Decimal = ZERO  # przychody (kategorie) + nieskategoryzowane wpływy
+    expenses: Decimal = ZERO  # wydatki w kategoriach (netto) + nieskategoryzowane wydatki
+    savings: Decimal = ZERO
+    excluded: Decimal = ZERO
+    balance: Decimal = ZERO
+    expense_groups: list[MainLine] = field(default_factory=list)
+    income_lines: list[Line] = field(default_factory=list)
+    savings_lines: list[Line] = field(default_factory=list)
+    excluded_lines: list[Line] = field(default_factory=list)
+    uncategorized_out: Decimal = ZERO
+    uncategorized_out_count: int = 0
+    uncategorized_in: Decimal = ZERO
+    uncategorized_in_count: int = 0
+    coverage: Coverage = field(default_factory=Coverage)
+    other_currency: int = 0
+
+
+def month_start(d: date) -> date:
+    return d.replace(day=1)
+
+
+def add_months(d: date, n: int) -> date:
+    y, m = divmod(d.year * 12 + d.month - 1 + n, 12)
+    return date(y, m + 1, 1)
+
+
+@dataclass
+class _Acc:
+    amount: Decimal = ZERO
+    count: int = 0
+
+    def add(self, amount: Decimal) -> None:
+        self.amount += amount
+        self.count += 1
+
+
+@dataclass
+class _Sums:
+    by_leaf: dict[int, _Acc] = field(default_factory=lambda: defaultdict(_Acc))  # ze znakiem
+    unc_out: _Acc = field(default_factory=_Acc)  # wartości bezwzględne
+    unc_in: _Acc = field(default_factory=_Acc)
+    balance: Decimal = ZERO
+    coverage: Coverage = field(default_factory=Coverage)
+    other_currency: int = 0
+
+
+def _rows(conn: sqlite3.Connection, start: date | None, end: date | None) -> list[sqlite3.Row]:
+    where = [
+        "t.status = 'BOOK'",
+        "t.transfer_group IS NULL",
+        "a.include_in_budget = 1",
+    ]
+    params: list[str] = []
+    if start is not None:
+        where.append("coalesce(t.tx_date, t.booking_date) >= ?")
+        params.append(start.isoformat())
+    if end is not None:
+        where.append("coalesce(t.tx_date, t.booking_date) < ?")
+        params.append(end.isoformat())
+    return conn.execute(
+        "SELECT t.amount, t.currency, t.category_id FROM txn t "
+        f"JOIN account a ON a.id = t.account_id WHERE {' AND '.join(where)}",
+        params,
+    ).fetchall()
+
+
+def _sums(conn: sqlite3.Connection, start: date | None, end: date | None) -> _Sums:
+    s = _Sums()
+    for r in _rows(conn, start, end):
+        if r["currency"] != BASE_CURRENCY:
+            s.other_currency += 1
+            continue
+        amount = Decimal(r["amount"])
+        s.balance += amount
+        if amount < 0:
+            s.coverage.txns += 1
+            s.coverage.amount -= amount
+            if r["category_id"] is not None:
+                s.coverage.categorized += 1
+                s.coverage.categorized_amount -= amount
+        if r["category_id"] is None:
+            (s.unc_out if amount < 0 else s.unc_in).add(abs(amount))
+        else:
+            s.by_leaf[int(r["category_id"])].add(amount)
+    return s
+
+
+def coverage(
+    conn: sqlite3.Connection, start: date | None = None, end: date | None = None
+) -> Coverage:
+    """Pokrycie wydatków kategoriami w okresie (bez granic = cała księga)."""
+    return _sums(conn, start, end).coverage
+
+
+def build(conn: sqlite3.Connection, month: date, today: date) -> Month:
+    start = month_start(month)
+    prev_start = add_months(start, -1)
+    nxt = add_months(start, 1)
+    cur, prev = _sums(conn, start, nxt), _sums(conn, prev_start, start)
+    out = Month(
+        month=start,
+        prev_month=prev_start,
+        next_month=nxt if nxt <= today else None,
+        balance=cur.balance,
+        coverage=cur.coverage,
+        other_currency=cur.other_currency,
+    )
+    out.uncategorized_out, out.uncategorized_out_count = cur.unc_out.amount, cur.unc_out.count
+    out.uncategorized_in, out.uncategorized_in_count = cur.unc_in.amount, cur.unc_in.count
+
+    for main in taxonomy.tree(conn):
+        group = MainLine(main.category)
+        for leaf in main.children:
+            now, before = cur.by_leaf.get(leaf.id, _Acc()), prev.by_leaf.get(leaf.id, _Acc())
+            sign = 1 if leaf.flex_group == "income" else -1  # przychód: +, reszta: wydano
+            line = Line(leaf, sign * now.amount, now.count, sign * before.amount)
+            if leaf.flex_group == "income":
+                out.income_lines.append(line)
+                out.income += line.amount
+            elif leaf.flex_group == "savings":
+                out.savings_lines.append(line)
+                out.savings += line.amount
+            elif leaf.flex_group == "excluded":
+                out.excluded_lines.append(line)
+                out.excluded += line.amount
+            else:
+                group.children.append(line)
+                group.amount += line.amount
+                group.count += line.count
+                group.prev += line.prev
+        if group.children and (group.count or group.prev):
+            group.children = [c for c in group.children if c.count or c.prev]
+            group.children.sort(key=lambda c: c.amount, reverse=True)
+            out.expense_groups.append(group)
+    out.expense_groups.sort(key=lambda g: g.amount, reverse=True)
+    out.expenses = sum((g.amount for g in out.expense_groups), ZERO) + out.uncategorized_out
+    out.income += out.uncategorized_in
+    for g in out.expense_groups:
+        g.share = float(g.amount / out.expenses) if out.expenses > 0 else 0.0
+    out.income_lines = [line for line in out.income_lines if line.count or line.prev]
+    out.savings_lines = [line for line in out.savings_lines if line.count or line.prev]
+    out.excluded_lines = [line for line in out.excluded_lines if line.count or line.prev]
+    return out

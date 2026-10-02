@@ -9,8 +9,9 @@ Warstwy deduplikacji:
 - L3 zwroty → zakup (`refund_of`).
 - L4 PDNG→BOOK — oczekujące są zastępowane przy każdym pobraniu.
 
-Powiązania CSV (`relink_csv`) oraz L2/L3 (`rebuild_links`) są przeliczane od zera po każdym
-imporcie, więc kolejność importów jest obojętna, a ponowny import niczego nie zmienia.
+Powiązania CSV (`relink_csv`), L2/L3 (`rebuild_links`) i kategorie (`categorize.engine`) są
+przeliczane od zera po każdym imporcie (`rebuild_derived`), więc kolejność importów jest
+obojętna, a ponowny import niczego nie zmienia.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from decimal import Decimal
 from typing import Any
 
 from budget import csv_import, money
+from budget.categorize import engine as categorize
 from budget.csv_import import CsvRow
 from budget.eb_ingest import ApiTxn, fingerprint
 from budget.eb_models import Account, Balance
@@ -296,8 +298,7 @@ def ingest_api(
                 changed |= cur.rowcount > 0
             stats.updated += changed
         _finish_batch(conn, batch_id, stats)
-        relink_csv(conn)
-        rebuild_links(conn)
+        rebuild_derived(conn)
     return stats
 
 
@@ -435,9 +436,15 @@ def ingest_csv(
             )
             stats.new += cur.rowcount
         _finish_batch(conn, batch_id, stats)
-        relink_csv(conn)
-        rebuild_links(conn)
+        rebuild_derived(conn)
     return stats
+
+
+def rebuild_derived(conn: sqlite3.Connection) -> None:
+    """Wszystko, co wynika z księgi: powiązania CSV (L0/L1), L2/L3, kategorie (M4a)."""
+    relink_csv(conn)
+    rebuild_links(conn)
+    categorize.recategorize(conn)
 
 
 # --- L0/L1: powiązanie wierszy CSV z księgą ----------------------------------------------------
@@ -602,6 +609,12 @@ def _drop_csv_txn(conn: sqlite3.Connection, txn_id: int, successor: int | None) 
         if old["budget_flag"]:
             conn.execute(
                 "UPDATE txn SET budget_flag = ? WHERE id = ?", (old["budget_flag"], successor)
+            )
+        if old["category_source"] == "manual":
+            conn.execute(
+                "UPDATE txn SET category_id = ?, category_source = 'manual', rule_id = NULL "
+                "WHERE id = ? AND category_source IS NOT 'manual'",
+                (old["category_id"], successor),
             )
     conn.execute("DELETE FROM txn WHERE id = ?", (txn_id,))
 
