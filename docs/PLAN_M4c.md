@@ -61,4 +61,8 @@ i sprawdzenie przez Ingress.
 
 ## Wynik
 
-(uzupełniane po każdym etapie)
+- **Etap 1 — 0.3.1 wydane i zainstalowane 2026-10-02** (`2dd12cb`, release `v0.3.1`, CI zielone,
+  310 testów). Na żywo przez Ingress: „Nieskategoryzowane” we wrześniu → `/review?month=2026-09`,
+  wszystkie pozycje z września, liczba wydatków w kolejce = liczba w wierszu „Nieskategoryzowane”
+  (nagłówek liczy oba kierunki), konsola bez błędów. Na kopii księgi: podgląd reguły podaje liczbę
+  pozycji z innych miesięcy. Czeka checkpoint etapu 1 → plan etapu 2.
