@@ -14,8 +14,8 @@ jawne „go” przed następnym).
 | M0 | Szkielet repo, CI, `settings.py`, maskowanie w logach | ✅ |
 | M1 | Klient Enable Banking + CLI, flow na Sandboxie | ✅ |
 | M1b | Sonda Production Restricted na Millennium → `FINDINGS_millennium.md` | ✅ (drugi zrzut 2026-10-02: `entry_reference` stabilny) |
-| M2 | **Rdzeń danych** — jedna księga bez duplikatów (CSV + API, karta↔konto, uzgadnianie salda) | zrealizowany 2026-10-02 (`PLAN_M2.md` § Wynik) — czeka checkpoint |
-| M3 | **Add-on w HA** — instalacja, synchronizacja 3×/dobę, panel (status, bank, import, transakcje), podstawowe encje | — |
+| M2 | **Rdzeń danych** — jedna księga bez duplikatów (CSV + API, karta↔konto, uzgadnianie salda) | ✅ 2026-10-02 (`PLAN_M2.md` § Wynik) |
+| M3 | **Add-on w HA** — instalacja, synchronizacja 3×/dobę, panel (status, bank, import, transakcje), podstawowe encje | w toku (`PLAN_M3.md`) |
 | M4 | **Kategoryzacja v1** — słownik polskich sieci, reguły, pamięć poprawek, kolejka + HA to-do | — |
 | M5 | **Budżet Flex w HA** — stałe/elastyczne/nieregularne, cykliczne płatności, encje, statystyki, dashboard | — |
 | M6 | **Podsumowania + kalendarz płatności** — tydzień/miesiąc na telefon, kalendarz ICS | — |
@@ -112,14 +112,14 @@ syntetycznych i zanonimizowanej próbce.
 
 **Wartość:** add-on działa, synchronizuje 3×/dobę, dane w panelu lokalnie.
 
-- Dockerfile wg pozostałych add-onów autora (`python:3.12-alpine`; decyzja o obrazie `base` tu),
+- Dockerfile wg pozostałych add-onów autora (`python:3.12-alpine`, wersja przypięta),
   `run.sh`, AppArmor, Ingress (`X-Ingress-Path`, allowlista `172.30.32.2`), zasady cache dla
   WebView (`no-store`, `?v=`, plakietka wersji).
 - `sync_service`: harmonogram, licznik 4 zapytań/dobę, backfill, `sync_log`; **migracja sesji
   z CLI** (bez nowego SCA; zgoda ważna do 2027-03-30).
 - Panel (htmx, mobile-first): Status, Połącz bank / Odnów zgodę, Import CSV (z raportem
   L0–L3), Konta, Transakcje (lista z filtrami).
-- MQTT: salda (ITAV), `last_sync`, `consent_days_left`, liczba do przejrzenia, `sync_now`;
+- MQTT: salda (ITAV), `last_sync`, `consent_days_left`, `sync_now` (liczba do przejrzenia → M4);
   powiadomienia operacyjne (zgoda wygasa, 3 nieudane synchronizacje).
 - Wydanie: GitHub release (skill `release`), aktualizacja przez Supervisor.
 
@@ -232,8 +232,10 @@ transakcji (split) i tagi · paragony.
 - **2026-10-01 — CSV potrzebny:** Millennium przez PSD2 oddaje tylko 90 dni (także zaraz po SCA
   i ze `strategy=longest`).
 - **2026-10-01 — roadmapa M2–M9** na podstawie benchmarku i analizy danych (ten dokument).
-- **Do rozstrzygnięcia w M3:** obraz bazowy (`ghcr.io/home-assistant/base` wg SPEC vs
-  `python:3.12-alpine` jak w innych add-onach autora).
+- **2026-10-02 — obraz `python:3.12-alpine` (przypięty), stos async wg SPEC §3** (FastAPI +
+  uvicorn + htmx + APScheduler + aiomqtt w jednej pętli); Supervisor buduje lokalnie. Sesja
+  przenoszona z CLI plikiem przez panel (bez nowego SCA), historia przez ponowny import CSV.
+  Szczegóły i odstępstwa: `PLAN_M3.md`.
 
 ## Wnioski z Sandboxa (M1, 2026-10-01)
 
