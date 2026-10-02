@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import category_options %}
 {% block content %}
 <h1>Transakcje <span class="muted small">({{ total }})</span></h1>
 
@@ -12,43 +13,64 @@
     </label>
     <label>Od<input type="date" name="date_from" value="{{ f.date_from }}"></label>
     <label>Do<input type="date" name="date_to" value="{{ f.date_to }}"></label>
+    <label>Kategoria
+      <select name="category">
+        <option value="">wszystkie</option>
+        <option value="none" {{ "selected" if f.category == "none" }}>bez kategorii</option>
+        {% for main in tree %}
+        <optgroup label="{{ main.category.name }}">
+          <option value="{{ main.category.id }}" {{ "selected" if f.category == main.category.id | string }}>{{ main.category.name }} — wszystkie</option>
+          {% for c in main.children %}<option value="{{ c.id }}" {{ "selected" if f.category == c.id | string }}>{{ c.name }}</option>{% endfor %}
+        </optgroup>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Kierunek
+      <select name="direction">
+        <option value="">oba</option>
+        <option value="out" {{ "selected" if f.direction == "out" }}>wydatki</option>
+        <option value="in" {{ "selected" if f.direction == "in" }}>wpływy</option>
+      </select>
+    </label>
     <label>Typ
       <select name="kind">
         <option value="">wszystkie</option>
         {% for k in kinds %}<option value="{{ k }}" {{ "selected" if f.kind == k }}>{{ kind_labels.get(k, k) }}</option>{% endfor %}
       </select>
     </label>
-    <label>Szukaj<input type="search" name="q" value="{{ f.q }}" placeholder="opis lub kontrahent"></label>
+    <label>Szukaj<input type="search" name="q" value="{{ f.q }}" placeholder="opis, kontrahent, sprzedawca"></label>
     <button type="submit">Filtruj</button>
   </form>
 </section>
 
 <section class="card">
   <div class="table-wrap"><table class="tx">
-    <thead><tr><th>Data</th><th>Opis</th><th class="num">Kwota</th><th>Szczegóły</th></tr></thead>
+    <thead><tr><th>Data</th><th>Sprzedawca / opis</th><th class="num">Kwota</th><th>Kategoria</th><th>Szczegóły</th></tr></thead>
     <tbody>
     {% for t in rows %}
       <tr>
-        <td class="date">{{ t.booking_date | pldate }}</td>
-        <td class="tx-desc">{{ t.counterparty_name or "" }}{% if t.counterparty_name and t.description %} · {% endif %}<span class="{{ 'muted' if t.counterparty_name }}">{{ t.description }}</span></td>
+        <td class="date">{{ t.day | pldate }}</td>
+        <td class="tx-desc"><strong>{{ t.merchant or t.counterparty_name or "" }}</strong>{% if t.description %}<br><span class="muted small">{{ t.description }}</span>{% endif %}</td>
         <td class="num {{ 'neg' if t.amount.startswith('-') else 'pos' }}">{{ t.amount | money(t.currency) }}</td>
+        <td class="cat" id="cat-{{ t.id }}">{% with editing=False %}{% include "_txn_category.html" %}{% endwith %}</td>
         <td class="meta small">
           {{ t.display_name or account_kinds.get(t.account_kind, t.account_kind) }} · {{ kind_labels.get(t.kind, t.kind) }}
+          {% if t.counterparty_name and t.counterparty_name != t.merchant %} · {{ t.counterparty_name }}{% endif %}
           {% if t.orig_currency and t.orig_currency != t.currency %} · {{ t.orig_amount | money(t.orig_currency) }}{% endif %}
+          {% if t.booking_date and t.booking_date != t.day %} · księg. {{ t.booking_date | pldate }}{% endif %}
           <span class="flags">
-          {% if t.transfer_group %}<span class="badge" title="przelew między własnymi kontami">przelew własny</span>{% endif %}
           {% if t.refund_of %}<span class="badge" title="zwrot powiązany z zakupem">zwrot</span>{% endif %}
           <span class="badge" title="źródło kwoty i daty">{{ "API" if t.source == "eb" else "CSV" }}</span>
           </span>
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="4" class="muted">brak transakcji</td></tr>
+      <tr><td colspan="5" class="muted">brak transakcji</td></tr>
     {% endfor %}
     </tbody>
   </table></div>
   {% if pages > 1 %}
-  {% set qs = "account=" ~ (f.account or "") ~ "&date_from=" ~ f.date_from ~ "&date_to=" ~ f.date_to ~ "&kind=" ~ f.kind ~ "&q=" ~ (f.q | urlencode) %}
+  {% set qs = "account=" ~ (f.account or "") ~ "&date_from=" ~ f.date_from ~ "&date_to=" ~ f.date_to ~ "&kind=" ~ f.kind ~ "&category=" ~ f.category ~ "&direction=" ~ f.direction ~ "&q=" ~ (f.q | urlencode) %}
   <div class="pager">
     {% if page > 1 %}<a href="{{ base }}/transactions?{{ qs }}&page={{ page - 1 }}">← nowsze</a>{% else %}<span></span>{% endif %}
     <span class="muted small">strona {{ page }} z {{ pages }}</span>

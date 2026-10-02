@@ -1,0 +1,26 @@
+{% if error %}
+<p class="muted">{{ error }}</p>
+{% else %}
+<p><strong>Pasuje: {{ p.matches }}</strong> transakcji ({{ p.total | money("PLN") }}).
+  Dostanie tę kategorię: <strong>{{ p.applied }}</strong>.
+  {% if p.shadowed %}Wcześniejsza reguła wygrywa dla: {{ p.shadowed }}.{% endif %}
+  {% if p.manual_skipped %}Ręcznie ustawione (bez zmian): {{ p.manual_skipped }}.{% endif %}
+</p>
+<p class="small muted">Po zapisie zmieni się kategoria {{ p.changes }} transakcji w całej księdze.</p>
+{% if p.samples %}
+<div class="table-wrap"><table class="small">
+  <thead><tr><th>Data</th><th>Sprzedawca</th><th class="num">Kwota</th><th>Teraz</th><th>Po zapisie</th></tr></thead>
+  <tbody>
+  {% for s in p.samples %}
+  <tr>
+    <td class="date">{{ s.date | pldate }}</td>
+    <td>{{ s.merchant }}</td>
+    <td class="num {{ 'neg' if s.amount < 0 else 'pos' }}">{{ s.amount | money("PLN") }}</td>
+    <td>{{ cats[s.category_now].name if s.category_now in cats else "—" }}</td>
+    <td>{{ cats[s.category_new].name if s.category_new in cats else "—" }}{% if s.note %} <span class="muted">({{ s.note }})</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endif %}
+{% endif %}

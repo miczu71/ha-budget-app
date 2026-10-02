@@ -1,0 +1,9 @@
+{# Lista podkategorii pogrupowana kategoriami głównymi (transakcja dostaje tylko podkategorię) #}
+{% macro category_options(tree, selected=None, empty=None) %}
+{% if empty %}<option value="">{{ empty }}</option>{% endif %}
+{% for main in tree %}
+<optgroup label="{{ main.category.name }}">
+  {% for c in main.children %}<option value="{{ c.id }}" {{ "selected" if selected == c.id }}>{{ c.name }}</option>{% endfor %}
+</optgroup>
+{% endfor %}
+{% endmacro %}

@@ -1,0 +1,19 @@
+{% from "_macros.html" import category_options %}
+{% set url = base ~ "/transactions/" ~ t.id ~ "/category" %}
+{% if t.transfer_group %}
+<span class="badge" title="przelew między własnymi kontami — bez kategorii">przelew własny</span>
+{% elif editing %}
+<form class="cat-form" hx-post="{{ url }}" hx-target="#cat-{{ t.id }}" hx-swap="innerHTML">
+  <select name="category_id" aria-label="kategoria">
+    {{ category_options(tree, t.category_id if t.category_source == "manual" else None, "— automatycznie —") }}
+  </select>
+  <button type="submit">Zapisz</button>
+  <button type="button" class="secondary" hx-get="{{ url }}?cancel=1" hx-target="#cat-{{ t.id }}" hx-swap="innerHTML">Anuluj</button>
+</form>
+{% else %}
+<button type="button" class="cat-chip {{ 'empty' if not t.category_id }}" hx-get="{{ url }}" hx-target="#cat-{{ t.id }}" hx-swap="innerHTML" title="zmień kategorię">
+  {% if t.category_id %}{{ t.category_name }}<span class="src">{{ source_labels.get(t.category_source, "") }}</span>{% else %}+ kategoria{% endif %}
+</button>
+{% if error %}<span class="small neg">{{ error }}</span>{% endif %}
+{% if suggest %}<a class="small" href="{{ base }}/rules/new?txn={{ t.id }}">Zawsze dla „{{ t.merchant }}” »</a>{% endif %}
+{% endif %}

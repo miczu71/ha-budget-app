@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Kategorie</h1>
+{% include "_rules_tabs.html" %}
+<p class="small muted">Możesz dodać podkategorię i zmienić nazwę. Grupa budżetu (stałe, elastyczne…) przyda się w budżecie Flex.</p>
+<div class="grid">
+{% for main in tree %}
+  <section class="card">
+    <form class="rename main" method="post" action="{{ base }}/categories/{{ main.category.id }}/rename">
+      <input name="name" value="{{ main.category.name }}" aria-label="nazwa kategorii głównej" maxlength="60"><button class="secondary">Zmień</button>
+    </form>
+    <ul class="leaf-list">
+      {% for c in main.children %}
+      <li>
+        <form class="rename" method="post" action="{{ base }}/categories/{{ c.id }}/rename">
+          <input name="name" value="{{ c.name }}" aria-label="nazwa podkategorii" maxlength="60"><button class="secondary">Zmień</button>
+        </form>
+        <span class="small muted">{{ groups.get(c.flex_group, c.flex_group) }} · {{ counts.get(c.id, 0) }} tr.</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <form class="rename" method="post" action="{{ base }}/categories/add">
+      <input type="hidden" name="parent_id" value="{{ main.category.id }}">
+      <input name="name" placeholder="nowa podkategoria" aria-label="nowa podkategoria w {{ main.category.name }}" maxlength="60" required><button>Dodaj</button>
+    </form>
+  </section>
+{% endfor %}
+</div>
+{% endblock %}

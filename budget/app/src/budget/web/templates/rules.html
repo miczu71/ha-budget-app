@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Reguły</h1>
+{% include "_rules_tabs.html" %}
+
+<section class="card">
+  <p class="small muted">Wygrywa pierwsza pasująca reguła z góry listy. Reguły mają pierwszeństwo przed słownikiem sieci; ręcznie ustawionej kategorii nic nie nadpisuje. Zwrot dostaje kategorię zakupu.</p>
+  <p><a class="button" href="{{ base }}/rules/new">+ Nowa reguła</a></p>
+  {% if items %}
+  <div class="table-wrap"><table class="rules">
+    <thead><tr><th>Warunki</th><th>Kategoria</th><th class="num">Trafienia</th><th></th></tr></thead>
+    <tbody>
+    {% for it in items %}
+      {% set rule = it.rule %}
+      <tr class="{{ 'disabled' if not rule.enabled }}">
+        <td><a href="{{ base }}/rules/{{ rule.id }}">{{ it.text }}</a>{% if rule.rename %}<br><span class="small muted">nazwa: {{ rule.rename }}</span>{% endif %}{% if not rule.enabled %} <span class="badge warn">wyłączona</span>{% endif %}</td>
+        <td>{{ it.category.name if it.category else "—" }}</td>
+        <td class="num">{{ rule.hits }}</td>
+        <td class="actions">
+          <form method="post" action="{{ base }}/rules/{{ rule.id }}/move"><input type="hidden" name="step" value="-1"><button class="secondary" title="w górę" {{ "disabled" if loop.first }}>wyżej</button></form>
+          <form method="post" action="{{ base }}/rules/{{ rule.id }}/move"><input type="hidden" name="step" value="1"><button class="secondary" title="w dół" {{ "disabled" if loop.last }}>niżej</button></form>
+          <form method="post" action="{{ base }}/rules/{{ rule.id }}/toggle"><button class="secondary">{{ "Wyłącz" if rule.enabled else "Włącz" }}</button></form>
+          <form method="post" action="{{ base }}/rules/{{ rule.id }}/delete" hx-confirm="Usunąć regułę? Transakcje wrócą do słownika albo „bez kategorii”."><button class="secondary danger">Usuń</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="muted">Brak reguł. Najszybciej: na ekranie Transakcje zmień kategorię i kliknij „Zawsze dla …”, albo zacznij od <a href="{{ base }}/transactions?category=none&direction=out">wydatków bez kategorii</a>.</p>
+  {% endif %}
+</section>
+{% endblock %}

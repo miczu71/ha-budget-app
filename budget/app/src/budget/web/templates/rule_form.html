@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "_macros.html" import category_options %}
+{% block content %}
+<h1>{{ "Edycja reguły" if rule.id else "Nowa reguła" }}</h1>
+{% include "_rules_tabs.html" %}
+
+<form method="post" action="{{ base }}/rules/save" class="card rule-form" id="rule-form" hx-boost="false">
+  <div hidden hx-post="{{ base }}/rules/preview" hx-include="#rule-form" hx-target="#preview" hx-swap="innerHTML"
+       hx-trigger="load, input changed delay:400ms from:#rule-form, change from:#rule-form"></div>
+  {% if rule.id %}<input type="hidden" name="id" value="{{ rule.id }}">{% endif %}
+  {% if txn %}<input type="hidden" name="txn" value="{{ txn }}">{% endif %}
+  <h2>Gdy</h2>
+  {% for c in text %}
+  <div class="cond">
+    <select name="field_{{ loop.index0 }}" aria-label="pole">{% for k, v in fields.items() %}<option value="{{ k }}" {{ "selected" if c.field == k }}>{{ v }}</option>{% endfor %}</select>
+    <select name="op_{{ loop.index0 }}" aria-label="operator">{% for k, v in ops.items() %}<option value="{{ k }}" {{ "selected" if c.op == k }}>{{ v }}</option>{% endfor %}</select>
+    <input name="value_{{ loop.index0 }}" value="{{ c.value }}" placeholder="{{ 'np. Lidl' if loop.first else 'opcjonalnie' }}" aria-label="wartość" {{ "required" if loop.first }}>
+  </div>
+  {% endfor %}
+  <div class="inline">
+    <label>Konto
+      <select name="account_id"><option value="">dowolne</option>{% for id, name in accounts.items() %}<option value="{{ id }}" {{ "selected" if rule.conditions.account_id == id }}>{{ name }}</option>{% endfor %}</select>
+    </label>
+    <label>Typ
+      <select name="kind"><option value="">dowolny</option>{% for k in kinds %}<option value="{{ k }}" {{ "selected" if rule.conditions.kind == k }}>{{ kind_labels.get(k, k) }}</option>{% endfor %}</select>
+    </label>
+    <label>Kierunek
+      <select name="direction"><option value="">oba</option>{% for k, v in directions.items() %}<option value="{{ k }}" {{ "selected" if rule.conditions.direction == k }}>{{ v }}</option>{% endfor %}</select>
+    </label>
+    <label>Kwota od<input name="amount_min" inputmode="decimal" value="{{ rule.conditions.amount_min if rule.conditions.amount_min is not none else '' }}" size="8"></label>
+    <label>do<input name="amount_max" inputmode="decimal" value="{{ rule.conditions.amount_max if rule.conditions.amount_max is not none else '' }}" size="8"></label>
+  </div>
+  <h2>Wtedy</h2>
+  <div class="inline">
+    <label>Kategoria
+      <select name="category_id" required>{{ category_options(tree, rule.category_id, "— wybierz —") }}</select>
+    </label>
+    <label>Nazwa sprzedawcy (opcjonalnie)<input name="rename" value="{{ rule.rename or '' }}" maxlength="60" placeholder="np. Czynsz"></label>
+    {% if rule.id %}<label class="check"><input type="checkbox" name="enabled" {{ "checked" if rule.enabled }}> włączona</label>{% endif %}
+  </div>
+  <p class="actions-row">
+    <button type="submit">Zapisz i przelicz</button>
+    <a href="{{ base }}/rules">Anuluj</a>
+  </p>
+</form>
+
+<section class="card">
+  <h2>Podgląd</h2>
+  <div id="preview" aria-live="polite"><p class="muted">wpisz warunek…</p></div>
+</section>
+{% endblock %}

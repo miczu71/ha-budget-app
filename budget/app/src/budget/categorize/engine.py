@@ -182,8 +182,17 @@ class Preview:
     samples: list[Sample] = field(default_factory=list)
 
 
-def preview(conn: sqlite3.Connection, rule: Rule, dictionary: Dictionary | None = None) -> Preview:
-    """Skutek zapisania reguły (nowej na górze listy albo edytowanej w miejscu)."""
+def preview(
+    conn: sqlite3.Connection,
+    rule: Rule,
+    dictionary: Dictionary | None = None,
+    *,
+    release: int | None = None,
+) -> Preview:
+    """Skutek zapisania reguły (nowej na górze listy albo edytowanej w miejscu).
+
+    `release` — transakcja, z której poprawki powstaje reguła: jej ręczna kategoria równa
+    kategorii reguły przejdzie pod regułę (`release_manual` przy zapisie)."""
     candidate = replace(rule, id=rule.id if rule.id is not None else PREVIEW_ID, enabled=True)
     rules = all_rules(conn)
     if rule.id is None:
@@ -191,6 +200,9 @@ def preview(conn: sqlite3.Connection, rule: Rule, dictionary: Dictionary | None 
     else:
         rules = [candidate if r.id == rule.id else r for r in rules]
     txns = _load(conn, dictionary or merchants.builtin())
+    for t in txns:
+        if t.id == release and t.is_manual and t.current.category_id == rule.category_id:
+            t.is_manual = False
     result = _classify(txns, rules, _slugs(conn))
     out = Preview()
     matched: list[tuple[_Txn, str]] = []
@@ -251,3 +263,26 @@ def set_manual(conn: sqlite3.Connection, txn_id: int, category_id: int | None) -
         "UPDATE txn SET category_id = ?, category_source = 'manual', rule_id = NULL WHERE id = ?",
         (category_id, txn_id),
     )
+
+
+def dictionary_hits(conn: sqlite3.Connection, dictionary: Dictionary | None = None) -> Counter[int]:
+    """Liczba transakcji skategoryzowanych przez każdy wpis słownika (klucz: `Entry.order`)."""
+    d = dictionary or merchants.builtin()
+    hits: Counter[int] = Counter()
+    for t in conn.execute(
+        "SELECT kind, description, counterparty_name FROM txn WHERE category_source = 'dictionary'"
+    ):
+        _, entry = _derive(d, str(t["kind"]), t["description"], t["counterparty_name"])
+        if entry is not None:
+            hits[entry.order] += 1
+    return hits
+
+
+def release_manual(conn: sqlite3.Connection, txn_id: int, category_id: int) -> bool:
+    """Ręczna kategoria równa kategorii nowej reguły → transakcja przechodzi pod regułę."""
+    cur = conn.execute(
+        "UPDATE txn SET category_source = NULL "
+        "WHERE id = ? AND category_source = 'manual' AND category_id = ?",
+        (txn_id, category_id),
+    )
+    return cur.rowcount > 0

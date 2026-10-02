@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% macro pct(x) %}{{ "%.0f" | format(x * 100) }}%{% endmacro %}
+{% macro delta(line) %}{% if line.prev %}{% set d = line.delta %}<span class="delta {{ 'up' if d > 0 else 'down' if d < 0 else '' }}" title="{{ prev_label }}: {{ line.prev | money('PLN') }}">{{ "+" if d > 0 }}{{ d | money('PLN') }}</span>{% else %}<span class="delta muted" title="brak w {{ prev_label }}">nowe</span>{% endif %}{% endmacro %}
+{% set period = "date_from=" ~ date_from ~ "&date_to=" ~ date_to %}
+{% block content %}
+<div class="month-nav">
+  <a class="month-link" href="{{ base }}/spending?month={{ m.prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
+  <h1>Wydatki — {{ label }}</h1>
+  {% if m.next_month %}<a class="month-link" href="{{ base }}/spending?month={{ m.next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
+</div>
+
+<div class="grid summary">
+  <section class="card"><h2>Wydatki</h2><div class="big">{{ m.expenses | money("PLN") }}</div></section>
+  <section class="card"><h2>Wpływy</h2><div class="big pos">{{ m.income | money("PLN") }}</div></section>
+  <section class="card"><h2>Oszczędności</h2><div class="big">{{ m.savings | money("PLN") }}</div></section>
+  <section class="card"><h2>Bilans</h2><div class="big {{ 'neg' if m.balance < 0 else 'pos' }}">{{ m.balance | money("PLN") }}</div>
+    <p class="small muted">pokrycie kategoriami: {{ pct(m.coverage.pct_txns) }} transakcji, {{ pct(m.coverage.pct_amount) }} kwoty</p></section>
+</div>
+
+<section class="card">
+  <h2>Gdzie poszły pieniądze</h2>
+  {% if not m.expense_groups and not m.uncategorized_out %}
+  <p class="muted">brak wydatków w tym miesiącu</p>
+  {% endif %}
+  <ul class="cats">
+    {% for g in m.expense_groups %}
+    <li>
+      <details>
+        <summary>
+          <span class="cat-name">{{ g.category.name }}</span>
+          <span class="cat-amount">{{ g.amount | money("PLN") }}</span>
+          <span class="bar" aria-hidden="true"><span style="width: {{ pct(g.share) }}"></span></span>
+          <span class="cat-meta small muted">{{ pct(g.share) }} · {{ g.count }} tr. · {{ delta(g) }}</span>
+        </summary>
+        <ul class="subcats">
+          {% for c in g.children %}
+          <li>
+            <a href="{{ base }}/transactions?category={{ c.category.id }}&{{ period }}">{{ c.category.name }}</a>
+            <span class="cat-amount">{{ c.amount | money("PLN") }}</span>
+            <span class="cat-meta small muted">{{ c.count }} tr. · {{ delta(c) }}</span>
+          </li>
+          {% endfor %}
+          <li><a class="small" href="{{ base }}/transactions?category={{ g.category.id }}&{{ period }}">wszystkie transakcje: {{ g.category.name }} »</a></li>
+        </ul>
+      </details>
+    </li>
+    {% endfor %}
+    {% if m.uncategorized_out %}
+    <li class="uncat">
+      <a href="{{ base }}/transactions?category=none&direction=out&{{ period }}">
+        <span class="cat-name">Nieskategoryzowane</span>
+        <span class="cat-amount">{{ m.uncategorized_out | money("PLN") }}</span>
+        <span class="cat-meta small">{{ m.uncategorized_out_count }} tr. — przypisz kategorie »</span>
+      </a>
+    </li>
+    {% endif %}
+  </ul>
+</section>
+
+<div class="grid">
+  <section class="card">
+    <h2>Wpływy</h2>
+    <dl class="kv">
+      {% for line in m.income_lines %}
+      <dt><a href="{{ base }}/transactions?category={{ line.category.id }}&{{ period }}">{{ line.category.name }}</a></dt><dd>{{ line.amount | money("PLN") }}</dd>
+      {% endfor %}
+      {% if m.uncategorized_in %}
+      <dt><a href="{{ base }}/transactions?category=none&direction=in&{{ period }}">bez kategorii</a> <span class="small muted">({{ m.uncategorized_in_count }})</span></dt><dd>{{ m.uncategorized_in | money("PLN") }}</dd>
+      {% endif %}
+    </dl>
+    {% if not m.income_lines and not m.uncategorized_in %}<p class="muted">brak</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2>Oszczędności i poza budżetem</h2>
+    <dl class="kv">
+      {% for line in m.savings_lines + m.excluded_lines %}
+      <dt><a href="{{ base }}/transactions?category={{ line.category.id }}&{{ period }}">{{ line.category.name }}</a></dt><dd>{{ line.amount | money("PLN") }}</dd>
+      {% endfor %}
+    </dl>
+    {% if not m.savings_lines and not m.excluded_lines %}<p class="muted">brak</p>{% endif %}
+    <p class="small muted">Przelewy między własnymi kontami (np. spłata karty) nie są liczone.{% if m.other_currency %} Pominięto {{ m.other_currency }} transakcji w innej walucie niż PLN.{% endif %}</p>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Słownik sieci</h1>
+{% include "_rules_tabs.html" %}
+<section class="card">
+  <p class="small muted">Wbudowany słownik (wersja {{ dict_version }}): sieci ogólnopolskie i marki = kategoria. Nie da się go edytować; żeby zmienić kategorię sprzedawcy, dodaj regułę — reguły wygrywają ze słownikiem.</p>
+  <form class="inline" method="get" action="{{ base }}/dictionary">
+    <label>Szukaj<input type="search" name="q" value="{{ q }}" placeholder="marka, kategoria albo wzorzec"></label>
+    <button type="submit">Szukaj</button>
+  </form>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Marka</th><th>Kategoria</th><th>Wzorce</th><th class="num">Trafienia</th></tr></thead>
+    <tbody>
+    {% for g in items %}
+    <tr><td>{{ g.name }}</td><td>{{ g.category }}</td><td class="small muted">{{ g.patterns | join(", ") }}</td><td class="num">{{ g.hits }}</td></tr>
+    {% else %}
+    <tr><td colspan="4" class="muted">nic nie znaleziono</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

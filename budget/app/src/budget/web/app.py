@@ -21,6 +21,8 @@ from budget.web import (
     routes_accounts,
     routes_bank,
     routes_import,
+    routes_rules,
+    routes_spending,
     routes_status,
     routes_transactions,
 )
@@ -52,7 +54,9 @@ def create_app(service: Service, *, dev: bool = False) -> FastAPI:
 
     for module in (
         routes_status,
+        routes_spending,
         routes_transactions,
+        routes_rules,
         routes_accounts,
         routes_import,
         routes_bank,

@@ -12,7 +12,9 @@
   <header class="top">
     <nav>
       <a href="{{ base }}/" class="{{ 'on' if page == 'status' }}">Status</a>
+      <a href="{{ base }}/spending" class="{{ 'on' if page == 'spending' }}">Wydatki</a>
       <a href="{{ base }}/transactions" class="{{ 'on' if page == 'transactions' }}">Transakcje</a>
+      <a href="{{ base }}/rules" class="{{ 'on' if page in ('rules', 'rule_form', 'dictionary', 'categories') }}">Reguły</a>
       <a href="{{ base }}/accounts" class="{{ 'on' if page == 'accounts' }}">Konta</a>
       <a href="{{ base }}/import" class="{{ 'on' if page == 'import' }}">Import CSV</a>
       <a href="{{ base }}/bank" class="{{ 'on' if page == 'bank' }}">Bank</a>
