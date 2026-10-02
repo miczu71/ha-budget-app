@@ -2,9 +2,10 @@
 
 Seed jest w migracji `003_categories.sql`; słownik sieci i reguły odwołują się do podkategorii
 po `slug` / `id`. Panel pozwala dodać podkategorię i zmienić nazwę (M4a), dodać kategorię główną,
-przenieść podkategorię do innej głównej i usunąć pustą główną (0.6.0); usuwanie podkategorii
-i zmianę grup Flex dostanie M5. Przeniesienie zmienia tylko `parent_id` — transakcje, reguły
-i słownik wskazują podkategorię, więc idą za nią bez przeliczania księgi.
+przenieść podkategorię do innej głównej i usunąć pustą główną (0.6.0), zmienić grupę budżetu
+podkategorii (0.7.0, M5a); usuwanie podkategorii — później. Przeniesienie zmienia tylko
+`parent_id` — transakcje, reguły i słownik wskazują podkategorię, więc idą za nią bez
+przeliczania księgi.
 """
 
 from __future__ import annotations
@@ -197,3 +198,14 @@ def delete_main(conn: sqlite3.Connection, category_id: int) -> str:
         raise TaxonomyError(f"„{cat.name}” ma podkategorie — najpierw je przenieś.")
     conn.execute("DELETE FROM category WHERE id = ?", (cat.id,))
     return cat.name
+
+
+def set_flex_group(conn: sqlite3.Connection, category_id: int, group: str) -> Category:
+    """Grupa budżetu podkategorii (stałe, elastyczne…); przypisania transakcji bez zmian."""
+    cat = all_categories(conn).get(category_id)
+    if cat is None or cat.is_main:
+        raise TaxonomyError("Grupę budżetu ma tylko podkategoria.")
+    if group not in FLEX_GROUPS:
+        raise TaxonomyError("Nieznana grupa budżetu.")
+    conn.execute("UPDATE category SET flex_group = ? WHERE id = ?", (group, cat.id))
+    return cat

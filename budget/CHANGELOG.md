@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.7.0
+
+Budżet Flex, pierwszy kawałek (M5a, `docs/PLAN_M5a.md`): „ile mogę jeszcze wydać w tym miesiącu”.
+
+- **Nowy ekran „Budżet”** (zakładka po Statusie): zostało z miesięcznej kwoty na wydatki
+  elastyczne, pasek z kreską tempa, „na dzień do końca miesiąca”, „przy równym tempie do dziś”,
+  podkategorie elastyczne z wydanym i medianą 6 miesięcy; stałe i nieregularne obok,
+  informacyjnie. Nawigacja po miesiącach jak w „Wydatkach”.
+- **Kwota budżetu** ustawiana w panelu od wybranego miesiąca (wcześniejsze miesiące bez zmian),
+  z podpowiedzią = mediana wydatków elastycznych z 6 pełnych miesięcy.
+- Wydatki bez kategorii liczą się do „wydane” (ostrożnie) — z liczbą i linkiem do kolejki.
+- **Kategorie:** grupa budżetu (przychody, stałe, elastyczne, nieregularne, oszczędności, poza
+  budżetem) do zmiany przy każdej podkategorii.
+- Migracja bazy 006 (`flex_budget`).
+
 ## 0.6.1
 
 Wyszukiwanie na żywo w całym panelu (poza planem, `docs/PLAN_live_search.md`).

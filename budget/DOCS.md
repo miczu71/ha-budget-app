@@ -74,8 +74,30 @@ w innej walucie są na razie pomijane.
 i zmienisz nazwę. Każdą podkategorię możesz **przenieść** do innej kategorii głównej (lista
 „przenieś do…” pod nazwą). Razem z nią idą jej transakcje, reguły i słownik, a „Wydatki”
 pokażą nowy podział od razu, także za poprzednie miesiące. Grupa budżetu (stałe, elastyczne…)
-zostaje przy podkategorii. Pustą kategorię główną (np. po przeniesieniu wszystkich jej
+zostaje przy podkategorii; zmienisz ją listą przy podkategorii i **Ustaw** (przypisania
+transakcji się nie zmieniają). Pustą kategorię główną (np. po przeniesieniu wszystkich jej
 podkategorii) można usunąć.
+
+## Budżet — „ile mogę jeszcze wydać”
+
+Ekran **Budżet** odpowiada na jedno pytanie: ile zostało w tym miesiącu na **wydatki
+elastyczne** (codzienne: jedzenie, paliwo, zakupy, wyjścia).
+
+- **Kwotę** ustawiasz w panelu — miesięcznie, od wybranego miesiąca do następnej zmiany
+  (zmiana „od tego miesiąca” nie zmienia wcześniejszych). Podpowiedź to mediana wydatków
+  elastycznych z 6 poprzednich pełnych miesięcy, zaokrąglona w górę do 10 zł.
+- **Wydane** = podkategorie z grupy „elastyczne” (netto, zwroty zmniejszają) **plus wydatki bez
+  kategorii** — ostrożnie, żeby „zostało” nie było zawyżone. Jeśli taki wydatek okaże się stały
+  albo nieregularny, po skategoryzowaniu wraca do puli. Link prowadzi do kolejki „Do przejrzenia”
+  dla tego miesiąca.
+- **Stałe** (rachunki, subskrypcje, kredyt) i **nieregularne** (remont, podróże, prezenty) są
+  pokazane obok i nie zmniejszają „zostało”; oszczędności, „poza budżetem” i przelewy między
+  własnymi kontami nie są liczone wcale. Które podkategorie są elastyczne, ustawisz w Kategoriach.
+- **Tempo:** kreska na pasku pokazuje, jaka część miesiąca minęła; „przy równym tempie do dziś”
+  to kwota × dzień / dni miesiąca. „Na dzień” = zostało / dni do końca miesiąca (z dzisiejszym).
+- Lista podkategorii elastycznych pokazuje wydane w miesiącu i „zwykle” (mediana z 6 miesięcy).
+
+Jak „Wydatki”: miesiąc kalendarzowy po dacie transakcji, tylko PLN.
 
 ## Kolejka „Do przejrzenia”
 

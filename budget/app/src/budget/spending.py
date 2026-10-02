@@ -132,7 +132,7 @@ class _Acc:
 
 
 @dataclass
-class _Sums:
+class Sums:
     by_leaf: dict[int, _Acc] = field(default_factory=lambda: defaultdict(_Acc))  # ze znakiem
     unc_out: _Acc = field(default_factory=_Acc)  # wartości bezwzględne
     unc_in: _Acc = field(default_factory=_Acc)
@@ -161,8 +161,8 @@ def _rows(conn: sqlite3.Connection, start: date | None, end: date | None) -> lis
     ).fetchall()
 
 
-def _sums(conn: sqlite3.Connection, start: date | None, end: date | None) -> _Sums:
-    s = _Sums()
+def sums(conn: sqlite3.Connection, start: date | None, end: date | None) -> Sums:
+    s = Sums()
     for r in _rows(conn, start, end):
         if r["currency"] != BASE_CURRENCY:
             s.other_currency += 1
@@ -186,14 +186,14 @@ def coverage(
     conn: sqlite3.Connection, start: date | None = None, end: date | None = None
 ) -> Coverage:
     """Pokrycie wydatków kategoriami w okresie (bez granic = cała księga)."""
-    return _sums(conn, start, end).coverage
+    return sums(conn, start, end).coverage
 
 
 def build(conn: sqlite3.Connection, month: date, today: date) -> Month:
     start = month_start(month)
     prev_start = add_months(start, -1)
     nxt = add_months(start, 1)
-    cur, prev = _sums(conn, start, nxt), _sums(conn, prev_start, start)
+    cur, prev = sums(conn, start, nxt), sums(conn, prev_start, start)
     out = Month(
         month=start,
         prev_month=prev_start,

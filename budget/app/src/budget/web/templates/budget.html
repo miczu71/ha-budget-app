@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% macro pct(x) %}{{ "%.0f" | format(x * 100) }}%{% endmacro %}
+{% set period = "date_from=" ~ date_from ~ "&date_to=" ~ date_to %}
+{% set ym = f.month.strftime('%Y-%m') %}
+{% block content %}
+<div class="month-nav">
+  <a class="month-link" href="{{ base }}/budget?month={{ f.prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
+  <h1>Budżet — {{ label }}</h1>
+  {% if f.next_month %}<a class="month-link" href="{{ base }}/budget?month={{ f.next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
+</div>
+
+{% if f.budget is none %}
+<section class="card flex-hero">
+  <h2>Ile możesz wydać na wydatki elastyczne w miesiącu?</h2>
+  <p class="small muted">Elastyczne to codzienne wydatki: jedzenie, paliwo, zakupy, wyjścia. Stałe (rachunki, subskrypcje, kredyt) i nieregularne (remont, podróże, prezenty) są liczone obok i nie zmniejszają tej kwoty. Grupę podkategorii zmienisz w <a href="{{ base }}/categories">Kategoriach</a>.</p>
+  {% if f.suggested %}<p>Podpowiedź: <strong>{{ f.suggested | money("PLN") }}</strong> <span class="small muted">— mediana z {{ f.history | length }} mies., z wydatkami bez kategorii; wpisana poniżej, możesz ją zmienić</span></p>{% endif %}
+  <form class="rename" method="post" action="{{ base }}/budget/amount">
+    <input type="hidden" name="month" value="{{ ym }}">
+    <input name="amount" inputmode="decimal" value="{{ '%d' | format(f.suggested) if f.suggested }}" placeholder="np. 2500" aria-label="miesięczny budżet elastyczny" required><button>Ustaw od tego miesiąca</button>
+  </form>
+  <p class="small muted">Wydane elastyczne w tym miesiącu: {{ f.spent | money("PLN") }}{% if f.uncategorized_count %} (w tym {{ f.uncategorized_count }} bez kategorii){% endif %}.</p>
+</section>
+{% else %}
+{% set rem = f.remaining %}
+<section class="card flex-hero">
+  <h2>{% if f.is_current %}Zostało na elastyczne{% elif rem < 0 %}Przekroczono budżet{% else %}Zostało z budżetu{% endif %}</h2>
+  <div class="hero-amount {{ 'neg' if rem < 0 else 'pos' }}">{{ (rem | abs if rem < 0 and not f.is_current else rem) | money("PLN") }}</div>
+  <p class="muted">wydane {{ f.spent | money("PLN") }} z {{ f.budget | money("PLN") }}</p>
+  <div class="flex-bar {{ 'over' if f.over_pace or rem < 0 }}" role="img" aria-label="wydane {{ pct(f.used) }} budżetu{% if f.is_current %}, minęło {{ pct(f.elapsed) }} miesiąca{% endif %}">
+    <span class="fill" style="width: {{ pct([f.used, 1] | min) }}"></span>
+    {% if f.is_current %}<span class="mark" style="left: {{ pct(f.elapsed) }}"></span>{% endif %}
+  </div>
+  {% if f.is_current %}
+  <dl class="kv flex-kv">
+    <dt>Na dzień do końca miesiąca</dt><dd><strong>{{ f.per_day | money("PLN") }}</strong> <span class="small muted">({{ f.days_left }} {{ "dzień" if f.days_left == 1 else "dni" }})</span></dd>
+    <dt>Przy równym tempie do dziś</dt><dd>{{ f.expected | money("PLN") }}</dd>
+    <dt>Tempo</dt><dd class="{{ 'neg' if f.over_pace else 'pos' }}">{% if f.over_pace %}ponad tempem o {{ (f.spent - f.expected) | money("PLN") }}{% else %}w tempie (zapas {{ (f.expected - f.spent) | money("PLN") }}){% endif %}</dd>
+  </dl>
+  {% endif %}
+  {% if f.uncategorized_count %}
+  <p class="small warn-note"><a href="{{ base }}/review?month={{ ym }}">W tym {{ f.uncategorized_count }} {{ "wydatek" if f.uncategorized_count == 1 else "wydatków" }} bez kategorii ({{ f.uncategorized | money("PLN") }}) — przejrzyj »</a><br>Liczone jako elastyczne; jeśli to stałe albo nieregularne, po skategoryzowaniu wrócą do puli.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+<div class="grid">
+  <section class="card">
+    <h2>Elastyczne w kategoriach</h2>
+    {% if f.lines %}
+    <ul class="flex-lines">
+      {% for line in f.lines %}
+      <li>
+        <a href="{{ base }}/transactions?category={{ line.category.id }}&{{ period }}">{{ line.category.name }}</a>
+        <span class="cat-amount">{{ line.amount | money("PLN") }}</span>
+        <span class="small muted">{{ line.parent }}{% if f.history %} · zwykle {{ line.median | money("PLN") }}{% endif %}{% if line.count %} · {{ line.count }} tr.{% endif %}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted">brak wydatków elastycznych</p>{% endif %}
+    {% if f.history %}<p class="small muted">„Zwykle” = mediana z {{ f.history | length }} poprzednich pełnych mies.</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2>Poza pulą</h2>
+    <dl class="kv">
+      <dt>Stałe</dt><dd>{{ f.fixed | money("PLN") }}</dd>
+      <dt>Nieregularne</dt><dd>{{ f.non_monthly | money("PLN") }}</dd>
+    </dl>
+    <p class="small muted">Informacyjnie — nie zmniejszają kwoty „zostało”. Szczegóły w <a href="{{ base }}/spending?month={{ ym }}">Wydatkach</a>. Przelewy między własnymi kontami, oszczędności i „poza budżetem” nie są liczone.{% if f.other_currency %} Pominięto {{ f.other_currency }} transakcji w innej walucie niż PLN.{% endif %}</p>
+  </section>
+  {% if f.budget is not none %}
+  <section class="card">
+    <h2>Kwota budżetu</h2>
+    <p>{{ f.budget | money("PLN") }} <span class="small muted">— obowiązuje od miesiąca: {{ month_label(f.budget_from) }}</span></p>
+    <form class="rename" method="post" action="{{ base }}/budget/amount">
+      <input type="hidden" name="month" value="{{ ym }}">
+      <input name="amount" inputmode="decimal" placeholder="nowa kwota" aria-label="nowa kwota budżetu od miesiąca {{ label }}" required><button class="secondary">Zmień od tego miesiąca</button>
+    </form>
+    {% if f.suggested %}<p class="small muted">Mediana wydatków elastycznych z {{ f.history | length }} mies.: {{ f.suggested | money("PLN") }} (z wydatkami bez kategorii — im więcej skategoryzujesz, tym trafniejsza).</p>{% endif %}
+    {% if f.history %}
+    <details class="small">
+      <summary>wydane w poprzednich miesiącach</summary>
+      <dl class="kv">
+        {% for h in f.history | reverse %}<dt><a href="{{ base }}/budget?month={{ h.month.strftime('%Y-%m') }}">{{ month_label(h.month) }}</a></dt><dd>{{ h.spent | money("PLN") }}{% if h.uncategorized %}<br><span class="small muted">w tym bez kategorii {{ h.uncategorized | money("PLN") }}</span>{% endif %}</dd>{% endfor %}
+      </dl>
+    </details>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

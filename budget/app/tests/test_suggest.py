@@ -309,4 +309,4 @@ def test_migration_drops_pending_single_suggestions() -> None:
     from budget.storage.db import migrations
 
     names = [name for _, name, _ in migrations()]
-    assert names[-1] == "005_suggestion_candidates.sql"
+    assert "005_suggestion_candidates.sql" in names

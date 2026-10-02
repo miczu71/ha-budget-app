@@ -2,7 +2,7 @@
 {% block content %}
 <h1>Kategorie</h1>
 {% include "_rules_tabs.html" %}
-<p class="small muted">Możesz dodać kategorię główną i podkategorię, zmienić nazwę i przenieść podkategorię do innej kategorii głównej — razem z jej transakcjami, regułami i historią w „Wydatkach”. Grupa budżetu (stałe, elastyczne…) zostaje przy podkategorii i przyda się w budżecie Flex.</p>
+<p class="small muted">Możesz dodać kategorię główną i podkategorię, zmienić nazwę i przenieść podkategorię do innej kategorii głównej — razem z jej transakcjami, regułami i historią w „Wydatkach”. Grupa budżetu (stałe, elastyczne…) zostaje przy podkategorii; w „Budżecie” do puli liczą się tylko elastyczne.</p>
 <div class="grid">
 {% for main in tree %}
   <section class="card">
@@ -21,7 +21,14 @@
           <input name="name" value="{{ c.name }}" aria-label="nazwa podkategorii" maxlength="60"><button class="secondary">Zmień</button>
         </form>
         <div class="leaf-meta">
-          <span class="small muted">{{ groups.get(c.flex_group, c.flex_group) }} · {{ counts.get(c.id, 0) }} tr.</span>
+          <form class="move group" method="post" action="{{ base }}/categories/{{ c.id }}/group">
+            <select name="flex_group" aria-label="grupa budżetu: {{ c.name }}">
+              {% for key, label in groups.items() %}
+              <option value="{{ key }}"{{ " selected" if key == c.flex_group }}>{{ label }}</option>
+              {% endfor %}
+            </select><button class="secondary">Ustaw</button>
+          </form>
+          <span class="small muted">{{ counts.get(c.id, 0) }} tr.</span>
           <form class="move" method="post" action="{{ base }}/categories/{{ c.id }}/move">
             <select name="parent_id" aria-label="przenieś {{ c.name }} do kategorii głównej" required>
               <option value="" disabled selected>przenieś do…</option>

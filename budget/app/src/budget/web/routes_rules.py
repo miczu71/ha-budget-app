@@ -335,6 +335,20 @@ def router(panel: Panel) -> APIRouter:
             "razem z transakcjami i regułami.",
         )
 
+    @r.post("/categories/{category_id}/group")
+    async def category_group(
+        request: Request, category_id: int, flex_group: str = Form("")
+    ) -> Response:
+        try:
+            cat = taxonomy.set_flex_group(conn, category_id, flex_group)
+        except TaxonomyError as exc:
+            return panel.redirect(request, "/categories", str(exc), "error")
+        return panel.redirect(
+            request,
+            "/categories",
+            f"„{cat.name}” — grupa budżetu: {taxonomy.FLEX_LABELS[flex_group]}.",
+        )
+
     @r.post("/categories/{category_id}/delete")
     async def delete_category(request: Request, category_id: int) -> Response:
         try:

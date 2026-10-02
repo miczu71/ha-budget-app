@@ -349,3 +349,18 @@ label.search input {
 @media (max-width: 640px) {
   label.search { max-width: none; flex-basis: 100%; }
 }
+
+/* M5a: Budżet */
+form.move.group { margin-left: 0; }
+.flex-hero h2 { color: var(--muted); font-weight: 500; font-size: 14px; margin-bottom: 2px; }
+.hero-amount { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.flex-hero > p { margin: 4px 0 10px; }
+.flex-bar { position: relative; height: 12px; background: var(--line); border-radius: 6px; margin: 6px 0 12px; }
+.flex-bar .fill { display: block; height: 100%; background: var(--ok); border-radius: 6px; }
+.flex-bar.over .fill { background: var(--error); }
+.flex-bar .mark { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--text); }
+.flex-kv { margin: 0 0 8px; }
+.warn-note a { color: var(--warn); }
+.flex-lines { list-style: none; margin: 0; padding: 0; }
+.flex-lines li { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.flex-lines li .small { grid-column: 1 / span 2; }
