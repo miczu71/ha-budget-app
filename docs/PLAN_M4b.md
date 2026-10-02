@@ -46,6 +46,9 @@ Decyzje (wywiad 2026-10-02):
   „.COM” na końcu nazwy domeny).
 - Bez kodu, ale waluta oryginalna inna niż PLN → grupa „Zagranica (EUR)”.
 - Liczone w locie, bez kolumny w bazie.
+- **Stały sprzedawca zagraniczny** (transakcje w ≥ 3 różnych miesiącach) → grupa sprzedawcy,
+  nie kraju (odstępstwo z wykonania: na danych lokalnych dwie grupy „krajowe” były w ~95%
+  jednym sprzedawcą co miesiąc — doładowania/subskrypcje, nie wyjazd).
 
 ### Ekran `/review`
 

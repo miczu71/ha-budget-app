@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0
+
+Kolejka „Do przejrzenia” (etap M4b, `docs/PLAN_M4b.md`).
+
+- Nowa zakładka **Do przejrzenia** z licznikiem w nawigacji: transakcje bez kategorii
+  w grupach, pokrycie wydatków kategoriami w nagłówku.
+- Grupy sprzedawców/odbiorców (z kierunkiem): kategoria dla całej grupy zapisuje regułę
+  „sprzedawca równa się … + kierunek” z podglądem skutku; „tylko te transakcje” albo
+  odznaczenie pozycji ustawia kategorię ręcznie, bez reguły.
+- Grupy krajów dla sporadycznych płatności kartą za granicą (kraj z opisu, ISO 3166-1, albo
+  waluta oryginalna); stali sprzedawcy zagraniczni (≥ 3 miesiące) zostają grupą sprzedawcy.
+- „Nieskategoryzowane” na ekranie Wydatki prowadzi do kolejki.
+
 ## 0.2.0
 
 Kategoryzacja v1 (etap M4a, `docs/PLAN_M4a.md`).

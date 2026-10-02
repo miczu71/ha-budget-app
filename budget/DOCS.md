@@ -70,6 +70,23 @@ i zmianą względem poprzedniego miesiąca, wpływy, oszczędności, transakcje 
 (kategoria „Jednorazowe / poza budżetem”) i pozycje bez kategorii. Kwoty w PLN; transakcje
 w innej walucie są na razie pomijane.
 
+## Kolejka „Do przejrzenia”
+
+Zakładka z licznikiem w nawigacji zbiera wszystkie transakcje **bez kategorii** (to, co
+skategoryzowała reguła albo słownik, nie wymaga potwierdzania). Nagłówek pokazuje pokrycie
+wydatków kategoriami (% transakcji i % kwoty).
+
+- **Sprzedawcy i odbiorcy** — grupa = sprzedawca/odbiorca + kierunek (wydatek i wpływ od tej
+  samej osoby to osobne grupy), sortowanie po kwocie albo liczbie. Po wybraniu kategorii zapis
+  tworzy regułę „sprzedawca równa się … + kierunek”, więc kolejne transakcje skategoryzują się
+  same; podgląd ostrzega, gdy reguła zmieni też już skategoryzowane pozycje.
+- **Tylko te transakcje** albo odznaczenie części pozycji — kategoria ręczna, bez reguły
+  (jednorazowi sprzedawcy, odbiorca o mieszanym przeznaczeniu); odznaczone zostają w kolejce.
+- **Zagranica** — sporadyczne płatności kartą za granicą, grupowane po kraju (z opisu
+  transakcji) albo walucie, zwykle wyjazd: jedna decyzja, np. „Podróże”, dla całej grupy.
+  Zagraniczny sprzedawca obecny w co najmniej 3 różnych miesiącach (subskrypcja, doładowania)
+  jest wśród zwykłych sprzedawców.
+
 ## Encje
 
 | Encja | Opis |
