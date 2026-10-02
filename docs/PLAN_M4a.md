@@ -166,3 +166,27 @@ middleware Ingress i cache z M3, `fmt_money`.
 - **Pełne przeliczanie zmienia kategorie historyczne po edycji reguły** → podgląd zmian przed
   zapisem, `manual` nietykalne.
 - **Rozmiar etapu** → commity per krok; kolejka przeglądu celowo w M4b.
+
+## Odstępstwa od planu (wykonanie 2026-10-02)
+
+- **Akcje reguły w kolumnach** (`category_id`, `rename`) zamiast JSON — klucz obcy do kategorii;
+  warunki zostają JSON-em.
+- **Kategorie główne bez grupy Flex** (`CHECK` w schemacie); transakcja dostaje tylko
+  podkategorię. Seed: 14 głównych, 41 podkategorii (doszła „Poza budżetem / Jednorazowe”
+  i „Świadczenia”).
+- **Źródło sprzedawcy zależne od typu**: karta → opis, BLIK/gotówka → kontrahent (domena sklepu),
+  przelewy → wyłącznie odbiorca. Tytuł przelewu nie jest dopasowywany do słownika.
+- **Przy remisie liczby słów marka wygrywa ze słowem ogólnym** („CARREFOUR SUPERMARKET”).
+- **Reguła z poprawki przejmuje poprawianą transakcję** (gdy kategorie są równe) — inaczej podgląd
+  pokazywał „dostanie tę kategorię: 0”.
+- **Rozwijanie podkategorii natywnym `<details>`** zamiast htmx; strzałki i znaczniki bez glifów
+  spoza Latin-1 (czcionka w kontenerze Chromium ich nie miała — możliwe także w WebView).
+- **Lista transakcji po dacie transakcji** (tak jak „Wydatki”), data księgowania w szczegółach.
+- **Wydajność**: wzorce słownika indeksowane pierwszym słowem, pamięć wyprowadzeń sprzedawcy;
+  ~0,25 s przeliczenia i ~0,3 s podglądu na ~3 tys. transakcji (w pętli zdarzeń).
+
+## Wynik (do uzupełnienia na checkpoincie)
+
+- Pokrycie bez reguł, lokalnie na kopii prawdziwej księgi (wydatki bez przelewów wewnętrznych):
+  **67% transakcji / 54% kwoty** (cel ≥ 67% / ≥ 53%) ✅.
+- Po sesji reguł: — (cel ≥ 85% / ≥ 85%).

@@ -45,6 +45,31 @@ stronicowanie kończy się po pokryciu okna (zwykle jedna strona).
 Jeśli wcześniej używałeś CLI (`python -m budget.cli ingest-eb --live`) na tej samej sesji, po
 przeniesieniu sesji do add-onu przestań — sesja i limit są wspólne.
 
+## Kategorie i ekran „Wydatki”
+
+Każda transakcja dostaje podkategorię automatycznie, w tej kolejności:
+
+1. **ręcznie ustawiona** w panelu (Transakcje → kategoria w wierszu) — nic jej nie nadpisuje,
+2. **zwrot** dostaje kategorię zakupu, do którego należy,
+3. **Twoje reguły** (Reguły) — wygrywa pierwsza pasująca z góry listy,
+4. **słownik sieci** wbudowany w add-on (ogólnopolskie sieci i marki, np. Biedronka, Orlen,
+   Rossmann) i słowa ogólne („APTEKA”, „PARKING”),
+5. **typ transakcji**: wypłata z bankomatu, opłata banku, rata kredytu.
+
+Przelewy między Twoimi podlinkowanymi kontami (np. spłata karty) nie mają kategorii i nie liczą
+się do wydatków. Przelew do osoby kategoryzuje odbiorca, nie tytuł — dodaj regułę na odbiorcę
+(albo zmień kategorię jednej transakcji i kliknij **Zawsze dla …**).
+
+**Reguły** mają warunki (sprzedawca/odbiorca, opis, kontrahent, konto kontrahenta; „zawiera”,
+„równa się”, „zaczyna się od”; konto, typ, kierunek, zakres kwot) i podgląd na żywo: ile
+transakcji pasuje, ile zmieni kategorię i ile ma kategorię ręczną. Zapis przelicza kategorie
+całej historii (ręczne zostają).
+
+**Wydatki** pokazują miesiąc kalendarzowy (po dacie transakcji): wydatki w kategoriach z udziałem
+i zmianą względem poprzedniego miesiąca, wpływy, oszczędności, transakcje poza budżetem
+(kategoria „Jednorazowe / poza budżetem”) i pozycje bez kategorii. Kwoty w PLN; transakcje
+w innej walucie są na razie pomijane.
+
 ## Encje
 
 | Encja | Opis |

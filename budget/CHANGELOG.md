@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.0
+
+Kategoryzacja v1 (etap M4a, `docs/PLAN_M4a.md`).
+
+- Kategorie dwupoziomowe (14 głównych, 41 podkategorii z grupą budżetu pod M5); w panelu
+  dodawanie podkategorii i zmiana nazw.
+- Automatyczna kategoria: ręczna > zwrot dziedziczy zakup > reguły > słownik sieci > typ
+  transakcji; przelewy między własnymi kontami bez kategorii. Przeliczenie po każdej
+  synchronizacji, imporcie, zmianie reguł i przy starcie.
+- Wbudowany słownik ~400 wzorców polskich sieci i marek (nazwa sprzedawcy + kategoria).
+- Reguły użytkownika z podglądem na żywo; „Zawsze dla …” z ręcznej zmiany kategorii.
+- Nowy ekran **Wydatki** (miesiąc w kategoriach, zmiana m/m, wpływy, oszczędności, poza
+  budżetem, bez kategorii); **Transakcje** z kategorią w wierszu, filtrem kategorii i kierunku
+  oraz datą transakcji zamiast daty księgowania.
+- Ręczna kategoria przechodzi na transakcję z API, gdy wiersz z CSV wejdzie w okno API.
+
 ## 0.1.1
 
 - Synchronizacja: Millennium ignoruje `date_from` i zawsze oddaje 90 dni (~8 stron rachunku),
