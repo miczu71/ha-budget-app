@@ -190,3 +190,8 @@ middleware Ingress i cache z M3, `fmt_money`.
 - Pokrycie bez reguł, lokalnie na kopii prawdziwej księgi (wydatki bez przelewów wewnętrznych):
   **67% transakcji / 54% kwoty** (cel ≥ 67% / ≥ 53%) ✅.
 - Po sesji reguł: — (cel ≥ 85% / ≥ 85%).
+- Wydanie 0.2.0 zainstalowane 2026-10-02 (aktualizacja w trakcie obserwacji M3 — kod synchronizacji
+  bez zmian, liczniki w bazie). Migracja 003 i przeliczenie przy starcie OK; panel przez Ingress:
+  plakietka 0.2.0, wszystkie ekrany, 0 błędów konsoli, 390×844 bez przewijania w poziomie.
+- Obserwacja: w miesiącu z wyjazdem zagranicznym pokrycie transakcji spada (lokalni sprzedawcy
+  za granicą — poza zasięgiem słownika sieci); opisy z API nie rozcinają nazw marek.
