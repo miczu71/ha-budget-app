@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Import CSV</h1>
+
+<section class="card">
+  <h2>Eksport z Millenetu</h2>
+  <form class="inline" method="post" action="{{ base }}/import" enctype="multipart/form-data" hx-boost="false">
+    <label>Plik CSV (historia transakcji)<input type="file" name="file" accept=".csv,text/csv" required></label>
+    <button type="submit">Importuj</button>
+  </form>
+  <p class="small muted">Import jest idempotentny — ten sam plik drugi raz nic nie zmienia. Wiersze sprzed historii z API trafiają do księgi, nowsze tylko uzupełniają transakcje z API (typ, konto kontrahenta, waluta). Kolejność importu i synchronizacji jest obojętna.</p>
+</section>
+
+{% if unmapped %}
+<section class="card">
+  <h2>Nieprzypisane numery kart</h2>
+  <p class="small muted">Automat przypisuje numer, gdy co najmniej 3 transakcje zgadzają się z API karty. Jeśli historia z API jeszcze nie istnieje, przypisz ręcznie:</p>
+  {% for n in unmapped %}
+  <form class="inline" method="post" action="{{ base }}/import/map" hx-boost="false" style="margin-bottom:8px">
+    <input type="hidden" name="number" value="{{ n.number }}">
+    <span>karta {{ n.masked }} · {{ n.rows }} wierszy</span>
+    <select name="account_id" required>
+      {% for c in cards %}<option value="{{ c.id }}">#{{ c.id }} {{ c.display_name or c.product or "karta" }}</option>{% endfor %}
+    </select>
+    <button type="submit" {{ "disabled" if not cards }}>Przypisz</button>
+  </form>
+  {% endfor %}
+  {% if not cards %}<p class="small muted">Brak konta karty — najpierw przenieś sesję albo połącz bank.</p>{% endif %}
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Raport księgi</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Konto</th><th>Źródło</th><th class="num">Transakcje</th><th>Zakres</th></tr></thead>
+    <tbody>
+    {% for a in rep.accounts %}
+      {% for s in a.sources %}
+      <tr><td>#{{ a.id }} {{ a.display_name or a.kind }} {{ a.currency }}</td><td>{{ "API" if s.source == "eb" else "CSV" }}</td><td class="num">{{ s.count }}</td><td class="small">{{ s.first }} … {{ s.last }}</td></tr>
+      {% else %}
+      <tr><td>#{{ a.id }} {{ a.display_name or a.kind }} {{ a.currency }}</td><td colspan="3" class="muted">brak transakcji</td></tr>
+      {% endfor %}
+    {% endfor %}
+    </tbody>
+  </table></div>
+
+  <h2 style="margin-top:14px">Wiersze CSV (L0–L1)</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Konto</th><th>Status</th><th class="num">Wiersze</th></tr></thead>
+    <tbody>
+    {% for r in rep.csv_rows %}
+      <tr><td>{{ "#" ~ r.account_id if r.account_id is not none else "nieprzypisane" }}</td><td>{{ r.status }}</td><td class="num">{{ r.count }}</td></tr>
+    {% else %}
+      <tr><td colspan="3" class="muted">brak importów</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="small muted">inserted — nowa transakcja (przed historią API) · enriched — uzupełnia transakcję z API · duplicate — ta sama transakcja pod numerem drugiej karty · unmatched — w oknie API bez pary · unmapped — numer bez konta</p>
+
+  <h2 style="margin-top:14px">Przelewy własne (L2) i zwroty (L3)</h2>
+  <dl class="kv">
+    <dt>Pary przelewów między kontami</dt><dd>{{ rep.transfer_pairs }}</dd>
+    <dt>Przelew bez pary</dt><dd>{{ rep.transfer_unpaired }}</dd>
+    <dt>Spłaty karty sparowane</dt><dd>{{ rep.repayments_paired }}/{{ rep.repayments_total }}</dd>
+    <dt>Zwroty powiązane z zakupem</dt><dd>{{ rep.refunds_linked }}/{{ rep.refunds_total }}</dd>
+  </dl>
+
+  <h2 style="margin-top:14px">Uzgodnienie salda</h2>
+  {% for c in rep.balance_checks %}
+  <div class="small"><span class="badge {{ 'ok' if c.ok else 'error' }}">{{ "OK" if c.ok else "rozbieżność" }}</span> konto #{{ c.account_id }}{% if c.days_checked %}: dni z saldem {{ c.days_checked }}, rozbieżnych {{ c.day_mismatches | length }}{% endif %}{% if c.snapshot_checks %}; migawek {{ c.snapshot_checks | length }}{% endif %}{% if c.note %} — {{ c.note }}{% endif %}</div>
+  {% endfor %}
+</section>
+
+{% if batches %}
+<section class="card">
+  <h2>Ostatnie importy</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Plik</th><th>Kiedy</th><th class="num">Wiersze</th><th class="num">Nowe</th></tr></thead>
+    <tbody>
+    {% for b in batches %}
+      <tr><td class="small">{{ b.file_name }}</td><td>{{ b.created_at | ts }}</td><td class="num">{{ b.rows_total }}</td><td class="num">{{ b.rows_new }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endif %}
+{% endblock %}

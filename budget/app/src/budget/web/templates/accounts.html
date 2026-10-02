@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Konta</h1>
+{% for a in rep.accounts %}
+<section class="card">
+  <h2>#{{ a.id }} {{ a.display_name or a.kind }}</h2>
+  <dl class="kv">
+    <dt>Rodzaj</dt><dd>{{ {"current": "rachunek", "card": "karta kredytowa", "fx": "rachunek walutowy", "savings": "oszczędnościowe"}.get(a.kind, a.kind) }}</dd>
+    <dt>Waluta</dt><dd>{{ a.currency }}</dd>
+    <dt>Numer</dt><dd>{{ a.iban_masked or "—" }}</dd>
+    <dt>Transakcje</dt><dd>{% for s in a.sources %}{{ "API" if s.source == "eb" else "CSV" }} {{ s.count }}{{ ", " if not loop.last }}{% else %}0{% endfor %}</dd>
+  </dl>
+  <form class="inline" method="post" action="{{ base }}/accounts/{{ a.id }}" hx-boost="false" style="margin-top:10px">
+    <label>Nazwa<input type="text" name="display_name" value="{{ a.display_name or '' }}" maxlength="60"></label>
+    <label class="check"><input type="checkbox" name="include_in_budget" {{ "checked" if a.include_in_budget }}> w budżecie</label>
+    <button type="submit">Zapisz</button>
+  </form>
+</section>
+{% else %}
+<p class="muted">Brak kont — przenieś sesję albo połącz bank na ekranie <a href="{{ base }}/bank">Bank</a>.</p>
+{% endfor %}
+<p class="small muted">Nazwa trafia do encji w Home Assistant. „W budżecie” wykorzystają podsumowania i budżet (kolejne etapy); synchronizacja obejmuje wszystkie konta ze zgody.</p>
+{% endblock %}

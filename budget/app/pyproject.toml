@@ -34,6 +34,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "budget.storage" = ["migrations/*.sql"]
+"budget.web" = ["templates/*.html", "static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

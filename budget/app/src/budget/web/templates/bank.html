@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Bank</h1>
+
+<section class="card">
+  <h2>Połączenie</h2>
+  {% if record %}
+  <dl class="kv">
+    <dt>Bank</dt><dd>{{ record.aspsp }}</dd>
+    <dt>Status</dt><dd><span class="badge {{ 'ok' if record.active else 'error' }}">{{ record.status }}</span></dd>
+    <dt>Zgoda ważna do</dt><dd>{{ record.valid_until.strftime("%d.%m.%Y") }} ({{ days_left }} dni)</dd>
+  </dl>
+  <h2 style="margin-top:12px">Konta w zgodzie</h2>
+  <ul class="small">
+    {% for a in accounts %}
+    <li>{{ a.product or a.name or "konto" }} · {{ a.currency }} · {{ a.iban | iban or "bez IBAN" }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Brak połączenia z bankiem.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>1. Klucz Enable Banking</h2>
+  <dl class="kv">
+    <dt>Identyfikator aplikacji</dt><dd>{{ "ustawiony" if app_id else "brak — opcja eb_application_id" }}</dd>
+    <dt>Klucz prywatny</dt><dd>{{ "wgrany" if key_present else "brak" }}</dd>
+  </dl>
+  <form class="inline" method="post" action="{{ base }}/bank/key" enctype="multipart/form-data" hx-boost="false" style="margin-top:10px">
+    <label>Plik .pem (klucz prywatny aplikacji)<input type="file" name="file" accept=".pem,.key,text/plain" required></label>
+    <button type="submit">{{ "Zastąp klucz" if key_present else "Wgraj klucz" }}</button>
+  </form>
+  <p class="small muted">Klucz trafia do katalogu konfiguracji add-onu z prawami 600. Nie wklejaj go do opcji add-onu.</p>
+</section>
+
+<section class="card">
+  <h2>2a. Przenieś sesję z CLI (bez ponownego logowania w banku)</h2>
+  <form class="inline" method="post" action="{{ base }}/bank/session" enctype="multipart/form-data" hx-boost="false">
+    <label>Plik sessions/&lt;id&gt;.json<input type="file" name="file" accept=".json,application/json" required></label>
+    <button type="submit" {{ "disabled" if missing }}>Przenieś sesję</button>
+  </form>
+  <p class="small muted">Add-on sprawdza sesję w Enable Banking (to nie jest zapytanie do banku i nie zużywa limitu). Po przeniesieniu nie używaj już CLI z <code>--live</code> — sesja i dzienny limit są wspólne.</p>
+</section>
+
+<section class="card">
+  <h2>2b. {{ "Odnów zgodę" if record else "Połącz bank" }}</h2>
+  {% if auth_url %}
+  <ol class="steps">
+    <li>Otwórz link i zaloguj się w banku (potwierdzenie w aplikacji mobilnej):
+      <div class="link-box"><a href="{{ auth_url }}" target="_blank" rel="noopener noreferrer">{{ auth_url }}</a></div></li>
+    <li>Po potwierdzeniu bank przekieruje na adres zwrotny aplikacji — skopiuj cały adres z paska przeglądarki (strona może się nie załadować, to nic).</li>
+    <li>Wklej go poniżej.</li>
+  </ol>
+  {% endif %}
+  {% if pending or auth_url %}
+  <form class="inline" method="post" action="{{ base }}/bank/auth/finish" hx-boost="false">
+    <label style="flex:1">Adres zwrotny albo sam kod<input type="text" name="pasted" required style="width:100%" autocomplete="off"></label>
+    <button type="submit">Zakończ</button>
+  </form>
+  {% endif %}
+  <form class="inline" method="post" action="{{ base }}/bank/auth" hx-boost="false" style="margin-top:10px">
+    <label>Bank<input type="text" name="aspsp" value="{{ aspsp }}" required></label>
+    <button type="submit" class="{{ 'secondary' if pending else '' }}" {{ "disabled" if missing }}>{{ "Nowy link" if pending else "Przejdź do banku" }}</button>
+  </form>
+  <p class="small muted">Nowa zgoda zastępuje obecną. Po połączeniu add-on pobierze 90 dni historii (z nagłówkami PSU, poza limitem). W trybie Restricted konta muszą być wcześniej podlinkowane w Control Panelu Enable Banking.</p>
+</section>
+{% endblock %}

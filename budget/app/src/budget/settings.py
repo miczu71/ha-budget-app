@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 DEFAULT_OPTIONS_PATH = "/data/options.json"
 DEFAULT_EB_BASE_URL = "https://api.enablebanking.com"
 _TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+_NOTIFY_RE = re.compile(r"^notify\.[a-z0-9_]+$")
 _ENV_PREFIX = "BUDGET_"
 
 
@@ -40,6 +41,10 @@ class Settings(BaseModel):
     month_start_day: int = Field(default=1, ge=1, le=28)
     consent_warning_days: int = Field(default=14, ge=1, le=60)
     log_level: Literal["debug", "info", "warning", "error"] = "info"
+    notify_service: str | None = None  # alias osoby, np. notify.<osoba>
+    aspsp_name: str = "Bank Millennium"
+    aspsp_country: str = "PL"
+    dev: bool = False  # tylko env: panel bez allowlisty Ingress (lokalne testy)
     config_dir: Path = Path("/config")
     data_dir: Path = Path("/data")
     source: Literal["options", "env"] = "options"
@@ -59,12 +64,23 @@ class Settings(BaseModel):
             raise ValueError(f"nieprawidłowe godziny w sync_times (oczekiwane HH:MM): {bad}")
         return tuple(sorted(set(value)))
 
-    @field_validator("eb_application_id", "eb_redirect_url", mode="before")
+    @field_validator("notify_service")
+    @classmethod
+    def _check_notify(cls, value: str | None) -> str | None:
+        if value is not None and not _NOTIFY_RE.match(value):
+            raise ValueError(f"notify_service: oczekiwane notify.<nazwa>, a jest {value!r}")
+        return value
+
+    @field_validator("eb_application_id", "eb_redirect_url", "notify_service", mode="before")
     @classmethod
     def _blank_is_none(cls, value: Any) -> Any:
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @property
+    def db_path(self) -> Path:
+        return self.data_dir / "budget.db"
 
     @property
     def private_key_path(self) -> Path:
@@ -97,7 +113,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
             raise SettingsError(f"{options_path}: niepoprawny JSON ({exc})") from exc
         data["source"] = "options"
         # Z env tylko ścieżki/URL — nie opcje użytkownika
-        for name in ("config_dir", "data_dir", "eb_base_url"):
+        for name in ("config_dir", "data_dir", "eb_base_url", "dev"):
             if (value := env.get(_ENV_PREFIX + name.upper())) is not None:
                 data[name] = value
     else:

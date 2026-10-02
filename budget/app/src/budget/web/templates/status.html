@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Status</h1>
+
+{% if missing %}
+<div class="msg warn">Add-on nie jest jeszcze gotowy: {{ missing | join("; ") }}. Zobacz ekran <a href="{{ base }}/bank">Bank</a>.</div>
+{% elif not record %}
+<div class="msg warn">Brak połączenia z bankiem — przenieś sesję z CLI albo połącz bank na ekranie <a href="{{ base }}/bank">Bank</a>.</div>
+{% endif %}
+{% if manual_needed %}
+<div class="msg warn">Ostatnie okno transakcji nie zmieściło się w dziennym limicie banku — uruchom „Synchronizuj teraz” (z panelu limit nie obowiązuje).</div>
+{% endif %}
+
+<div class="grid">
+  <section class="card">
+    <h2>Zgoda bankowa</h2>
+    {% if record %}
+    <div class="big">{{ days_left }} dni</div>
+    <dl class="kv">
+      <dt>Bank</dt><dd>{{ record.aspsp }}</dd>
+      <dt>Status</dt><dd><span class="badge {{ 'ok' if record.active else 'error' }}">{{ record.status }}</span></dd>
+      <dt>Ważna do</dt><dd>{{ record.valid_until.strftime("%d.%m.%Y") }}</dd>
+      <dt>Sprawdzona</dt><dd>{{ record.checked_at | ts }}</dd>
+    </dl>
+    {% else %}
+    <p class="muted">brak</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Synchronizacja</h2>
+    {% set last = log[0] if log else None %}
+    {% if last %}
+    <div class="big"><span class="badge {{ last.status }}">{{ last.status }}</span> {{ last.finished_at | ts }}</div>
+    <p class="small muted">{{ last.detail or "" }}</p>
+    {% else %}
+    <p class="muted">jeszcze nie było</p>
+    {% endif %}
+    <form method="post" action="{{ base }}/sync" hx-boost="true" hx-disabled-elt="find button">
+      <button type="submit" {{ "disabled" if busy or missing or not record }}>Synchronizuj teraz</button>
+      <span class="htmx-indicator muted small">pobieram…</span>
+    </form>
+    <p class="small muted">Z panelu wysyłane są nagłówki PSU (jesteś obecny), więc zapytania nie liczą się do limitu {{ limit }}/dobę.</p>
+  </section>
+
+  <section class="card">
+    <h2>Dostępne środki</h2>
+    {% if balances %}
+    <dl class="kv">
+      {% for b in balances if b.balance_type == "ITAV" %}
+      <dt>{{ b.display_name or b.product or ("Konto #" ~ b.id) }}</dt><dd>{{ b.amount | money(b.currency) }}</dd>
+      {% endfor %}
+    </dl>
+    <p class="small muted">ITAV z ostatniego pobrania {{ balances[0].fetched_at | ts }}</p>
+    {% else %}
+    <p class="muted">brak sald — pojawią się po pierwszej synchronizacji</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="card" style="margin-top:14px">
+  <h2>Zapytania do banku dziś</h2>
+  {% if requests %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Konto</th><th>Endpoint</th><th class="num">Bez PSU</th><th class="num">Z PSU</th></tr></thead>
+    <tbody>
+    {% for r in requests %}
+      <tr>
+        <td>{{ (r.account.display_name or r.account.product) if r.account else r.account_id }}</td>
+        <td>{{ "salda" if r.endpoint == "balances" else "transakcje" }}</td>
+        <td class="num">{{ r.n if not r.psu else "" }}{{ " / " ~ limit if not r.psu else "" }}</td>
+        <td class="num">{{ r.n if r.psu else "" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="muted">żadnych</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Uzgodnienie salda</h2>
+  {% for line in checks %}
+  <div class="small">{{ line }}</div>
+  {% else %}
+  <p class="muted">brak kont</p>
+  {% endfor %}
+</section>
+
+<section class="card">
+  <h2>Ostatnie przebiegi</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Kiedy</th><th>Wyzwalacz</th><th>Wynik</th><th class="num">Nowe</th><th class="num">Zapytania</th><th>Szczegóły</th></tr></thead>
+    <tbody>
+    {% for r in log %}
+      <tr>
+        <td>{{ r.started_at | ts }}</td>
+        <td>{{ r.trigger }}</td>
+        <td><span class="badge {{ r.status }}">{{ r.status }}</span></td>
+        <td class="num">{{ r.new_txn }}</td>
+        <td class="num">{{ r.requests }}</td>
+        <td class="small muted">{{ r.detail or "" }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">brak</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

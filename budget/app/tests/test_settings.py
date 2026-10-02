@@ -105,3 +105,22 @@ def test_private_key_found_and_absolute_path(tmp_path: Path) -> None:
     path = _options(tmp_path, eb_private_key_file=str(pem))
     s = load_settings({"BUDGET_OPTIONS_PATH": str(path)})
     assert resolve_private_key_path(s) == pem
+
+
+def test_notify_service_and_paths(tmp_path: Path) -> None:
+    path = _options(tmp_path, notify_service="notify.osoba")
+    s = load_settings(
+        {"BUDGET_OPTIONS_PATH": str(path), "BUDGET_DATA_DIR": str(tmp_path), "BUDGET_DEV": "1"}
+    )
+    assert s.notify_service == "notify.osoba"
+    assert s.db_path == tmp_path / "budget.db"
+    assert s.dev is True
+    assert load_settings({"BUDGET_OPTIONS_PATH": str(_options(tmp_path))}).dev is False
+    blank = _options(tmp_path, notify_service="")
+    assert load_settings({"BUDGET_OPTIONS_PATH": str(blank)}).notify_service is None
+
+
+@pytest.mark.parametrize("value", ["light.kitchen", "notify.", "notify.Zła Nazwa"])
+def test_invalid_notify_service(tmp_path: Path, value: str) -> None:
+    with pytest.raises(SettingsError, match="notify_service"):
+        load_settings({"BUDGET_OPTIONS_PATH": str(_options(tmp_path, notify_service=value))})

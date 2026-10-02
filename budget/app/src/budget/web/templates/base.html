@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Budżet Domowy</title>
+  <link rel="stylesheet" href="{{ base }}/static/app.css?v={{ version }}">
+  <script src="{{ base }}/static/htmx.min.js?v={{ version }}" defer></script>
+</head>
+<body hx-boost="true">
+  <header class="top">
+    <nav>
+      <a href="{{ base }}/" class="{{ 'on' if page == 'status' }}">Status</a>
+      <a href="{{ base }}/transactions" class="{{ 'on' if page == 'transactions' }}">Transakcje</a>
+      <a href="{{ base }}/accounts" class="{{ 'on' if page == 'accounts' }}">Konta</a>
+      <a href="{{ base }}/import" class="{{ 'on' if page == 'import' }}">Import CSV</a>
+      <a href="{{ base }}/bank" class="{{ 'on' if page == 'bank' }}">Bank</a>
+    </nav>
+    <span class="nav-version" title="wersja add-onu">v{{ version }}</span>
+  </header>
+  <main>
+    {% for level, text in messages %}
+    <div class="msg {{ level }}" role="status">{{ text }}</div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

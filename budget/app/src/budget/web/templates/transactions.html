@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Transakcje <span class="muted small">({{ total }})</span></h1>
+
+<section class="card">
+  <form class="inline" method="get" action="{{ base }}/transactions">
+    <label>Konto
+      <select name="account">
+        <option value="">wszystkie</option>
+        {% for a in accounts %}<option value="{{ a.id }}" {{ "selected" if f.account == a.id }}>#{{ a.id }} {{ a.display_name or a.kind }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Od<input type="date" name="date_from" value="{{ f.date_from }}"></label>
+    <label>Do<input type="date" name="date_to" value="{{ f.date_to }}"></label>
+    <label>Typ
+      <select name="kind">
+        <option value="">wszystkie</option>
+        {% for k in kinds %}<option value="{{ k }}" {{ "selected" if f.kind == k }}>{{ kind_labels.get(k, k) }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Szukaj<input type="search" name="q" value="{{ f.q }}" placeholder="opis lub kontrahent"></label>
+    <button type="submit">Filtruj</button>
+  </form>
+</section>
+
+<section class="card">
+  <div class="table-wrap"><table class="tx">
+    <thead><tr><th>Data</th><th>Opis</th><th class="num">Kwota</th><th>Szczegóły</th></tr></thead>
+    <tbody>
+    {% for t in rows %}
+      <tr>
+        <td class="date">{{ t.booking_date }}</td>
+        <td class="tx-desc">{{ t.counterparty_name or "" }}{% if t.counterparty_name and t.description %} · {% endif %}<span class="{{ 'muted' if t.counterparty_name }}">{{ t.description }}</span></td>
+        <td class="num {{ 'neg' if t.amount.startswith('-') else 'pos' }}">{{ t.amount | money(t.currency) }}</td>
+        <td class="meta small">
+          {{ t.display_name or t.account_kind }} · {{ kind_labels.get(t.kind, t.kind) }}
+          {% if t.orig_currency and t.orig_currency != t.currency %} · {{ t.orig_amount | money(t.orig_currency) }}{% endif %}
+          <span class="flags">
+          {% if t.transfer_group %}<span class="badge" title="przelew między własnymi kontami">przelew własny</span>{% endif %}
+          {% if t.refund_of %}<span class="badge" title="zwrot powiązany z zakupem">zwrot</span>{% endif %}
+          <span class="badge" title="źródło kwoty i daty">{{ "API" if t.source == "eb" else "CSV" }}</span>
+          </span>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4" class="muted">brak transakcji</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% if pages > 1 %}
+  {% set qs = "account=" ~ (f.account or "") ~ "&date_from=" ~ f.date_from ~ "&date_to=" ~ f.date_to ~ "&kind=" ~ f.kind ~ "&q=" ~ (f.q | urlencode) %}
+  <div class="pager">
+    {% if page > 1 %}<a href="{{ base }}/transactions?{{ qs }}&page={{ page - 1 }}">← nowsze</a>{% else %}<span></span>{% endif %}
+    <span class="muted small">strona {{ page }} z {{ pages }}</span>
+    {% if page < pages %}<a href="{{ base }}/transactions?{{ qs }}&page={{ page + 1 }}">starsze →</a>{% else %}<span></span>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
