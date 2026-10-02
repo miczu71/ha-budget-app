@@ -17,7 +17,7 @@ jawne „go” przed następnym).
 | M2 | **Rdzeń danych** — jedna księga bez duplikatów (CSV + API, karta↔konto, uzgadnianie salda) | ✅ 2026-10-02 (`PLAN_M2.md` § Wynik) |
 | M3 | **Add-on w HA** — instalacja, synchronizacja 3×/dobę, panel (status, bank, import, transakcje), podstawowe encje | w toku (`PLAN_M3.md`) |
 | M4a | **Kategoryzacja v1** — słownik polskich sieci, silnik reguł z podglądem, ekran „Wydatki” | 0.2.0 wydane i zainstalowane 2026-10-02; czeka sesja reguł + checkpoint (`PLAN_M4a.md`) |
-| M4b | **Kolejka „do przejrzenia”** w panelu (grupy sprzedawców i krajów) | w toku (`PLAN_M4b.md`); przed checkpointami M3/M4a |
+| M4b | **Kolejka „do przejrzenia”** w panelu (grupy sprzedawców i krajów) | 0.3.0 wydane i zainstalowane 2026-10-02; czeka checkpoint (`PLAN_M4b.md`) |
 | M5 | **Budżet Flex** — stałe/elastyczne/nieregularne, cykliczne płatności, ekran „Budżet” z wykresami w panelu, encje | — |
 | M6 | **Podsumowania + kalendarz płatności** — tydzień/miesiąc na telefon, kalendarz ICS | — |
 | M7 | **Kategoryzacja v2** — lokalny klasyfikator + opcjonalnie LLM przez `ai_task` | — |

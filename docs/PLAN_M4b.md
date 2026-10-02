@@ -94,3 +94,17 @@ Zapis: tryb reguły → `rules.save` + `engine.recategorize` (jak ekran Reguły)
 - Zapis reguły z kolejki zdejmuje grupę i podnosi pokrycie; „tylko te” z odznaczeniem zostawia
   odznaczone w kolejce; grupa kraju przypisuje kategorię ręczną.
 - Na żywo: v0.3.0 w plakietce, kolejka gotowa do sesji reguł.
+
+## Wynik (2026-10-02)
+
+- Wydanie 0.3.0 zainstalowane przez Supervisor; na żywo przez Ingress: plakietka v0.3.0,
+  kolejka z licznikiem, leniwe rozwijanie grup i podgląd reguły działają (390 px), 0 błędów
+  konsoli. Zapisów na produkcji przy weryfikacji nie było — pierwsze decyzje w sesji reguł.
+- Lokalnie (kopia księgi): zapis reguły i „tylko te” z odznaczeniem zdejmują pozycje z kolejki,
+  licznik i pokrycie odświeżają się bez przeładowania.
+- Odstępstwo z wykonania: stały sprzedawca zagraniczny (≥ 3 miesiące) → grupa sprzedawcy
+  (sekcja „Kraj transakcji”).
+- 304 testy, CI zielone.
+
+Następnie: checkpoint M4b, checkpoint M3 (obserwacja synchronizacji), sesja reguł na kolejce
+(cel M4a 85/85) → checkpoint M4a.
