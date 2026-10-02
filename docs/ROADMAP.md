@@ -16,8 +16,9 @@ jawne „go” przed następnym).
 | M1b | Sonda Production Restricted na Millennium → `FINDINGS_millennium.md` | ✅ (drugi zrzut 2026-10-02: `entry_reference` stabilny) |
 | M2 | **Rdzeń danych** — jedna księga bez duplikatów (CSV + API, karta↔konto, uzgadnianie salda) | ✅ 2026-10-02 (`PLAN_M2.md` § Wynik) |
 | M3 | **Add-on w HA** — instalacja, synchronizacja 3×/dobę, panel (status, bank, import, transakcje), podstawowe encje | w toku (`PLAN_M3.md`) |
-| M4 | **Kategoryzacja v1** — słownik polskich sieci, reguły, pamięć poprawek, kolejka + HA to-do | — |
-| M5 | **Budżet Flex w HA** — stałe/elastyczne/nieregularne, cykliczne płatności, encje, statystyki, dashboard | — |
+| M4a | **Kategoryzacja v1** — słownik polskich sieci, silnik reguł z podglądem, ekran „Wydatki” | zaplanowany (`PLAN_M4a.md`), start po checkpoincie M3 |
+| M4b | **Kolejka „do przejrzenia”** w panelu | — |
+| M5 | **Budżet Flex** — stałe/elastyczne/nieregularne, cykliczne płatności, ekran „Budżet” z wykresami w panelu, encje | — |
 | M6 | **Podsumowania + kalendarz płatności** — tydzień/miesiąc na telefon, kalendarz ICS | — |
 | M7 | **Kategoryzacja v2** — lokalny klasyfikator + opcjonalnie LLM przez `ai_task` | — |
 | M8 | **Prognoza przepływów** — saldo do końca miesiąca, „bezpiecznie do wydania” | — |
@@ -25,7 +26,8 @@ jawne „go” przed następnym).
 
 Mapowanie starego planu (SPEC §10) na nowy: storage+dedup → M2; sync_service, panel, pakowanie,
 HA publisher (podstawy) → M3; kategoryzacja → M4/M7; `budget_engine` → M5; import CSV → M2;
-test end-to-end na produkcji → kryteria akceptacji M3.
+test end-to-end na produkcji → kryteria akceptacji M3; HA publisher (statystyki, dashboard) →
+backlog (decyzja 10).
 
 ## Decyzje użytkownika (wywiad 2026-10-01)
 
@@ -37,10 +39,16 @@ test end-to-end na produkcji → kryteria akceptacji M3.
 3. Metoda budżetu: **Flex + opcjonalne limity** (stałe / elastyczne / nieregularne).
 4. Okres: **miesiąc kalendarzowy**.
 5. Kategoryzacja: **lokalnie, LLM opcjonalnie** (`ai_task.generate_data`, minimalizacja danych).
-6. Priorytety HA: **podsumowania** oraz **kalendarz płatności + to-do „do przejrzenia”**.
+6. Priorytety HA: **podsumowania** oraz **kalendarz płatności** (to-do „do przejrzenia” → backlog,
+   decyzja 10).
 7. Dalsze etapy: **prognoza przepływów**, **majątek netto + kredyt**.
 8. CSV z Millenetu = historia; ponowny import dozwolony (idempotentny).
 9. Fixture CSV w repo dopiero po usunięciu lokalizacji sklepów/bankomatów.
+10. **(2026-10-02) Wszystkie wizualizacje w panelu add-onu, bez dashboardów w HA.** Po stronie HA
+    zostają encje budżetu (automatyzacje, powiadomienia) i kalendarz płatności; HA to-do,
+    statystyki długoterminowe HA i dashboard Lovelace → backlog.
+11. **(2026-10-02) Kategoryzacja:** cel pierwszy „gdzie idą pieniądze” (ekran w panelu),
+    kategorie dwupoziomowe, lukę po słowniku zamyka pełny silnik reguł; M4 dzielone na M4a/M4b.
 
 ## Zmiany względem SPEC (zweryfikowane na danych)
 
@@ -119,34 +127,44 @@ syntetycznych i zanonimizowanej próbce.
   z CLI** (bez nowego SCA; zgoda ważna do 2027-03-30).
 - Panel (htmx, mobile-first): Status, Połącz bank / Odnów zgodę, Import CSV (z raportem
   L0–L3), Konta, Transakcje (lista z filtrami).
-- MQTT: salda (ITAV), `last_sync`, `consent_days_left`, `sync_now` (liczba do przejrzenia → M4);
+- MQTT: salda (ITAV), `last_sync`, `consent_days_left`, `sync_now`;
   powiadomienia operacyjne (zgoda wygasa, 3 nieudane synchronizacje).
 - Wydanie: GitHub release (skill `release`), aktualizacja przez Supervisor.
 
 **Akceptacja:** instalacja i synchronizacja działają; panel zweryfikowany w Playwright
 (zrzut + 0 błędów konsoli); encje widoczne w HA.
 
-## M4 — Kategoryzacja v1 (lokalna)
+## M4a — Kategoryzacja v1: silnik reguł + ekran „Wydatki”
 
-**Wartość:** wydatki w kategoriach przy minimum ręcznej pracy.
+**Wartość:** „gdzie idą pieniądze” — wydatki miesiąca w kategoriach, w panelu. Szczegóły:
+[`PLAN_M4a.md`](PLAN_M4a.md).
 
 - Normalizacja sprzedawców (`LIDL UL. PRZYKLADOWA MIASTO POL` → „Lidl”, `AMZN*…` → „Amazon”).
-- Wersjonowany **słownik polskich sieci** dostarczany z add-onem.
-- Silnik reguł: warunki (pole/operator/wartość, kierunek, konto, typ, zakres kwot) → akcje
-  (kategoria, nazwa sprzedawcy, przelew, wyłączenie z budżetu); priorytety, podgląd „ile pasuje”,
-  „zastosuj do historii” (bez nadpisywania ręcznych).
-- **Pamięć sprzedawców** z poprawek + podpowiedź „utwórz regułę”; reguły per odbiorca przelewów;
-  domyślne kategorie typów (gotówka, opłaty, kredyt); zwrot dziedziczy kategorię zakupu.
-- Kolejka „do przejrzenia” w panelu + **HA to-do „Budżet — do przejrzenia”** (Local To-do;
-  odhaczenie = akceptacja podpowiedzi, zmiana kategorii przez link do panelu).
-- Kategorie seed z grupami Flex.
+- Wersjonowany **słownik polskich sieci** dostarczany z add-onem (tylko sieci ogólnopolskie).
+- **Jeden deterministyczny silnik:** ręczna > zwrot dziedziczy kategorię zakupu > reguły
+  użytkownika > słownik > domyślne kategorie typów; przeliczanie od zera (wzorzec
+  `rebuild_links`), ręczne nietykalne.
+- Reguły: warunki (pole/operator/wartość, kierunek, konto, typ, zakres kwot) → kategoria
+  (+ nazwa sprzedawcy); priorytety, **podgląd „ile pasuje / ile zmieni”** przed zapisem (zamiast
+  osobnego „zastosuj do historii”). Pamięć poprawek = reguła tworzona z ręcznej zmiany.
+- Kategorie seed (2 poziomy) z grupami Flex; wyłączenie z budżetu = kategoria z grupy `excluded`.
+- Ekran **„Wydatki”**: miesiąc, kategorie z udziałem i zmianą m/m, rozwinięcie podkategorii,
+  przejście do transakcji, nieskategoryzowane.
 
-**KPI:** pokrycie automatyczne ≥ 67% transakcji / ≥ 53% kwoty od startu; po ~1 h przeglądu
+**KPI:** pokrycie automatyczne ≥ 67% transakcji / ≥ 53% kwoty od startu; po ~1 h sesji reguł
 (top sprzedawców i odbiorców) **≥ 85% transakcji i ≥ 85% kwoty**.
 
-## M5 — Budżet Flex w HA
+## M4b — Kolejka „do przejrzenia”
 
-**Wartość:** „ile zostało?” i „gdzie uciekają pieniądze?” w HA.
+**Wartość:** nowe transakcje bez kategorii lub z niepewną podpowiedzią nie giną.
+
+- Kolejka w panelu: nieskategoryzowane i nowe od ostatniego przeglądu, grupowane po sprzedawcy
+  / odbiorcy; akceptacja grupowa, „utwórz regułę” jednym kliknięciem.
+- Liczba do przejrzenia liczona w add-onie (dla podsumowań M6), bez encji i HA to-do.
+
+## M5 — Budżet Flex
+
+**Wartość:** „ile zostało?” i „gdzie uciekają pieniądze?” — w panelu add-onu.
 
 - Grupy kategorii: przychody, stałe, elastyczne, nieregularne („skarbonki”: cel roczny →
   miesięcznie, z przeniesieniem), oszczędności, przelewy, wyłączone/jednorazowe.
@@ -155,16 +173,17 @@ syntetycznych i zanonimizowanej próbce.
   prognoza końca miesiąca.
 - Encje: `flex_remaining` / `flex_spent` / `flex_budget`, `fixed_paid` / `fixed_planned`,
   `month_income` / `month_expenses`, `savings_rate`, `category_<slug>` (wybrane), skarbonki.
-- **Statystyki zewnętrzne** (`recorder/import_statistics`) z backfillem całej historii CSV.
-- Dashboard „Budżet” (zapis przez WebSocket, weryfikacja Playwright).
+- Encje bez dashboardu w HA (do automatyzacji i powiadomień).
+- **Ekran „Budżet” w panelu:** Flex zostało/wydane, stałe zapłacone/planowane, skarbonki,
+  wykresy trendu miesięcznego z własnej bazy (biblioteka wykresów serwowana lokalnie, nie z CDN).
 
-**Akceptacja:** suma grup = wydatki z księgi (bez przelewów); historia widoczna w wykresach HA.
+**Akceptacja:** suma grup = wydatki z księgi (bez przelewów); historia widoczna w wykresach panelu.
 
 ## M6 — Podsumowania + kalendarz płatności
 
 - Podsumowanie tygodniowe (poniedziałek) i miesięczne (1.) przez konfigurowalną usługę notify
   (alias osoby, nigdy `mobile_app_*`): wydatki vs plan, zostało (Flex), top kategorie, największe
-  pozycje, zmiany cen subskrypcji, liczba do przejrzenia + link do panelu.
+  pozycje, zmiany cen subskrypcji, liczba do przejrzenia (liczona w add-onie) + link do panelu.
 - **Kalendarz:** add-on serwuje ICS z nadchodzącymi płatnościami (serie cykliczne, raty) →
   integracja HA **Remote Calendar**; po synchronizacji `homeassistant.update_entity`.
 
@@ -187,7 +206,8 @@ kolejka do przejrzenia ≤ 15/tydzień.
 
 - Saldo przewidywane dzień po dniu do końca miesiąca i do najbliższego wpływu (serie cykliczne,
   wykryte wpływy, tempo wydatków elastycznych).
-- `safe_to_spend` = saldo − płatności stałe do najbliższego wpływu − bufor; ostrzeżenie
+- Wykres prognozowanego salda na ekranie panelu.
+- `safe_to_spend` (encja) = saldo − płatności stałe do najbliższego wpływu − bufor; ostrzeżenie
   (podsumowanie + powiadomienie persistent), gdy prognozowane minimum < próg przed ratą.
 
 **Akceptacja:** backtest — prognoza z 1. dnia vs rzeczywiste saldo końca miesiąca (6 mies.).
@@ -196,7 +216,7 @@ kolejka do przejrzenia ≤ 15/tydzień.
 
 - Salda kont (EUR po kursie NBP), zadłużenie karty, inwestycje z konfigurowalnych encji HA.
 - Kredyt: parametry wpisane ręcznie lub okresowe saldo kapitału + wykryte raty → harmonogram,
-  pozostały kapitał, data spłaty; statystyki majątku w czasie.
+  pozostały kapitał, data spłaty; historia majątku w panelu (migawki we własnej bazie).
 
 **Akceptacja:** majątek netto zgodny z przeliczeniem ręcznym; harmonogram zgodny z parametrami.
 
@@ -204,7 +224,8 @@ kolejka do przejrzenia ≤ 15/tydzień.
 
 Alerty w czasie rzeczywistym (duży wydatek, 80/100% limitu, wpływ) · Assist / czat ·
 integracje z innymi add-onami (np. tankowania, rachunki za energię) · rozliczenia z osobami ·
-„kto wydał” z CSV · kolejne konta i banki · eksport (CSV/XLSX, Firefly III, Actual) · podział
+„kto wydał” z CSV · HA to-do „do przejrzenia” · statystyki długoterminowe HA (import/backfill) ·
+dashboard Lovelace · kolejne konta i banki · eksport (CSV/XLSX, Firefly III, Actual) · podział
 transakcji (split) i tagi · paragony.
 
 ## Zasady przekrojowe
@@ -213,6 +234,7 @@ transakcji (split) i tagi · paragony.
   zanonimizowane i przejrzane. Analizy prawdziwych danych wyłącznie lokalnie (raporty = liczby).
 - CI zielone przed każdym checkpointem; wydania przez GitHub release; UI weryfikowane
   w Playwright.
+- **Wizualizacje wyłącznie w panelu add-onu;** HA dostaje encje i kalendarz, nie dashboardy.
 - DOCS: kopia zapasowa HA zawiera dane finansowe.
 - Odnowienie zgody bankowej przed 2027-03-30.
 
@@ -236,6 +258,9 @@ transakcji (split) i tagi · paragony.
   uvicorn + htmx + APScheduler + aiomqtt w jednej pętli); Supervisor buduje lokalnie. Sesja
   przenoszona z CLI plikiem przez panel (bez nowego SCA), historia przez ponowny import CSV.
   Szczegóły i odstępstwa: `PLAN_M3.md`.
+- **2026-10-02 — wizualizacje w panelu, nie w HA;** M4 dzielone na M4a (silnik reguł +
+  „Wydatki”) i M4b (kolejka). Kategoria liczona deterministycznie od zera, bez przycisku
+  „zastosuj do historii” (podgląd przed zapisem reguły). Szczegóły: `PLAN_M4a.md`.
 
 ## Wnioski z Sandboxa (M1, 2026-10-01)
 
