@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- Synchronizacja: Millennium ignoruje `date_from` i zawsze oddaje 90 dni (~8 stron rachunku),
+  przez co okno nie mieściło się w limicie 4 zapytań/dobę. Strony przychodzą od najnowszych,
+  więc stronicowanie kończy się, gdy pobrane transakcje sięgną przed początek okna (tylko przy
+  potwierdzonej malejącej kolejności dat). Zakładka okna 10 → 5 dni — zwykle 1 strona na konto.
+
 ## 0.1.0
 
 Pierwsza instalowalna wersja (etap M3, `docs/PLAN_M3.md`).

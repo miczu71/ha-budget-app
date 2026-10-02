@@ -5,8 +5,10 @@ Limit: bank może odmówić więcej niż 4 zapytań na konto na dobę bez obecno
 stronę transakcji — i nie wyśle zapytania ponad limit. Zapytania z nagłówkami PSU (użytkownik
 w panelu) liczą się osobno i nie są ograniczane.
 
-Okno transakcji: od ostatniego księgowania konta − `OVERLAP_DAYS` (zwykle jedna strona), nie
-dalej niż `API_HISTORY_DAYS` wstecz (Millennium i tak oddaje tylko 90 dni). Okno, którego nie
+Okno transakcji: od ostatniego księgowania konta − `OVERLAP_DAYS`, nie dalej niż
+`API_HISTORY_DAYS` wstecz. Millennium ignoruje `date_from` (zawsze 90 dni, ~8 stron rachunku),
+ale oddaje strony od najnowszych — stronicowanie kończy się, gdy pobrane transakcje sięgną
+przed początek okna (tylko przy potwierdzonej malejącej kolejności dat). Okno, którego nie
 da się pobrać w całości w limicie, nie trafia do księgi — inaczej powstałaby luka, której
 okno przyrostowe już nie wypełni; zostaje status `partial` i prośba o synchronizację z panelu.
 """
@@ -30,7 +32,7 @@ from budget.storage.db import now_iso
 log = logging.getLogger(__name__)
 
 DAILY_LIMIT = 4
-OVERLAP_DAYS = 10
+OVERLAP_DAYS = 5
 API_HISTORY_DAYS = 90
 FAILURES_TO_ALERT = 3
 
@@ -94,6 +96,44 @@ class SyncResult:
         return self.status == "ok"
 
 
+class OrderCheck:
+    """Czy strony przychodzą od najnowszych i czy sięgnęły przed początek okna.
+
+    Kolejność malejąca musi być potwierdzona (co najmniej jeden spadek daty albo pierwsza
+    transakcja nowsza niż okno) — przy rosnącej kolejności wczesne zakończenie zgubiłoby
+    najnowsze transakcje, więc wtedy stronicowanie idzie do końca.
+    """
+
+    def __init__(self, window_from: date) -> None:
+        self._window_from = window_from
+        self._descending = True
+        self._evidence = False
+        self._last: date | None = None
+
+    def feed(self, txns: list[Transaction]) -> None:
+        for t in txns:
+            day = t.booking_date or t.value_date or t.transaction_date
+            if day is None:
+                continue
+            if self._last is None:
+                self._evidence = day >= self._window_from
+            elif day > self._last:
+                self._descending = False
+            elif day < self._last:
+                self._evidence = True
+            self._last = day
+
+    @property
+    def covered(self) -> bool:
+        """Wszystko od początku okna w górę już pobrane."""
+        return (
+            self._descending
+            and self._evidence
+            and self._last is not None
+            and self._last < self._window_from
+        )
+
+
 def window_start(conn: sqlite3.Connection, account_id: int, today: date, *, full: bool) -> date:
     oldest = today - timedelta(days=API_HISTORY_DAYS)
     if full:
@@ -153,6 +193,7 @@ async def sync(
                 res.note = _join(res.note, "transakcje: limit dzienny")
                 continue
             collected: list[Transaction] = []
+            ordered = OrderCheck(res.window_from)
             budget.record(account_id, "transactions", psu=with_psu)
             result.requests += 1
             async for page in eb.iter_transaction_pages(
@@ -160,7 +201,8 @@ async def sync(
             ):
                 res.pages += 1
                 collected.extend(page.transactions)
-                if not page.continuation_key:
+                ordered.feed(page.transactions)
+                if not page.continuation_key or ordered.covered:
                     res.complete = True
                     break
                 if not budget.allows(account_id, "transactions", psu=with_psu):

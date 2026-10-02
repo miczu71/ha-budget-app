@@ -52,6 +52,17 @@ lokalnie (`/data/home/budget_dev/prod/`), tutaj tylko fakty o strukturze — bez
 ### Rachunek walutowy EUR
 - 0 transakcji w 90 dniach, salda zwracane.
 
+### Stronicowanie i `date_from` (add-on, 2026-10-02)
+
+- **`date_from` jest ignorowane, gdy jest późniejsze niż 90 dni wstecz:** synchronizacja z oknem
+  od 21.09 zwróciła rachunek za pełne 90 dni (8 stron), tak jak zapytanie od 04.07.
+- **Strony przychodzą od najnowszych** (daty ściśle nierosnąco w obu zrzutach rachunku i karty);
+  pierwsza strona rachunku obejmuje ~10 dni, karty ~17 dni.
+- Konsekwencja: przy limicie 4 zapytań na konto na dobę pełne okno rachunku (8 stron) nie mieści
+  się w harmonogramie. Add-on (0.1.1) kończy stronicowanie, gdy pobrane transakcje sięgną przed
+  początek okna (ostatnie księgowanie − 5 dni), przy potwierdzonej malejącej kolejności —
+  zwykle 1 strona na konto na przebieg.
+
 ## Konsekwencje dla kolejnych etapów (do decyzji w checkpoincie)
 
 1. **M7 (import CSV) jest potrzebny**, jeśli budżet ma obejmować więcej niż 90 dni wstecz — PSD2

@@ -33,7 +33,8 @@ przelewy między kontami, uzgadnianie salda.
 Bank może odmówić więcej niż **4 zapytań na konto na dobę** wykonanych bez Twojej obecności.
 Add-on liczy każde zapytanie (salda, każdą stronę transakcji) per konto i endpoint i nie wyśle
 zapytania ponad limit. Domyślne 3 synchronizacje dziennie (`sync_times`) pobierają salda
-i transakcje od ostatniego księgowania − 10 dni (zwykle jedna strona).
+i transakcje od ostatniego księgowania − 5 dni; bank oddaje strony od najnowszych, więc
+stronicowanie kończy się po pokryciu okna (zwykle jedna strona).
 
 - **„Synchronizuj teraz” w panelu** wysyła dane przeglądarki (nagłówki PSU) — jesteś obecny,
   więc te zapytania nie liczą się do limitu.

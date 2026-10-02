@@ -13,7 +13,7 @@ import respx
 
 from budget import sessions, sync_service
 from budget.eb_client import EBClient, PsuHeaders
-from budget.eb_models import SessionResponse
+from budget.eb_models import SessionResponse, Transaction
 from budget.storage import db
 
 from .conftest import BASE
@@ -105,7 +105,7 @@ async def test_first_sync_full_window_then_incremental(
     # drugi przebieg: okno od ostatniego księgowania − 10 dni, nic nowego
     result = await sync_service.sync(conn, eb, tz=TZ, now=NOW)
     assert result.status == "ok" and result.new == 0
-    assert routes["tx_main"].calls.last.request.url.params["date_from"] == "2026-09-21"
+    assert routes["tx_main"].calls.last.request.url.params["date_from"] == "2026-09-26"
     log = sync_service.recent(conn)
     assert [r["status"] for r in log] == ["ok", "ok"]
     assert log[0]["requests"] == 4 and log[1]["new_txn"] == BOOKED
@@ -218,3 +218,77 @@ def test_next_run_across_dst() -> None:
     at = sync_service.next_run(datetime(2026, 10, 24, 22, 0, tzinfo=TZ), ("06:30",))
     assert at.astimezone(UTC) == datetime(2026, 10, 25, 5, 30, tzinfo=UTC)
     assert at.date() == date(2026, 10, 25)
+
+
+def _txn(day: str, ref: str) -> dict[str, object]:
+    return {
+        "entry_reference": f"BOOKED|{ref}|{day}|1",
+        "transaction_amount": {"currency": "PLN", "amount": "10.00"},
+        "credit_debit_indicator": "DBIT",
+        "status": "BOOK",
+        "booking_date": day,
+        "remittance_information": [f"Sklep {ref}"],
+    }
+
+
+@respx.mock
+async def test_bank_ignoring_date_from_stops_when_window_covered(
+    conn: db.sqlite3.Connection, eb: EBClient
+) -> None:
+    """Millennium ignoruje `date_from` i zawsze oddaje 90 dni, najnowsze strony pierwsze."""
+    main = _account(conn, UID_MAIN)
+    await_first = _mock_ok(main_txns=[_txn("2026-09-25", "a")])
+    assert (await sync_service.sync(conn, eb, tz=TZ, now=NOW)).ok  # księga: ostatnie 25.09
+    pages = [
+        _page([_txn("2026-10-02", "n1"), _txn("2026-09-23", "n2")], key="k1"),  # ≥ 20.09
+        _page([_txn("2026-09-19", "o1"), _txn("2026-09-01", "o2")], key="k2"),  # sięga < okna
+        _page([_txn("2026-08-01", "o3")], key="k3"),  # nie powinno być pobrane
+    ]
+    await_first["tx_main"].mock(side_effect=pages)
+    result = await sync_service.sync(conn, eb, tz=TZ, now=NOW)
+    assert result.status == "ok", result.detail
+    assert await_first["tx_main"].call_count == 1 + 2  # pierwszy przebieg + 2 strony
+    assert result.accounts[0].window_from == date(2026, 9, 20)
+    assert sync_service.RequestBudget(conn, NOW.date()).used(main, "transactions") == 3
+    refs = {r[0] for r in conn.execute("SELECT description FROM txn")}
+    assert {"Sklep n1", "Sklep n2", "Sklep o1"} <= refs
+
+
+@respx.mock
+async def test_unordered_pages_are_fetched_to_the_end(
+    conn: db.sqlite3.Connection, eb: EBClient
+) -> None:
+    """Bez malejącej kolejności nie wolno kończyć wcześniej — mogłyby zginąć nowsze."""
+    routes = _mock_ok(main_txns=[_txn("2026-09-25", "a")])
+    assert (await sync_service.sync(conn, eb, tz=TZ, now=NOW)).ok
+    routes["tx_main"].mock(
+        side_effect=[
+            _page([_txn("2026-09-01", "o1")], key="k1"),  # rosnąco: najstarsze pierwsze
+            _page([_txn("2026-10-02", "n1")], key=None),
+        ]
+    )
+    result = await sync_service.sync(conn, eb, tz=TZ, now=NOW)
+    assert result.ok
+    assert routes["tx_main"].call_count == 1 + 2
+    assert "Sklep n1" in {r[0] for r in conn.execute("SELECT description FROM txn")}
+
+
+def _t(day: str) -> Transaction:
+    return Transaction.from_api(_txn(day, day))
+
+
+@pytest.mark.parametrize(
+    ("days", "covered"),
+    [
+        (["2026-10-02", "2026-09-19"], True),  # malejąco i sięga przed okno
+        (["2026-10-02", "2026-09-21"], False),  # jeszcze nie sięga
+        (["2026-09-19"], False),  # jedna, starsza niż okno — kolejność nieznana
+        (["2026-09-01", "2026-10-02", "2026-09-10"], False),  # nie malejąco
+        (["2026-09-25", "2026-09-25", "2026-09-19"], True),
+        ([], False),
+    ],
+)
+def test_order_check(days: list[str], covered: bool) -> None:
+    check = sync_service.OrderCheck(date(2026, 9, 20))
+    check.feed([_t(d) for d in days])
+    assert check.covered is covered
