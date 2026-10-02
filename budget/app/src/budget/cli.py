@@ -12,6 +12,7 @@ import asyncio
 import hashlib
 import json
 import os
+import sqlite3
 import sys
 from collections import Counter
 from collections.abc import Sequence
@@ -19,10 +20,14 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from budget import eb_ingest, ledger
+from budget.csv_import import CsvFormatError
 from budget.eb_client import EBAuthError, EBClient, EBError, find_aspsp, parse_redirect
+from budget.eb_models import Account, Balance
 from budget.keys import generate_key_and_cert
 from budget.logging_utils import mask_iban, setup_logging
 from budget.settings import Settings, SettingsError, load_settings, resolve_private_key_path
+from budget.storage import db
 
 
 class CliError(Exception):
@@ -247,6 +252,164 @@ def _print_summary(txns: Sequence[dict[str, Any]]) -> None:
     )
 
 
+# --- księga (M2) ------------------------------------------------------------------
+
+
+def _open_db(settings: Settings, args: argparse.Namespace) -> sqlite3.Connection:
+    path = Path(args.db) if args.db else settings.data_dir / "budget.db"
+    return db.connect(path)
+
+
+def _stamp_to_iso(stamp: str) -> str:
+    """`20261002T053210Z` → `2026-10-02T05:32:10+00:00`."""
+    return datetime.strptime(stamp, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC).isoformat()
+
+
+async def cmd_ingest_csv(settings: Settings, args: argparse.Namespace) -> None:
+    path = Path(args.file)
+    card_map: dict[str, int] = {}
+    for item in args.map or []:
+        number, _, account_id = item.partition("=")
+        if not account_id.isdigit():
+            raise CliError(f"--map oczekuje NUMER=ID_KONTA, a jest {item!r}")
+        card_map[number] = int(account_id)
+    conn = _open_db(settings, args)
+    try:
+        stats = ledger.ingest_csv(
+            conn,
+            path.read_bytes(),
+            file_name=path.name,
+            fetched_at=datetime.fromtimestamp(path.stat().st_mtime, UTC).isoformat(
+                timespec="seconds"
+            ),
+            card_map=card_map,
+        )
+    except CsvFormatError as exc:
+        raise CliError(str(exc)) from exc
+    print(
+        f"CSV {path.name}: {stats.total} wierszy, nowych {stats.new}, pominiętych "
+        f"{len(stats.skipped)} ({', '.join(sorted({r for _, r in stats.skipped})) or '-'})"
+    )
+    _print_report(conn)
+
+
+async def cmd_ingest_eb(settings: Settings, args: argparse.Namespace) -> None:
+    state_dir = _state_dir(settings)
+    if args.live:
+        # 2 zapytania na konto (salda + transakcje) z limitu 4/konto/dobę
+        await cmd_balances(settings, argparse.Namespace(id=args.id, account=None))
+        await cmd_transactions(
+            settings,
+            argparse.Namespace(id=args.id, account=None, days=args.days, date_from=None),
+        )
+    dumps = Path(args.dumps) if args.dumps else state_dir / "dumps"
+    session = _current_session(state_dir, args.id)
+    conn = _open_db(settings, args)
+    accounts: dict[str, int] = {}
+    with ledger.transaction(conn):
+        for raw in session.get("accounts", []):
+            acc = Account.from_api(raw)
+            accounts[eb_ingest.hash_digest(acc.identification_hash)] = ledger.upsert_eb_account(
+                conn, acc
+            )
+    done = {r[0] for r in conn.execute("SELECT file_name FROM import_batch WHERE source = 'eb'")}
+    files = sorted(dumps.glob("transactions_*.json"), key=lambda f: f.stem.rsplit("_", 1)[-1])
+    for f in files:
+        if f.name in done or (dump := eb_ingest.load_dump(f)) is None:
+            continue
+        account_id = accounts.get(dump.hash_digest)
+        if account_id is None:
+            print(f"{f.name}: konto spoza bieżącej sesji — pomijam")
+            continue
+        kind = conn.execute("SELECT kind FROM account WHERE id = ?", (account_id,)).fetchone()
+        stats = ledger.ingest_api(
+            conn,
+            account_id,
+            eb_ingest.convert(dump.transactions, card_account=kind["kind"] == "card"),
+            fetched_at=dump.fetched_at,
+            date_from=dump.date_from,
+            file_name=f.name,
+        )
+        print(
+            f"{f.name}: {stats.total} transakcji, nowych {stats.new}, zmienionych {stats.updated}"
+        )
+    for f in sorted(dumps.glob("balances_*.json")):
+        at = _stamp_to_iso(f.stem.split("_", 1)[1])
+        for uid, items in json.loads(f.read_text(encoding="utf-8")).items():
+            account_id = ledger.account_by_alias(conn, "eb_uid", uid)
+            if account_id is not None:
+                ledger.ingest_balances(
+                    conn, account_id, [Balance.from_api(b) for b in items], fetched_at=at
+                )
+    _print_report(conn)
+
+
+async def cmd_report(settings: Settings, args: argparse.Namespace) -> None:
+    _print_report(_open_db(settings, args))
+
+
+def _print_report(conn: sqlite3.Connection) -> None:
+    """Raport księgi — same liczby (bez opisów, kontrahentów i numerów)."""
+    print("\n== Księga ==")
+    for acc in conn.execute("SELECT * FROM account ORDER BY id"):
+        rows = conn.execute(
+            "SELECT source, count(*) AS n, min(booking_date) AS d0, max(booking_date) AS d1 "
+            "FROM txn WHERE account_id = ? AND status = 'BOOK' GROUP BY source",
+            (acc["id"],),
+        ).fetchall()
+        parts = ", ".join(f"{r['source']} {r['n']} ({r['d0']} … {r['d1']})" for r in rows)
+        print(
+            f"#{acc['id']} {acc['kind']:7} {acc['currency']} {mask_iban(acc['iban'])}: "
+            f"{parts or 'brak transakcji'}"
+        )
+    print("\n== Wiersze CSV ==")
+    for r in conn.execute(
+        "SELECT coalesce(a.account_id, '-') AS acc, c.status, count(*) AS n FROM csv_row c "
+        "LEFT JOIN account_alias a ON a.source = 'csv_number' AND a.value = c.number "
+        "GROUP BY 1, 2 ORDER BY 1, 2"
+    ):
+        print(f"konto #{r['acc']}: {r['status']} {r['n']}")
+    print("\n== Przelewy własne (L2) i zwroty (L3) ==")
+    sizes = Counter(
+        r["n"]
+        for r in conn.execute(
+            "SELECT count(*) AS n FROM txn WHERE transfer_group IS NOT NULL GROUP BY transfer_group"
+        )
+    )
+    print(f"pary: {sizes.get(2, 0)}, strona bez pary: {sizes.get(1, 0)}")
+    repay = conn.execute(
+        "SELECT count(*) AS n, sum(transfer_group IN (SELECT transfer_group FROM txn "
+        "GROUP BY transfer_group HAVING count(*) = 2)) AS paired FROM txn t "
+        "WHERE kind = 'card_repayment' AND amount LIKE '-%'"
+    ).fetchone()
+    print(f"spłaty karty (strona rachunku): {repay['paired'] or 0}/{repay['n']} sparowanych")
+    refunds = conn.execute(
+        "SELECT count(*) AS n, count(refund_of) AS linked FROM txn "
+        "WHERE kind IN ('card_refund', 'blik_refund') AND transfer_group IS NULL"
+    ).fetchone()
+    print(f"zwroty powiązane z zakupem: {refunds['linked']}/{refunds['n']}")
+    kinds = conn.execute(
+        "SELECT kind_source, count(*) AS n FROM txn GROUP BY 1 ORDER BY 1"
+    ).fetchall()
+    print("źródło typu: " + ", ".join(f"{r['kind_source']} {r['n']}" for r in kinds))
+    print("\n== Uzgodnienie salda ==")
+    for check in ledger.check_balances(conn):
+        status = "OK" if check.ok else "ROZBIEŻNOŚĆ"
+        line = f"#{check.account_id}: {status}"
+        if check.days_checked:
+            line += (
+                f"; dni z saldem CSV {check.days_checked}, rozbieżnych {len(check.day_mismatches)}"
+            )
+            if check.day_mismatches:
+                day, diff = check.day_mismatches[0]
+                line += f" (pierwszy {day}: {diff:+})"
+        for at, bank, calc in check.snapshot_checks:
+            line += f"; migawka {at[:16]}: bank {bank} / księga {calc}"
+        if check.note:
+            line += f"; {check.note}"
+        print(line)
+
+
 # --- main ---------------------------------------------------------------------
 
 
@@ -290,6 +453,27 @@ def _parser() -> argparse.ArgumentParser:
     t.add_argument("--account", type=int)
     t.add_argument("--days", type=int, default=90)
     t.add_argument("--date-from", help="YYYY-MM-DD (nadpisuje --days)")
+
+    db_help = "plik bazy (domyślnie <data_dir>/budget.db)"
+    ic = sub.add_parser("ingest-csv", help="import eksportu CSV z Millenetu do księgi")
+    ic.add_argument("file")
+    ic.add_argument(
+        "--map",
+        action="append",
+        metavar="NUMER=ID_KONTA",
+        help="numer karty z CSV → konto (gdy automat nie rozpozna); można powtarzać",
+    )
+    ic.add_argument("--db", help=db_help)
+
+    ie = sub.add_parser("ingest-eb", help="import zrzutów API (lub pobranie --live) do księgi")
+    ie.add_argument("--dumps", help="katalog zrzutów (domyślnie <BUDGET_DEV_DIR>/dumps)")
+    ie.add_argument("--live", action="store_true", help="najpierw pobierz salda i transakcje")
+    ie.add_argument("--days", type=int, default=90)
+    ie.add_argument("--id", help="session_id (domyślnie ostatnia)")
+    ie.add_argument("--db", help=db_help)
+
+    r = sub.add_parser("report", help="raport księgi (same liczby)")
+    r.add_argument("--db", help=db_help)
     return p
 
 
@@ -301,6 +485,9 @@ _ASYNC = {
     "session": cmd_session,
     "balances": cmd_balances,
     "transactions": cmd_transactions,
+    "ingest-csv": cmd_ingest_csv,
+    "ingest-eb": cmd_ingest_eb,
+    "report": cmd_report,
 }
 
 
