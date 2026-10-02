@@ -257,6 +257,11 @@ form.rename button { padding: 6px 10px; }
 }
 a.button { padding: 8px 14px; border-radius: 8px; }
 form.rename.main input { font-weight: 600; }
+.leaf-meta { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin-top: 3px; }
+form.move { display: flex; gap: 4px; margin-left: auto; }
+form.move select { max-width: 170px; padding: 3px 6px; font-size: 13px; }
+form.move button { padding: 3px 8px; font-size: 13px; }
+form.rename span { flex: 1; align-self: center; }
 
 /* M4b: kolejka „Do przejrzenia” */
 .nav-count {

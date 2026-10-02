@@ -7,7 +7,7 @@ from datetime import date
 from decimal import Decimal
 
 from budget import spending
-from budget.categorize import engine
+from budget.categorize import engine, taxonomy
 
 from .test_categorize_engine import add, conn, sid
 
@@ -96,3 +96,21 @@ def test_coverage_whole_ledger(conn: sqlite3.Connection) -> None:
 def test_add_months() -> None:
     assert spending.add_months(date(2026, 1, 1), -1) == date(2025, 12, 1)
     assert spending.add_months(date(2026, 12, 1), 1) == date(2027, 1, 1)
+
+
+def test_moved_subcategory_counts_under_new_main(conn: sqlite3.Connection) -> None:
+    add(conn, "-100.00", "card", "LIDL XYZ POL", day="2026-08-10")
+    add(conn, "-60.00", "card", "ORLEN STACJA XYZ", day="2026-09-03")
+    add(conn, "-40.00", "card", "LIDL XYZ POL", day="2026-09-04")
+    engine.recategorize(conn)
+    groceries = taxonomy.by_slug(conn)["spozywcze"]
+    before = conn.execute("SELECT id, category_id FROM txn ORDER BY id").fetchall()
+    shop = taxonomy.add_main(conn, "Zakupy codzienne")
+    taxonomy.move(conn, groceries.id, shop)
+    assert conn.execute("SELECT id, category_id FROM txn ORDER BY id").fetchall() == before
+
+    m = build(conn)
+    groups = {g.category.slug: g for g in m.expense_groups}
+    assert set(groups) == {"zakupy-codzienne", "transport"}
+    assert groups["zakupy-codzienne"].amount == Decimal("40.00")
+    assert groups["zakupy-codzienne"].prev == Decimal("100.00")  # poprzedni miesiąc też

@@ -70,6 +70,13 @@ i zmianą względem poprzedniego miesiąca, wpływy, oszczędności, transakcje 
 (kategoria „Jednorazowe / poza budżetem”) i pozycje bez kategorii. Kwoty w PLN; transakcje
 w innej walucie są na razie pomijane.
 
+**Kategorie** (zakładka obok Reguł i Słownika): dodasz podkategorię albo nową kategorię główną
+i zmienisz nazwę. Każdą podkategorię możesz **przenieść** do innej kategorii głównej (lista
+„przenieś do…” pod nazwą). Razem z nią idą jej transakcje, reguły i słownik, a „Wydatki”
+pokażą nowy podział od razu, także za poprzednie miesiące. Grupa budżetu (stałe, elastyczne…)
+zostaje przy podkategorii. Pustą kategorię główną (np. po przeniesieniu wszystkich jej
+podkategorii) można usunąć.
+
 ## Kolejka „Do przejrzenia”
 
 Zakładka z licznikiem w nawigacji zbiera wszystkie transakcje **bez kategorii** (to, co

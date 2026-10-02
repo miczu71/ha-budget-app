@@ -1,8 +1,10 @@
 """Kategorie dwupoziomowe: główne grupują podkategorie, transakcja dostaje podkategorię.
 
 Seed jest w migracji `003_categories.sql`; słownik sieci i reguły odwołują się do podkategorii
-po `slug` / `id`. W M4a panel pozwala dodać podkategorię i zmienić nazwę, resztę (przenoszenie,
-usuwanie, grupy Flex) dostanie M5.
+po `slug` / `id`. Panel pozwala dodać podkategorię i zmienić nazwę (M4a), dodać kategorię główną,
+przenieść podkategorię do innej głównej i usunąć pustą główną (0.6.0); usuwanie podkategorii
+i zmianę grup Flex dostanie M5. Przeniesienie zmienia tylko `parent_id` — transakcje, reguły
+i słownik wskazują podkategorię, więc idą za nią bez przeliczania księgi.
 """
 
 from __future__ import annotations
@@ -99,6 +101,19 @@ def _check_unique(conn: sqlite3.Connection, parent_id: int, name: str, skip: int
             raise TaxonomyError(f"Podkategoria „{name}” już istnieje w tej grupie.")
 
 
+def _check_unique_main(conn: sqlite3.Connection, name: str, skip: int | None) -> None:
+    for r in conn.execute("SELECT id, name FROM category WHERE parent_id IS NULL"):
+        if r["id"] != skip and fold(r["name"]) == fold(name):
+            raise TaxonomyError(f"Kategoria główna „{name}” już istnieje.")
+
+
+def _next_sort(conn: sqlite3.Connection, parent_id: int | None) -> int:
+    row = conn.execute(
+        "SELECT max(sort) FROM category WHERE parent_id IS ?", (parent_id,)
+    ).fetchone()
+    return int(row[0] or 0) + 10
+
+
 def _slug(conn: sqlite3.Connection, name: str) -> str:
     base = re.sub(r"[^a-z0-9]+", "-", fold(name).lower()).strip("-") or "kategoria"
     taken = {r[0] for r in conn.execute("SELECT slug FROM category")}
@@ -140,4 +155,45 @@ def rename(conn: sqlite3.Connection, category_id: int, name: str) -> None:
     name = _clean_name(name)
     if cat.parent_id is not None:
         _check_unique(conn, cat.parent_id, name, cat.id)
+    else:
+        _check_unique_main(conn, name, cat.id)
     conn.execute("UPDATE category SET name = ? WHERE id = ?", (name, category_id))
+
+
+def add_main(conn: sqlite3.Connection, name: str) -> int:
+    """Nowa kategoria główna na końcu listy (bez grupy Flex — tę mają tylko podkategorie)."""
+    name = _clean_name(name)
+    _check_unique_main(conn, name, None)
+    cur = conn.execute(
+        "INSERT INTO category (parent_id, slug, name, sort) VALUES (NULL, ?, ?, ?)",
+        (_slug(conn, name), name, _next_sort(conn, None)),
+    )
+    return int(cur.lastrowid or 0)
+
+
+def move(conn: sqlite3.Connection, category_id: int, parent_id: int) -> None:
+    """Podkategoria trafia na koniec innej głównej; grupa Flex i przypisania zostają."""
+    cats = all_categories(conn)
+    cat, parent = cats.get(category_id), cats.get(parent_id)
+    if cat is None or cat.is_main:
+        raise TaxonomyError("Przenieść można tylko podkategorię.")
+    if parent is None or not parent.is_main:
+        raise TaxonomyError("Nie ma takiej kategorii głównej.")
+    if parent.id == cat.parent_id:
+        raise TaxonomyError(f"„{cat.name}” już jest w „{parent.name}”.")
+    _check_unique(conn, parent.id, cat.name, None)
+    conn.execute(
+        "UPDATE category SET parent_id = ?, sort = ? WHERE id = ?",
+        (parent.id, _next_sort(conn, parent.id), cat.id),
+    )
+
+
+def delete_main(conn: sqlite3.Connection, category_id: int) -> str:
+    """Usuwa pustą kategorię główną (np. po przeniesieniu podkategorii); zwraca jej nazwę."""
+    cat = all_categories(conn).get(category_id)
+    if cat is None or not cat.is_main:
+        raise TaxonomyError("Nie ma takiej kategorii głównej.")
+    if conn.execute("SELECT 1 FROM category WHERE parent_id = ?", (cat.id,)).fetchone():
+        raise TaxonomyError(f"„{cat.name}” ma podkategorie — najpierw je przenieś.")
+    conn.execute("DELETE FROM category WHERE id = ?", (cat.id,))
+    return cat.name

@@ -174,6 +174,37 @@ async def test_dictionary_and_categories(client: httpx.AsyncClient, service: Ser
     assert "Zakupy spożywcze" in (await client.get("/categories")).text
 
 
+async def test_categories_add_main_move_delete(client: httpx.AsyncClient, service: Service) -> None:
+    ids = _seed(service.conn)
+    conn = service.conn
+    r = await client.post("/categories/add-main", data={"name": "Wyjazdy"})
+    assert r.status_code == 303
+    page = (await client.get("/categories")).text
+    assert "Dodano kategorię główną" in page and 'value="Wyjazdy"' in page
+    trips = taxonomy.by_slug(conn)["wyjazdy"].id
+    assert f'action="{INGRESS}/categories/{trips}/delete"' in page  # pusta → można usunąć
+    assert f'action="{INGRESS}/categories/2/delete"' not in page
+
+    before = conn.execute("SELECT category_id FROM txn WHERE id = ?", (ids["kebab"],)).fetchone()
+    r = await client.post("/categories/111/move", data={"parent_id": str(trips)})
+    assert r.status_code == 303
+    page = (await client.get("/categories")).text
+    assert "Przeniesiono „Restauracje i kawiarnie” do „Wyjazdy”" in page
+    assert f'action="{INGRESS}/categories/{trips}/delete"' not in page
+    after = conn.execute("SELECT category_id FROM txn WHERE id = ?", (ids["kebab"],)).fetchone()
+    assert before[0] == after[0]
+    assert "Wyjazdy" in (await client.get("/spending")).text
+
+    await client.post("/categories/111/move", data={"parent_id": str(trips)})
+    assert "już jest" in (await client.get("/categories")).text
+    await client.post("/categories/111/move", data={"parent_id": "2"})
+    r = await client.post(f"/categories/{trips}/delete")
+    assert r.status_code == 303
+    assert "Usunięto kategorię „Wyjazdy”" in (await client.get("/categories")).text
+    await client.post("/categories/2/delete")
+    assert "najpierw je przenieś" in (await client.get("/categories")).text
+
+
 async def test_rule_from_correction_takes_over_manual(
     client: httpx.AsyncClient, service: Service
 ) -> None:

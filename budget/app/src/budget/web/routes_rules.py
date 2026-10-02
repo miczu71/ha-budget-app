@@ -287,4 +287,36 @@ def router(panel: Panel) -> APIRouter:
             return panel.redirect(request, "/categories", str(exc), "error")
         return panel.redirect(request, "/categories", "Zmieniono nazwę.")
 
+    @r.post("/categories/add-main")
+    async def add_main_category(request: Request, name: str = Form("")) -> Response:
+        try:
+            taxonomy.add_main(conn, name)
+        except TaxonomyError as exc:
+            return panel.redirect(request, "/categories", str(exc), "error")
+        return panel.redirect(request, "/categories", f"Dodano kategorię główną „{name.strip()}”.")
+
+    @r.post("/categories/{category_id}/move")
+    async def move_category(
+        request: Request, category_id: int, parent_id: int = Form(...)
+    ) -> Response:
+        try:
+            taxonomy.move(conn, category_id, parent_id)
+        except TaxonomyError as exc:
+            return panel.redirect(request, "/categories", str(exc), "error")
+        cats = taxonomy.all_categories(conn)
+        return panel.redirect(
+            request,
+            "/categories",
+            f"Przeniesiono „{cats[category_id].name}” do „{cats[parent_id].name}” "
+            "razem z transakcjami i regułami.",
+        )
+
+    @r.post("/categories/{category_id}/delete")
+    async def delete_category(request: Request, category_id: int) -> Response:
+        try:
+            name = taxonomy.delete_main(conn, category_id)
+        except TaxonomyError as exc:
+            return panel.redirect(request, "/categories", str(exc), "error")
+        return panel.redirect(request, "/categories", f"Usunięto kategorię „{name}”.")
+
     return r

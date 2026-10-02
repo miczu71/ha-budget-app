@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0
+
+Przegrupowanie kategorii (poza planem, `docs/PLAN_categories_move.md`).
+
+- **Kategorie:** nowa kategoria główna (karta „Nowa kategoria główna” na końcu listy).
+- Przy każdej podkategorii lista **przenieś do…** — podkategoria trafia na koniec wybranej
+  kategorii głównej razem z transakcjami, regułami, słownikiem i grupą budżetu; „Wydatki”
+  liczą ją pod nową kategorią także za poprzednie miesiące (bez przeliczania księgi).
+- Pustą kategorię główną można usunąć; kategorii z podkategoriami — nie.
+- Nazwa kategorii głównej musi być unikalna (także przy zmianie nazwy).
+
 ## 0.5.0
 
 Podpowiedzi kategorii per sprzedawca (etap M4c/3, `docs/PLAN_M4c.md`). Po pierwszym pomiarze
