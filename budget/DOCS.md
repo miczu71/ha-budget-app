@@ -114,9 +114,19 @@ Działanie: po każdej synchronizacji, w tle, do 3 wywołań po 40 sprzedawców 
 `ai_daily_calls`); o tego samego sprzedawcę nie pyta drugi raz. Karta **Podpowiedzi AI** na
 ekranie Status pokazuje wywołania, ostatni błąd i liczbę podpowiedzi; **Podpowiedz teraz**
 uruchamia przebieg od razu, **Zmierz trafność** pyta o do 80 sprzedawców, którzy już mają
-kategorię (najpierw Twoje ręczne i reguły, potem słownik), i pokazuje trafność według progu
-pewności. W tej wersji podpowiedzi są tylko liczone — zatwierdzanie jednym dotknięciem w kolejce
-i na liście transakcji przyjdzie w następnej.
+kategorię (najpierw Twoje ręczne i reguły, potem słownik), i pokazuje trafność pierwszej
+propozycji, trafność „wśród 3” i zgodność kategorii głównej według progu pewności.
+
+**Gdzie widać podpowiedzi:** model podaje do 3 propozycji kategorii na sprzedawcę, od
+najpewniejszej. Decyzja jest zawsze Twoja:
+- **Do przejrzenia** — pod nazwą sprzedawcy przyciski „AI: …”; dotknięcie rozwija grupę
+  z wybraną kategorią i podglądem reguły, zapisujesz jak zwykle („Zapisz”). W grupach krajów
+  propozycje są przy każdym sprzedawcy jako tekst. Przycisk **Podpowiedz teraz (AI)** liczy
+  propozycje bez czekania na synchronizację.
+- **Transakcje** — w formularzu kategorii transakcji bez kategorii; dotknięcie ustawia wybór.
+
+Zapis kategorii sprzedawcy w kolejce oznacza podpowiedź jako przyjętą (wybrano jedną
+z propozycji) albo odrzuconą (inna kategoria) — liczniki na karcie AI na ekranie Status.
 
 ## Encje
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.0
+
+Podpowiedzi kategorii per sprzedawca (etap M4c/3, `docs/PLAN_M4c.md`). Po pierwszym pomiarze
+trafność pojedynczej odpowiedzi była za niska na zatwierdzanie jednym dotknięciem — zamiast tego
+do 3 propozycji, wybór zawsze ręczny.
+
+- Model zwraca do 3 kandydatów (podkategoria + pewność), każdy sprawdzany; migracja `005`
+  (kolumna `candidates`, oczekujące podpowiedzi z jednym kandydatem liczone od nowa).
+- **Do przejrzenia:** przyciski „AI: …” pod nazwą sprzedawcy — dotknięcie rozwija grupę
+  z wybraną kategorią i podglądem reguły; zapis jak dotąd. Grupy krajów: propozycje per
+  sprzedawca jako tekst. Przycisk **Podpowiedz teraz (AI)** (zachowuje kierunek, sortowanie
+  i miesiąc).
+- **Transakcje:** propozycje w formularzu kategorii (ustawiają wybór).
+- Zapis kategorii sprzedawcy w kolejce oznacza podpowiedź jako przyjętą albo odrzuconą.
+- **Zmierz trafność:** nowa kolumna „wśród 3”.
+
 ## 0.4.0
 
 Podpowiedzi kategorii z AI — silnik i pomiar trafności (etap M4c/2, `docs/PLAN_M4c.md`).
