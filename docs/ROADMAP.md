@@ -18,9 +18,10 @@ jawne „go” przed następnym).
 | M3 | **Add-on w HA** — instalacja, synchronizacja 3×/dobę, panel (status, bank, import, transakcje), podstawowe encje | w toku (`PLAN_M3.md`) |
 | M4a | **Kategoryzacja v1** — słownik polskich sieci, silnik reguł z podglądem, ekran „Wydatki” | 0.2.0 wydane i zainstalowane 2026-10-02; czeka sesja reguł + checkpoint (`PLAN_M4a.md`) |
 | M4b | **Kolejka „do przejrzenia”** w panelu (grupy sprzedawców i krajów) | 0.3.0 wydane i zainstalowane 2026-10-02; czeka checkpoint (`PLAN_M4b.md`) |
+| M4c | **Poza planem (2026-10-02):** kolejka dla wybranego miesiąca + podpowiedzi kategorii z AI (freellmapi), zatwierdzane jednym dotknięciem | etap 1/3 w toku (`PLAN_M4c.md`) |
 | M5 | **Budżet Flex** — stałe/elastyczne/nieregularne, cykliczne płatności, ekran „Budżet” z wykresami w panelu, encje | — |
 | M6 | **Podsumowania + kalendarz płatności** — tydzień/miesiąc na telefon, kalendarz ICS | — |
-| M7 | **Kategoryzacja v2** — lokalny klasyfikator + opcjonalnie LLM przez `ai_task` | — |
+| M7 | **Kategoryzacja v2** — lokalny klasyfikator (LLM przeniesiony do M4c) | — |
 | M8 | **Prognoza przepływów** — saldo do końca miesiąca, „bezpiecznie do wydania” | — |
 | M9 | **Majątek netto + kredyt** | — |
 
@@ -39,6 +40,8 @@ backlog (decyzja 10).
 3. Metoda budżetu: **Flex + opcjonalne limity** (stałe / elastyczne / nieregularne).
 4. Okres: **miesiąc kalendarzowy**.
 5. Kategoryzacja: **lokalnie, LLM opcjonalnie** (`ai_task.generate_data`, minimalizacja danych).
+   **Zmienione 2026-10-02 (M4c):** LLM przez lokalny router OpenAI-compatible (freellmapi) zamiast
+   `ai_task`; zakres danych w decyzji 12.
 6. Priorytety HA: **podsumowania** oraz **kalendarz płatności** (to-do „do przejrzenia” → backlog,
    decyzja 10).
 7. Dalsze etapy: **prognoza przepływów**, **majątek netto + kredyt**.
@@ -49,6 +52,10 @@ backlog (decyzja 10).
     statystyki długoterminowe HA i dashboard Lovelace → backlog.
 11. **(2026-10-02) Kategoryzacja:** cel pierwszy „gdzie idą pieniądze” (ekran w panelu),
     kategorie dwupoziomowe, lukę po słowniku zamyka pełny silnik reguł; M4 dzielone na M4a/M4b.
+12. **(2026-10-02) Dane wysyłane do LLM (M4c):** płatności kartą/BLIK — nazwa sprzedawcy i opis
+    (po wycięciu IBAN-ów, numerów kart, e-maili, telefonów); przelewy — wyłącznie tytuł, bez nazwy
+    odbiorcy i jej tokenów; kwota tylko jako przedział. Router przekazuje zapytania do darmowych
+    chmur — zaakceptowane świadomie.
 
 ## Zmiany względem SPEC (zweryfikowane na danych)
 
@@ -166,6 +173,20 @@ syntetycznych i zanonimizowanej próbce.
   domyślnie reguła, opcja „tylko te”; zagraniczne transakcje kartą grupowane po kraju.
   Szczegóły: [`PLAN_M4b.md`](PLAN_M4b.md).
 
+## M4c — Kolejka miesiąca + podpowiedzi AI (poza planem, 2026-10-02)
+
+**Wartość:** z ekranu „Wydatki” przegląda się tylko nieskategoryzowane z danego miesiąca;
+dla grup w kolejce i transakcji bez kategorii AI podpowiada kategorię, zatwierdzaną jednym
+dotknięciem. Część LLM z M7 przeniesiona tutaj; lokalny klasyfikator i KPI zostają w M7.
+
+1. **0.3.1** — kolejka „Do przejrzenia” z filtrem miesiąca (zapis jak dotąd: domyślnie reguła).
+2. **0.4.0** — silnik podpowiedzi: klient freellmapi, redakcja danych, cache w bazie, przebieg
+   po synchronizacji, backtest trafności (`suggest-eval`) jako punkt decyzji przed etapem 3.
+3. **0.5.0** — chip „AI: kategoria ✓ ✕” w kolejce (✓ = reguła dla grupy) i na liście Transakcji
+   (✓ = kategoria ręczna jednej transakcji), „podpowiedz teraz”, statystyka przyjęte/odrzucone.
+
+Szczegóły: [`PLAN_M4c.md`](PLAN_M4c.md).
+
 ## M5 — Budżet Flex
 
 **Wartość:** „ile zostało?” i „gdzie uciekają pieniądze?” — w panelu add-onu.
@@ -197,10 +218,8 @@ syntetycznych i zanonimizowanej próbce.
 
 - Lokalny klasyfikator (czysty Python, naive Bayes na n-gramach sprzedawcy + typ + przedział
   kwoty) uczony na poprawkach, z progiem pewności.
-- Opcjonalny fallback **`ai_task.generate_data`** (odpowiedź strukturalna `{category,
-  confidence}`), encja konfigurowalna. Wysyłane wyłącznie: oczyszczona nazwa sprzedawcy, typ,
-  przedział kwoty — **nigdy** nazwiska, IBAN-y, tytuły przelewów. Paczki ≤ 50 sprzedawców, cache
-  per sprzedawca, dzienny limit.
+- ~~Opcjonalny fallback `ai_task.generate_data`~~ → **przeniesione do M4c** (freellmapi,
+  zakres danych wg decyzji 12).
 - Panel jakości: pokrycie, precyzja.
 
 **KPI:** **≥ 92% transakcji automatycznie**, precyzja ≥ 95% (< 5% poprawianych w 30 dni),
