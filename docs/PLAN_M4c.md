@@ -46,12 +46,23 @@ Każdy etap osobno: plan → „go” → wykonanie → checkpoint.
   punkt decyzji przed etapem 3.
 - Karta „AI” na ekranie Status.
 
-## Etap 3 — 0.5.0: zatwierdzanie jednym dotknięciem
+## Etap 3 — 0.5.0: do 3 podpowiedzi per sprzedawca (zmienione 2026-10-02)
 
-- Chip „AI: kategoria · pewność ✓ ✕” w nagłówku grupy kolejki (także w widoku miesiąca) i przy
-  transakcji bez kategorii na liście Transakcji; preselekcja w formularzu grupy.
-- „Podpowiedz teraz” na `/review`; statystyka przyjęte/odrzucone na Status.
-- Próg pokazywania chipa z wyniku `suggest-eval`.
+Pierwszy pomiar na żywo (0.4.0): trafność pojedynczej odpowiedzi na kategoriach użytkownika
+~25% podkategorii / ~33% kategorii głównej (≥ 0,9 pewności: ~40%) — za mało na zatwierdzanie
+jednym dotknięciem. Decyzja użytkownika: **podpowiedzi per sprzedawca, decyzja zawsze jego**,
+**do 3 kandydatów**, dotknięcie = wybór w formularzu (zapis jak dotąd), kolejka **i** Transakcje.
+
+- Model zwraca do 3 kandydatów (`category_id`, pewność) — walidacja każdego jak dotąd;
+  migracja `005`: kolumna `candidates` (JSON), stare oczekujące podpowiedzi usunięte (liczone
+  od nowa).
+- Kolejka: pod wierszem grupy sprzedawcy chipy „AI: […] […] […]”; dotknięcie renderuje grupę
+  rozwiniętą z wybraną kategorią i podglądem reguły. Grupy krajów: kandydaci per sprzedawca
+  jako tekst (kategoria wybierana dla całej grupy). „Podpowiedz teraz” na `/review`.
+- Transakcje: chipy w formularzu kategorii (ustawiają wybór, zapis jak dotąd).
+- Zapis kategorii dla sprzedawcy oznacza podpowiedź jako przyjętą (wybrano kandydata) albo
+  odrzuconą (inna kategoria); statystyka na Status.
+- Pomiar: dodatkowo trafność „w top 3”.
 
 ## Weryfikacja
 
