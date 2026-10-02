@@ -21,7 +21,9 @@ jawne „go” przed następnym).
 | M4c | **Poza planem (2026-10-02):** kolejka dla wybranego miesiąca + podpowiedzi kategorii z AI (freellmapi), zatwierdzane jednym dotknięciem | 0.5.0 (etap 3/3: do 3 podpowiedzi per sprzedawca) wydane i zainstalowane 2026-10-02; czeka checkpoint (`PLAN_M4c.md`) |
 | M4d | **Poza planem (2026-10-02):** nowe kategorie główne, przenoszenie podkategorii, usuwanie pustej głównej | 0.6.0 (`PLAN_categories_move.md`) |
 | M4e | **Poza planem (2026-10-02):** wyszukiwanie na żywo (Reguły — nowe, Słownik, Transakcje), jednolite dopasowanie bez ogonków i wielkości liter, wiele słów | 0.6.1 (`PLAN_live_search.md`) |
-| M5 | **Budżet Flex** — stałe/elastyczne/nieregularne, cykliczne płatności, ekran „Budżet” z wykresami w panelu, encje | — |
+| M5a | **Budżet Flex: „ile mogę jeszcze wydać”** — ręczna kwota elastyczna, tempo, ekran „Budżet”, grupy edytowalne; potem encje | plan 2026-10-02 (`PLAN_M5a.md`) |
+| M5b | **Płatności cykliczne** — wykrywanie serii, stałe zapłacone/planowane | — |
+| M5c | **Skarbonki, trendy, limity** — nieregularne z celem rocznym, wykresy miesięczne, opcjonalne limity, `savings_rate` | — |
 | M6 | **Podsumowania + kalendarz płatności** — tydzień/miesiąc na telefon, kalendarz ICS | — |
 | M7 | **Kategoryzacja v2** — lokalny klasyfikator (LLM przeniesiony do M4c) | — |
 | M8 | **Prognoza przepływów** — saldo do końca miesiąca, „bezpiecznie do wydania” | — |
@@ -58,6 +60,11 @@ backlog (decyzja 10).
     (po wycięciu IBAN-ów, numerów kart, e-maili, telefonów); przelewy — wyłącznie tytuł, bez nazwy
     odbiorcy i jej tokenów; kwota tylko jako przedział. Router przekazuje zapytania do darmowych
     chmur — zaakceptowane świadomie.
+13. **(2026-10-02) Budżet Flex — pierwszy kawałek (M5a) odpowiada na „ile mogę jeszcze wydać”:**
+    pula = kwota ustawiona ręcznie (podpowiedź: mediana 6 pełnych miesięcy), „wydane” = tylko grupa
+    elastyczne + wydatki bez kategorii (ostrożnie, z dopiskiem); stałe i nieregularne obok jako
+    informacja; odpowiedź = kwota + tempo (na dzień, kreska „gdzie powinieneś być dziś”), bez
+    limitów per kategoria.
 
 ## Zmiany względem SPEC (zweryfikowane na danych)
 
@@ -192,6 +199,12 @@ Szczegóły: [`PLAN_M4c.md`](PLAN_M4c.md).
 ## M5 — Budżet Flex
 
 **Wartość:** „ile zostało?” i „gdzie uciekają pieniądze?” — w panelu add-onu.
+
+**(2026-10-02) Podział:** M5a — „ile mogę jeszcze wydać” (ręczna kwota, tempo, ekran „Budżet”,
+edycja grupy podkategorii; etap 2: encje `flex_*`), szczegóły [`PLAN_M5a.md`](PLAN_M5a.md);
+M5b — płatności cykliczne, `fixed_paid`/`fixed_planned`; M5c — skarbonki, wykresy trendu,
+opcjonalne limity, `savings_rate`, `month_income`/`month_expenses`, `category_<slug>`.
+Poniżej zakres całego M5 sprzed podziału.
 
 - Grupy kategorii: przychody, stałe, elastyczne, nieregularne („skarbonki”: cel roczny →
   miesięcznie, z przeniesieniem), oszczędności, przelewy, wyłączone/jednorazowe.
