@@ -18,7 +18,7 @@ jawne „go” przed następnym).
 | M3 | **Add-on w HA** — instalacja, synchronizacja 3×/dobę, panel (status, bank, import, transakcje), podstawowe encje | w toku (`PLAN_M3.md`) |
 | M4a | **Kategoryzacja v1** — słownik polskich sieci, silnik reguł z podglądem, ekran „Wydatki” | 0.2.0 wydane i zainstalowane 2026-10-02; czeka sesja reguł + checkpoint (`PLAN_M4a.md`) |
 | M4b | **Kolejka „do przejrzenia”** w panelu (grupy sprzedawców i krajów) | 0.3.0 wydane i zainstalowane 2026-10-02; czeka checkpoint (`PLAN_M4b.md`) |
-| M4c | **Poza planem (2026-10-02):** kolejka dla wybranego miesiąca + podpowiedzi kategorii z AI (freellmapi), zatwierdzane jednym dotknięciem | etap 2/3 (0.4.0) na żywo; etap 3 (0.5.0, do 3 podpowiedzi per sprzedawca) w toku (`PLAN_M4c.md`) |
+| M4c | **Poza planem (2026-10-02):** kolejka dla wybranego miesiąca + podpowiedzi kategorii z AI (freellmapi), zatwierdzane jednym dotknięciem | 0.5.0 (etap 3/3: do 3 podpowiedzi per sprzedawca) wydane i zainstalowane 2026-10-02; czeka checkpoint (`PLAN_M4c.md`) |
 | M5 | **Budżet Flex** — stałe/elastyczne/nieregularne, cykliczne płatności, ekran „Budżet” z wykresami w panelu, encje | — |
 | M6 | **Podsumowania + kalendarz płatności** — tydzień/miesiąc na telefon, kalendarz ICS | — |
 | M7 | **Kategoryzacja v2** — lokalny klasyfikator (LLM przeniesiony do M4c) | — |

@@ -83,3 +83,11 @@ i sprawdzenie przez Ingress.
   deweloperskiego. Redakcja obsługuje odmianę nazwiska w tytule (rdzeń słowa). Czeka: klucz
   w opcjach add-onu (użytkownik), pierwszy pomiar trafności → decyzja o progu chipa w etapie 3.
   Zainstalowane i sprawdzone przez Ingress: v0.4.0, karta „Podpowiedzi AI” (wyłączona bez opcji).
+  Pierwszy pomiar na żywo (80 sprzedawców z kategoriami użytkownika): trafność pojedynczej
+  odpowiedzi za niska na zatwierdzanie jednym dotknięciem → etap 3 zmieniony (wyżej).
+- **Etap 3 — 0.5.0 wydane i zainstalowane 2026-10-02** (`2a58b09`, `d8b6d91`, release `v0.5.0`,
+  CI zielone, 341 testów). Na żywo: pomiar z kolumną „wśród 3” — właściwa podkategoria wśród
+  propozycji u ok. połowy sprzedawców (pierwsza propozycja ok. ćwierć); „Podpowiedz teraz” —
+  3 wywołania, 120 sprzedawców z propozycjami w ~30 s; chipy w kolejce na telefonie, konsola
+  bez błędów. Model często podaje 1–2 propozycje zamiast 3. Czeka checkpoint etapu 3
+  (używanie przez kilka dni, liczniki przyjętych/odrzuconych na Status).
