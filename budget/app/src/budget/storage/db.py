@@ -6,11 +6,13 @@ wykonaniu (`PRAGMA user_version`). Każda migracja w osobnej transakcji.
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 from datetime import UTC, datetime
 from importlib import resources
 from pathlib import Path
+from typing import Any
 
 _MIGRATION_RE = re.compile(r"^(\d{3})_[\w-]+\.sql$")
 
@@ -91,3 +93,21 @@ def connect(path: Path | str) -> sqlite3.Connection:
         conn.execute("PRAGMA journal_mode = WAL")
     migrate(conn)
     return conn
+
+
+def kv_get(conn: sqlite3.Connection, key: str) -> Any:
+    """Wartość z tabeli `kv` (JSON) albo None."""
+    row = conn.execute("SELECT value FROM kv WHERE key = ?", (key,)).fetchone()
+    return json.loads(row["value"]) if row else None
+
+
+def kv_set(conn: sqlite3.Connection, key: str, value: Any) -> None:
+    """Zapis do `kv`; `None` usuwa klucz."""
+    if value is None:
+        conn.execute("DELETE FROM kv WHERE key = ?", (key,))
+        return
+    conn.execute(
+        "INSERT INTO kv (key, value, updated_at) VALUES (?, ?, ?) "
+        "ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+        (key, json.dumps(value, ensure_ascii=False, default=str), now_iso()),
+    )

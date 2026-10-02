@@ -20,7 +20,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from budget import eb_ingest, ledger
+from budget import eb_ingest, ledger, report
 from budget.csv_import import CsvFormatError
 from budget.eb_client import EBAuthError, EBClient, EBError, find_aspsp, parse_redirect
 from budget.eb_models import Account, Balance
@@ -349,65 +349,7 @@ async def cmd_report(settings: Settings, args: argparse.Namespace) -> None:
 
 
 def _print_report(conn: sqlite3.Connection) -> None:
-    """Raport księgi — same liczby (bez opisów, kontrahentów i numerów)."""
-    print("\n== Księga ==")
-    for acc in conn.execute("SELECT * FROM account ORDER BY id"):
-        rows = conn.execute(
-            "SELECT source, count(*) AS n, min(booking_date) AS d0, max(booking_date) AS d1 "
-            "FROM txn WHERE account_id = ? AND status = 'BOOK' GROUP BY source",
-            (acc["id"],),
-        ).fetchall()
-        parts = ", ".join(f"{r['source']} {r['n']} ({r['d0']} … {r['d1']})" for r in rows)
-        print(
-            f"#{acc['id']} {acc['kind']:7} {acc['currency']} {mask_iban(acc['iban'])}: "
-            f"{parts or 'brak transakcji'}"
-        )
-    print("\n== Wiersze CSV ==")
-    for r in conn.execute(
-        "SELECT coalesce(a.account_id, '-') AS acc, c.status, count(*) AS n FROM csv_row c "
-        "LEFT JOIN account_alias a ON a.source = 'csv_number' AND a.value = c.number "
-        "GROUP BY 1, 2 ORDER BY 1, 2"
-    ):
-        print(f"konto #{r['acc']}: {r['status']} {r['n']}")
-    print("\n== Przelewy własne (L2) i zwroty (L3) ==")
-    sizes = Counter(
-        r["n"]
-        for r in conn.execute(
-            "SELECT count(*) AS n FROM txn WHERE transfer_group IS NOT NULL GROUP BY transfer_group"
-        )
-    )
-    print(f"pary: {sizes.get(2, 0)}, strona bez pary: {sizes.get(1, 0)}")
-    repay = conn.execute(
-        "SELECT count(*) AS n, sum(transfer_group IN (SELECT transfer_group FROM txn "
-        "GROUP BY transfer_group HAVING count(*) = 2)) AS paired FROM txn t "
-        "WHERE kind = 'card_repayment' AND amount LIKE '-%'"
-    ).fetchone()
-    print(f"spłaty karty (strona rachunku): {repay['paired'] or 0}/{repay['n']} sparowanych")
-    refunds = conn.execute(
-        "SELECT count(*) AS n, count(refund_of) AS linked FROM txn "
-        "WHERE kind IN ('card_refund', 'blik_refund') AND transfer_group IS NULL"
-    ).fetchone()
-    print(f"zwroty powiązane z zakupem: {refunds['linked']}/{refunds['n']}")
-    kinds = conn.execute(
-        "SELECT kind_source, count(*) AS n FROM txn GROUP BY 1 ORDER BY 1"
-    ).fetchall()
-    print("źródło typu: " + ", ".join(f"{r['kind_source']} {r['n']}" for r in kinds))
-    print("\n== Uzgodnienie salda ==")
-    for check in ledger.check_balances(conn):
-        status = "OK" if check.ok else "ROZBIEŻNOŚĆ"
-        line = f"#{check.account_id}: {status}"
-        if check.days_checked:
-            line += (
-                f"; dni z saldem CSV {check.days_checked}, rozbieżnych {len(check.day_mismatches)}"
-            )
-            if check.day_mismatches:
-                day, diff = check.day_mismatches[0]
-                line += f" (pierwszy {day}: {diff:+})"
-        for at, bank, calc in check.snapshot_checks:
-            line += f"; migawka {at[:16]}: bank {bank} / księga {calc}"
-        if check.note:
-            line += f"; {check.note}"
-        print(line)
+    print("\n".join(report.format_text(report.build(conn))))
 
 
 # --- main ---------------------------------------------------------------------
