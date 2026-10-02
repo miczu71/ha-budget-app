@@ -17,7 +17,7 @@ jawne „go” przed następnym).
 | M2 | **Rdzeń danych** — jedna księga bez duplikatów (CSV + API, karta↔konto, uzgadnianie salda) | ✅ 2026-10-02 (`PLAN_M2.md` § Wynik) |
 | M3 | **Add-on w HA** — instalacja, synchronizacja 3×/dobę, panel (status, bank, import, transakcje), podstawowe encje | w toku (`PLAN_M3.md`) |
 | M4a | **Kategoryzacja v1** — słownik polskich sieci, silnik reguł z podglądem, ekran „Wydatki” | 0.2.0 wydane i zainstalowane 2026-10-02; czeka sesja reguł + checkpoint (`PLAN_M4a.md`) |
-| M4b | **Kolejka „do przejrzenia”** w panelu | — |
+| M4b | **Kolejka „do przejrzenia”** w panelu (grupy sprzedawców i krajów) | w toku (`PLAN_M4b.md`); przed checkpointami M3/M4a |
 | M5 | **Budżet Flex** — stałe/elastyczne/nieregularne, cykliczne płatności, ekran „Budżet” z wykresami w panelu, encje | — |
 | M6 | **Podsumowania + kalendarz płatności** — tydzień/miesiąc na telefon, kalendarz ICS | — |
 | M7 | **Kategoryzacja v2** — lokalny klasyfikator + opcjonalnie LLM przez `ai_task` | — |
@@ -161,6 +161,10 @@ syntetycznych i zanonimizowanej próbce.
 - Kolejka w panelu: nieskategoryzowane i nowe od ostatniego przeglądu, grupowane po sprzedawcy
   / odbiorcy; akceptacja grupowa, „utwórz regułę” jednym kliknięciem.
 - Liczba do przejrzenia liczona w add-onie (dla podsumowań M6), bez encji i HA to-do.
+- **(2026-10-02) Kolejka = tylko nieskategoryzowane** (bez „nowych od ostatniego przeglądu” —
+  automatycznie skategoryzowanych nie trzeba potwierdzać); grupa = sprzedawca + kierunek,
+  domyślnie reguła, opcja „tylko te”; zagraniczne transakcje kartą grupowane po kraju.
+  Szczegóły: [`PLAN_M4b.md`](PLAN_M4b.md).
 
 ## M5 — Budżet Flex
 
@@ -225,7 +229,7 @@ kolejka do przejrzenia ≤ 15/tydzień.
 Alerty w czasie rzeczywistym (duży wydatek, 80/100% limitu, wpływ) · Assist / czat ·
 integracje z innymi add-onami (np. tankowania, rachunki za energię) · rozliczenia z osobami ·
 „kto wydał” z CSV · HA to-do „do przejrzenia” · statystyki długoterminowe HA (import/backfill) ·
-dashboard Lovelace · kolejne konta i banki · eksport (CSV/XLSX, Firefly III, Actual) · podział
+dashboard Lovelace · słowniki sprzedawców zagranicznych (decyzja M4b: grupy po kraju) · kolejne konta i banki · eksport (CSV/XLSX, Firefly III, Actual) · podział
 transakcji (split) i tagi · paragony.
 
 ## Zasady przekrojowe
@@ -261,6 +265,8 @@ transakcji (split) i tagi · paragony.
 - **2026-10-02 — wizualizacje w panelu, nie w HA;** M4 dzielone na M4a (silnik reguł +
   „Wydatki”) i M4b (kolejka). Kategoria liczona deterministycznie od zera, bez przycisku
   „zastosuj do historii” (podgląd przed zapisem reguły). Szczegóły: `PLAN_M4a.md`.
+- **2026-10-02 — M4b przed checkpointami M3/M4a;** kolejka przyspiesza sesję reguł. Słowniki
+  zagraniczne odrzucone na rzecz grup po kraju (mały udział w luce). Szczegóły: `PLAN_M4b.md`.
 
 ## Wnioski z Sandboxa (M1, 2026-10-01)
 
