@@ -1,0 +1,5 @@
+{% macro pct(x) %}{{ "%.0f" | format(x * 100) }}%{% endmacro %}
+<p id="rv-coverage" class="rv-coverage"{% if oob %} hx-swap-oob="true"{% endif %}>
+  Pokrycie wydatków: <strong>{{ pct(cov.pct_txns) }}</strong> transakcji, <strong>{{ pct(cov.pct_amount) }}</strong> kwoty
+  <span class="muted">· w kolejce: {{ pending }}</span>
+</p>

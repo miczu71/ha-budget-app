@@ -5,7 +5,10 @@ wewnętrznych, konta liczone do budżetu) — bez osobnego stanu „przejrzane�
 sama, gdy reguła albo ręczna kategoria obejmie transakcję.
 
 Grupy:
-- **kraj** — zagraniczne płatności kartą (`countries.card_origin`), np. z wyjazdu;
+- **kraj** — zagraniczne płatności kartą (`countries.card_origin`) u sprzedawców
+  sporadycznych, czyli zwykle wyjazd; zagraniczny sprzedawca obecny w co najmniej
+  `REGULAR_MONTHS` różnych miesiącach (subskrypcja, doładowania) to stała usługa — trafia do
+  grup sprzedawców, gdzie reguła ma sens;
 - **sprzedawca** — reszta, po (`txn.merchant`, kierunek, waluta); reguła z kolejki dostaje
   warunek kierunku, więc wydatek i wpływ od tej samej osoby to osobne decyzje.
 """
@@ -26,6 +29,7 @@ Sort = Literal["amount", "count"]
 DIRECTIONS: tuple[Direction, ...] = ("out", "in")
 SORTS: tuple[Sort, ...] = ("amount", "count")
 NO_NAME = "(bez nazwy)"
+REGULAR_MONTHS = 3
 
 _WHERE = (
     "t.status = 'BOOK' AND t.transfer_group IS NULL AND t.category_id IS NULL "
@@ -126,11 +130,19 @@ def _direction(amount: Decimal) -> Direction:
 
 def all_groups(conn: sqlite3.Connection) -> list[Group]:
     """Wszystkie grupy kolejki (oba kierunki), pozycje od najnowszej."""
-    groups: dict[GroupKey, Group] = {}
-    for r, item in _items(conn):
-        direction = _direction(item.amount)
-        origin = card_origin(str(r["kind"]), r["description"], r["orig_currency"])
+    rows = [
+        (item, card_origin(str(r["kind"]), r["description"], r["orig_currency"]))
+        for r, item in _items(conn)
+    ]
+    months: dict[str, set[str]] = {}
+    for item, origin in rows:
         if origin is not None:
+            months.setdefault(item.merchant, set()).add(item.day[:7])
+    regular = {m for m, ms in months.items() if m and len(ms) >= REGULAR_MONTHS}
+    groups: dict[GroupKey, Group] = {}
+    for item, origin in rows:
+        direction = _direction(item.amount)
+        if origin is not None and item.merchant not in regular:
             key = GroupKey("country", origin.key, direction, item.currency)
             label = origin.label
         else:

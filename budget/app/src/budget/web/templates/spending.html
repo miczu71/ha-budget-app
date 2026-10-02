@@ -47,10 +47,10 @@
     {% endfor %}
     {% if m.uncategorized_out %}
     <li class="uncat">
-      <a href="{{ base }}/transactions?category=none&direction=out&{{ period }}">
+      <a href="{{ base }}/review">
         <span class="cat-name">Nieskategoryzowane</span>
         <span class="cat-amount">{{ m.uncategorized_out | money("PLN") }}</span>
-        <span class="cat-meta small">{{ m.uncategorized_out_count }} tr. — przypisz kategorie »</span>
+        <span class="cat-meta small">{{ m.uncategorized_out_count }} tr. — przejrzyj w kolejce »</span>
       </a>
     </li>
     {% endif %}

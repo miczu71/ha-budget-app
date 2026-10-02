@@ -1,0 +1,8 @@
+{# Odpowiedź zapisu: potwierdzenie, ewentualnie reszta grupy, licznik i pokrycie (OOB) #}
+<li id="{{ gid }}" class="rv-done">
+  <span class="badge ok">zapisano</span>
+  {{ g.label }}: {{ count }} tr. → <strong>{{ category }}</strong>{% if rule %} · reguła, zaktualizowane w księdze: {{ changed }} · <a href="{{ base }}/rules">reguły »</a>{% endif %}
+</li>
+{% if rest %}{% with g = rest, gid = gid ~ "r", open = True, error = None %}{% include "_review_li.html" %}{% endwith %}{% endif %}
+<span id="nav-pending" class="nav-count" hx-swap-oob="true">{{ pending or "" }}</span>
+{% with oob = True %}{% include "_review_coverage.html" %}{% endwith %}

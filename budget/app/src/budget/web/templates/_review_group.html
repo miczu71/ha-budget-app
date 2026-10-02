@@ -1,0 +1,41 @@
+{# Formularz grupy: kategoria, „tylko te”, pozycje z checkboxami; podgląd po każdej zmianie #}
+{% from "_macros.html" import category_options %}
+{% macro items_list(items) %}
+<ul class="rv-items">
+  {% for i in items %}
+  <li>
+    <label class="check"><input type="checkbox" name="txn" value="{{ i.id }}" checked>
+      <span class="date small muted">{{ i.day | pldate }}</span>
+      <span class="rv-desc">{{ i.description or i.merchant }}</span></label>
+    <span class="num {{ 'neg' if i.amount < 0 else 'pos' }}">{{ i.amount | money(i.currency) }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% endmacro %}
+<form id="f-{{ gid }}" class="rv-form" hx-post="{{ base }}/review/assign" hx-target="#{{ gid }}" hx-swap="outerHTML">
+  <input type="hidden" name="kind" value="{{ g.key.kind }}">
+  <input type="hidden" name="value" value="{{ g.key.value }}">
+  <input type="hidden" name="direction" value="{{ g.key.direction }}">
+  <input type="hidden" name="currency" value="{{ g.key.currency }}">
+  <input type="hidden" name="gid" value="{{ gid }}">
+  {% if error %}<div class="msg error" role="alert">{{ error }}</div>{% endif %}
+  <div class="rv-actions">
+    <select name="category_id" aria-label="kategoria" required>{{ category_options(tree, None, "— wybierz kategorię —") }}</select>
+    {% if g.can_rule %}<label class="check"><input type="checkbox" name="only"> tylko te transakcje (bez reguły)</label>{% endif %}
+    <button type="submit">Zapisz</button>
+  </div>
+  <div id="p-{{ gid }}" class="rv-preview small" aria-live="polite">
+    {% if g.can_rule %}<p class="muted">Wybierz kategorię — zapis utworzy regułę dla „{{ g.label }}” ({{ "wydatki" if g.key.direction == "out" else "wpływy" }}).</p>
+    {% else %}<p class="muted">Kategoria ręczna dla zaznaczonych pozycji (bez reguły).</p>{% endif %}
+  </div>
+  <div hidden hx-post="{{ base }}/review/preview" hx-include="#f-{{ gid }}" hx-target="#p-{{ gid }}" hx-swap="innerHTML" hx-trigger="change from:#f-{{ gid }}"></div>
+  {% if g.key.kind == "country" %}
+    {% for merchant, items in g.merchants() %}
+    <div class="rv-sub"><span class="cat-name">{{ merchant or "(bez nazwy)" }}</span>
+      <a class="small" href="{{ base }}/rules/new?txn={{ items[0].id }}">reguła…</a></div>
+    {{ items_list(items) }}
+    {% endfor %}
+  {% else %}
+    {{ items_list(g.items) }}
+  {% endif %}
+</form>

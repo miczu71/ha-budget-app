@@ -111,6 +111,22 @@ def test_country_group_split_by_merchant(conn: sqlite3.Connection) -> None:
     assert [m for m, _ in g.merchants()] == ["Asdfg", "Zxcvb"]
 
 
+def test_regular_foreign_merchant_is_merchant_group(conn: sqlite3.Connection) -> None:
+    _seed(conn)
+    for day in ("2026-06-03", "2026-07-03", "2026-08-03"):
+        add(conn, "-9.99", "card", f"LKJHG 9 XYZ IRL {day}", day=day)
+    engine.recategorize(conn)
+    q = review.queue(conn)
+    assert "Irlandia" not in [g.label for g in q.countries]  # subskrypcja, nie wyjazd
+    lkjhg = next(g for g in q.merchants if g.label == "Lkjhg")
+    assert lkjhg.count == 3 and lkjhg.can_rule
+    # dwa miesiące to jeszcze wyjazd
+    add(conn, "-5.00", "card", "MNBVC 1 XYZ AUT 2026-05-02", day="2026-05-02")
+    add(conn, "-5.00", "card", "MNBVC 1 XYZ AUT 2026-06-02", day="2026-06-02")
+    engine.recategorize(conn)
+    assert "Austria" in [g.label for g in review.queue(conn).countries]
+
+
 def test_pending_count_matches_queue(conn: sqlite3.Connection) -> None:
     _seed(conn)
     assert review.pending_count(conn) == review.queue(conn).pending == 7
