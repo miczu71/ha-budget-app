@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.0
+
+Podpowiedzi kategorii z AI — silnik i pomiar trafności (etap M4c/2, `docs/PLAN_M4c.md`).
+
+- Nowe opcje: `ai_base_url`, `ai_api_key`, `ai_model`, `ai_daily_calls` (puste `ai_base_url` =
+  wyłączone). Router zgodny z OpenAI (np. freellmapi), odpowiedź według schematu JSON.
+- Po każdej synchronizacji, w tle: podpowiedzi dla sprzedawców z kolejki bez podpowiedzi
+  (do 3 wywołań po 40, w limicie dobowym); odpowiedzi sprawdzane (istniejąca podkategoria,
+  wydatek nie dostaje kategorii przychodu), zapisywane raz na sprzedawcę i kierunek.
+- Minimalizacja danych: karta/BLIK — sprzedawca i opis; przelewy — tylko tytuł bez nazwy
+  odbiorcy; kwota jako przedział; wycinane numery, e-maile, telefony, kody, daty.
+- Status: karta **Podpowiedzi AI** (wywołania, błędy, liczniki), **Podpowiedz teraz**,
+  **Zmierz trafność** (próbka sprzedawców z kategorią, trafność wg progu pewności).
+- Klucze API maskowane w logach.
+- Bez zmian w kolejce i transakcjach — zatwierdzanie podpowiedzi w 0.5.0.
+
 ## 0.3.1
 
 Kolejka „Do przejrzenia” dla wybranego miesiąca (etap M4c/1, `docs/PLAN_M4c.md`).

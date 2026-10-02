@@ -92,6 +92,32 @@ wydatków kategoriami (% transakcji i % kwoty).
   ile pozycji spoza miesiąca obejmie; żeby skategoryzować tylko ten miesiąc, zaznacz „tylko te
   transakcje”.
 
+## Podpowiedzi kategorii z AI (opcjonalnie)
+
+Add-on może pytać model językowy o kategorię dla sprzedawców z kolejki „Do przejrzenia”,
+przez router zgodny z API OpenAI (np. lokalny router freellmapi w sieci domowej).
+Włączenie: opcje `ai_base_url` (np. `http://<host>:3003/v1`), `ai_api_key`, `ai_model`
+(nazwany model — `auto` nie obsługuje odpowiedzi według schematu) i `ai_daily_calls`.
+
+**Co trafia do modelu** — i nic poza tym:
+- płatności kartą i BLIK: nazwa sprzedawcy i opis transakcji;
+- przelewy, zlecenia, polecenia zapłaty itp.: tylko tytuł, **bez nazwy odbiorcy** (także
+  odmienionej w tytule);
+- zawsze: rodzaj operacji, kierunek, kwota jako przedział (np. „20–100 zł”), liczba transakcji;
+- lista Twoich kategorii i przykłady „sprzedawca kartowy → kategoria” z Twoich decyzji.
+
+Z tekstów wycinane są IBAN-y, numery kont i kart, e-maile, telefony, kody pocztowe, daty i inne
+ciągi cyfr. Router może przekazywać zapytania do zewnętrznych dostawców (darmowe plany bywają
+używane do trenowania modeli) — włącz tylko, jeśli to akceptujesz.
+
+Działanie: po każdej synchronizacji, w tle, do 3 wywołań po 40 sprzedawców (w limicie
+`ai_daily_calls`); o tego samego sprzedawcę nie pyta drugi raz. Karta **Podpowiedzi AI** na
+ekranie Status pokazuje wywołania, ostatni błąd i liczbę podpowiedzi; **Podpowiedz teraz**
+uruchamia przebieg od razu, **Zmierz trafność** pyta o do 80 sprzedawców, którzy już mają
+kategorię (najpierw Twoje ręczne i reguły, potem słownik), i pokazuje trafność według progu
+pewności. W tej wersji podpowiedzi są tylko liczone — zatwierdzanie jednym dotknięciem w kolejce
+i na liście transakcji przyjdzie w następnej.
+
 ## Encje
 
 | Encja | Opis |
