@@ -46,3 +46,19 @@ def test_failed_migration_rolls_back(monkeypatch: pytest.MonkeyPatch) -> None:
         db.migrate(conn)
     assert db.schema_version(conn) == 0
     assert conn.execute("SELECT count(*) FROM sqlite_master").fetchone()[0] == 0
+
+
+def test_database_file_is_private(tmp_path: Path) -> None:
+    path = tmp_path / "sub" / "ledger.db"
+    db.connect(path).close()
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert path.parent.stat().st_mode & 0o777 == 0o700
+
+
+def test_wal_files_inherit_private_mode(tmp_path: Path) -> None:
+    path = tmp_path / "ledger.db"
+    conn = db.connect(path)
+    conn.execute("CREATE TABLE t (x)")
+    conn.execute("INSERT INTO t VALUES (1)")
+    wal = tmp_path / "ledger.db-wal"
+    assert wal.exists() and wal.stat().st_mode & 0o777 == 0o600

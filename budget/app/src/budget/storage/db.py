@@ -81,6 +81,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
     """Połączenie z włączonymi kluczami obcymi i WAL; schemat zmigrowany."""
     if str(path) != ":memory:":
         Path(path).parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        # Dane finansowe: plik tylko dla właściciela (SQLite nadaje -wal/-shm te same prawa)
+        Path(path).touch(mode=0o600, exist_ok=True)
+        Path(path).chmod(0o600)
     conn = sqlite3.connect(path, isolation_level=None)  # transakcje jawnie (BEGIN/COMMIT)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")

@@ -69,3 +69,39 @@ usunięty, 370/370 w oknie wspólnym, 7/7 spłat sparowanych, 0 przerw salda, po
 
 - Rozmyte dopasowanie karty → fałszywa para: tylko waluta obca + zgodny sprzedawca.
 - Limit PSD2 (4 zapytania/konto/dobę): praca głównie na zapisanych zrzutach.
+
+## Odstępstwa od planu (wykonanie 2026-10-02)
+
+- **`csv_row` zamiast `unmatched_csv`:** wszystkie wiersze CSV trafiają do `csv_row` ze statusem
+  (`inserted` / `enriched` / `unmatched` / `duplicate` / `unmapped`), a powiązania z księgą są
+  przeliczane od zera po każdym imporcie. Dzięki temu kolejność importów jest obojętna bez
+  osobnej ścieżki „API po CSV”, a numer karty zmapowany później podłącza swoje wiersze sam.
+- **Granica CSV/API** = najstarsza zaksięgowana transakcja API konta. Wiersz CSV, który wypadnie
+  w oknie API, zastępowany jest transakcją z API (ręczne ustawienia przechodzą na następcę).
+- **Sygnał „własny IBAN” w L2** dotyczy tylko *innego* podlinkowanego konta — przy wypłatach BLIK
+  bank wpisuje w pole kontrahenta numer tego samego rachunku.
+- **Identyfikator sprzedawcy** (L1 rozmyte, L3): pierwsze słowa, aż razem mają ≥ 4 litery;
+  numer sklepu/stacji kończy nazwę (CSV karty dokleja miasto, API nie).
+- **Kontrola salda:** ostatni dzień eksportu CSV bywa niepełny (eksport w trakcie dnia) — liczą
+  się z niego tylko transakcje obecne w CSV; resztę sprawdza migawka ITBD.
+- Plik bazy z prawami `600` (katalog `700`).
+
+## Wynik (prawdziwe dane, lokalnie — metryki metody)
+
+| Kryterium | Wynik |
+|---|---|
+| Drugi zrzut API | `entry_reference` stabilny: 466/466 w oknie wspólnym, 0 przenumerowań |
+| Rachunek: okno wspólne CSV↔API | 370/370 wierszy CSV wzbogaca transakcje API, 0 bez pary |
+| Karta: zdublowany blok (karta dodatkowa) | usunięty (L0) — wszystkie wiersze drugiego numeru oznaczone jako duplikaty |
+| Karta: wiersze CSV w oknie API | 100% sparowanych (dokładnie + rozmyto dla walut obcych) |
+| Spłaty karty w oknie API | **7/7 sparowanych** (+ 2 sprzed historii karty jako przelew bez pary) |
+| Ciągłość salda (CSV + księga, dzień po dniu) | **0 rozbieżnych dni** na 560 dniach z saldem |
+| Migawka ITBD z API vs księga | zgodna co do grosza (rachunek) |
+| Ponowny import CSV + wszystkich zrzutów | 0 zmian (skrót bazy z `updated_at` identyczny) |
+| Kolejność CSV→API vs API→CSV | identyczna księga |
+| Zwroty powiązane z zakupem (L3) | 85% (benchmark z analizy: 86%) |
+| Heurystyka typu z API vs typ z CSV | 90% (benchmark: 89%) |
+
+**Ograniczenie:** karta i rachunek EUR nie mają salda otwarcia (CSV karty bez salda, EUR bez
+transakcji), więc ich suma kontrolna wymaga drugiej migawki ITBD — porównanie różnic między
+migawkami jest zaimplementowane i zadziała przy kolejnym pobraniu sald (najpóźniej w M3).

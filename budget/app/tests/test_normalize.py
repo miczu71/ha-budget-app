@@ -41,3 +41,9 @@ def test_same_merchant() -> None:
 def test_same_merchant_domain_vs_name() -> None:
     assert same_merchant("www.zalando.pl", "ZALANDO SE TESTOWO DEU 2026-09-01")
     assert merchant_key("P4 Sp. z o.o. testowa 1 testowo POL 2026-09-28", 1) == "P4"
+
+
+def test_number_after_name_ends_merchant() -> None:
+    # CSV karty dokleja miasto, API ma tylko „nazwa numer stacji”
+    assert same_merchant("Eko 1005 Testowo", "Eko 1005")
+    assert merchant_key("7-ELEVEN 123 TESTOWO") == "7-ELEVEN"

@@ -13,7 +13,7 @@ lokalnie (`/data/home/budget_dev/prod/`), tutaj tylko fakty o strukturze — bez
 | `required_psu_headers` | **brak** (pusta lista) |
 | Głębokość historii | **dokładnie 90 dni** (od dziś − 90) — mimo `date_from` = dziś − 730 i mimo `strategy=longest`, zaraz po świeżym SCA |
 | `transaction_id` | **nigdy** (0/477) |
-| `entry_reference` | zawsze (477/477), unikalne w zrzucie, identyczne w dwóch zrzutach z tego samego dnia (stabilność między dniami — patrz niżej) |
+| `entry_reference` | zawsze (477/477), unikalne w zrzucie, **stabilne między dniami** (drugi zrzut po ~17 h: 466/466 w oknie wspólnym bez zmian — patrz niżej) |
 | `merchant_category_code` | **nigdy** (0/477) |
 | `bank_transaction_code` | **nigdy** |
 | Typy sald | `ITBD` (Interim booked) i `ITAV` (Interim available) na każdym koncie |
@@ -27,7 +27,10 @@ lokalnie (`/data/home/budget_dev/prod/`), tutaj tylko fakty o strukturze — bez
 - `entry_reference` ma postać złożoną: `<6 liter>|<IBAN własnego rachunku>|<data księgowania>|<n>`,
   gdzie **`n` to numer kolejny w obrębie dnia, malejąco** (np. 10…1). Wygląda na identyfikator
   syntetyczny (EB lub bank), więc **może się przenumerować**, jeśli do już pobranego dnia dojdzie
-  transakcja zaksięgowana później. → Do sprawdzenia drugim zrzutem po ≥ 1 dniu.
+  transakcja zaksięgowana później. **Drugi zrzut (2026-10-02, ~17 h później):** w oknie wspólnym
+  466/466 referencji (rachunek + karta) z identyczną treścią, 0 przenumerowanych, 0 znikniętych;
+  2 transakcje dopisane do dnia 01.10 po pierwszym zrzucie dostały kolejne numery (istniejące
+  się nie przesunęły). M2 i tak dopasowuje zapasowo po odcisku + numerze wystąpienia.
 - Strony transakcji: przy wydatku (`DBIT`) `debtor` = właściciel rachunku (imię, nazwisko,
   **adres** w `postal_address`), `creditor` tylko przy przelewach (34/326); przy wpływie (`CRDT`)
   `debtor` = nadawca (44/44).
@@ -55,8 +58,9 @@ lokalnie (`/data/home/budget_dev/prod/`), tutaj tylko fakty o strukturze — bez
    w Millennium nie da starszej historii nawet przy świeżej zgodzie. Potem historia rośnie
    sama, bo synchronizujemy co dzień.
 2. **Deduplikacja (§5.2):** klucz `sha256(account | "eb" | entry_reference)` jest poprawny dla karty;
-   dla rachunku bieżącego zależy od stabilności licznika `n` — rozstrzygnie drugi zrzut. Wariant
-   zapasowy: klucz z (data księgowania, kwota, opis, numer kontrahenta) + licznik bliźniaków.
+   dla rachunku bieżącego zależy od stabilności licznika `n` — drugi zrzut: stabilny. M2: referencja
+   jako klucz główny, odcisk (data, kwota, opis) + numer wystąpienia jako zapas (przenumerowana
+   referencja dochodzi jako alias).
 3. **PDNG → BOOK (§5.2):** Millennium nie zwraca oczekujących — logika zostaje (tania), ale nie
    jest krytyczna.
 4. **Kategoryzacja (§5.3):** krok MCC nie zadziała w Millennium. Podstawą muszą być reguły na

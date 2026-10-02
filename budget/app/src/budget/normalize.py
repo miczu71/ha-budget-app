@@ -16,7 +16,7 @@ NBSP = "\xa0"
 CARD_DESC_RE = re.compile(r"\s([A-Z]{3})\s+(\d{4}-\d{2}-\d{2})\s*$")
 # Prefiks komunikatu BLIK w API („/OPT/X///// …”, zwrot: „/OPF/…”)
 _BLIK_PREFIX_RE = re.compile(r"^/OP[A-Z]/\S*\s*")
-_TOKEN_RE = re.compile(r"[A-Z][A-Z0-9&'.-]*")
+_TOKEN_RE = re.compile(r"[A-Z0-9][A-Z0-9&'.-]*")
 _ADDRESS = frozenset({"UL", "UL.", "AL", "AL.", "OS", "ULICA", "ALEJA"})
 # Słowa, które nie identyfikują sprzedawcy
 _STOP = frozenset(
