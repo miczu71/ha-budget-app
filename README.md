@@ -4,8 +4,9 @@ Budżet domowy liczony lokalnie w Home Assistant z transakcji pobieranych automa
 (PSD2 przez [Enable Banking](https://enablebanking.com), tryb Restricted Production — tylko
 własne, podlinkowane rachunki). Tylko odczyt (AIS), żadnych płatności.
 
-> **Status:** wersja 0.1.0 (etap M3) — synchronizacja z bankiem, panel i encje w HA.
-> Kategoryzacja i budżet w kolejnych etapach: [`docs/ROADMAP.md`](docs/ROADMAP.md),
+> **Status:** wersja 0.2.0 (etap M4a) — synchronizacja z bankiem, panel, encje w HA,
+> automatyczna kategoryzacja (słownik sieci + reguły) i ekran „Wydatki”.
+> Budżet Flex i kolejne etapy: [`docs/ROADMAP.md`](docs/ROADMAP.md),
 > specyfikacja: [`docs/SPEC.md`](docs/SPEC.md).
 
 ## Instalacja
