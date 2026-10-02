@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.1
+
+Kolejka „Do przejrzenia” dla wybranego miesiąca (etap M4c/1, `docs/PLAN_M4c.md`).
+
+- „Nieskategoryzowane” (i „bez kategorii” we Wpływach) na ekranie **Wydatki** otwiera kolejkę
+  tylko z pozycjami z oglądanego miesiąca — zamiast całej kolejki.
+- Widok miesiąca: nagłówek z miesiącem, przejście « » do sąsiednich miesięcy, link „wszystkie
+  miesiące”; pokrycie i licznik w nagłówku liczone dla miesiąca (licznik w nawigacji — cały).
+- Zapis jak dotąd: domyślnie reguła dla sprzedawcy (działa we wszystkich miesiącach — podgląd
+  mówi, ile pozycji z innych miesięcy obejmie); „tylko te transakcje” = kategoria ręczna
+  wyłącznie dla zaznaczonych pozycji z miesiąca.
+
 ## 0.3.0
 
 Kolejka „Do przejrzenia” (etap M4b, `docs/PLAN_M4b.md`).

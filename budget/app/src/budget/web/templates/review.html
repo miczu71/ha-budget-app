@@ -1,18 +1,29 @@
 {% extends "base.html" %}
-{% set qs = "direction=" ~ direction ~ "&sort=" ~ sort %}
+{% macro month_name(d) %}{{ month_label(d).split(" ")[0] }}{% endmacro %}
+{% set mq = "&month=" ~ month.strftime("%Y-%m") if month else "" %}
+{% set qs = "direction=" ~ direction ~ "&sort=" ~ sort ~ mq %}
 {% block content %}
+{% if month %}
+<div class="month-nav">
+  <a class="month-link" href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}&month={{ prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ month_name(prev_month) }}</a>
+  <h1>Do przejrzenia — {{ label }}</h1>
+  {% if next_month %}<a class="month-link" href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}&month={{ next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ month_name(next_month) }} »</a>{% else %}<span class="month-link"></span>{% endif %}
+</div>
+<p class="small"><a href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}">wszystkie miesiące »</a> · <a href="{{ base }}/spending?month={{ month.strftime('%Y-%m') }}">wydatki: {{ label }} »</a></p>
+{% else %}
 <h1>Do przejrzenia</h1>
+{% endif %}
 <section class="card rv-head">
-  {% with pending = q.pending, oob = False %}{% include "_review_coverage.html" %}{% endwith %}
+  {% with queued = q.pending, oob = False %}{% include "_review_coverage.html" %}{% endwith %}
   <p class="small muted">Transakcje bez kategorii, w grupach. Kategoria dla grupy zapisuje regułę „sprzedawca równa się …” — kolejne transakcje skategoryzują się same. „Tylko te transakcje” albo odznaczenie pozycji ustawia kategorię ręcznie, bez reguły.</p>
 </section>
 
 <nav class="tabs rv-tabs" aria-label="widok kolejki">
-  <a href="{{ base }}/review?direction=out&sort={{ sort }}" class="{{ 'on' if direction == 'out' }}">Wydatki</a>
-  <a href="{{ base }}/review?direction=in&sort={{ sort }}" class="{{ 'on' if direction == 'in' }}">Wpływy</a>
+  <a href="{{ base }}/review?direction=out&sort={{ sort }}{{ mq }}" class="{{ 'on' if direction == 'out' }}">Wydatki</a>
+  <a href="{{ base }}/review?direction=in&sort={{ sort }}{{ mq }}" class="{{ 'on' if direction == 'in' }}">Wpływy</a>
   <span class="rv-sort small muted">sortuj:
-    <a href="{{ base }}/review?direction={{ direction }}&sort=amount" class="{{ 'on' if sort == 'amount' }}">kwota</a>
-    <a href="{{ base }}/review?direction={{ direction }}&sort=count" class="{{ 'on' if sort == 'count' }}">liczba</a>
+    <a href="{{ base }}/review?direction={{ direction }}&sort=amount{{ mq }}" class="{{ 'on' if sort == 'amount' }}">kwota</a>
+    <a href="{{ base }}/review?direction={{ direction }}&sort=count{{ mq }}" class="{{ 'on' if sort == 'count' }}">liczba</a>
   </span>
 </nav>
 
@@ -29,7 +40,7 @@
 <section class="card">
   <h2>Sprzedawcy i odbiorcy</h2>
   {% if not q.merchants %}
-  <p class="muted">Nic do przejrzenia{{ " wśród wydatków" if direction == "out" else " wśród wpływów" }}.</p>
+  <p class="muted">Nic do przejrzenia{{ " wśród wydatków" if direction == "out" else " wśród wpływów" }}{{ " w tym miesiącu" if month }}.</p>
   {% endif %}
   <ul class="rv-list">
     {% for g in q.merchants %}{% with gid = "m" ~ loop.index, open = False, error = None %}{% include "_review_li.html" %}{% endwith %}{% endfor %}

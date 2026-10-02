@@ -1,5 +1,5 @@
-{# Wiersz grupy kolejki: g, gid, open (treść od razu zamiast leniwego wczytania), error #}
-{% set params = "kind=" ~ g.key.kind ~ "&value=" ~ (g.key.value | urlencode) ~ "&direction=" ~ g.key.direction ~ "&currency=" ~ g.key.currency ~ "&gid=" ~ gid %}
+{# Wiersz grupy kolejki: g, gid, open (treść od razu zamiast leniwego wczytania), error, month #}
+{% set params = "kind=" ~ g.key.kind ~ "&value=" ~ (g.key.value | urlencode) ~ "&direction=" ~ g.key.direction ~ "&currency=" ~ g.key.currency ~ "&gid=" ~ gid ~ ("&month=" ~ month.strftime("%Y-%m") if month else "") %}
 <li id="{{ gid }}" class="rv-group">
   <details {% if open %}open{% else %}hx-get="{{ base }}/review/group?{{ params }}" hx-trigger="toggle once" hx-target="find .rv-body" hx-swap="innerHTML"{% endif %}>
     <summary>

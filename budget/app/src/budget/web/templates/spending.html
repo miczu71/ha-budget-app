@@ -47,7 +47,7 @@
     {% endfor %}
     {% if m.uncategorized_out %}
     <li class="uncat">
-      <a href="{{ base }}/review">
+      <a href="{{ base }}/review?month={{ m.month.strftime('%Y-%m') }}">
         <span class="cat-name">Nieskategoryzowane</span>
         <span class="cat-amount">{{ m.uncategorized_out | money("PLN") }}</span>
         <span class="cat-meta small">{{ m.uncategorized_out_count }} tr. — przejrzyj w kolejce »</span>
@@ -65,7 +65,7 @@
       <dt><a href="{{ base }}/transactions?category={{ line.category.id }}&{{ period }}">{{ line.category.name }}</a></dt><dd>{{ line.amount | money("PLN") }}</dd>
       {% endfor %}
       {% if m.uncategorized_in %}
-      <dt><a href="{{ base }}/transactions?category=none&direction=in&{{ period }}">bez kategorii</a> <span class="small muted">({{ m.uncategorized_in_count }})</span></dt><dd>{{ m.uncategorized_in | money("PLN") }}</dd>
+      <dt><a href="{{ base }}/review?direction=in&month={{ m.month.strftime('%Y-%m') }}">bez kategorii</a> <span class="small muted">({{ m.uncategorized_in_count }})</span></dt><dd>{{ m.uncategorized_in | money("PLN") }}</dd>
       {% endif %}
     </dl>
     {% if not m.income_lines and not m.uncategorized_in %}<p class="muted">brak</p>{% endif %}

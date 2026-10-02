@@ -18,6 +18,7 @@
   <input type="hidden" name="direction" value="{{ g.key.direction }}">
   <input type="hidden" name="currency" value="{{ g.key.currency }}">
   <input type="hidden" name="gid" value="{{ gid }}">
+  {% if month %}<input type="hidden" name="month" value="{{ month.strftime('%Y-%m') }}">{% endif %}
   {% if error %}<div class="msg error" role="alert">{{ error }}</div>{% endif %}
   <div class="rv-actions">
     <select name="category_id" aria-label="kategoria" required>{{ category_options(tree, None, "— wybierz kategorię —") }}</select>

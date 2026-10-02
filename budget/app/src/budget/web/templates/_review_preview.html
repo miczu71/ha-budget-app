@@ -3,6 +3,7 @@
 {% elif rule %}
 <p>Reguła: „{{ g.label }}” ({{ "wydatki" if g.key.direction == "out" else "wpływy" }}) → <strong>{{ category.name }}</strong>.
   Pasuje {{ p.matches }} transakcji ({{ p.total | money("PLN") }}), kategorię dostanie {{ p.applied }}, w tym {{ g.count }} z tej grupy.</p>
+{% if other_months %}<p class="msg warn">Reguła działa we wszystkich miesiącach — obejmie też {{ other_months }} tr. z innych miesięcy, które czekają w kolejce. Tylko ten miesiąc: zaznacz „tylko te transakcje”.</p>{% endif %}
 {% if others %}<p class="msg warn">Zmieni też kategorię {{ others }} transakcji już skategoryzowanych inaczej (nowa reguła ma pierwszeństwo).</p>{% endif %}
 {% else %}
 <p>Kategoria ręczna <strong>{{ category.name }}</strong> dla {{ selected }} z {{ g.count }} pozycji{{ " — bez reguły" if g.can_rule }}.

@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from budget import __version__, review
 from budget.logging_utils import mask_iban
 from budget.service import Service
+from budget.spending import month_label
 
 HERE = Path(__file__).parent
 KIND_LABELS = {
@@ -89,6 +90,7 @@ class Panel:
         t.env.globals["version"] = __version__
         t.env.globals["kind_labels"] = KIND_LABELS
         t.env.globals["account_kinds"] = ACCOUNT_KINDS
+        t.env.globals["month_label"] = month_label
         self.templates = t
 
     @staticmethod

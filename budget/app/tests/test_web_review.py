@@ -203,3 +203,67 @@ async def test_preview_warns_about_categorized_others(
     }
     p = await client.post("/review/preview", data=form)
     assert "Zmieni też kategorię 1 transakcji" in p.text
+
+
+async def test_month_view(client: httpx.AsyncClient, service: Service) -> None:
+    ids = _seed(service.conn)
+    aug = add(service.conn, "-11.00", "card", "QWERTY 12 XYZ POL 2026-08-20", day="2026-08-20")
+    engine.recategorize(service.conn)
+    page = (await client.get("/review?month=2026-08")).text
+    assert "sierpień 2026" in page and "Qwerty" in page
+    assert "Jan Testowski" not in page and "Szwajcaria" not in page
+    assert f'href="{INGRESS}/review?direction=out&sort=amount"' in page  # wszystkie miesiące
+    assert "month=2026-08" in page and 'name="month"' not in page  # grupy leniwe
+    assert 'class="nav-count">7<' in page  # licznik w nawigacji globalny
+    sept = (await client.get("/review?month=2026-09&direction=in")).text
+    assert "wrzesień 2026" in sept and "Jan Testowski" in sept
+    assert "month=2026-09" in sept
+    body = await client.get(
+        "/review/group", params={**_group("merchant", "Qwerty"), "month": "2026-08"}
+    )
+    assert f'value="{aug}" checked' in body.text and f'value="{ids["q1"]}"' not in body.text
+    assert 'name="month" value="2026-08"' in body.text
+
+
+async def test_month_view_assign(client: httpx.AsyncClient, service: Service) -> None:
+    ids = _seed(service.conn)
+    conn = service.conn
+    aug = add(conn, "-11.00", "card", "QWERTY 12 XYZ POL 2026-08-20", day="2026-08-20")
+    engine.recategorize(conn)
+    leaf = str(sid(conn, "restauracje"))
+    form = {**_group("merchant", "Qwerty"), "month": "2026-08", "category_id": leaf}
+    # pozycja spoza miesiąca nie należy do grupy w tym widoku
+    r = await client.post("/review/assign", data={**form, "only": "1", "txn": [str(ids["q1"])]})
+    assert "Lista transakcji się zmieniła" in r.text
+    p = await client.post("/review/preview", data={**form, "txn": [str(aug)]})
+    assert "obejmie też 2 tr. z innych miesięcy" in p.text and "Zmieni też" not in p.text
+    r = await client.post("/review/assign", data={**form, "txn": [str(aug)]})
+    assert "zapisano" in r.text and "reguła" in r.text
+    # reguła obejmuje cały ten sprzedawca, także wrzesień
+    assert cat(conn, ids["q1"])[:2] == ("restauracje", "rule")
+
+
+async def test_month_view_only_selected(client: httpx.AsyncClient, service: Service) -> None:
+    ids = _seed(service.conn)
+    conn = service.conn
+    aug = add(conn, "-11.00", "card", "QWERTY 12 XYZ POL 2026-08-20", day="2026-08-20")
+    engine.recategorize(conn)
+    form = {
+        **_group("merchant", "Qwerty"),
+        "month": "2026-09",
+        "category_id": str(sid(conn, "restauracje")),
+        "only": "1",
+        "txn": [str(ids["q1"]), str(ids["q2"])],
+    }
+    r = await client.post("/review/assign", data=form)
+    assert "zapisano" in r.text and "reguła" not in r.text
+    assert cat(conn, ids["q1"])[1] == "manual" and cat(conn, aug)[0] is None
+    assert "w kolejce w tym miesiącu: 4" in r.text  # wrzesień: 3 wydatki + 1 wpływ
+    assert 'id="nav-pending" class="nav-count" hx-swap-oob="true">5<' in r.text
+
+
+async def test_spending_links_to_month_queue(client: httpx.AsyncClient, service: Service) -> None:
+    _seed(service.conn)
+    page = (await client.get("/spending?month=2026-09")).text
+    assert f'href="{INGRESS}/review?month=2026-09"' in page
+    assert f'href="{INGRESS}/review?direction=in&month=2026-09"' in page

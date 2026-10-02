@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -131,3 +132,31 @@ def test_pending_count_matches_queue(conn: sqlite3.Connection) -> None:
     _seed(conn)
     assert review.pending_count(conn) == review.queue(conn).pending == 7
     assert review.pending_count(db.connect(":memory:")) == 0
+
+
+def test_month_filter(conn: sqlite3.Connection) -> None:
+    ids = _seed(conn)
+    older = add(conn, "-11.00", "card", "QWERTY 12 XYZ POL 2026-08-20", day="2026-08-20")
+    engine.recategorize(conn)
+    sept = review.queue(conn, month=date(2026, 9, 1))
+    qwerty = next(g for g in sept.merchants if g.label == "Qwerty")
+    assert {i.id for i in qwerty.items} == {ids["kebab1"], ids["kebab2"]}
+    assert sept.pending == 7  # sierpniowa pozycja poza miesiącem
+    aug = review.queue(conn, month=date(2026, 8, 1))
+    assert [(g.label, [i.id for i in g.items]) for g in aug.merchants] == [("Qwerty", [older])]
+    assert aug.countries == [] and aug.pending == 1
+    assert review.queue(conn).pending == 8
+    key = GroupKey("merchant", "Qwerty", "out", "PLN")
+    g = review.group(conn, key, date(2026, 8, 1))
+    assert g is not None and [i.id for i in g.items] == [older]
+    assert review.group(conn, GroupKey("country", "CHE", "out", "PLN"), date(2026, 8, 1)) is None
+
+
+def test_month_filter_keeps_regular_foreign_merchant(conn: sqlite3.Connection) -> None:
+    _seed(conn)
+    for day in ("2026-06-03", "2026-07-03", "2026-08-03"):
+        add(conn, "-9.99", "card", f"LKJHG 9 XYZ IRL {day}", day=day)
+    engine.recategorize(conn)
+    q = review.queue(conn, month=date(2026, 8, 1))
+    # w sierpniu jedna pozycja, ale sprzedawca stały liczony na całej historii
+    assert q.countries == [] and [g.label for g in q.merchants] == ["Lkjhg"]

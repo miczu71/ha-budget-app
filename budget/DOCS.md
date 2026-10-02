@@ -86,6 +86,11 @@ wydatków kategoriami (% transakcji i % kwoty).
   transakcji) albo walucie, zwykle wyjazd: jedna decyzja, np. „Podróże”, dla całej grupy.
   Zagraniczny sprzedawca obecny w co najmniej 3 różnych miesiącach (subskrypcja, doładowania)
   jest wśród zwykłych sprzedawców.
+- **Widok miesiąca** — „Nieskategoryzowane” na ekranie Wydatki otwiera kolejkę zawężoną do
+  oglądanego miesiąca (`/review?month=RRRR-MM`, przejście « » między miesiącami, link „wszystkie
+  miesiące”). Reguła zapisana z tego widoku działa we wszystkich miesiącach — podgląd podaje,
+  ile pozycji spoza miesiąca obejmie; żeby skategoryzować tylko ten miesiąc, zaznacz „tylko te
+  transakcje”.
 
 ## Encje
 

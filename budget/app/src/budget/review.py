@@ -11,6 +11,10 @@ Grupy:
   grup sprzedawców, gdzie reguła ma sens;
 - **sprzedawca** — reszta, po (`txn.merchant`, kierunek, waluta); reguła z kolejki dostaje
   warunek kierunku, więc wydatek i wpływ od tej samej osoby to osobne decyzje.
+
+Widok miesiąca (link z ekranu „Wydatki”) pokazuje tylko pozycje z danego miesiąca (data
+transakcji, jak na „Wydatkach”); to, czy sprzedawca zagraniczny jest stały, liczy się zawsze na
+całej historii, więc grupy nie zmieniają rodzaju zależnie od oglądanego miesiąca.
 """
 
 from __future__ import annotations
@@ -18,6 +22,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from datetime import date
 from decimal import Decimal
 from typing import Literal
 
@@ -99,7 +104,7 @@ class Queue:
     countries: list[Group]
     merchants: list[Group]
     merchants_total: int  # wszystkie grupy sprzedawców przed obcięciem do `limit`
-    pending: int  # wszystkie pozycje kolejki (oba kierunki)
+    pending: int  # wszystkie pozycje kolejki (oba kierunki; w widoku miesiąca — z miesiąca)
 
 
 def _items(conn: sqlite3.Connection) -> Iterable[tuple[sqlite3.Row, Item]]:
@@ -128,8 +133,9 @@ def _direction(amount: Decimal) -> Direction:
     return "out" if amount < 0 else "in"
 
 
-def all_groups(conn: sqlite3.Connection) -> list[Group]:
-    """Wszystkie grupy kolejki (oba kierunki), pozycje od najnowszej."""
+def all_groups(conn: sqlite3.Connection, month: date | None = None) -> list[Group]:
+    """Wszystkie grupy kolejki (oba kierunki), pozycje od najnowszej; `month` — tylko pozycje
+    z miesiąca, w którym leży ta data."""
     rows = [
         (item, card_origin(str(r["kind"]), r["description"], r["orig_currency"]))
         for r, item in _items(conn)
@@ -139,8 +145,11 @@ def all_groups(conn: sqlite3.Connection) -> list[Group]:
         if origin is not None:
             months.setdefault(item.merchant, set()).add(item.day[:7])
     regular = {m for m, ms in months.items() if m and len(ms) >= REGULAR_MONTHS}
+    prefix = month.strftime("%Y-%m") if month else ""
     groups: dict[GroupKey, Group] = {}
     for item, origin in rows:
+        if not item.day.startswith(prefix):
+            continue
         direction = _direction(item.amount)
         if origin is not None and item.merchant not in regular:
             key = GroupKey("country", origin.key, direction, item.currency)
@@ -159,9 +168,13 @@ def _sorted(groups: list[Group], sort: Sort) -> list[Group]:
 
 
 def queue(
-    conn: sqlite3.Connection, direction: Direction = "out", sort: Sort = "amount", limit: int = 50
+    conn: sqlite3.Connection,
+    direction: Direction = "out",
+    sort: Sort = "amount",
+    limit: int = 50,
+    month: date | None = None,
 ) -> Queue:
-    groups = all_groups(conn)
+    groups = all_groups(conn, month)
     pending = sum(g.count for g in groups)
     chosen = [g for g in groups if g.key.direction == direction]
     merchants = _sorted([g for g in chosen if g.key.kind == "merchant"], sort)
@@ -173,9 +186,10 @@ def queue(
     )
 
 
-def group(conn: sqlite3.Connection, key: GroupKey) -> Group | None:
-    """Bieżący stan jednej grupy; `None`, gdy nic z niej nie zostało w kolejce."""
-    return next((g for g in all_groups(conn) if g.key == key), None)
+def group(conn: sqlite3.Connection, key: GroupKey, month: date | None = None) -> Group | None:
+    """Bieżący stan jednej grupy (w widoku miesiąca: jej pozycje z miesiąca); `None`, gdy nic
+    z niej nie zostało w kolejce."""
+    return next((g for g in all_groups(conn, month) if g.key == key), None)
 
 
 def pending_count(conn: sqlite3.Connection) -> int:

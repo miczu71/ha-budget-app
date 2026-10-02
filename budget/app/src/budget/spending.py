@@ -91,6 +91,36 @@ def add_months(d: date, n: int) -> date:
     return date(y, m + 1, 1)
 
 
+MONTHS = (
+    "styczeń",
+    "luty",
+    "marzec",
+    "kwiecień",
+    "maj",
+    "czerwiec",
+    "lipiec",
+    "sierpień",
+    "wrzesień",
+    "październik",
+    "listopad",
+    "grudzień",
+)
+
+
+def month_label(d: date) -> str:
+    return f"{MONTHS[d.month - 1]} {d.year}"
+
+
+def parse_month(value: str | None, today: date) -> date:
+    """`2026-09` → 1 września 2026; puste albo błędne → bieżący miesiąc (nie z przyszłości)."""
+    try:
+        y, m = (value or "").split("-")
+        d = date(int(y), int(m), 1)
+    except ValueError:
+        return today.replace(day=1)
+    return min(d, today.replace(day=1))
+
+
 @dataclass
 class _Acc:
     amount: Decimal = ZERO
