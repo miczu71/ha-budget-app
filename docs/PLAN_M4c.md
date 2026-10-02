@@ -65,4 +65,10 @@ i sprawdzenie przez Ingress.
   310 testów). Na żywo przez Ingress: „Nieskategoryzowane” we wrześniu → `/review?month=2026-09`,
   wszystkie pozycje z września, liczba wydatków w kolejce = liczba w wierszu „Nieskategoryzowane”
   (nagłówek liczy oba kierunki), konsola bez błędów. Na kopii księgi: podgląd reguły podaje liczbę
-  pozycji z innych miesięcy. Czeka checkpoint etapu 1 → plan etapu 2.
+  pozycji z innych miesięcy. Checkpoint etapu 1 zamknięty („go” na etap 2).
+- **Etap 2 — 0.4.0 wydane 2026-10-02** (`ceda366`, `af0fc61`, release `v0.4.0`, CI zielone,
+  331 testów). Odstępstwo od planu: pomiar trafności to przycisk **Zmierz trafność** na Status
+  (w add-onie, z kluczem z opcji), nie CLI — klucz routera nie jest kopiowany do środowiska
+  deweloperskiego. Redakcja obsługuje odmianę nazwiska w tytule (rdzeń słowa). Czeka: klucz
+  w opcjach add-onu (użytkownik), pierwszy pomiar trafności → decyzja o progu chipa w etapie 3.
+  Zainstalowane i sprawdzone przez Ingress: v0.4.0, karta „Podpowiedzi AI” (wyłączona bez opcji).
