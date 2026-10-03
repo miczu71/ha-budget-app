@@ -111,5 +111,5 @@ wg `release` skill, `docs/PLAN_review_rule_text.md`, `docs/ROADMAP.md`.
   telefon też mógłby go nie mieć), a chip AI tej samej kategorii co filtr jest w filtrze schowany
   (dublował przycisk). Na Ingressie `&` w linkach z filtrem idzie jako `&amp;` (poprawny HTML,
   tak jak `month`).
-- **0.8.2:** na prawdziwych danych filtr miał 35 podkategorii, a pasek zajmował na telefonie cały
+- **0.8.2:** na prawdziwych danych filtr miał 34 podkategorie, a pasek zajmował na telefonie cały
   ekran. Teraz widać 8 najliczniejszych, a reszta jest pod „więcej (N)”.
