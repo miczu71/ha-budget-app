@@ -15,7 +15,7 @@ jawne „go” przed następnym).
 | M1 | Klient Enable Banking + CLI, flow na Sandboxie | ✅ |
 | M1b | Sonda Production Restricted na Millennium → `FINDINGS_millennium.md` | ✅ (drugi zrzut 2026-10-02: `entry_reference` stabilny) |
 | M2 | **Rdzeń danych** — jedna księga bez duplikatów (CSV + API, karta↔konto, uzgadnianie salda) | ✅ 2026-10-02 (`PLAN_M2.md` § Wynik) |
-| M3 | **Add-on w HA** — instalacja, synchronizacja 3×/dobę, panel (status, bank, import, transakcje), podstawowe encje | w toku (`PLAN_M3.md`) |
+| M3 | **Add-on w HA** — instalacja, synchronizacja 3×/dobę, panel (status, bank, import, transakcje), podstawowe encje | ✅ 2026-10-03 (`PLAN_M3.md` § Wynik; limit per endpoint — po 21:30) |
 | M4a | **Kategoryzacja v1** — słownik polskich sieci, silnik reguł z podglądem, ekran „Wydatki” | 0.2.0 wydane i zainstalowane 2026-10-02; czeka sesja reguł + checkpoint (`PLAN_M4a.md`) |
 | M4b | **Kolejka „do przejrzenia”** w panelu (grupy sprzedawców i krajów) | 0.3.0 wydane i zainstalowane 2026-10-02; czeka checkpoint (`PLAN_M4b.md`) |
 | M4c | **Poza planem (2026-10-02):** kolejka dla wybranego miesiąca + podpowiedzi kategorii z AI (freellmapi), zatwierdzane jednym dotknięciem | 0.5.0 (etap 3/3: do 3 podpowiedzi per sprzedawca) wydane i zainstalowane 2026-10-02; czeka checkpoint (`PLAN_M4c.md`) |

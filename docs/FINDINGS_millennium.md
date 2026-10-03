@@ -63,6 +63,17 @@ lokalnie (`/data/home/budget_dev/prod/`), tutaj tylko fakty o strukturze — bez
   początek okna (ostatnie księgowanie − 5 dni), przy potwierdzonej malejącej kolejności —
   zwykle 1 strona na konto na przebieg.
 
+### Salda karty i limit zapytań (checkpoint M3, 2026-10-03)
+
+- **ITBD karty = bieżące zadłużenie** (dodatnie). Pierwsza migawka równała się dokładnie jednej
+  obciążającej transakcji, a druga zmieniła się prawie o kwotę zwrotu zaksięgowanego w międzyczasie.
+  Różnica < 2 zł, najpewniej opłata jeszcze niewidoczna w transakcjach API. Obserwujemy przy
+  kolejnych migawkach; zadłużenie karty w budżecie → M9.
+- **ITAV karty jest opóźnione:** nie zmieniło się między migawkami, choć ITBD się zmieniło.
+- **Limit zapytań:** doba 02.10 (2 sloty z harmonogramu + synchronizacja z panelu z PSU) przeszła
+  bez 429; licznik w add-onie max 2 na (konto, endpoint). Czy bank liczy limit per endpoint,
+  rozstrzygnie pierwsza doba z 3 slotami (03.10, slot 21:30 = 6 zapytań na konto łącznie).
+
 ## Konsekwencje dla kolejnych etapów (do decyzji w checkpoincie)
 
 1. **M7 (import CSV) jest potrzebny**, jeśli budżet ma obejmować więcej niż 90 dni wstecz — PSD2
