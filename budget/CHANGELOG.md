@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.8.1
+
+Kolejka „Do przejrzenia”: przegląd po jednej kategorii naraz (M4f etap 2,
+`docs/PLAN_review_rule_text.md`).
+
+- **Filtr „Propozycja AI”** pod zakładkami Wydatki/Wpływy: podkategorie z propozycji AI z liczbą
+  grup (np. „Restauracje i kawiarnie (14)”), od najliczniejszej, i „wszystkie”. Grupa jest pod
+  podkategorią, gdy ta jest wśród jej propozycji (dowolna z 3). W filtrze bez sekcji Zagranica.
+- **Przycisk zatwierdzenia przy każdej grupie w filtrze** (ptaszek + nazwa podkategorii): jedno
+  dotknięcie zapisuje regułę „sprzedawca równa się …” dla całej grupy (podpowiedź AI —
+  przyjęta) i chowa wiersz; licznik kolejki i pokrycie odświeżają się od razu. Rozwinięcie grupy
+  nadal pozwala wybrać inną kategorię, skrócić tekst reguły albo odznaczyć pozycje.
+- Filtr zostaje przy przełączaniu Wydatki/Wpływy, sortowania, miesięcy, „pokaż więcej”
+  i „Podpowiedz teraz”.
+
 ## 0.8.0
 
 Kolejka „Do przejrzenia”: jedna reguła dla całej sieci sklepów (poza planem, M4f etap 1,

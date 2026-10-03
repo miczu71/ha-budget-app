@@ -20,7 +20,7 @@ całej historii, więc grupy nie zmieniają rodzaju zależnie od oglądanego mie
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -174,13 +174,19 @@ def queue(
     sort: Sort = "amount",
     limit: int = 50,
     month: date | None = None,
+    only: Collection[str] | None = None,
 ) -> Queue:
+    """`only` — tylko grupy tych sprzedawców (filtr po propozycji AI), bez grup kraju."""
     groups = all_groups(conn, month)
     pending = sum(g.count for g in groups)
     chosen = [g for g in groups if g.key.direction == direction]
-    merchants = _sorted([g for g in chosen if g.key.kind == "merchant"], sort)
+    merchants = _sorted(
+        [g for g in chosen if g.key.kind == "merchant" and (only is None or g.key.value in only)],
+        sort,
+    )
+    countries = [] if only is not None else [g for g in chosen if g.key.kind == "country"]
     return Queue(
-        countries=_sorted([g for g in chosen if g.key.kind == "country"], sort),
+        countries=_sorted(countries, sort),
         merchants=merchants[:limit],
         merchants_total=len(merchants),
         pending=pending,

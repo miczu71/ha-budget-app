@@ -222,7 +222,7 @@ td.date { white-space: nowrap; }
 .cat-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .rv-ai { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .cat-form .rv-ai { flex-basis: 100%; }
-button.chip {
+button.chip, a.chip {
   background: var(--bg);
   color: var(--accent);
   border: 1px solid var(--accent);
@@ -232,7 +232,21 @@ button.chip {
   font-weight: 400;
   white-space: nowrap;
 }
-button.chip.on { background: var(--accent); color: #fff; }
+button.chip.on, a.chip.on { background: var(--accent); color: #fff; }
+a.chip { text-decoration: none; display: inline-block; }
+.rv-ai-filter { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 10px; }
+button.rv-accept { padding: 3px 12px; font-size: 13px; border-radius: 99px; white-space: nowrap; }
+/* ptaszek z CSS — czcionki bywają bez znaku U+2713 */
+button.rv-accept::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 9px;
+  margin: 0 8px 2px 1px;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
 .rv-ai-run { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 8px 0; }
 .cat-form select { max-width: 220px; }
 td.cat { min-width: 140px; }

@@ -458,6 +458,18 @@ class Candidate:
         return f"{self.main.name} › {self.category.name}"
 
 
+def _candidates(row: sqlite3.Row, cats: dict[int, Category]) -> list[Candidate]:
+    pairs = json.loads(row["candidates"]) if row["candidates"] else []
+    if not pairs and row["category_id"] is not None:
+        pairs = [[row["category_id"], row["confidence"]]]
+    out = []
+    for cid, conf in pairs:
+        c = cats.get(int(cid))
+        if c is not None and c.parent_id is not None:
+            out.append(Candidate(c, cats[c.parent_id], float(conf)))
+    return out
+
+
 def candidates(conn: sqlite3.Connection, merchant: str, direction: str) -> list[Candidate]:
     """Kandydaci oczekującej podpowiedzi sprzedawcy (pusto: brak, „nie wiadomo”, zdecydowana)."""
     row = conn.execute(
@@ -465,18 +477,19 @@ def candidates(conn: sqlite3.Connection, merchant: str, direction: str) -> list[
         "WHERE merchant = ? AND direction = ? AND status = 'pending'",
         (merchant, direction),
     ).fetchone()
-    if row is None:
-        return []
-    pairs = json.loads(row["candidates"]) if row["candidates"] else []
-    if not pairs and row["category_id"] is not None:
-        pairs = [[row["category_id"], row["confidence"]]]
+    return [] if row is None else _candidates(row, taxonomy.all_categories(conn))
+
+
+def pending_candidates(conn: sqlite3.Connection, direction: str) -> dict[str, list[Candidate]]:
+    """Kandydaci wszystkich oczekujących podpowiedzi w kierunku, po sprzedawcy (filtr kolejki)."""
     cats = taxonomy.all_categories(conn)
-    out = []
-    for cid, conf in pairs:
-        c = cats.get(int(cid))
-        if c is not None and c.parent_id is not None:
-            out.append(Candidate(c, cats[c.parent_id], float(conf)))
-    return out
+    rows = conn.execute(
+        "SELECT merchant, candidates, category_id, confidence FROM suggestion "
+        "WHERE direction = ? AND status = 'pending'",
+        (direction,),
+    )
+    out = {str(r["merchant"]): _candidates(r, cats) for r in rows}
+    return {m: c for m, c in out.items() if c}
 
 
 def decide(conn: sqlite3.Connection, merchant: str, direction: str, category_id: int) -> None:

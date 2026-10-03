@@ -1,15 +1,16 @@
 {% extends "base.html" %}
 {% macro month_name(d) %}{{ month_label(d).split(" ")[0] }}{% endmacro %}
 {% set mq = "&month=" ~ month.strftime("%Y-%m") if month else "" %}
-{% set qs = "direction=" ~ direction ~ "&sort=" ~ sort ~ mq %}
+{% set aq = "&ai=" ~ ai if ai else "" %}
+{% set qs = "direction=" ~ direction ~ "&sort=" ~ sort ~ mq ~ aq %}
 {% block content %}
 {% if month %}
 <div class="month-nav">
-  <a class="month-link" href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}&month={{ prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ month_name(prev_month) }}</a>
+  <a class="month-link" href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}&month={{ prev_month.strftime('%Y-%m') }}{{ aq }}" aria-label="poprzedni miesiąc">« {{ month_name(prev_month) }}</a>
   <h1>Do przejrzenia — {{ label }}</h1>
-  {% if next_month %}<a class="month-link" href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}&month={{ next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ month_name(next_month) }} »</a>{% else %}<span class="month-link"></span>{% endif %}
+  {% if next_month %}<a class="month-link" href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}&month={{ next_month.strftime('%Y-%m') }}{{ aq }}" aria-label="następny miesiąc">{{ month_name(next_month) }} »</a>{% else %}<span class="month-link"></span>{% endif %}
 </div>
-<p class="small"><a href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}">wszystkie miesiące »</a> · <a href="{{ base }}/spending?month={{ month.strftime('%Y-%m') }}">wydatki: {{ label }} »</a></p>
+<p class="small"><a href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}{{ aq }}">wszystkie miesiące »</a> · <a href="{{ base }}/spending?month={{ month.strftime('%Y-%m') }}">wydatki: {{ label }} »</a></p>
 {% else %}
 <h1>Do przejrzenia</h1>
 {% endif %}
@@ -19,6 +20,7 @@
   <form class="rv-ai-run" method="post" action="{{ base }}/review/ai-run" hx-boost="true" hx-disabled-elt="find button">
     <input type="hidden" name="direction" value="{{ direction }}"><input type="hidden" name="sort" value="{{ sort }}">
     {% if month %}<input type="hidden" name="month" value="{{ month.strftime('%Y-%m') }}">{% endif %}
+    {% if ai %}<input type="hidden" name="ai" value="{{ ai }}">{% endif %}
     <button type="submit" class="secondary">Podpowiedz teraz (AI)</button>
     <span class="htmx-indicator muted small">pytam model…</span>
     <span class="small muted">Do 3 propozycji kategorii pod nazwą sprzedawcy — dotknięcie wybiera kategorię, zapisujesz jak zwykle.</span>
@@ -28,13 +30,22 @@
 </section>
 
 <nav class="tabs rv-tabs" aria-label="widok kolejki">
-  <a href="{{ base }}/review?direction=out&sort={{ sort }}{{ mq }}" class="{{ 'on' if direction == 'out' }}">Wydatki</a>
-  <a href="{{ base }}/review?direction=in&sort={{ sort }}{{ mq }}" class="{{ 'on' if direction == 'in' }}">Wpływy</a>
+  <a href="{{ base }}/review?direction=out&sort={{ sort }}{{ mq }}{{ aq }}" class="{{ 'on' if direction == 'out' }}">Wydatki</a>
+  <a href="{{ base }}/review?direction=in&sort={{ sort }}{{ mq }}{{ aq }}" class="{{ 'on' if direction == 'in' }}">Wpływy</a>
   <span class="rv-sort small muted">sortuj:
-    <a href="{{ base }}/review?direction={{ direction }}&sort=amount{{ mq }}" class="{{ 'on' if sort == 'amount' }}">kwota</a>
-    <a href="{{ base }}/review?direction={{ direction }}&sort=count{{ mq }}" class="{{ 'on' if sort == 'count' }}">liczba</a>
+    <a href="{{ base }}/review?direction={{ direction }}&sort=amount{{ mq }}{{ aq }}" class="{{ 'on' if sort == 'amount' }}">kwota</a>
+    <a href="{{ base }}/review?direction={{ direction }}&sort=count{{ mq }}{{ aq }}" class="{{ 'on' if sort == 'count' }}">liczba</a>
   </span>
 </nav>
+
+{% if ai_filters or ai %}
+<nav class="rv-ai-filter" aria-label="filtr propozycji AI">
+  <span class="small muted">Propozycja AI:</span>
+  <a class="rv-f chip {{ 'on' if not ai }}" href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}{{ mq }}">wszystkie</a>
+  {% for c, n in ai_filters %}<a class="rv-f chip {{ 'on' if ai == c.id }}" href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}{{ mq }}&ai={{ c.id }}">{{ c.name }} ({{ n }})</a>{% endfor %}
+</nav>
+{% if ai %}<p class="small muted">Grupy, które mają „{{ ai_name }}” wśród propozycji AI. Przycisk z ptaszkiem zapisuje regułę „{{ ai_name }}” dla całej grupy od razu; rozwinięcie grupy — inna kategoria, tekst reguły albo tylko część pozycji.</p>{% endif %}
+{% endif %}
 
 {% if q.countries %}
 <section class="card">
@@ -49,7 +60,7 @@
 <section class="card">
   <h2>Sprzedawcy i odbiorcy</h2>
   {% if not q.merchants %}
-  <p class="muted">Nic do przejrzenia{{ " wśród wydatków" if direction == "out" else " wśród wpływów" }}{{ " w tym miesiącu" if month }}.</p>
+  <p class="muted">Nic do przejrzenia{{ " wśród wydatków" if direction == "out" else " wśród wpływów" }}{{ " w tym miesiącu" if month }}{{ " z propozycją „" ~ ai_name ~ "”" if ai and ai_name }}.{% if ai %} <a href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}{{ mq }}">pokaż wszystkie »</a>{% endif %}</p>
   {% endif %}
   <ul class="rv-list">
     {% for g in q.merchants %}{% with gid = "m" ~ loop.index, open = False, error = None %}{% include "_review_li.html" %}{% endwith %}{% endfor %}

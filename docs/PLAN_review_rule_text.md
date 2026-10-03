@@ -101,3 +101,13 @@ wg `release` skill, `docs/PLAN_review_rule_text.md`, `docs/ROADMAP.md`.
 - Reguła z kolejki staje się na górze listy (pierwszeństwo), jak dziś, więc szeroki `contains`
   może przebić starsze reguły. Podgląd już to pokazuje.
 - Numery wersji M5a (0.7.1/0.7.2 w memory) przesuwają się na kolejne.
+
+## Wynik
+
+- **Etap 1 (0.8.0, 2026-10-03):** zgodnie z planem. Na kopii księgi „zawiera” z fragmentem nazwy
+  sieci objął 3 grupy, a kolejka zmalała dokładnie o liczbę z podglądu.
+- **Etap 2 (0.8.1, 2026-10-03):** zgodnie z planem, z dwiema zmianami w trakcie: przycisk
+  zatwierdzenia ma ptaszek rysowany w CSS (czcionka Chromium w kontenerze nie ma U+2713, więc
+  telefon też mógłby go nie mieć), a chip AI tej samej kategorii co filtr jest w filtrze schowany
+  (dublował przycisk). Na Ingressie `&` w linkach z filtrem idzie jako `&amp;` (poprawny HTML,
+  tak jak `month`).

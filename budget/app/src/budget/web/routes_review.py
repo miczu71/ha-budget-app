@@ -8,6 +8,10 @@ sprzedawcę grupy, a podgląd pokazuje, co jeszcze z kolejki złapie.
 Kategoria ręczna („tylko te”) — gdy użytkownik tak wybierze, gdy odznaczy część pozycji albo
 dla grup kraju i grup bez nazwy, z których reguły „sprzedawca równa się” zrobić się nie da.
 
+Filtr `ai=<id podkategorii>` (przy włączonych podpowiedziach AI) zostawia grupy sprzedawców, które
+mają tę podkategorię wśród swoich propozycji (dowolnej z 3); w takim widoku przy każdej grupie jest
+„✓ <podkategoria>” — zapis reguły dla całej grupy jednym dotknięciem (wybór kategorii to filtr).
+
 Widok miesiąca (`month=RRRR-MM`, link z „Wydatków”) zawęża listę i zaznaczanie do pozycji
 z miesiąca; reguła zapisana z takiego widoku nadal obejmuje sprzedawcę we wszystkich miesiącach
 (podgląd mówi, ile pozycji spoza miesiąca dostanie kategorię).
@@ -28,7 +32,7 @@ from starlette.datastructures import FormData
 from budget import ledger, review, spending
 from budget.categorize import engine, rules, taxonomy
 from budget.categorize.rules import Conditions, Rule, RuleError, TextCondition
-from budget.categorize.taxonomy import TaxonomyError
+from budget.categorize.taxonomy import Category, TaxonomyError
 from budget.normalize import fold
 from budget.review import Direction, Group, GroupKey, GroupKind, Sort
 from budget.spending import add_months, month_label, parse_month
@@ -108,6 +112,22 @@ def elsewhere(groups: list[Group], g: Group, cond: TextCondition) -> Counter[str
             if cond.matches_text(i.merchant):
                 out[i.merchant] += 1
     return out
+
+
+def ai_filters(
+    groups: list[Group], direction: Direction, cands: dict[str, list[suggest.Candidate]]
+) -> list[tuple[Category, int]]:
+    """Podkategorie z propozycji AI dla grup sprzedawców w kierunku: (podkategoria, ile grup),
+    od najliczniejszej."""
+    count: Counter[int] = Counter()
+    cats: dict[int, Category] = {}
+    for g in groups:
+        if g.key.kind != "merchant" or g.key.direction != direction:
+            continue
+        for c in cands.get(g.key.value, []):
+            count[c.category.id] += 1
+            cats[c.category.id] = c.category
+    return sorted(((cats[cid], n) for cid, n in count.items()), key=lambda cn: (-cn[1], cn[0].name))
 
 
 def form_values(form: FormData) -> dict[str, Any]:
@@ -193,6 +213,7 @@ def router(panel: Panel) -> APIRouter:
         sort: str = "amount",
         limit: int = PAGE,
         month: str = "",
+        ai: int = 0,
     ) -> HTMLResponse:
         d: Direction = direction if direction in review.DIRECTIONS else "out"
         s: Sort = sort if sort in review.SORTS else "amount"
@@ -200,11 +221,18 @@ def router(panel: Panel) -> APIRouter:
         now = today()
         m = month_of(month, now)
         nxt = add_months(m, 1) if m else None
+        ai_on = panel.service.settings.ai_enabled
+        cands = suggest.pending_candidates(conn, d) if ai_on else {}
+        ai = ai if ai_on and ai > 0 else 0
+        only = {mc for mc, cs in cands.items() if any(c.category.id == ai for c in cs)}
         return panel.render(
             request,
             "review.html",
-            q=review.queue(conn, d, s, limit, m),
-            ai_on=panel.service.settings.ai_enabled,
+            q=review.queue(conn, d, s, limit, m, only if ai else None),
+            ai_on=ai_on,
+            ai=ai,
+            ai_filters=ai_filters(review.all_groups(conn, m), d, cands) if cands else [],
+            ai_name=getattr(taxonomy.all_categories(conn).get(ai), "name", ""),
             direction=d,
             sort=s,
             limit=limit,
@@ -280,7 +308,7 @@ def router(panel: Panel) -> APIRouter:
     async def ai_run(request: Request) -> Response:
         form = await request.form()
         back = "/review?" + urlencode(
-            {k: str(form.get(k)) for k in ("direction", "sort", "month") if form.get(k)}
+            {k: str(form.get(k)) for k in ("direction", "sort", "month", "ai") if form.get(k)}
         )
         service = panel.service
         if not service.settings.ai_enabled:
@@ -302,7 +330,8 @@ def router(panel: Panel) -> APIRouter:
         g = review.group(conn, key, m) if key else None
         if g is None:
             return HTMLResponse('<li class="rv-done muted">Ta grupa jest już przejrzana.</li>')
-        selected = selected_ids(form)
+        # „✓” w filtrze AI — cała grupa bez listy pozycji w formularzu
+        selected = {i.id for i in g.items} if form.get("all") else selected_ids(form)
         cid = category(form)
 
         def fail(message: str) -> HTMLResponse:

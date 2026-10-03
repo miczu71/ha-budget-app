@@ -12,6 +12,7 @@ import pytest
 import respx
 
 from budget.categorize import engine as categorize
+from budget.categorize import rules
 from budget.ha_client import HAClient
 from budget.service import Service
 from budget.settings import Settings
@@ -245,3 +246,81 @@ async def test_review_run_now(ai: httpx.AsyncClient, ai_service: Service) -> Non
     )
     page = (await ai.get("/review?month=2026-09")).text
     assert "zapisanych 1, bez podpowiedzi zostało 0" in page and page.count('class="chip ') == 2
+
+
+# --- M4f/2: filtr kolejki po propozycji AI + „✓” -----------------------------------------------
+
+
+def _three(service: Service) -> dict[str, int]:
+    """Qwerty (z fixture'u) + Asdfg + Poiuy + grupa kraju; propozycje: restauracje u Qwerty
+    (1.) i Asdfg (2.), u Poiuy tylko spożywcze."""
+    conn = service.conn
+    add(conn, "-12.00", "card", "ASDFG 3 XYZ POL 2026-09-02", day="2026-09-02")
+    add(conn, "-14.00", "card", "ASDFG 3 XYZ POL 2026-09-04", day="2026-09-04")
+    add(conn, "-40.00", "card", "POIUY 9 XYZ POL 2026-09-03", day="2026-09-03")
+    add(conn, "-80.00", "card", "ZXCVB 1 XYZ CHE 2026-09-10", day="2026-09-10")
+    categorize.recategorize(conn)
+    _suggest(service, "Qwerty", "out", "restauracje", "spozywcze")
+    _suggest(service, "Asdfg", "out", "spozywcze", "restauracje", "ogrod")
+    _suggest(service, "Poiuy", "out", "spozywcze")
+    return {"restauracje": sid(conn, "restauracje"), "spozywcze": sid(conn, "spozywcze")}
+
+
+async def test_ai_filter_bar_and_list(ai: httpx.AsyncClient, ai_service: Service) -> None:
+    ids = _three(ai_service)
+    page = (await ai.get("/review")).text
+    assert "Spożywcze (3)" in page and "Restauracje i kawiarnie (2)" in page
+    assert page.index("Spożywcze (3)") < page.index("Restauracje i kawiarnie (2)")
+    assert f"ai={ids['restauracje']}" in page and "Zagranica" in page
+    assert "rv-accept" not in page  # bez filtra — tylko chipy
+    page = (await ai.get(f"/review?ai={ids['restauracje']}&sort=count")).text
+    assert "Qwerty" in page and "Asdfg" in page and "Poiuy" not in page
+    assert "Zagranica" not in page  # grupy kraju nie mają propozycji
+    assert page.count('class="rv-accept"') == 2
+    assert 'aria-label="zatwierdź: Restauracje i kawiarnie"' in page
+    assert f"pick={ids['restauracje']}" not in page  # chip = filtr — schowany, jest przycisk
+    # filtr przenosi się do zakładek, sortowania i formularza „Podpowiedz teraz”
+    assert f"direction=in&sort=count&amp;ai={ids['restauracje']}" in page
+    assert f"sort=amount&amp;ai={ids['restauracje']}" in page
+    assert f'name="ai" value="{ids["restauracje"]}"' in page
+    # nieznana kategoria albo bez kandydatów — pusta lista, nie błąd
+    page = (await ai.get("/review?ai=999999")).text
+    assert "Nic do przejrzenia" in page and "pokaż wszystkie" in page
+
+
+async def test_ai_filter_check_saves_rule(ai: httpx.AsyncClient, ai_service: Service) -> None:
+    ids = _three(ai_service)
+    r = await ai.post(
+        "/review/assign",
+        data={
+            "kind": "merchant",
+            "value": "Asdfg",
+            "direction": "out",
+            "currency": "PLN",
+            "gid": "m2",
+            "category_id": str(ids["restauracje"]),
+            "all": "1",
+        },
+    )
+    assert "zapisano" in r.text and "Asdfg: 2 tr." in r.text and "reguła" in r.text
+    [rule] = rules.all_rules(ai_service.conn)
+    assert rule.conditions.text[0] == rules.TextCondition("merchant", "equals", "Asdfg")
+    status = ai_service.conn.execute(
+        "SELECT status FROM suggestion WHERE merchant = 'Asdfg'"
+    ).fetchone()["status"]
+    assert status == "accepted"
+    page = (await ai.get(f"/review?ai={ids['restauracje']}")).text
+    assert "Asdfg" not in page and "Restauracje i kawiarnie (1)" in page
+
+
+async def test_ai_filter_ignored_when_ai_off(service: Service) -> None:
+    service.conn.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (1, 'current', 'PLN', ?)",
+        (db.now_iso(),),
+    )
+    add(service.conn, "-30.00", "card", "QWERTY 12 XYZ POL 2026-09-01", day="2026-09-01")
+    categorize.recategorize(service.conn)
+    [r] = _suggest(service, "Qwerty", "out", "restauracje")
+    async with _client(service) as c:
+        page = (await c.get(f"/review?ai={r}")).text
+    assert "Qwerty" in page and "rv-accept" not in page and "Restauracje i kawiarnie (" not in page
