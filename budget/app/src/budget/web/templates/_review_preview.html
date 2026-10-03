@@ -1,9 +1,13 @@
-{% if not category %}
+{% macro names(caught) %}{% set top = caught.most_common(5) %}{% for m, n in top %}{{ m or "(bez nazwy)" }}{{ ", " if not loop.last }}{% endfor %}{% if caught | length > top | length %} i {{ caught | length - top | length }} innych{% endif %}{% endmacro %}
+{% if rule and rule_error %}
+<div class="msg error" role="alert">{{ rule_error }}</div>
+{% elif not category %}
 <p class="muted">Wybierz kategorię.</p>
 {% elif rule %}
-<p>Reguła: „{{ g.label }}” ({{ "wydatki" if g.key.direction == "out" else "wpływy" }}) → <strong>{{ category.name }}</strong>.
+<p>Reguła: sprzedawca {{ rule_ops[cond.op] }} „{{ cond.value }}” ({{ "wydatki" if g.key.direction == "out" else "wpływy" }}) → <strong>{{ category.name }}</strong>.
   Pasuje {{ p.matches }} transakcji ({{ p.total | money("PLN") }}), kategorię dostanie {{ p.applied }}, w tym {{ g.count }} z tej grupy.</p>
 {% if other_months %}<p class="msg warn">Reguła działa we wszystkich miesiącach — obejmie też {{ other_months }} tr. z innych miesięcy, które czekają w kolejce. Tylko ten miesiąc: zaznacz „tylko te transakcje”.</p>{% endif %}
+{% if caught %}<p class="msg warn">Złapie też z kolejki — w innych grupach: {{ caught.total() }} tr. ({{ caught | length }}): {{ names(caught) }}.</p>{% endif %}
 {% if others %}<p class="msg warn">Zmieni też kategorię {{ others }} transakcji już skategoryzowanych inaczej (nowa reguła ma pierwszeństwo).</p>{% endif %}
 {% else %}
 <p>Kategoria ręczna <strong>{{ category.name }}</strong> dla {{ selected }} z {{ g.count }} pozycji{{ " — bez reguły" if g.can_rule }}.

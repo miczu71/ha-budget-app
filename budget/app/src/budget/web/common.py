@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from budget import __version__, review
+from budget.categorize.rules import OPS as RULE_OPS
 from budget.logging_utils import mask_iban
 from budget.service import Service
 from budget.spending import month_label
@@ -90,6 +91,7 @@ class Panel:
         t.env.filters["pldate"] = fmt_date
         t.env.globals["version"] = __version__
         t.env.globals["kind_labels"] = KIND_LABELS
+        t.env.globals["rule_ops"] = RULE_OPS
         t.env.globals["account_kinds"] = ACCOUNT_KINDS
         t.env.globals["month_label"] = month_label
         t.env.globals["ai_candidates"] = self.ai_candidates

@@ -62,7 +62,11 @@ class TextCondition:
     value: str
 
     def matches(self, facts: Facts) -> bool:
-        have = _norm(self.field, getattr(facts, self.field))
+        return self.matches_text(getattr(facts, self.field))
+
+    def matches_text(self, value: str | None) -> bool:
+        """Dopasowanie samej wartości pola (np. nazwy sprzedawcy grupy w kolejce)."""
+        have = _norm(self.field, value)
         want = _norm(self.field, self.value)
         if self.op == "equals":
             return have == want

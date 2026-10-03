@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.8.0
+
+Kolejka „Do przejrzenia”: jedna reguła dla całej sieci sklepów (poza planem, M4f etap 1,
+`docs/PLAN_review_rule_text.md`).
+
+- **Edytowalny tekst reguły** w każdej grupie sprzedawcy: warunek „równa się” (jak dotąd,
+  domyślnie), „zawiera” albo „zaczyna się od” i tekst do skrócenia, np. z „Qwerty 12” do
+  „Qwerty”. Podgląd odświeża się w trakcie pisania.
+- **Podgląd pokazuje, co jeszcze reguła złapie z kolejki:** liczba transakcji i grup oraz do
+  5 nazw sprzedawców; po zapisie ta sama informacja i link „odśwież listę”.
+- Fragment, który nie obejmuje sprzedawcy grupy, albo krótszy niż 3 znaki — komunikat, nic nie
+  jest zapisane. Przy błędzie formularz zachowuje wybraną kategorię i wpisany tekst.
+- Podpowiedzi AI: zapis reguły zamyka (przyjęta/odrzucona) podpowiedzi wszystkich sprzedawców,
+  których reguła objęła, nie tylko tej grupy.
+
 ## 0.7.0
 
 Budżet Flex, pierwszy kawałek (M5a, `docs/PLAN_M5a.md`): „ile mogę jeszcze wydać w tym miesiącu”.

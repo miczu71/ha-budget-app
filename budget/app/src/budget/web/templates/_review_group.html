@@ -1,4 +1,5 @@
-{# Formularz grupy: kategoria, „tylko te”, pozycje z checkboxami; podgląd po każdej zmianie #}
+{# Formularz grupy: kategoria, „tylko te”, tekst reguły (rule_op, rule_text), pozycje z checkboxami;
+   podgląd po każdej zmianie #}
 {% from "_macros.html" import category_options %}
 {% macro items_list(items) %}
 <ul class="rv-items">
@@ -25,12 +26,19 @@
     {% if g.can_rule %}<label class="check"><input type="checkbox" name="only"> tylko te transakcje (bez reguły)</label>{% endif %}
     <button type="submit">Zapisz</button>
   </div>
+  {% if g.can_rule %}
+  <div class="rv-rule">
+    <span class="small muted">reguła: sprzedawca</span>
+    <select name="rule_op" aria-label="warunek reguły">{% for op, op_label in rule_ops.items() %}<option value="{{ op }}" {{ "selected" if op == (rule_op or "equals") }}>{{ op_label }}</option>{% endfor %}</select>
+    <input id="rt-{{ gid }}" type="text" name="rule_text" value="{{ rule_text or g.key.value }}" maxlength="120" aria-label="tekst reguły" autocomplete="off">
+  </div>
+  {% endif %}
   <div id="p-{{ gid }}" class="rv-preview small" aria-live="polite">
     {% if pv %}{% include "_review_preview.html" %}
     {% elif g.can_rule %}<p class="muted">Wybierz kategorię — zapis utworzy regułę dla „{{ g.label }}” ({{ "wydatki" if g.key.direction == "out" else "wpływy" }}).</p>
     {% else %}<p class="muted">Kategoria ręczna dla zaznaczonych pozycji (bez reguły).</p>{% endif %}
   </div>
-  <div hidden hx-post="{{ base }}/review/preview" hx-include="#f-{{ gid }}" hx-target="#p-{{ gid }}" hx-swap="innerHTML" hx-trigger="change from:#f-{{ gid }}"></div>
+  <div hidden hx-post="{{ base }}/review/preview" hx-include="#f-{{ gid }}" hx-target="#p-{{ gid }}" hx-swap="innerHTML" hx-trigger="change from:#f-{{ gid }}, keyup changed delay:300ms from:#rt-{{ gid }}"></div>
   {% if g.key.kind == "country" %}
     {% for merchant, items in g.merchants() %}
     {% set mc = ai_candidates(merchant, g.key.direction) %}

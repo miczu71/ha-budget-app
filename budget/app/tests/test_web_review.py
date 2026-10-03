@@ -267,3 +267,100 @@ async def test_spending_links_to_month_queue(client: httpx.AsyncClient, service:
     page = (await client.get("/spending?month=2026-09")).text
     assert f'href="{INGRESS}/review?month=2026-09"' in page
     assert f'href="{INGRESS}/review?direction=in&month=2026-09"' in page
+
+
+# --- M4f/1: edytowalny tekst reguły ------------------------------------------------------------
+
+
+def _chain(conn: sqlite3.Connection) -> dict[str, int]:
+    """`_seed` + drugi sklep tej samej sieci pod inną nazwą sprzedawcy."""
+    ids = _seed(conn)
+    ids["s1"] = add(conn, "-15.00", "card", "QWERTY-SKLEP 7 XYZ POL 2026-09-03", day="2026-09-03")
+    engine.recategorize(conn)
+    return ids
+
+
+def _put_suggestion(conn: sqlite3.Connection, merchant: str, category_id: int) -> None:
+    conn.execute(
+        "INSERT INTO suggestion (merchant, direction, category_id, confidence, candidates, model, "
+        "created_at) VALUES (?, 'out', ?, 0.9, ?, 'm', ?)",
+        (merchant, category_id, f"[[{category_id}, 0.9]]", now_iso()),
+    )
+
+
+async def test_group_body_has_rule_text(client: httpx.AsyncClient, service: Service) -> None:
+    _chain(service.conn)
+    r = await client.get("/review/group", params=_group("merchant", "Qwerty-Sklep"))
+    assert 'name="rule_text" value="Qwerty-Sklep"' in r.text
+    assert '<option value="equals" selected' in r.text and 'value="contains"' in r.text
+    r = await client.get("/review/group", params=_group("country", "CHE", gid="c1"))
+    assert 'name="rule_text"' not in r.text  # grupa kraju — bez reguły
+
+
+async def test_rule_text_contains_catches_other_groups(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    ids = _chain(service.conn)
+    conn = service.conn
+    leaf = sid(conn, "restauracje")
+    _put_suggestion(conn, "Qwerty", leaf)
+    _put_suggestion(conn, "Qwerty-Sklep", sid(conn, "spozywcze"))
+    form = {
+        **_group("merchant", "Qwerty-Sklep"),
+        "category_id": str(leaf),
+        "txn": [str(ids["s1"])],
+        "rule_op": "contains",
+        "rule_text": "qwerty",
+    }
+    p = await client.post("/review/preview", data=form)
+    assert "sprzedawca zawiera „qwerty”" in p.text
+    assert "w innych grupach: 2 tr. (1)" in p.text and "Qwerty" in p.text
+    r = await client.post("/review/assign", data=form)
+    assert "zapisano" in r.text and "w innych grupach: 2 tr. (1)" in r.text
+    assert "odśwież listę" in r.text
+    [rule] = rules.all_rules(conn)
+    assert rule.conditions.text[0] == rules.TextCondition("merchant", "contains", "qwerty")
+    assert rule.conditions.direction == "out"
+    for k in ("s1", "q1", "q2"):
+        assert cat(conn, ids[k])[:2] == ("restauracje", "rule")
+    status = dict(conn.execute("SELECT merchant, status FROM suggestion").fetchall())
+    assert status == {"Qwerty": "accepted", "Qwerty-Sklep": "rejected"}
+
+
+async def test_rule_text_starts_with(client: httpx.AsyncClient, service: Service) -> None:
+    ids = _chain(service.conn)
+    conn = service.conn
+    form = {
+        **_group("merchant", "Qwerty-Sklep"),
+        "category_id": str(sid(conn, "spozywcze")),
+        "txn": [str(ids["s1"])],
+        "rule_op": "starts_with",
+        "rule_text": "Qwerty-",
+    }
+    p = await client.post("/review/preview", data=form)
+    assert "zaczyna się od „Qwerty-”" in p.text and "innych grupach" not in p.text
+    await client.post("/review/assign", data=form)
+    assert cat(conn, ids["s1"])[:2] == ("spozywcze", "rule") and cat(conn, ids["q1"])[0] is None
+
+
+async def test_rule_text_errors(client: httpx.AsyncClient, service: Service) -> None:
+    ids = _chain(service.conn)
+    conn = service.conn
+    base = {
+        **_group("merchant", "Qwerty-Sklep"),
+        "category_id": str(sid(conn, "restauracje")),
+        "txn": [str(ids["s1"])],
+    }
+    bad = {**base, "rule_op": "contains", "rule_text": "lidl"}
+    p = await client.post("/review/preview", data=bad)
+    assert "nie pasuje do „Qwerty-Sklep”" in p.text
+    r = await client.post("/review/assign", data=bad)
+    assert "nie pasuje do „Qwerty-Sklep”" in r.text and 'name="rule_text" value="lidl"' in r.text
+    r = await client.post("/review/assign", data={**base, "rule_op": "contains", "rule_text": "q"})
+    assert "co najmniej 3 znaki" in r.text
+    r = await client.post("/review/assign", data={**base, "rule_op": "regex", "rule_text": "qwe"})
+    assert "Nieznany warunek" in r.text
+    assert rules.all_rules(conn) == [] and cat(conn, ids["s1"])[0] is None
+    # „tylko te” — tekst reguły bez znaczenia, kategoria ręczna
+    r = await client.post("/review/assign", data={**bad, "only": "on"})
+    assert "zapisano" in r.text and cat(conn, ids["s1"])[1] == "manual"

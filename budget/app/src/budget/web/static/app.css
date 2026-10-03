@@ -308,6 +308,8 @@ form.rename span { flex: 1; align-self: center; }
 .rv-body { padding: 0 0 12px 18px; }
 .rv-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
 .rv-actions select { flex: 1; min-width: 0; max-width: 320px; }
+.rv-rule { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
+.rv-rule input[type="text"] { flex: 1; min-width: 12em; max-width: 360px; }
 .rv-preview p { margin: 4px 0 8px; }
 .rv-sub { margin: 10px 0 2px; display: flex; gap: 10px; align-items: baseline; }
 .rv-items { list-style: none; margin: 0; padding: 0; }
@@ -327,6 +329,7 @@ form.rename span { flex: 1; align-self: center; }
   .rv-body { padding-left: 0; }
   .rv-items label.check { flex-wrap: wrap; gap: 2px 6px; }
   .rv-actions select { max-width: none; flex-basis: 100%; }
+  .rv-rule input[type="text"] { max-width: none; flex-basis: 100%; }
 }
 
 /* Wyszukiwanie na żywo (Reguły, Słownik, Transakcje) */

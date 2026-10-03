@@ -109,6 +109,11 @@ wydatków kategoriami (% transakcji i % kwoty).
   samej osoby to osobne grupy), sortowanie po kwocie albo liczbie. Po wybraniu kategorii zapis
   tworzy regułę „sprzedawca równa się … + kierunek”, więc kolejne transakcje skategoryzują się
   same; podgląd ostrzega, gdy reguła zmieni też już skategoryzowane pozycje.
+- **Tekst reguły** — pod kategorią wiersz „reguła: sprzedawca [równa się] [nazwa]”. Nazwę można
+  skrócić do fragmentu i wybrać „zawiera” albo „zaczyna się od” (np. „Qwerty” dla wszystkich
+  sklepów sieci o nazwach „Qwerty 12”, „Qwerty-Sklep”…). Fragment musi pasować do sprzedawcy
+  grupy i mieć co najmniej 3 znaki; podgląd na bieżąco podaje, ile pozycji z **innych grup**
+  kolejki reguła złapie (z nazwami), a po zapisie link „odśwież listę” chowa te grupy.
 - **Tylko te transakcje** albo odznaczenie części pozycji — kategoria ręczna, bez reguły
   (jednorazowi sprzedawcy, odbiorca o mieszanym przeznaczeniu); odznaczone zostają w kolejce.
 - **Zagranica** — sporadyczne płatności kartą za granicą, grupowane po kraju (z opisu

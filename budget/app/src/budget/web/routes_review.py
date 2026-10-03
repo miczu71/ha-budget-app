@@ -1,9 +1,12 @@
 """Ekran „Do przejrzenia”: nieskategoryzowane w grupach, decyzja dla całej grupy naraz.
 
 Domyślnie zapis tworzy regułę „sprzedawca równa się X” + kierunek (przyszłe transakcje też
-dostaną kategorię). Kategoria ręczna („tylko te”) — gdy użytkownik tak wybierze, gdy odznaczy
-część pozycji albo dla grup kraju i grup bez nazwy, z których reguły „sprzedawca równa się”
-zrobić się nie da.
+dostaną kategorię). Tekst reguły można skrócić do fragmentu nazwy i zmienić warunek na „zawiera”
+albo „zaczyna się od” (np. cała sieć sklepów jedną regułą) — warunek musi nadal obejmować
+sprzedawcę grupy, a podgląd pokazuje, co jeszcze z kolejki złapie.
+
+Kategoria ręczna („tylko te”) — gdy użytkownik tak wybierze, gdy odznaczy część pozycji albo
+dla grup kraju i grup bez nazwy, z których reguły „sprzedawca równa się” zrobić się nie da.
 
 Widok miesiąca (`month=RRRR-MM`, link z „Wydatków”) zawęża listę i zaznaczanie do pozycji
 z miesiąca; reguła zapisana z takiego widoku nadal obejmuje sprzedawcę we wszystkich miesiącach
@@ -12,6 +15,8 @@ z miesiąca; reguła zapisana z takiego widoku nadal obejmuje sprzedawcę we wsz
 
 from __future__ import annotations
 
+import re
+from collections import Counter
 from datetime import date
 from typing import Any, cast
 from urllib.parse import urlencode
@@ -24,12 +29,14 @@ from budget import ledger, review, spending
 from budget.categorize import engine, rules, taxonomy
 from budget.categorize.rules import Conditions, Rule, RuleError, TextCondition
 from budget.categorize.taxonomy import TaxonomyError
+from budget.normalize import fold
 from budget.review import Direction, Group, GroupKey, GroupKind, Sort
 from budget.spending import add_months, month_label, parse_month
 from budget.suggest import engine as suggest
 from budget.web.common import Panel
 
 PAGE = 50
+MIN_FRAGMENT = 3  # znaki (bez ogonków) w tekście reguły „zawiera” / „zaczyna się od”
 
 
 def group_key(kind: Any, value: Any, direction: Any, currency: Any) -> GroupKey | None:
@@ -66,15 +73,46 @@ def as_rule(g: Group, selected: set[int], only: bool) -> bool:
     return g.can_rule and not only and selected == {i.id for i in g.items}
 
 
-def make_rule(g: Group, category_id: int) -> Rule:
+def rule_condition(g: Group, form: FormData | None = None) -> TextCondition:
+    """Warunek tekstowy reguły z kolejki: domyślnie „sprzedawca równa się <nazwa grupy>”, z pól
+    `rule_op` / `rule_text` — skrócony tekst i inny warunek. `RuleError`, gdy warunek nie obejmie
+    sprzedawcy grupy albo fragment jest za krótki."""
+    op = str(form.get("rule_op") or "equals") if form else "equals"
+    text = re.sub(r"\s+", " ", str(form.get("rule_text") or "")).strip() if form else ""
+    text = text or g.key.value
+    if op not in rules.OPS:
+        raise RuleError("Nieznany warunek reguły.")
+    if op != "equals" and len(fold(text)) < MIN_FRAGMENT:
+        raise RuleError(f"Tekst reguły musi mieć co najmniej {MIN_FRAGMENT} znaki.")
+    cond = TextCondition("merchant", op, text)
+    if not cond.matches_text(g.key.value):
+        raise RuleError(f"„{text}” nie pasuje do „{g.label}” — reguła nie objęłaby tej grupy.")
+    return cond
+
+
+def make_rule(g: Group, category_id: int, cond: TextCondition | None = None) -> Rule:
     return Rule(
         None,
         category_id,
-        Conditions(
-            text=(TextCondition("merchant", "equals", g.key.value),),
-            direction=g.key.direction,
-        ),
+        Conditions(text=(cond or rule_condition(g),), direction=g.key.direction),
     )
+
+
+def elsewhere(groups: list[Group], g: Group, cond: TextCondition) -> Counter[str]:
+    """Pozycje z innych grup kolejki (wszystkie miesiące), które złapie reguła — po sprzedawcy."""
+    out: Counter[str] = Counter()
+    for other in groups:
+        if other.key == g.key or other.key.direction != g.key.direction:
+            continue
+        for i in other.items:
+            if cond.matches_text(i.merchant):
+                out[i.merchant] += 1
+    return out
+
+
+def form_values(form: FormData) -> dict[str, Any]:
+    """Pola tekstu reguły do ponownego wyświetlenia formularza po błędzie."""
+    return {"rule_op": form.get("rule_op"), "rule_text": form.get("rule_text")}
 
 
 def router(panel: Panel) -> APIRouter:
@@ -102,7 +140,12 @@ def router(panel: Panel) -> APIRouter:
         return cid if cid in taxonomy.leaves(conn) else None
 
     def preview_ctx(
-        g: Group, selected: set[int], only: bool, cid: int | None, m: date | None
+        g: Group,
+        selected: set[int],
+        only: bool,
+        cid: int | None,
+        m: date | None,
+        form: FormData | None = None,
     ) -> dict[str, Any]:
         """Kontekst `_review_preview.html` (podgląd reguły albo kategorii ręcznej)."""
         ctx: dict[str, Any] = {
@@ -111,13 +154,23 @@ def router(panel: Panel) -> APIRouter:
             "rule": as_rule(g, selected, only),
             "category": taxonomy.all_categories(conn).get(cid) if cid else None,
         }
-        if cid is not None and ctx["rule"]:
-            p = engine.preview(conn, make_rule(g, cid))
-            whole = review.group(conn, g.key) if m else g  # grupa we wszystkich miesiącach
+        if not ctx["rule"]:
+            return ctx
+        try:
+            cond = ctx["cond"] = rule_condition(g, form)
+        except RuleError as exc:
+            ctx["rule_error"] = str(exc)
+            return ctx
+        if cid is not None:
+            p = engine.preview(conn, make_rule(g, cid, cond))
+            groups = review.all_groups(conn)  # wszystkie miesiące
+            whole = next((o for o in groups if o.key == g.key), None) if m else g
             in_queue = whole.count if whole else g.count
+            caught = elsewhere(groups, g, cond)
             ctx["p"] = p
             ctx["other_months"] = in_queue - g.count
-            ctx["others"] = max(p.changes - in_queue, 0)
+            ctx["caught"] = caught
+            ctx["others"] = max(p.changes - in_queue - caught.total(), 0)
         return ctx
 
     def group_body(
@@ -188,7 +241,7 @@ def router(panel: Panel) -> APIRouter:
         if g is None:
             return HTMLResponse('<p class="muted">Ta grupa jest już przejrzana — odśwież.</p>')
         selected = selected_ids(form) & {i.id for i in g.items}
-        ctx = preview_ctx(g, selected, form.get("only") is not None, category(form), m)
+        ctx = preview_ctx(g, selected, form.get("only") is not None, category(form), m, form)
         return panel.partial(request, "_review_preview.html", **ctx)
 
     @r.get("/review/item", response_class=HTMLResponse)
@@ -261,7 +314,9 @@ def router(panel: Panel) -> APIRouter:
                 open=True,
                 error=message,
                 month=m,
+                pick=cid,
                 tree=taxonomy.tree(conn),
+                **form_values(form),
             )
 
         if cid is None:
@@ -271,14 +326,20 @@ def router(panel: Panel) -> APIRouter:
         if not selected <= {i.id for i in g.items}:
             return fail("Lista transakcji się zmieniła — odśwież stronę.")
         use_rule = as_rule(g, selected, form.get("only") is not None)
+        caught: Counter[str] = Counter()
         try:
+            decided = {i.merchant for i in g.items if i.id in selected}
+            if use_rule:
+                cond = rule_condition(g, form)
+                caught = elsewhere(review.all_groups(conn), g, cond)
+                decided |= set(caught)
             with ledger.transaction(conn):
                 if use_rule:
-                    rules.save(conn, make_rule(g, cid))
+                    rules.save(conn, make_rule(g, cid, cond))
                 else:
                     for txn_id in sorted(selected):
                         engine.set_manual(conn, txn_id, cid)
-                for merchant in sorted({i.merchant for i in g.items if i.id in selected}):
+                for merchant in sorted(decided):
                     suggest.decide(conn, merchant, g.key.direction, cid)
                 changed = engine.recategorize(conn)
         except (RuleError, TaxonomyError) as exc:
@@ -294,6 +355,7 @@ def router(panel: Panel) -> APIRouter:
             rule=use_rule,
             category=name,
             count=len(selected),
+            caught=caught,
             changed=changed,
             pending=review.pending_count(conn),
             queued=queued(m),
