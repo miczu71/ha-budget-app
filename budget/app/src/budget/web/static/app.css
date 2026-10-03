@@ -235,6 +235,9 @@ button.chip, a.chip {
 button.chip.on, a.chip.on { background: var(--accent); color: #fff; }
 a.chip { text-decoration: none; display: inline-block; }
 .rv-ai-filter { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 10px; }
+.rv-f-more { flex-basis: 100%; }
+.rv-f-more summary { cursor: pointer; color: var(--accent); padding: 2px 0; }
+.rv-f-more .rv-ai-filter { margin: 6px 0 0; }
 button.rv-accept { padding: 3px 12px; font-size: 13px; border-radius: 99px; white-space: nowrap; }
 /* ptaszek z CSS — czcionki bywają bez znaku U+2713 */
 button.rv-accept::before {

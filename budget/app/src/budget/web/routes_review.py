@@ -40,6 +40,7 @@ from budget.suggest import engine as suggest
 from budget.web.common import Panel
 
 PAGE = 50
+AI_TOP = 8  # podkategorie filtra AI widoczne od razu; reszta pod „więcej”
 MIN_FRAGMENT = 3  # znaki (bez ogonków) w tekście reguły „zawiera” / „zaczyna się od”
 
 
@@ -232,6 +233,7 @@ def router(panel: Panel) -> APIRouter:
             ai_on=ai_on,
             ai=ai,
             ai_filters=ai_filters(review.all_groups(conn, m), d, cands) if cands else [],
+            ai_top=AI_TOP,
             ai_name=getattr(taxonomy.all_categories(conn).get(ai), "name", ""),
             direction=d,
             sort=s,

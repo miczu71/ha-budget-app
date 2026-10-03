@@ -115,7 +115,8 @@ wydatków kategoriami (% transakcji i % kwoty).
   grupy i mieć co najmniej 3 znaki; podgląd na bieżąco podaje, ile pozycji z **innych grup**
   kolejki reguła złapie (z nazwami), a po zapisie link „odśwież listę” chowa te grupy.
 - **Filtr „Propozycja AI”** (gdy podpowiedzi AI są włączone) — pod zakładkami lista podkategorii
-  z propozycji AI z liczbą grup, np. „Restauracje i kawiarnie (14)”. Wybór zostawia grupy, które
+  z propozycji AI z liczbą grup, np. „Restauracje i kawiarnie (14)” (8 najliczniejszych, reszta
+  pod „więcej”). Wybór zostawia grupy, które
   mają tę podkategorię wśród swoich (do 3) propozycji; grupy kraju są wtedy ukryte. Przy każdej
   grupie jest przycisk z ptaszkiem i nazwą podkategorii — dotknięcie zapisuje regułę „sprzedawca
   równa się …” dla całej grupy i chowa wiersz. Inna kategoria, tekst reguły albo część pozycji —

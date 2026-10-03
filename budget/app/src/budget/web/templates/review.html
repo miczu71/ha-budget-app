@@ -42,7 +42,15 @@
 <nav class="rv-ai-filter" aria-label="filtr propozycji AI">
   <span class="small muted">Propozycja AI:</span>
   <a class="rv-f chip {{ 'on' if not ai }}" href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}{{ mq }}">wszystkie</a>
-  {% for c, n in ai_filters %}<a class="rv-f chip {{ 'on' if ai == c.id }}" href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}{{ mq }}&ai={{ c.id }}">{{ c.name }} ({{ n }})</a>{% endfor %}
+  {% macro ai_chip(c, n) %}<a class="rv-f chip {{ 'on' if ai == c.id }}" href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}{{ mq }}&ai={{ c.id }}">{{ c.name }} ({{ n }})</a>{% endmacro %}
+  {% for c, n in ai_filters[:ai_top] %}{{ ai_chip(c, n) }}{% endfor %}
+  {% set rest = ai_filters[ai_top:] %}
+  {% if rest %}
+  <details class="rv-f-more" {{ "open" if ai in rest | map(attribute="0.id") | list }}>
+    <summary class="small">więcej ({{ rest | length }})</summary>
+    <div class="rv-ai-filter">{% for c, n in rest %}{{ ai_chip(c, n) }}{% endfor %}</div>
+  </details>
+  {% endif %}
 </nav>
 {% if ai %}<p class="small muted">Grupy, które mają „{{ ai_name }}” wśród propozycji AI. Przycisk z ptaszkiem zapisuje regułę „{{ ai_name }}” dla całej grupy od razu; rozwinięcie grupy — inna kategoria, tekst reguły albo tylko część pozycji.</p>{% endif %}
 {% endif %}

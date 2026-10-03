@@ -324,3 +324,19 @@ async def test_ai_filter_ignored_when_ai_off(service: Service) -> None:
     async with _client(service) as c:
         page = (await c.get(f"/review?ai={r}")).text
     assert "Qwerty" in page and "rv-accept" not in page and "Restauracje i kawiarnie (" not in page
+
+
+async def test_ai_filter_bar_folds_long_tail(
+    ai: httpx.AsyncClient, ai_service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from budget.web import routes_review
+
+    monkeypatch.setattr(routes_review, "AI_TOP", 1)
+    ids = _three(ai_service)
+    page = (await ai.get("/review")).text
+    assert "więcej (2)" in page and '<details class="rv-f-more" >' in page
+    assert page.index("Spożywcze (3)") < page.index("więcej (2)")
+    assert page.index("więcej (2)") < page.index("Restauracje i kawiarnie (2)")
+    # wybrana podkategoria z ogona — „więcej” rozwinięte
+    page = (await ai.get(f"/review?ai={ids['restauracje']}")).text
+    assert '<details class="rv-f-more" open>' in page

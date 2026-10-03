@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.2
+
+- Filtr „Propozycja AI”: od razu widać 8 najliczniejszych podkategorii, reszta jest pod
+  „więcej (N)”. Przy kilkudziesięciu podkategoriach pasek zasłaniał na telefonie całą listę.
+  Gdy wybrana podkategoria jest w „więcej”, ta część jest rozwinięta.
+
 ## 0.8.1
 
 Kolejka „Do przejrzenia”: przegląd po jednej kategorii naraz (M4f etap 2,
