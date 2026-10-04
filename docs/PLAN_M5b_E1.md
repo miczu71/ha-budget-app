@@ -88,4 +88,11 @@ Kod: `budget/app/src/budget/`.
 
 ## Wynik
 
-—
+2026-10-04: 0.14.0 wydane i zainstalowane (449 testów, release v0.14.0). Panel dev na kopii
+księgi: detektor ~0,3 s na ~2,9 tys. kandydatów, dzwonek przy renderze ~20 ms (uzgodnienie
+salda zapamiętane), Playwright mobile bez błędów konsoli. Kalibracja na kopii dodała do planu:
+odstęp liczony także w miesiącach kalendarzowych (płatność „w miesiącu” raz 1., raz 7. dnia),
+raty kredytu grupowane po typie i koncie (opis zmienia się co ratę), tolerancja z kwot typowych
+(premia jej nie poszerza), seria roczna tylko przy kwotach w granicach 10%. Na żywo przez
+Ingress: „Wykryj teraz” → 20 propozycji, dzwonek 1 karta, `sensor.budget_inbox` = 1.
+Czeka checkpoint E1 (przegląd propozycji przez użytkownika).
