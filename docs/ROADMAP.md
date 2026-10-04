@@ -24,13 +24,17 @@ jawne „go” przed następnym).
 | M4f | **Poza planem (2026-10-03):** kolejka „Do przejrzenia” — edytowalny tekst reguły (zawiera / zaczyna się od) z podglądem innych grup; filtr po propozycji AI + „✓” | etap 1 = 0.8.0 (tekst reguły), etap 2 = 0.8.1/0.8.2 (filtr AI + zatwierdzenie) — ✅ 2026-10-04, zapis zastąpiony w M4h etap 2 (`PLAN_review_rule_text.md`) |
 | M4g | **Poza planem (2026-10-04):** wydajność — zapis reguły z kolejki i podgląd zwalniały z każdą regułą (dopasowanie po kolei: transakcje × reguły); indeks reguł „sprzedawca równa się” | 0.9.1 wydane i zainstalowane 2026-10-04 — podgląd na żywo ~10 s → ~0,8 s; ✅ 2026-10-04 (`PLAN_rule_index.md`) |
 | M4h | **Poza planem (2026-10-04):** pełne warunki reguły w miejscu — kolejka „Do przejrzenia” (dowolne pola, kilka warunków I, kwota, kierunek; reguła może złapać część grupy, reszta zostaje w kolejce), potem Transakcje i grupy krajów | ✅ 2026-10-04 (checkpoint zamknięty przez użytkownika) — etap 1 = 0.10.0 (kolejka); etap 2 = 0.11.0 (zapis domyślnie bez reguły — „utwórz regułę” na żądanie we wszystkich miejscach; Transakcje, grupy krajów) (`PLAN_review_rule_conditions.md`) |
-| M5a | **Budżet Flex: „ile mogę jeszcze wydać”** — ręczna kwota elastyczna, tempo, ekran „Budżet”, grupy edytowalne; potem encje | etap 1 = 0.7.0 wydane i zainstalowane 2026-10-02; etap 2 = 0.9.0 (encje `budget_flex_*`) wydane i zainstalowane 2026-10-04; etap 3 = 0.12.0 pula z dochodu (decyzja 14, `PLAN_M5a_income.md`) wydane i zainstalowane 2026-10-04 (z poprawką kontroli salda karty); etap 4 = 0.13.0 składniki puli + edycja kosztów stałych na ekranie Budżet (decyzja 15, `PLAN_M5a_fixed.md`) wydane i zainstalowane 2026-10-04; czeka checkpoint M5a (`PLAN_M5a.md`) |
-| M5b | **Płatności cykliczne** — wykrywanie serii, stałe zapłacone/planowane | — |
+| M5a | **Budżet Flex: „ile mogę jeszcze wydać”** — ręczna kwota elastyczna, tempo, ekran „Budżet”, grupy edytowalne; potem encje | etap 1 = 0.7.0 wydane i zainstalowane 2026-10-02; etap 2 = 0.9.0 (encje `budget_flex_*`) wydane i zainstalowane 2026-10-04; etap 3 = 0.12.0 pula z dochodu (decyzja 14, `PLAN_M5a_income.md`) wydane i zainstalowane 2026-10-04 (z poprawką kontroli salda karty); etap 4 = 0.13.0 składniki puli + edycja kosztów stałych na ekranie Budżet (decyzja 15, `PLAN_M5a_fixed.md`) wydane i zainstalowane 2026-10-04; ✅ 2026-10-04 — checkpoint zamknięty przez użytkownika (`PLAN_M5a.md`) |
+| M5b | **Płatności cykliczne** — wykrywanie serii, stałe zapłacone/planowane | wywiad 2026-10-04 (priorytet: „co jeszcze zejdzie w tym miesiącu” + „za co płacę cyklicznie i co się zmieniło”) |
 | M5c | **Skarbonki, trendy, limity** — nieregularne z celem rocznym, wykresy miesięczne, opcjonalne limity, `savings_rate` | — |
 | M6 | **Podsumowania + kalendarz płatności** — tydzień/miesiąc na telefon, kalendarz ICS | — |
 | M7 | **Kategoryzacja v2** — lokalny klasyfikator (LLM przeniesiony do M4c) | — |
 | M8 | **Prognoza przepływów** — saldo do końca miesiąca, „bezpiecznie do wydania” | — |
 | M9 | **Majątek netto + kredyt** | — |
+| M10 | **Moduł oszczędności** — cele i postęp oszczędzania, stopa oszczędności w czasie (zakres do wywiadu) | — |
+| M11 | **Integracja z trackerem akcji** (osobny add-on autora) — wartość pakietu akcji w majątku netto, wpływy ze sprzedaży/dywidend powiązane z księgą (zakres do wywiadu) | — |
+| M12 | **Czat AI z danymi** — pytania o własne finanse w języku naturalnym w panelu (zakres danych wysyłanych do LLM do ustalenia, jak decyzja 12) | — |
+| M13 | **Całkowity refaktor UI** panelu (zakres i moment do wywiadu — może wejść wcześniej) | — |
 
 Mapowanie starego planu (SPEC §10) na nowy: storage+dedup → M2; sync_service, panel, pakowanie,
 HA publisher (podstawy) → M3; kategoryzacja → M4/M7; `budget_engine` → M5; import CSV → M2;
@@ -274,8 +278,8 @@ kolejka do przejrzenia ≤ 15/tydzień.
 
 ## Backlog (świadomie odłożone)
 
-Alerty w czasie rzeczywistym (duży wydatek, 80/100% limitu, wpływ) · Assist / czat ·
-integracje z innymi add-onami (np. tankowania, rachunki za energię) · rozliczenia z osobami ·
+Alerty w czasie rzeczywistym (duży wydatek, 80/100% limitu, wpływ) · Assist (czat w panelu → M12) ·
+integracje z innymi add-onami (np. tankowania, rachunki za energię; tracker akcji → M11) · rozliczenia z osobami ·
 „kto wydał” z CSV · HA to-do „do przejrzenia” · statystyki długoterminowe HA (import/backfill) ·
 dashboard Lovelace · słowniki sprzedawców zagranicznych (decyzja M4b: grupy po kraju) · kolejne konta i banki · eksport (CSV/XLSX, Firefly III, Actual) · podział
 transakcji (split) i tagi · paragony.
