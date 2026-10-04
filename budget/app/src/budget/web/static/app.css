@@ -328,6 +328,13 @@ form.rename span { flex: 1; align-self: center; }
 .rv-rule { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
 .rv-rule input[type="text"] { flex: 1; min-width: 12em; max-width: 360px; }
 .rv-preview p { margin: 4px 0 8px; }
+/* „więcej warunków” w grupie kolejki — wspólne pola z edytora reguł (`_rule_conditions.html`) */
+.rv-list .rv-more summary { display: block; padding: 2px 0 6px; color: var(--accent); }
+.rv-more { margin-bottom: 6px; }
+.rule-fields { padding: 6px 0 4px 12px; border-left: 2px solid var(--line); }
+.rule-fields .cond { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.rule-fields .cond input { flex: 1; min-width: 12em; max-width: 360px; }
+.rule-fields .inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin-bottom: 8px; }
 .rv-sub { margin: 10px 0 2px; display: flex; gap: 10px; align-items: baseline; }
 .rv-items { list-style: none; margin: 0; padding: 0; }
 .rv-items li {
@@ -347,6 +354,8 @@ form.rename span { flex: 1; align-self: center; }
   .rv-items label.check { flex-wrap: wrap; gap: 2px 6px; }
   .rv-actions select { max-width: none; flex-basis: 100%; }
   .rv-rule input[type="text"] { max-width: none; flex-basis: 100%; }
+  .rule-fields { padding-left: 8px; }
+  .rule-fields .cond input { max-width: none; flex-basis: 100%; }
 }
 
 /* Wyszukiwanie na żywo (Reguły, Słownik, Transakcje) */

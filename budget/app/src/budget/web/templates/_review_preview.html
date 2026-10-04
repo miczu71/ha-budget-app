@@ -1,11 +1,14 @@
 {% macro names(caught) %}{% set top = caught.most_common(5) %}{% for m, n in top %}{{ m or "(bez nazwy)" }}{{ ", " if not loop.last }}{% endfor %}{% if caught | length > top | length %} i {{ caught | length - top | length }} innych{% endif %}{% endmacro %}
+{% macro leftovers(left) %}{% set top = left[:5] %}<p class="msg warn">Zostanie w kolejce {{ left | length }} (nie spełniają warunków): {% for i in top %}{{ i.day | pldate }} {{ i.description or i.merchant }} {{ i.amount | money(i.currency) }}{{ "; " if not loop.last }}{% endfor %}{% if left | length > top | length %} i {{ left | length - top | length }} innych{% endif %}.</p>{% endmacro %}
 {% if rule and rule_error %}
 <div class="msg error" role="alert">{{ rule_error }}</div>
 {% elif not category %}
-<p class="muted">Wybierz kategorię.</p>
+<p class="muted">Wybierz kategorię.{% if rule and left %} Reguła złapie {{ here }} z {{ g.count }} pozycji tej grupy.{% endif %}</p>
+{% if rule and left %}{{ leftovers(left) }}{% endif %}
 {% elif rule %}
-<p>Reguła: sprzedawca {{ rule_ops[cond.op] }} „{{ cond.value }}” ({{ "wydatki" if g.key.direction == "out" else "wpływy" }}) → <strong>{{ category.name }}</strong>.
-  Pasuje {{ p.matches }} transakcji ({{ p.total | money("PLN") }}), kategorię dostanie {{ p.applied }}, w tym {{ g.count }} z tej grupy.</p>
+<p>Reguła: {{ describe }} → <strong>{{ category.name }}</strong>.
+  Pasuje {{ p.matches }} transakcji ({{ p.total | money("PLN") }}), kategorię dostanie {{ p.applied }}, w tym {% if here == g.count %}{{ g.count }} z tej grupy{% else %}{{ here }} z {{ g.count }} pozycji tej grupy{% endif %}.</p>
+{% if left %}{{ leftovers(left) }}{% endif %}
 {% if other_months %}<p class="msg warn">Reguła działa we wszystkich miesiącach — obejmie też {{ other_months }} tr. z innych miesięcy, które czekają w kolejce. Tylko ten miesiąc: zaznacz „tylko te transakcje”.</p>{% endif %}
 {% if caught %}<p class="msg warn">Złapie też z kolejki — w innych grupach: {{ caught.total() }} tr. ({{ caught | length }}): {{ names(caught) }}.</p>{% endif %}
 {% if others %}<p class="msg warn">Zmieni też kategorię {{ others }} transakcji już skategoryzowanych inaczej (nowa reguła ma pierwszeństwo).</p>{% endif %}

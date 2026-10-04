@@ -221,7 +221,8 @@ async def test_month_view(client: httpx.AsyncClient, service: Service) -> None:
     body = await client.get(
         "/review/group", params={**_group("merchant", "Qwerty"), "month": "2026-08"}
     )
-    assert f'value="{aug}" checked' in body.text and f'value="{ids["q1"]}"' not in body.text
+    assert f'value="{aug}" checked' in body.text
+    assert f'name="txn" value="{ids["q1"]}"' not in body.text
     assert 'name="month" value="2026-08"' in body.text
 
 
@@ -291,10 +292,10 @@ def _put_suggestion(conn: sqlite3.Connection, merchant: str, category_id: int) -
 async def test_group_body_has_rule_text(client: httpx.AsyncClient, service: Service) -> None:
     _chain(service.conn)
     r = await client.get("/review/group", params=_group("merchant", "Qwerty-Sklep"))
-    assert 'name="rule_text" value="Qwerty-Sklep"' in r.text
+    assert 'name="rule_value_0" value="Qwerty-Sklep"' in r.text
     assert '<option value="equals" selected' in r.text and 'value="contains"' in r.text
     r = await client.get("/review/group", params=_group("country", "CHE", gid="c1"))
-    assert 'name="rule_text"' not in r.text  # grupa kraju — bez reguły
+    assert 'name="rule_value_0"' not in r.text  # grupa kraju — bez reguły
 
 
 async def test_rule_text_contains_catches_other_groups(
@@ -309,11 +310,12 @@ async def test_rule_text_contains_catches_other_groups(
         **_group("merchant", "Qwerty-Sklep"),
         "category_id": str(leaf),
         "txn": [str(ids["s1"])],
-        "rule_op": "contains",
-        "rule_text": "qwerty",
+        "rule_field_0": "merchant",
+        "rule_op_0": "contains",
+        "rule_value_0": "qwerty",
     }
     p = await client.post("/review/preview", data=form)
-    assert "sprzedawca zawiera „qwerty”" in p.text
+    assert "sprzedawca / odbiorca zawiera „qwerty” i wydatek" in p.text
     assert "w innych grupach: 2 tr. (1)" in p.text and "Qwerty" in p.text
     r = await client.post("/review/assign", data=form)
     assert "zapisano" in r.text and "w innych grupach: 2 tr. (1)" in r.text
@@ -334,8 +336,9 @@ async def test_rule_text_starts_with(client: httpx.AsyncClient, service: Service
         **_group("merchant", "Qwerty-Sklep"),
         "category_id": str(sid(conn, "spozywcze")),
         "txn": [str(ids["s1"])],
-        "rule_op": "starts_with",
-        "rule_text": "Qwerty-",
+        "rule_field_0": "merchant",
+        "rule_op_0": "starts_with",
+        "rule_value_0": "Qwerty-",
     }
     p = await client.post("/review/preview", data=form)
     assert "zaczyna się od „Qwerty-”" in p.text and "innych grupach" not in p.text
@@ -351,16 +354,158 @@ async def test_rule_text_errors(client: httpx.AsyncClient, service: Service) -> 
         "category_id": str(sid(conn, "restauracje")),
         "txn": [str(ids["s1"])],
     }
-    bad = {**base, "rule_op": "contains", "rule_text": "lidl"}
+    bad = {**base, "rule_field_0": "merchant", "rule_op_0": "contains", "rule_value_0": "lidl"}
     p = await client.post("/review/preview", data=bad)
-    assert "nie pasuje do „Qwerty-Sklep”" in p.text
+    assert "nie pasują do żadnej pozycji grupy „Qwerty-Sklep”" in p.text
     r = await client.post("/review/assign", data=bad)
-    assert "nie pasuje do „Qwerty-Sklep”" in r.text and 'name="rule_text" value="lidl"' in r.text
-    r = await client.post("/review/assign", data={**base, "rule_op": "contains", "rule_text": "q"})
+    assert "nie pasują do żadnej pozycji" in r.text and 'name="rule_value_0" value="lidl"' in r.text
+    short = {**base, "rule_field_0": "merchant", "rule_op_0": "contains", "rule_value_0": "q"}
+    r = await client.post("/review/assign", data=short)
     assert "co najmniej 3 znaki" in r.text
-    r = await client.post("/review/assign", data={**base, "rule_op": "regex", "rule_text": "qwe"})
-    assert "Nieznany warunek" in r.text
+    regex = {**base, "rule_field_0": "merchant", "rule_op_0": "regex", "rule_value_0": "qwe"}
+    r = await client.post("/review/assign", data=regex)
+    assert "Nieznane pole albo operator" in r.text
     assert rules.all_rules(conn) == [] and cat(conn, ids["s1"])[0] is None
     # „tylko te” — tekst reguły bez znaczenia, kategoria ręczna
     r = await client.post("/review/assign", data={**bad, "only": "on"})
     assert "zapisano" in r.text and cat(conn, ids["s1"])[1] == "manual"
+
+
+# --- M4h/1: pełne warunki reguły w kolejce ----------------------------------------------------
+
+
+def _mixed(conn: sqlite3.Connection) -> dict[str, int]:
+    """`_seed` + drugi przelew do tej samej osoby z innym tytułem (mieszanka pod odbiorcą)."""
+    ids = _seed(conn)
+    ids["p_out2"] = add(conn, "-40.00", "transfer_out", "Składka klasowa IX", "JAN TESTOWSKI")
+    engine.recategorize(conn)
+    return ids
+
+
+def _cond(field: str, op: str, value: str, i: int = 0) -> dict[str, str]:
+    return {f"rule_field_{i}": field, f"rule_op_{i}": op, f"rule_value_{i}": value}
+
+
+async def test_group_body_has_full_conditions(client: httpx.AsyncClient, service: Service) -> None:
+    _seed(service.conn)
+    r = await client.get("/review/group", params=_group("merchant", "Qwerty"))
+    assert 'name="rule_field_0"' in r.text and '<option value="merchant" selected' in r.text
+    assert 'name="rule_value_0" value="Qwerty"' in r.text
+    assert "więcej warunków" in r.text
+    for name in ("value_1", "value_2", "account_id", "kind", "amount_min", "amount_max", "rename"):
+        assert f'name="rule_{name}"' in r.text, name
+    assert '<option value="out" selected' in r.text  # kierunek grupy, do zmiany
+
+
+async def test_rule_catches_part_of_group_rest_stays(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    ids = _mixed(service.conn)
+    conn = service.conn
+    leaf = sid(conn, "szkola-zajecia")
+    _put_suggestion(conn, "Jan Testowski", sid(conn, "przelewy-rodzina"))
+    form = {
+        **_group("merchant", "Jan Testowski"),
+        "category_id": str(leaf),
+        "txn": [str(ids["p_out"]), str(ids["p_out2"])],
+        "rule_direction": "out",
+        **_cond("merchant", "equals", "Jan Testowski"),
+        **_cond("description", "contains", "skladka", 1),
+    }
+    p = await client.post("/review/preview", data=form)
+    assert "opis / tytuł zawiera „skladka”" in p.text
+    assert "w tym 1 z 2 pozycji tej grupy" in p.text
+    assert "Zostanie w kolejce 1" in p.text and "Prezent" in p.text
+    r = await client.post("/review/assign", data=form)
+    assert "zapisano" in r.text and 'id="m1r"' in r.text  # reszta grupy otwarta
+    [rule] = rules.all_rules(conn)
+    assert rule.conditions.text == (
+        rules.TextCondition("merchant", "equals", "Jan Testowski"),
+        rules.TextCondition("description", "contains", "skladka"),
+    )
+    assert cat(conn, ids["p_out2"])[:2] == ("szkola-zajecia", "rule")
+    assert cat(conn, ids["p_out"])[0] is None
+    # sprzedawca nie zamknięty w całości — podpowiedź AI czeka dalej
+    assert conn.execute("SELECT status FROM suggestion").fetchone()[0] == "pending"
+
+
+async def test_rule_amount_range_and_any_direction(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    ids = _seed(service.conn)
+    conn = service.conn
+    form = {
+        **_group("merchant", "Qwerty"),
+        "category_id": str(sid(conn, "restauracje")),
+        "txn": [str(ids["q1"]), str(ids["q2"])],
+        **_cond("merchant", "equals", "Qwerty"),
+        "rule_direction": "",
+        "rule_amount_min": "25",
+        "rule_rename": "Qwerty Bistro",
+    }
+    p = await client.post("/review/preview", data=form)
+    assert "kwota ≥ 25" in p.text and "w tym 1 z 2 pozycji tej grupy" in p.text
+    await client.post("/review/assign", data=form)
+    [rule] = rules.all_rules(conn)
+    assert rule.conditions.direction is None and rule.conditions.amount_min == Decimal("25.00")
+    assert rule.rename == "Qwerty Bistro"
+    assert cat(conn, ids["q1"])[:2] == ("restauracje", "rule") and cat(conn, ids["q2"])[0] is None
+
+
+async def test_rule_without_merchant_condition(client: httpx.AsyncClient, service: Service) -> None:
+    ids = _mixed(service.conn)
+    conn = service.conn
+    form = {
+        **_group("merchant", "Jan Testowski"),
+        "category_id": str(sid(conn, "prezenty")),
+        "txn": [str(ids["p_out"]), str(ids["p_out2"])],
+        "rule_direction": "out",
+        **_cond("description", "starts_with", "prez"),
+    }
+    r = await client.post("/review/assign", data=form)
+    assert "zapisano" in r.text
+    [rule] = rules.all_rules(conn)
+    assert rule.conditions.text == (rules.TextCondition("description", "starts_with", "prez"),)
+    assert (
+        cat(conn, ids["p_out"])[:2] == ("prezenty", "rule") and cat(conn, ids["p_out2"])[0] is None
+    )
+
+
+async def test_full_conditions_errors_keep_values(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    ids = _seed(service.conn)
+    conn = service.conn
+    base = {
+        **_group("merchant", "Qwerty"),
+        "category_id": str(sid(conn, "restauracje")),
+        "txn": [str(ids["q1"]), str(ids["q2"])],
+        "rule_direction": "out",
+        **_cond("merchant", "equals", "Qwerty"),
+        **_cond("description", "contains", "xyz", 1),
+    }
+    r = await client.post("/review/assign", data={**base, "rule_amount_min": "100"})
+    assert "nie pasują do żadnej pozycji" in r.text
+    assert 'name="rule_value_1" value="xyz"' in r.text and 'value="100.00"' in r.text
+    assert '<details class="rv-more" open>' in r.text  # dodatkowe warunki widoczne
+    r = await client.post("/review/assign", data={**base, "rule_amount_max": "abc"})
+    assert "Niepoprawna kwota" in r.text
+    r = await client.post(
+        "/review/assign", data={**base, **_cond("description", "contains", "x", 1)}
+    )
+    assert "co najmniej 3 znaki" in r.text
+    assert rules.all_rules(conn) == []
+
+
+async def test_ai_accept_defaults_to_merchant_equals(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    ids = _seed(service.conn)
+    conn = service.conn
+    leaf = sid(conn, "restauracje")
+    form = {**_group("merchant", "Qwerty"), "category_id": str(leaf), "all": "1"}
+    r = await client.post("/review/assign", data=form)
+    assert "zapisano" in r.text
+    [rule] = rules.all_rules(conn)
+    assert rule.conditions.text == (rules.TextCondition("merchant", "equals", "Qwerty"),)
+    assert rule.conditions.direction == "out" and cat(conn, ids["q1"])[1] == "rule"

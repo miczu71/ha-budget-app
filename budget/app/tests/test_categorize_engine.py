@@ -367,3 +367,26 @@ def test_rule_index_same_as_linear_scan(conn: sqlite3.Connection) -> None:
     reversed_ = [replace(r, priority=-r.priority) for r in reversed(all_)]
     index = engine._RuleIndex(reversed_)
     assert {t.id: index.first(t.facts) for t in txns} == _naive(txns, reversed_)
+
+
+def test_facts_for_selected_txns(conn: sqlite3.Connection) -> None:
+    lidl = add(conn, "-50.00", "card", "LIDL UL. X XYZ POL 2026-09-10")
+    jan = add(conn, "-40.00", "transfer_out", "Składka IX", "JAN TESTOWSKI", account=2)
+    add(conn, "-9.90", "fee", "PROWIZJA")
+    got = engine.facts(conn, [lidl, jan, 999])
+    assert set(got) == {lidl, jan}
+    assert got[lidl].merchant == "Lidl" and got[lidl].amount == Decimal("-50.00")
+    assert got[jan].merchant == "Jan Testowski" and got[jan].account_id == 2
+    assert got[jan].description == "Składka IX" and got[jan].kind == "transfer_out"
+    cond = Conditions(text=(TextCondition("description", "contains", "skladka"),))
+    assert cond.matches(got[jan]) and not cond.matches(got[lidl])
+    assert engine.facts(conn, []) == {}
+
+
+def test_clean_conditions_without_category(conn: sqlite3.Connection) -> None:
+    cond = Conditions(text=(TextCondition("merchant", "contains", "  ab   c "),))
+    assert rules.clean_conditions(conn, cond).text[0].value == "ab c"
+    with pytest.raises(RuleError, match="co najmniej jednego"):
+        rules.clean_conditions(conn, Conditions(text=()))
+    with pytest.raises(RuleError, match="Wybierz podkategorię"):
+        rules.validate(conn, Rule(None, 0, cond))

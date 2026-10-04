@@ -109,17 +109,26 @@ wydatków kategoriami (% transakcji i % kwoty).
   samej osoby to osobne grupy), sortowanie po kwocie albo liczbie. Po wybraniu kategorii zapis
   tworzy regułę „sprzedawca równa się … + kierunek”, więc kolejne transakcje skategoryzują się
   same; podgląd ostrzega, gdy reguła zmieni też już skategoryzowane pozycje.
-- **Tekst reguły** — pod kategorią wiersz „reguła: sprzedawca [równa się] [nazwa]”. Nazwę można
-  skrócić do fragmentu i wybrać „zawiera” albo „zaczyna się od” (np. „Qwerty” dla wszystkich
-  sklepów sieci o nazwach „Qwerty 12”, „Qwerty-Sklep”…). Fragment musi pasować do sprzedawcy
-  grupy i mieć co najmniej 3 znaki; podgląd na bieżąco podaje, ile pozycji z **innych grup**
-  kolejki reguła złapie (z nazwami), a po zapisie link „odśwież listę” chowa te grupy.
+- **Warunek reguły** — pod kategorią wiersz „reguła: [sprzedawca] [równa się] [nazwa]”. Nazwę
+  można skrócić do fragmentu i wybrać „zawiera” albo „zaczyna się od” (np. „Qwerty” dla
+  wszystkich sklepów sieci o nazwach „Qwerty 12”, „Qwerty-Sklep”…), a pole zmienić na opis/tytuł,
+  kontrahenta albo konto kontrahenta. Fragment musi mieć co najmniej 3 znaki; podgląd na bieżąco
+  podaje, ile pozycji z **innych grup** kolejki reguła złapie (z nazwami), a po zapisie link
+  „odśwież listę” chowa te grupy.
+- **Więcej warunków** — rozwijany blok pod wierszem reguły z tymi samymi polami co edytor
+  w zakładce Reguły: drugi i trzeci warunek tekstowy, konto, typ, kierunek (domyślnie kierunek
+  grupy, można wybrać „oba”), kwota od–do i nazwa sprzedawcy. Wszystkie warunki muszą być
+  spełnione naraz (np. odbiorca „Jan Kowalski” **i** tytuł zawiera „składka” **i** kwota
+  50–150 zł). Reguła musi złapać co najmniej jedną pozycję grupy; pozostałe zostają w kolejce —
+  podgląd wymienia je przed zapisem, a po zapisie grupa zostaje otwarta z resztą. Tak rozbija się
+  odbiorcę o mieszanym przeznaczeniu na kilka reguł. Podpowiedź AI sprzedawcy zamyka się dopiero,
+  gdy reguła obejmie wszystkie jego pozycje w kolejce.
 - **Filtr „Propozycja AI”** (gdy podpowiedzi AI są włączone) — pod zakładkami lista podkategorii
   z propozycji AI z liczbą grup, np. „Restauracje i kawiarnie (14)” (8 najliczniejszych, reszta
   pod „więcej”). Wybór zostawia grupy, które
   mają tę podkategorię wśród swoich (do 3) propozycji; grupy kraju są wtedy ukryte. Przy każdej
   grupie jest przycisk z ptaszkiem i nazwą podkategorii — dotknięcie zapisuje regułę „sprzedawca
-  równa się …” dla całej grupy i chowa wiersz. Inna kategoria, tekst reguły albo część pozycji —
+  równa się …” dla całej grupy i chowa wiersz. Inna kategoria, inne warunki albo część pozycji —
   po rozwinięciu grupy, jak zwykle.
 - **Tylko te transakcje** albo odznaczenie części pozycji — kategoria ręczna, bez reguły
   (jednorazowi sprzedawcy, odbiorca o mieszanym przeznaczeniu); odznaczone zostają w kolejce.

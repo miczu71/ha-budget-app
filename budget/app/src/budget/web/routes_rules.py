@@ -21,6 +21,7 @@ from budget.categorize.rules import Conditions, Rule, RuleError, TextCondition
 from budget.categorize.taxonomy import TaxonomyError
 from budget.normalize import fold, matches_all, search_words
 from budget.web.common import Panel
+from budget.web.rule_form import accounts, conditions_context, describe, rule_from_form
 
 
 @dataclass
@@ -39,77 +40,15 @@ def _int(value: Any) -> int | None:
         return None
 
 
-def rule_from_form(form: FormData) -> Rule:
-    """Pola formularza → reguła (walidacja w `rules.validate`)."""
-    text = []
-    for i in range(rules.MAX_TEXT_CONDITIONS):
-        value = str(form.get(f"value_{i}") or "")
-        if value.strip():
-            text.append(
-                TextCondition(
-                    str(form.get(f"field_{i}") or "merchant"),
-                    str(form.get(f"op_{i}") or "contains"),
-                    value,
-                )
-            )
-    category = _int(form.get("category_id"))
-    return Rule(
-        id=_int(form.get("id")),
-        category_id=category if category is not None else 0,
-        conditions=Conditions(
-            text=tuple(text),
-            account_id=_int(form.get("account_id")),
-            kind=str(form.get("kind") or "") or None,
-            direction=str(form.get("direction") or "") or None,
-            amount_min=rules.parse_amount(str(form.get("amount_min") or "")),
-            amount_max=rules.parse_amount(str(form.get("amount_max") or "")),
-        ),
-        rename=str(form.get("rename") or "") or None,
-        enabled=form.get("enabled") is not None or form.get("id") is None,
-    )
-
-
-def describe(rule: Rule, accounts: dict[int, str]) -> str:
-    """Warunki reguły jednym zdaniem (lista w panelu)."""
-    c = rule.conditions
-    parts = [f"{rules.TEXT_FIELDS[t.field]} {rules.OPS[t.op]} „{t.value}”" for t in c.text]
-    if c.account_id is not None:
-        parts.append(f"konto {accounts.get(c.account_id, '#' + str(c.account_id))}")
-    if c.kind:
-        parts.append(f"typ {c.kind}")
-    if c.direction:
-        parts.append(rules.DIRECTIONS[c.direction])
-    if c.amount_min is not None:
-        parts.append(f"kwota ≥ {c.amount_min}")
-    if c.amount_max is not None:
-        parts.append(f"kwota ≤ {c.amount_max}")
-    return " i ".join(parts)
-
-
 def router(panel: Panel) -> APIRouter:
     r = APIRouter()
     conn = panel.conn
 
-    def accounts() -> dict[int, str]:
-        return {
-            int(a["id"]): a["display_name"] or a["product"] or f"#{a['id']}"
-            for a in conn.execute("SELECT * FROM account ORDER BY id")
-        }
-
     def form_context(rule: Rule, **extra: Any) -> dict[str, Any]:
-        text = list(rule.conditions.text)
-        text += [TextCondition("merchant", "contains", "")] * (
-            rules.MAX_TEXT_CONDITIONS - len(text)
-        )
         return {
+            **conditions_context(conn, rule),
             "rule": rule,
-            "text": text,
             "tree": taxonomy.tree(conn),
-            "accounts": accounts(),
-            "kinds": [r[0] for r in conn.execute("SELECT DISTINCT kind FROM txn ORDER BY 1")],
-            "fields": rules.TEXT_FIELDS,
-            "ops": rules.OPS,
-            "directions": rules.DIRECTIONS,
             **extra,
         }
 
@@ -125,7 +64,7 @@ def router(panel: Panel) -> APIRouter:
     @r.get("/rules", response_class=HTMLResponse)
     async def rules_page(request: Request, q: str = "") -> HTMLResponse:
         cats = taxonomy.all_categories(conn)
-        acc = accounts()
+        acc = accounts(conn)
         items: list[dict[str, Any]] = []
         for rule in rules.all_rules(conn):
             cat = cats.get(rule.category_id)

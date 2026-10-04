@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from functools import lru_cache
@@ -67,31 +67,56 @@ def _derive(
     )
 
 
+_FACT_COLUMNS = "id, account_id, kind, amount, description, counterparty_name, counterparty_account"
+
+
+def _facts(t: sqlite3.Row, dictionary: Dictionary) -> tuple[Facts, merchants.Entry | None]:
+    kind = str(t["kind"])
+    base, entry = _derive(dictionary, kind, t["description"], t["counterparty_name"])
+    facts = Facts(
+        account_id=int(t["account_id"]),
+        kind=kind,
+        amount=Decimal(t["amount"]),
+        merchant=entry.name if entry and entry.name else base,
+        description=t["description"] or "",
+        counterparty_name=t["counterparty_name"] or "",
+        counterparty_account=t["counterparty_account"] or "",
+    )
+    return facts, entry
+
+
+def facts(
+    conn: sqlite3.Connection, ids: Collection[int], dictionary: Dictionary | None = None
+) -> dict[int, Facts]:
+    """Pola widziane przez reguły dla wybranych transakcji (np. pozycji kolejki) — bez
+    przeliczania całej księgi."""
+    d = dictionary or merchants.builtin()
+    out: dict[int, Facts] = {}
+    wanted = sorted(set(ids))
+    for start in range(0, len(wanted), 500):
+        chunk = wanted[start : start + 500]
+        rows = conn.execute(
+            f"SELECT {_FACT_COLUMNS} FROM txn WHERE id IN ({','.join('?' * len(chunk))})", chunk
+        )
+        for t in rows:
+            out[int(t["id"])] = _facts(t, d)[0]
+    return out
+
+
 def _load(conn: sqlite3.Connection, dictionary: Dictionary) -> list[_Txn]:
     out = []
     rows = conn.execute(
-        "SELECT id, account_id, kind, amount, tx_date, booking_date, description, "
-        "counterparty_name, counterparty_account, transfer_group, refund_of, category_id, "
-        "category_source, rule_id, merchant FROM txn ORDER BY id"
+        f"SELECT {_FACT_COLUMNS}, tx_date, booking_date, transfer_group, refund_of, "
+        "category_id, category_source, rule_id, merchant FROM txn ORDER BY id"
     )
     for t in rows:
-        kind = str(t["kind"])
-        base, entry = _derive(dictionary, kind, t["description"], t["counterparty_name"])
-        amount = Decimal(t["amount"])
+        known, entry = _facts(t, dictionary)
         out.append(
             _Txn(
                 id=int(t["id"]),
                 date=str(t["tx_date"] or t["booking_date"] or ""),
-                amount=amount,
-                facts=Facts(
-                    account_id=int(t["account_id"]),
-                    kind=kind,
-                    amount=amount,
-                    merchant=entry.name if entry and entry.name else base,
-                    description=t["description"] or "",
-                    counterparty_name=t["counterparty_name"] or "",
-                    counterparty_account=t["counterparty_account"] or "",
-                ),
+                amount=known.amount,
+                facts=known,
                 entry=entry,
                 transfer=t["transfer_group"] is not None,
                 refund_of=t["refund_of"],

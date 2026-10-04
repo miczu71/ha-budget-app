@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.10.0
+
+Pełne warunki reguły w kolejce „Do przejrzenia” (M4h etap 1, `docs/PLAN_review_rule_conditions.md`).
+
+- **Wiersz reguły** w grupie sprzedawcy: oprócz operatora i tekstu można wybrać pole (sprzedawca,
+  opis/tytuł, kontrahent, konto kontrahenta).
+- **„+ więcej warunków”** rozwija w miejscu te same pola co edytor w zakładce Reguły: drugi
+  i trzeci warunek tekstowy, konto, typ, kierunek (domyślnie kierunek grupy, także „oba”), kwota
+  od–do, nazwa sprzedawcy. Warunki łączone przez „i” — bez przechodzenia do zakładki Reguły.
+- **Część grupy:** reguła może złapać tylko część pozycji (np. tytuł zawiera „składka”) — musi
+  złapać co najmniej jedną; podgląd mówi „k z n pozycji tej grupy” i wymienia pozycje, które
+  zostaną w kolejce; po zapisie grupa zostaje otwarta z resztą.
+- Podpowiedź AI sprzedawcy jest zamykana (przyjęta/odrzucona) tylko wtedy, gdy reguła obejmie
+  wszystkie jego pozycje w kolejce.
+- Podgląd i ostrzeżenie o innych grupach liczone po wszystkich polach reguły (nie tylko nazwie
+  sprzedawcy); opis reguły w podglądzie jak na liście reguł.
+- Bez nowych encji ani usług; edytor w zakładce Reguły wygląda jak dotąd (wspólny fragment pól).
+
 ## 0.9.1
 
 Szybszy zapis reguł i podgląd w kolejce „Do przejrzenia” (`docs/PLAN_rule_index.md`).

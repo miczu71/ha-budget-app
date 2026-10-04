@@ -1,0 +1,23 @@
+{# Warunki reguły: wiersze tekstowe od `cond_from` (domyślnie 0) i konto / typ / kierunek / kwota;
+   kontekst z `web.rule_form.conditions_context` (`crule`, `px` — prefiks nazw pól) #}
+{% set first = cond_from or 0 %}
+{% for c in text %}{% if loop.index0 >= first %}
+<div class="cond">
+  <select name="{{ px }}field_{{ loop.index0 }}" aria-label="pole">{% for k, v in fields.items() %}<option value="{{ k }}" {{ "selected" if c.field == k }}>{{ v }}</option>{% endfor %}</select>
+  <select name="{{ px }}op_{{ loop.index0 }}" aria-label="operator">{% for k, v in ops.items() %}<option value="{{ k }}" {{ "selected" if c.op == k }}>{{ v }}</option>{% endfor %}</select>
+  <input type="text" name="{{ px }}value_{{ loop.index0 }}" value="{{ c.value }}" placeholder="{{ 'np. Lidl' if loop.first else 'opcjonalnie' }}" aria-label="wartość" maxlength="120" autocomplete="off" {{ "required" if loop.first }}>
+</div>
+{% endif %}{% endfor %}
+<div class="inline">
+  <label>Konto
+    <select name="{{ px }}account_id"><option value="">dowolne</option>{% for id, name in accounts.items() %}<option value="{{ id }}" {{ "selected" if crule.conditions.account_id == id }}>{{ name }}</option>{% endfor %}</select>
+  </label>
+  <label>Typ
+    <select name="{{ px }}kind"><option value="">dowolny</option>{% for k in kinds %}<option value="{{ k }}" {{ "selected" if crule.conditions.kind == k }}>{{ kind_labels.get(k, k) }}</option>{% endfor %}</select>
+  </label>
+  <label>Kierunek
+    <select name="{{ px }}direction"><option value="">oba</option>{% for k, v in directions.items() %}<option value="{{ k }}" {{ "selected" if crule.conditions.direction == k }}>{{ v }}</option>{% endfor %}</select>
+  </label>
+  <label>Kwota od<input name="{{ px }}amount_min" inputmode="decimal" value="{{ crule.conditions.amount_min if crule.conditions.amount_min is not none else '' }}" size="8"></label>
+  <label>do<input name="{{ px }}amount_max" inputmode="decimal" value="{{ crule.conditions.amount_max if crule.conditions.amount_max is not none else '' }}" size="8"></label>
+</div>

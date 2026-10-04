@@ -172,7 +172,18 @@ def parse_amount(value: str | None) -> Decimal | None:
 
 def validate(conn: sqlite3.Connection, rule: Rule) -> Rule:
     """Sprawdzona i oczyszczona reguła (wyjątek `RuleError` z komunikatem)."""
-    cond = rule.conditions
+    cond = clean_conditions(conn, rule.conditions)
+    leaf = conn.execute(
+        "SELECT 1 FROM category WHERE id = ? AND parent_id IS NOT NULL", (rule.category_id,)
+    ).fetchone()
+    if not leaf:
+        raise RuleError("Wybierz podkategorię.")
+    rename = re.sub(r"\s+", " ", rule.rename or "").strip()[:RENAME_MAX] or None
+    return replace(rule, conditions=cond, rename=rename)
+
+
+def clean_conditions(conn: sqlite3.Connection, cond: Conditions) -> Conditions:
+    """Sprawdzone i oczyszczone warunki — bez kategorii (podgląd w kolejce przed jej wyborem)."""
     text = tuple(
         TextCondition(c.field, c.op, re.sub(r"\s+", " ", c.value).strip())
         for c in cond.text
@@ -202,13 +213,7 @@ def validate(conn: sqlite3.Connection, rule: Rule) -> Rule:
         and not conn.execute("SELECT 1 FROM account WHERE id = ?", (cond.account_id,)).fetchone()
     ):
         raise RuleError("Nie ma takiego konta.")
-    leaf = conn.execute(
-        "SELECT 1 FROM category WHERE id = ? AND parent_id IS NOT NULL", (rule.category_id,)
-    ).fetchone()
-    if not leaf:
-        raise RuleError("Wybierz podkategorię.")
-    rename = re.sub(r"\s+", " ", rule.rename or "").strip()[:RENAME_MAX] or None
-    return replace(rule, conditions=replace(cond, text=text), rename=rename)
+    return replace(cond, text=text)
 
 
 def save(conn: sqlite3.Connection, rule: Rule) -> int:
