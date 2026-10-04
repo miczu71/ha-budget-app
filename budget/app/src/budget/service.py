@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from budget import ha_publisher, notifications, sessions, sync_service
@@ -23,6 +23,14 @@ from budget.sync_service import SyncResult
 log = logging.getLogger(__name__)
 
 SESSION_CHECK_EVERY = timedelta(hours=6)
+REFRESH_DEBOUNCE = 2.0  # s — seria zapisów w panelu = jedno odświeżenie encji
+MIDNIGHT_OFFSET = timedelta(seconds=5)
+
+
+def next_midnight(now: datetime) -> datetime:
+    """Najbliższa północ (+ chwila) w strefie `now` — nowy „na dzień” i nowy miesiąc encji Flex."""
+    day = now.date() + timedelta(days=1)
+    return datetime.combine(day, time(), tzinfo=now.tzinfo) + MIDNIGHT_OFFSET
 
 
 class ServiceError(Exception):
@@ -49,6 +57,7 @@ class Service:
         self.last_result: SyncResult | None = None
         self.ai_lock = asyncio.Lock()
         self._ai_task: asyncio.Task[None] | None = None
+        self._refresh_task: asyncio.Task[None] | None = None
         self._eb_base_url = eb_base_url or settings.eb_base_url
 
     # --- Enable Banking ---------------------------------------------------------------------
@@ -147,6 +156,29 @@ class Service:
         row = self.conn.execute("SELECT status, detail FROM sync_log ORDER BY id DESC LIMIT 1")
         last = row.fetchone()
         return bool(last and last["status"] == "partial" and "niepełne" in (last["detail"] or ""))
+
+    def refresh_soon(self) -> None:
+        """Odświeżenie encji w tle po zapisie w panelu (kwota, grupa, kategorie)."""
+        if self._refresh_task and not self._refresh_task.done():
+            return
+        self._refresh_task = asyncio.create_task(self._refresh_later())
+
+    async def _refresh_later(self) -> None:
+        await asyncio.sleep(REFRESH_DEBOUNCE)
+        try:
+            await self.refresh()
+        except Exception:  # odświeżenie w tle nie może zatrzymać add-onu
+            log.exception("Błąd odświeżania encji")
+
+    async def daily_tick(self) -> None:
+        """Encje Flex zależą od dnia: odświeżenie tuż po północy."""
+        while True:
+            now = self.now()  # timestamp(): różnica w czasie rzeczywistym także przy zmianie czasu
+            await asyncio.sleep(max(next_midnight(now).timestamp() - now.timestamp(), 1))
+            try:
+                await self.refresh()
+            except Exception:
+                log.exception("Błąd odświeżania encji o północy")
 
     async def refresh(self) -> None:
         """Encje MQTT + powiadomienia z bieżącego stanu bazy."""

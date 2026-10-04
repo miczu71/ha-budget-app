@@ -1,4 +1,4 @@
-"""Encje HA przez MQTT Discovery (SPEC §6.1, zakres M3).
+"""Encje HA przez MQTT Discovery (SPEC §6.1: zakres M3 + budżet Flex z M5a).
 
 Jedno urządzenie „Budżet Domowy”; dostępność przez LWT (`budget/availability`), konfiguracje
 i stany retained. `default_entity_id` przypina entity_id (od HA 2026.4 `object_id` jest
@@ -17,12 +17,14 @@ import sqlite3
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any
 
 import aiomqtt
 
-from budget import __version__, sessions, sync_service
+from budget import __version__, flex, money, sessions, sync_service
 from budget.logging_utils import mask_iban
+from budget.spending import month_start
 
 log = logging.getLogger(__name__)
 
@@ -179,6 +181,7 @@ def build_entities(conn: sqlite3.Connection, *, now: datetime, today: date) -> l
             attributes={"limit": sync_service.DAILY_LIMIT, "day": today.isoformat()},
         )
     )
+    entities += flex_entities(conn, today)
     entities.append(
         Entity(
             "button",
@@ -192,6 +195,71 @@ def build_entities(conn: sqlite3.Connection, *, now: datetime, today: date) -> l
         )
     )
     return entities
+
+
+def _amount(value: Decimal | None) -> str | None:
+    return None if value is None else str(value.quantize(money.CENT))
+
+
+def _flex_sensor(key: str, name: str, icon: str, state: str | None, **attrs: Any) -> Entity:
+    config = {
+        "name": name,
+        "device_class": "monetary",  # bez state_class: bez statystyk długoterminowych (decyzja 10)
+        "unit_of_measurement": "PLN",
+        "suggested_display_precision": 2,
+        "icon": icon,
+    }
+    return Entity("sensor", key, config, state=state, attributes=attrs)
+
+
+def flex_entities(conn: sqlite3.Connection, today: date) -> list[Entity]:
+    """Budżet Flex bieżącego miesiąca (M5a); bez kwoty: kwota/zostało/na dzień = unknown."""
+    try:
+        fm = flex.build(conn, month_start(today), today)
+    except Exception:  # błąd budżetu nie może zablokować sald i statusu synchronizacji
+        log.exception("Encje budżetu Flex pominięte")
+        return []
+    month = fm.month.strftime("%Y-%m")
+    return [
+        _flex_sensor(
+            "flex_budget",
+            "Budżet elastyczny",
+            "mdi:wallet",
+            _amount(fm.budget),
+            budget_from=fm.budget_from.strftime("%Y-%m") if fm.budget_from else None,
+            suggested=_amount(fm.suggested),
+            month=month,
+        ),
+        _flex_sensor(
+            "flex_spent",
+            "Wydane elastyczne",
+            "mdi:cash-minus",
+            _amount(fm.spent),
+            uncategorized_amount=_amount(fm.uncategorized),
+            uncategorized_count=fm.uncategorized_count,
+            other_currency=fm.other_currency,
+            month=month,
+        ),
+        _flex_sensor(
+            "flex_remaining",
+            "Zostało na elastyczne",
+            "mdi:cash-check",
+            _amount(fm.remaining),
+            per_day=_amount(fm.per_day),
+            expected_today=_amount(fm.expected),
+            over_pace=fm.over_pace,
+            used_pct=round(fm.used * 100, 1) if fm.budget else None,
+            days_left=fm.days_left,
+            month=month,
+        ),
+        _flex_sensor(
+            "flex_per_day",
+            "Elastyczne na dzień",
+            "mdi:calendar-today",
+            _amount(fm.per_day),
+            days_left=fm.days_left,
+        ),
+    ]
 
 
 class Publisher:

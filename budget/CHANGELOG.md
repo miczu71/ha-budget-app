@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.0
+
+„Ile zostało” w Home Assistant — encje budżetu elastycznego (M5a etap 2, `docs/PLAN_M5a.md`).
+
+- **Nowe encje** (bieżący miesiąc, PLN, bez statystyk długoterminowych):
+
+  | Encja | Stan | Atrybuty |
+  |---|---|---|
+  | `sensor.budget_flex_budget` | kwota budżetu elastycznego | `budget_from`, `suggested` (podpowiedź), `month` |
+  | `sensor.budget_flex_spent` | wydane elastyczne (z wydatkami bez kategorii) | `uncategorized_amount`, `uncategorized_count`, `other_currency`, `month` |
+  | `sensor.budget_flex_remaining` | zostało | `per_day`, `expected_today`, `over_pace`, `used_pct`, `days_left`, `month` |
+  | `sensor.budget_flex_per_day` | zostało na dzień do końca miesiąca | `days_left` |
+
+  Dopóki kwota nie jest ustawiona na ekranie Budżet, kwota/zostało/na dzień mają stan „nieznany”.
+- **Odświeżanie encji:** kilka sekund po każdym zapisie w panelu (kwota, grupa podkategorii,
+  kolejka, reguły, kategoria transakcji) i tuż po północy (nowy „na dzień”, nowy miesiąc) — poza
+  dotychczasowym odświeżeniem po synchronizacji.
+
 ## 0.8.2
 
 - Filtr „Propozycja AI”: od razu widać 8 najliczniejszych podkategorii, reszta jest pod

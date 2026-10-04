@@ -75,6 +75,7 @@ async def serve(settings: Settings) -> None:
     tasks += [
         asyncio.create_task(service.scheduler()),
         asyncio.create_task(service.session_watch()),
+        asyncio.create_task(service.daily_tick()),
     ]
     log.info("Budżet Domowy %s — panel na porcie %d", __version__, server.config.port)
     try:

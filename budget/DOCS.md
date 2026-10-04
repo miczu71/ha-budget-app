@@ -179,6 +179,15 @@ z propozycji) albo odrzuconą (inna kategoria) — liczniki na karcie AI na ekra
 | `binary_sensor.budget_sync_problem` | Brak zgody albo nieudane synchronizacje |
 | `sensor.budget_requests_today` | Diagnostyka: najwięcej zapytań dziś na (konto, endpoint) bez PSU |
 | `button.budget_sync_now` | Synchronizacja na żądanie (w ramach limitu) |
+| `sensor.budget_flex_budget` | Kwota budżetu elastycznego w bieżącym miesiącu; podpowiedź w atrybucie `suggested` |
+| `sensor.budget_flex_spent` | Wydane elastyczne (z wydatkami bez kategorii — liczba i kwota w atrybutach) |
+| `sensor.budget_flex_remaining` | Zostało; w atrybutach `per_day`, `expected_today` (przy równym tempie), `over_pace`, `used_pct`, `days_left` |
+| `sensor.budget_flex_per_day` | Zostało na dzień do końca miesiąca (z dzisiejszym) |
+
+Encje budżetu liczone są jak ekran Budżet dla bieżącego miesiąca. Bez ustawionej kwoty
+`flex_budget`, `flex_remaining` i `flex_per_day` mają stan „nieznany”. Odświeżają się po
+synchronizacji, kilka sekund po każdym zapisie w panelu i tuż po północy. Nie mają statystyk
+długoterminowych (historia stanów — tak).
 
 ## Powiadomienia
 

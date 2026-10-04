@@ -48,6 +48,8 @@ def create_app(service: Service, *, dev: bool = False) -> FastAPI:
         if not dev and peer != INGRESS_PROXY:
             return Response("Dostęp tylko przez panel Home Assistant (Ingress).", 403)
         response = await call_next(request)
+        if request.method == "POST" and response.status_code < 400:
+            panel.service.refresh_soon()  # encje Flex po zapisie kwoty, grupy, kategorii
         if request.url.path.startswith("/static/"):
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         else:

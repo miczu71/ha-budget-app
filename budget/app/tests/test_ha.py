@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -12,11 +13,16 @@ import httpx
 import pytest
 import respx
 
-from budget import ha_publisher, notifications, sessions
+from budget import flex, ha_publisher, notifications, sessions
+from budget.categorize import engine
 from budget.eb_models import Balance, SessionResponse
 from budget.ha_client import HAClient, HAError
 from budget.ledger import account_by_alias, ingest_balances
 from budget.storage import db
+
+from .test_categorize_engine import add, conn
+
+__all__ = ["conn"]
 
 SUP = "http://supervisor"
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -197,3 +203,77 @@ async def test_publish_all_republishes_only_changed_config() -> None:
     client.sent.clear()
     await pub._publish_all(client)  # type: ignore[arg-type]
     assert not [t for t, _, _ in client.sent if t.endswith("/config")]
+
+
+# --- encje budżetu Flex (M5a) ---------------------------------------------------------------
+
+
+def _flex(conn: db.sqlite3.Connection, today: date) -> dict[str, ha_publisher.Entity]:
+    engine.recategorize(conn)
+    entities = ha_publisher.build_entities(conn, now=NOW, today=today)
+    return {e.key: e for e in entities if e.key.startswith("flex_")}
+
+
+def test_flex_entities_without_budget(conn: db.sqlite3.Connection) -> None:
+    add(conn, "-100.00", "card", "LIDL XYZ POL", day="2026-09-02")
+    add(conn, "-40.00", "card", "SKLEP ABC XYZ", day="2026-09-04")  # bez kategorii
+    add(conn, "-55.00", "card", "LIDL XYZ POL", day="2026-08-20")  # poprzedni miesiąc
+    f = _flex(conn, date(2026, 9, 10))
+    assert set(f) == {"flex_budget", "flex_spent", "flex_remaining", "flex_per_day"}
+    assert f["flex_spent"].state == "140.00"
+    assert f["flex_spent"].attributes == {
+        "uncategorized_amount": "40.00",
+        "uncategorized_count": 1,
+        "other_currency": 0,
+        "month": "2026-09",
+    }
+    assert f["flex_budget"].state is None and f["flex_budget"].attributes["suggested"] == "60.00"
+    assert f["flex_remaining"].state is None and f["flex_per_day"].state is None
+    assert f["flex_remaining"].attributes["over_pace"] is False
+    assert f["flex_remaining"].attributes["used_pct"] is None
+    _, payload = f["flex_remaining"].discovery()
+    assert payload["default_entity_id"] == "sensor.budget_flex_remaining"
+    assert payload["device_class"] == "monetary" and payload["unit_of_measurement"] == "PLN"
+    assert "state_class" not in payload  # bez statystyk długoterminowych (decyzja 10)
+
+
+def test_flex_entities_with_budget(conn: db.sqlite3.Connection) -> None:
+    add(conn, "-120.00", "card", "LIDL XYZ POL", day="2026-09-02")
+    flex.set_budget(conn, date(2026, 8, 1), Decimal("3000"))
+    f = _flex(conn, date(2026, 9, 10))  # wrzesień: 30 dni, dziś 10. → zostaje 21 dni
+    assert f["flex_budget"].state == "3000.00"
+    assert f["flex_budget"].attributes["budget_from"] == "2026-08"
+    assert f["flex_remaining"].state == "2880.00"
+    assert f["flex_remaining"].attributes == {
+        "per_day": "137.14",
+        "expected_today": "1000.00",
+        "over_pace": False,
+        "used_pct": 4.0,
+        "days_left": 21,
+        "month": "2026-09",
+    }
+    assert f["flex_per_day"].state == "137.14"
+    last = _flex(conn, date(2026, 9, 30))
+    assert last["flex_per_day"].state == last["flex_remaining"].state == "2880.00"
+    october = _flex(conn, date(2026, 10, 1))  # zawsze bieżący miesiąc
+    assert october["flex_spent"].state == "0.00"
+    assert october["flex_remaining"].attributes["month"] == "2026-10"
+
+
+def test_flex_over_pace_and_exhausted(conn: db.sqlite3.Connection) -> None:
+    add(conn, "-400.00", "card", "LIDL XYZ POL", day="2026-09-02")
+    flex.set_budget(conn, date(2026, 9, 1), Decimal("300"))
+    f = _flex(conn, date(2026, 9, 10))
+    assert f["flex_remaining"].state == "-100.00"
+    assert f["flex_remaining"].attributes["over_pace"] is True
+    assert f["flex_per_day"].state == "0.00"
+
+
+def test_flex_error_does_not_block_other_entities(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(*_: object) -> None:
+        raise RuntimeError("x")
+
+    monkeypatch.setattr(ha_publisher.flex, "build", boom)
+    keys = {e.key for e in ha_publisher.build_entities(_ledger(), now=NOW, today=NOW.date())}
+    assert "saldo_current_pln" in keys and "sync_now" in keys
+    assert not any(k.startswith("flex_") for k in keys)
