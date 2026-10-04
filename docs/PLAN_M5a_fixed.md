@@ -45,4 +45,8 @@ jednego miejsca, gdzie widać i poprawia się listę kosztów stałych.
 
 ## Wynik
 
-—
+2026-10-04: 0.13.0 wydane i zainstalowane (CI zielone, 431 testów). Na żywo przez Ingress:
+suma źródeł = wpływy, suma składników stałych = kwota odejmowana od puli (6 podkategorii),
+23 podkategorie na liście „dodaj do stałych”, 0 błędów konsoli. Zmiana metody (suma median
+zamiast mediany sumy) obniżyła stałe o ok. 400 zł i o tyle podniosła pulę automatyczną.
+Czeka checkpoint M5a.
