@@ -135,3 +135,15 @@ Stop, zrzut ekranu „Budżet” (telefon) + stan encji, bez startu kolejnego et
   kategorii (głównie przelewy do osób) liczą się do „wydane” (decyzja 13). Do omówienia na
   checkpoincie.
 - Kwota budżetu na żywo nieustawiona — decyzja użytkownika.
+
+## Wynik etapu 2 (0.9.0, 2026-10-04)
+
+- GitHub release v0.9.0, aktualizacja przez Supervisor; CI zielone (393 testy, ruff, mypy).
+- W HA 4 encje `sensor.budget_flex_*` na urządzeniu „Budżet Domowy” z oczekiwanymi entity_id;
+  `flex_spent` równe „Wydane elastyczne” na ekranie Budżet, `suggested` równe podpowiedzi,
+  `days_left` poprawne; kwota nieustawiona → `flex_budget`/`flex_remaining`/`flex_per_day` = unknown.
+- Panel przez Ingress: plakietka v0.9.0, `app.css?v=0.9.0`, 0 błędów konsoli.
+- Do potwierdzenia na żywo: odświeżenie kilka sekund po zapisie kwoty (gdy użytkownik ją ustawi)
+  i tick o północy (`last_updated` ≈ 00:00).
+- Znalezione przy okazji (błąd sprzed etapu): pętla sprawdzania zgody kończy się po
+  przejściowym błędzie sieci (`httpx.ConnectError` nie jest łapany) — do osobnej poprawki.
