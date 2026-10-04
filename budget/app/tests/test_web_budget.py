@@ -89,3 +89,63 @@ async def test_auto_pool_breakdown_and_back_to_auto(
     page = (await client.get(f"/budget?month={MONTH}")).text
     assert "Pula automatyczna (z wpływów)" in page  # komunikat
     assert "— automatyczna, z wpływów z miesiąca:" in page
+
+
+async def test_pool_components_and_fixed_editing(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    conn = service.conn
+    _seed(conn)
+    slugs = taxonomy.by_slug(conn)
+    prev = (date.fromisoformat(DAY) - timedelta(days=1)).replace(day=24)
+    t = add(conn, "6000.00", "transfer_in", "Pensja", "FIRMA X", day=prev.isoformat())
+    engine.set_manual(conn, t, slugs["wynagrodzenie"].id)
+    t = add(conn, "-2300.00", "transfer_out", "Rata", "BANK Y", day=prev.replace(day=5).isoformat())
+    engine.set_manual(conn, t, slugs["kredyt"].id)
+    t = add(conn, "-80.00", "transfer_out", "Hotel", "HOTEL Z", day=prev.replace(day=6).isoformat())
+    engine.set_manual(conn, t, slugs["noclegi"].id)
+    engine.recategorize(conn)
+
+    page = (await client.get(f"/budget?month={MONTH}")).text
+    assert "Firma X" in page and "6 000,00" in page  # źródło wpływu
+    assert 'id="fixed"' in page and 'id="fixed" open' not in page
+    assert "Kredyt" in page and "2 300,00" in page
+    kredyt, noclegi = slugs["kredyt"].id, slugs["noclegi"].id
+    assert f'action="{INGRESS}/budget/fixed/{kredyt}"' in page  # przenieś ze stałych
+    assert f'value="{noclegi}"' in page  # kandydat do dodania
+    assert "3 700,00" in page  # 6000 − 2300
+
+    r = await client.post(
+        f"/budget/fixed/{kredyt}", data={"month": MONTH, "flex_group": "flexible"}
+    )
+    assert r.status_code == 303
+    assert r.headers["location"] == f"{INGRESS}/budget?month={MONTH}&fixed=1#fixed"
+    assert taxonomy.all_categories(conn)[kredyt].flex_group == "flexible"
+    page = (await client.get(f"/budget?month={MONTH}&fixed=1")).text
+    assert 'id="fixed" open' in page
+    assert "„Kredyt” — grupa budżetu: elastyczne" in page
+    assert "Pula automatyczna: 6\u202f000,00" in page
+
+    await client.post("/budget/fixed/0", data={"month": MONTH, "flex_group": "fixed"})
+    assert "Grupę budżetu ma tylko podkategoria" in (await client.get("/budget")).text
+    await client.post(f"/budget/fixed/{noclegi}", data={"month": MONTH, "flex_group": "zle"})
+    assert "Nieznana grupa budżetu" in (await client.get("/budget")).text
+
+
+async def test_add_to_fixed_from_list(client: httpx.AsyncClient, service: Service) -> None:
+    conn = service.conn
+    _seed(conn)
+    slugs = taxonomy.by_slug(conn)
+    prev = (date.fromisoformat(DAY) - timedelta(days=1)).replace(day=24)
+    t = add(conn, "6000.00", "transfer_in", "Pensja", "FIRMA X", day=prev.isoformat())
+    engine.set_manual(conn, t, slugs["wynagrodzenie"].id)
+    t = add(conn, "-80.00", "transfer_out", "Hotel", "HOTEL Z", day=prev.replace(day=6).isoformat())
+    engine.set_manual(conn, t, slugs["noclegi"].id)
+    engine.recategorize(conn)
+    page = (await client.get(f"/budget?month={MONTH}")).text
+    assert f'action="{INGRESS}/budget/fixed"' in page and "Dodaj do stałych" in page
+    r = await client.post("/budget/fixed", data={"month": MONTH, "category": slugs["noclegi"].id})
+    assert r.headers["location"] == f"{INGRESS}/budget?month={MONTH}&fixed=1#fixed"
+    assert taxonomy.all_categories(conn)[slugs["noclegi"].id].flex_group == "fixed"
+    page = (await client.get(f"/budget?month={MONTH}&fixed=1")).text
+    assert "„Noclegi” — grupa budżetu: stałe" in page and "5 920,00" in page

@@ -24,7 +24,7 @@ jawne „go” przed następnym).
 | M4f | **Poza planem (2026-10-03):** kolejka „Do przejrzenia” — edytowalny tekst reguły (zawiera / zaczyna się od) z podglądem innych grup; filtr po propozycji AI + „✓” | etap 1 = 0.8.0 (tekst reguły), etap 2 = 0.8.1/0.8.2 (filtr AI + zatwierdzenie) — ✅ 2026-10-04, zapis zastąpiony w M4h etap 2 (`PLAN_review_rule_text.md`) |
 | M4g | **Poza planem (2026-10-04):** wydajność — zapis reguły z kolejki i podgląd zwalniały z każdą regułą (dopasowanie po kolei: transakcje × reguły); indeks reguł „sprzedawca równa się” | 0.9.1 wydane i zainstalowane 2026-10-04 — podgląd na żywo ~10 s → ~0,8 s; ✅ 2026-10-04 (`PLAN_rule_index.md`) |
 | M4h | **Poza planem (2026-10-04):** pełne warunki reguły w miejscu — kolejka „Do przejrzenia” (dowolne pola, kilka warunków I, kwota, kierunek; reguła może złapać część grupy, reszta zostaje w kolejce), potem Transakcje i grupy krajów | ✅ 2026-10-04 (checkpoint zamknięty przez użytkownika) — etap 1 = 0.10.0 (kolejka); etap 2 = 0.11.0 (zapis domyślnie bez reguły — „utwórz regułę” na żądanie we wszystkich miejscach; Transakcje, grupy krajów) (`PLAN_review_rule_conditions.md`) |
-| M5a | **Budżet Flex: „ile mogę jeszcze wydać”** — ręczna kwota elastyczna, tempo, ekran „Budżet”, grupy edytowalne; potem encje | etap 1 = 0.7.0 wydane i zainstalowane 2026-10-02; etap 2 = 0.9.0 (encje `budget_flex_*`) wydane i zainstalowane 2026-10-04; etap 3 = 0.12.0 pula z dochodu (decyzja 14, `PLAN_M5a_income.md`) wydane i zainstalowane 2026-10-04 (z poprawką kontroli salda karty); czeka checkpoint M5a (`PLAN_M5a.md`) |
+| M5a | **Budżet Flex: „ile mogę jeszcze wydać”** — ręczna kwota elastyczna, tempo, ekran „Budżet”, grupy edytowalne; potem encje | etap 1 = 0.7.0 wydane i zainstalowane 2026-10-02; etap 2 = 0.9.0 (encje `budget_flex_*`) wydane i zainstalowane 2026-10-04; etap 3 = 0.12.0 pula z dochodu (decyzja 14, `PLAN_M5a_income.md`) wydane i zainstalowane 2026-10-04 (z poprawką kontroli salda karty); etap 4 = 0.13.0 składniki puli + edycja kosztów stałych na ekranie Budżet (decyzja 15, `PLAN_M5a_fixed.md`); czeka checkpoint M5a (`PLAN_M5a.md`) |
 | M5b | **Płatności cykliczne** — wykrywanie serii, stałe zapłacone/planowane | — |
 | M5c | **Skarbonki, trendy, limity** — nieregularne z celem rocznym, wykresy miesięczne, opcjonalne limity, `savings_rate` | — |
 | M6 | **Podsumowania + kalendarz płatności** — tydzień/miesiąc na telefon, kalendarz ICS | — |
@@ -74,6 +74,11 @@ backlog (decyzja 10).
     następnego miesiąca) — bez średniej dochodu. Nadwyżka nietypowo wysokiego wpływu (premia)
     zostaje poza pulą. Ręcznie wpisana kwota nadpisuje automatyczną. Szczegóły:
     [`PLAN_M5a_income.md`](PLAN_M5a_income.md).
+15. **(2026-10-04) Koszty stałe w puli = suma median podkategorii (M5a etap 4, zmienia sposób
+    liczenia stałych z decyzji 14):** zamiast mediany miesięcznej sumy — składniki sumują się do
+    kwoty w puli. Koszt stały = podkategoria z grupą „stałe” (bez ręcznych pozycji — M5b); jedno
+    miejsce do przeglądu i edycji = rozwinięcie „Koszty stałe” w sekcji „Kwota budżetu”.
+    Szczegóły: [`PLAN_M5a_fixed.md`](PLAN_M5a_fixed.md).
 
 ## Zmiany względem SPEC (zweryfikowane na danych)
 

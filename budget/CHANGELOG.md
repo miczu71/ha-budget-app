@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.13.0
+
+**Budżet: z czego składa się pula i jedno miejsce na koszty stałe** (M5a etap 4,
+`docs/PLAN_M5a_fixed.md`).
+
+- **Wpływy rozwijają się na źródła** z kwotami (przy premii — część poza pulą).
+- **Koszty stałe rozwijają się na podkategorie** z medianą miesięczną. Przy każdej: „Przenieś”
+  do innej grupy (domyślnie elastyczne); na dole „Dodaj do stałych” z listą pozostałych
+  podkategorii wydatkowych (z medianą i obecną grupą). Zmiana grupy działa jak w Kategoriach —
+  na całą historię i od razu na pulę; po zapisie rozwinięcie zostaje otwarte.
+- **Zmiana liczenia stałych:** suma median podkategorii z 6 miesięcy zamiast mediany
+  miesięcznej sumy — składniki zawsze sumują się do kwoty odejmowanej od puli. Pula
+  automatyczna może się przesunąć względem 0.12.0.
+
+| Encja | Zmiana |
+|---|---|
+| `sensor.budget_flex_budget` | atrybut `fixed_median` = suma median podkategorii stałych (wcześniej mediana sumy) |
+| `sensor.budget_flex_remaining`, `sensor.budget_flex_per_day` | liczone od nowej puli automatycznej |
+
+Bez nowych encji ani usług. Nowe trasy panelu: `POST /budget/fixed/{id}`, `POST /budget/fixed`.
+
 ## 0.12.0
 
 **Budżet Flex: pula liczona z dochodu** (M5a etap 3, `docs/PLAN_M5a_income.md`).

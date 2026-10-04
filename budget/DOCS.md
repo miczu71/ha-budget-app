@@ -90,10 +90,15 @@ Ekran **Budżet** odpowiada na jedno pytanie: ile zostało w tym miesiącu na **
 elastyczne** (codzienne: jedzenie, paliwo, zakupy, wyjścia).
 
 - **Pula automatyczna (z dochodu):** wpływy z poprzedniego miesiąca z podkategorii grupy
-  „przychody” (tylko skategoryzowane) minus koszty stałe (mediana z 6 pełnych miesięcy). Pensja
+  „przychody” (tylko skategoryzowane) minus koszty stałe (suma median podkategorii stałych
+  z 6 pełnych miesięcy). Pensja
   przychodzi pod koniec miesiąca, więc żyjesz z wypłaty poprzedniego miesiąca — pula jest znana
   od 1. dnia. Niższa wypłata (np. po przekroczeniu progu podatkowego) obniża pulę od następnego
   miesiąca, wyższa podnosi; nie ma tu średniej z dochodu. Oszczędności nie są odejmowane.
+- **Z czego składa się pula:** w sekcji „Kwota budżetu” wpływy rozwijają się na źródła,
+  a koszty stałe na podkategorie z medianą. To jedno miejsce na koszty stałe: „Przenieś”
+  zdejmuje podkategorię ze stałych (do wybranej grupy), „Dodaj do stałych” dopisuje inną.
+  Zmiana działa jak grupa w Kategoriach — na całą historię i od razu na pulę.
 - **Premia poza pulą:** jeśli wpływ ze źródła (np. pracodawcy), które wpłacało co najmniej
   w 3 z ostatnich 12 miesięcy, przekracza 1,5 × górny kwartyl jego miesięcznych wpływów, do puli
   idzie mediana z ostatnich 3 miesięcy tego źródła, a nadwyżka zostaje poza pulą.

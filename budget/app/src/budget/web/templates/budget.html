@@ -80,12 +80,52 @@
     <p>{{ f.budget | money("PLN") }} <span class="small muted">— automatyczna, z wpływów z miesiąca: {{ month_label(a.income_month) }}</span></p>
     {% endif %}
     {% if a %}
-    <dl class="kv flex-kv">
-      <dt>Wpływy ({{ month_label(a.income_month) }})</dt><dd>{{ a.income | money("PLN") }}</dd>
-      {% for s in a.sources if s.bonus %}<dt>premia poza pulą — {{ s.name }}</dt><dd class="neg">−{{ s.bonus | money("PLN") }}</dd>{% endfor %}
-      <dt>Koszty stałe{% if a.fixed_months %} (mediana {{ a.fixed_months }} mies.){% endif %}</dt><dd class="neg">−{{ a.fixed | money("PLN") }}</dd>
-      <dt>Pula automatyczna</dt><dd><strong>{{ a.amount | money("PLN") }}</strong></dd>
-    </dl>
+    <ul class="cats pool">
+      <li><details>
+        <summary><span class="cat-name">Wpływy ({{ month_label(a.income_month) }})</span><span class="cat-amount">{{ a.income | money("PLN") }}</span></summary>
+        <ul class="flex-lines">
+          {% for s in a.sources %}
+          <li><span>{{ s.name }}</span><span class="cat-amount">{{ s.amount | money("PLN") }}</span>{% if s.bonus %}<span class="small muted">w tym premia poza pulą {{ s.bonus | money("PLN") }}</span>{% endif %}</li>
+          {% endfor %}
+        </ul>
+        <p class="small muted">Kategorie z grupy przychody; wpływy bez kategorii nie zasilają puli.</p>
+      </details></li>
+      {% for s in a.sources if s.bonus %}
+      <li class="pool-row"><span>premia poza pulą — {{ s.name }}</span><span class="cat-amount neg">−{{ s.bonus | money("PLN") }}</span></li>
+      {% endfor %}
+      <li><details id="fixed"{{ " open" if fixed_open }}>
+        <summary><span class="cat-name">Koszty stałe{% if a.fixed_months %} (mediany {{ a.fixed_months }} mies.){% endif %}</span><span class="cat-amount neg">−{{ a.fixed | money("PLN") }}</span></summary>
+        {% if a.fixed_lines %}
+        <ul class="flex-lines">
+          {% for line in a.fixed_lines %}
+          <li>
+            <a href="{{ base }}/transactions?category={{ line.category.id }}">{{ line.category.name }}</a>
+            <span class="cat-amount">{{ line.median | money("PLN") }}</span>
+            <div class="leaf-meta small">
+              <span class="muted">{{ line.parent }}</span>
+              <form class="move" method="post" action="{{ base }}/budget/fixed/{{ line.category.id }}">
+                <input type="hidden" name="month" value="{{ ym }}">
+                <select name="flex_group" aria-label="przenieś {{ line.category.name }} do grupy">
+                  {% for key, glabel in groups.items() if key != "fixed" %}<option value="{{ key }}"{{ " selected" if key == "flexible" }}>{{ glabel }}</option>{% endfor %}
+                </select><button class="secondary">Przenieś</button>
+              </form>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}<p class="small muted">Brak podkategorii stałych z wydatkami w ostatnich miesiącach.</p>{% endif %}
+        {% if a.candidates %}
+        <form class="move add-fixed" method="post" action="{{ base }}/budget/fixed">
+          <input type="hidden" name="month" value="{{ ym }}">
+          <select name="category" aria-label="dodaj podkategorię do kosztów stałych">
+            {% for line in a.candidates %}<option value="{{ line.category.id }}">{{ line.parent }} › {{ line.category.name }} ({{ line.median | money("PLN") }}, {{ groups[line.category.flex_group] }})</option>{% endfor %}
+          </select><button>Dodaj do stałych</button>
+        </form>
+        {% endif %}
+        <p class="small muted">Kwota = suma median podkategorii z {{ a.fixed_months }} pełnych mies. (miesiąc bez wydatku liczy się jako 0). Zmiana grupy działa jak w <a href="{{ base }}/categories">Kategoriach</a> — na całą historię i od razu na pulę.</p>
+      </details></li>
+      <li class="pool-row"><span class="cat-name">Pula automatyczna</span><span class="cat-amount"><strong>{{ a.amount | money("PLN") }}</strong></span></li>
+    </ul>
     {% if a.drop %}<p class="small warn-note">Wpływ z „{{ a.drop[0] }}” niższy niż zwykle w tym roku o {{ pct(a.drop[1]) }} — prawdopodobnie przekroczony próg podatkowy; zwykle wraca w styczniu. Pula idzie za niższą wypłatą.</p>{% endif %}
     <p class="small muted">Żyjesz z wypłaty poprzedniego miesiąca, więc pula jest znana od 1. dnia. Oszczędności nie są odejmowane — oszczędzasz to, co zostanie.</p>
     {% endif %}

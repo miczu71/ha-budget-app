@@ -11,8 +11,10 @@ Zasady (`docs/PLAN_M5a.md`, decyzja 13 w `docs/ROADMAP.md`):
 - mediany i podpowiedź kwoty z `HISTORY_MONTHS` pełnych miesięcy przed miesiącem ekranu, tylko
   od miesiąca pierwszej transakcji w księdze (miesiące bez wydatków w kategorii liczą się jako 0);
 - bez ręcznej kwoty pula jest automatyczna (etap 3, decyzja 14, `docs/PLAN_M5a_income.md`):
-  wpływy z grupy `income` z poprzedniego miesiąca − mediana stałych; nadwyżka nietypowo wysokiego
-  wpływu ze źródła (premia) zostaje poza pulą.
+  wpływy z grupy `income` z poprzedniego miesiąca − stałe; nadwyżka nietypowo wysokiego
+  wpływu ze źródła (premia) zostaje poza pulą;
+- stałe = suma median podkategorii z grupy `fixed` (etap 4, decyzja 15,
+  `docs/PLAN_M5a_fixed.md`) — składniki sumują się do kwoty w puli.
 """
 
 from __future__ import annotations
@@ -67,15 +69,24 @@ class IncomeSource:
 
 
 @dataclass
+class FixedLine:
+    category: Category
+    parent: str  # nazwa kategorii głównej
+    median: Decimal  # mediana miesięczna z historii (wydatek dodatni)
+
+
+@dataclass
 class AutoBudget:
-    """Pula z dochodu: wpływy z `income_month` − premie − mediana stałych (nie poniżej 0)."""
+    """Pula z dochodu: wpływy z `income_month` − premie − stałe (nie poniżej 0)."""
 
     income_month: date
     income: Decimal
     bonus: Decimal
-    fixed: Decimal
+    fixed: Decimal  # suma `fixed_lines`
     fixed_months: int
     sources: list[IncomeSource] = field(default_factory=list)
+    fixed_lines: list[FixedLine] = field(default_factory=list)  # podkategorie stałe
+    candidates: list[FixedLine] = field(default_factory=list)  # pozostałe wydatkowe, do „dodaj”
     drop: tuple[str, float] | None = None  # (główne źródło, spadek) — dopisek o progu
 
     @property
@@ -231,6 +242,23 @@ def _group(s: Sums, leaves: list[Category], group: str) -> Decimal:
     )
 
 
+def _medians(
+    conn: sqlite3.Connection, history: list[tuple[date, Sums]], groups: set[str], include: bool
+) -> list[FixedLine]:
+    """Mediany wydatków podkategorii z grup `groups` (albo spoza nich); tylko > 0, malejąco."""
+    parents = {m.category.id: m.category.name for m in taxonomy.tree(conn)}
+    out = []
+    for c in taxonomy.leaves(conn).values():
+        if (c.flex_group in groups) != include:
+            continue
+        past = [-s.by_leaf[c.id].amount if c.id in s.by_leaf else ZERO for _, s in history]
+        median = Decimal(statistics.median(past)).quantize(money.CENT) if past else ZERO
+        if median > 0:
+            out.append(FixedLine(c, parents.get(c.parent_id or 0, ""), median))
+    out.sort(key=lambda line: (-line.median, line.category.name))
+    return out
+
+
 def _income_by_source(
     conn: sqlite3.Connection, start: date, end: date
 ) -> dict[str, dict[date, Decimal]]:
@@ -287,15 +315,16 @@ def auto_budget(
         return None
     if history is None:
         history = _history(conn, start)
-    leaves = list(taxonomy.leaves(conn).values())
-    fixed = [_group(s, leaves, "fixed") for _, s in history]
+    fixed_lines = _medians(conn, history, {"fixed"}, include=True)
     out = AutoBudget(
         income_month=base,
         income=sum((s.amount for s in sources), ZERO),
         bonus=sum((s.bonus for s in sources), ZERO),
-        fixed=Decimal(statistics.median(fixed)).quantize(money.CENT) if fixed else ZERO,
-        fixed_months=len(fixed),
+        fixed=sum((line.median for line in fixed_lines), ZERO),
+        fixed_months=len(history),
         sources=sources,
+        fixed_lines=fixed_lines,
+        candidates=_medians(conn, history, {"fixed", "income"}, include=False),
     )
     out.drop = _drop(data, base, sources)
     return out

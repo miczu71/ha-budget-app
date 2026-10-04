@@ -409,3 +409,10 @@ form.move.group { margin-left: 0; }
 .flex-lines { list-style: none; margin: 0; padding: 0; }
 .flex-lines li { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .flex-lines li .small { grid-column: 1 / span 2; }
+/* M5a etap 4: składniki puli w „Kwocie budżetu” — rozwinięcia jak w „Wydatkach” */
+.pool { margin: 4px 0 8px; }
+.pool .pool-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 0 10px 20px; }
+.pool details > .flex-lines, .pool details > p, .pool details > form { margin-left: 20px; }
+.pool .flex-lines .leaf-meta { grid-column: 1 / span 2; }
+form.move.add-fixed { margin: 10px 0 4px 20px; flex-wrap: wrap; }
+form.move.add-fixed select { max-width: 100%; flex: 1 1 200px; }

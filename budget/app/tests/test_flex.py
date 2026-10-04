@@ -262,3 +262,51 @@ def test_manual_amount_overrides_and_back_to_auto(conn: sqlite3.Connection) -> N
     aug = build(conn, month="2026-08-01", today="2026-09-10")
     assert aug.budget == Decimal("2500.00")  # sierpień bez zmian
     assert flex.budget_for(conn, date(2026, 10, 1)) == (None, date(2026, 9, 1))
+
+
+# --- składniki stałych (etap 4, decyzja 15) -----------------------------------------------------
+
+
+def spend(c: sqlite3.Connection, amount: str, month: str, slug: str) -> None:
+    t = add(
+        c, f"-{amount}", "transfer_out", f"{slug} {month}", f"ODBIORCA {slug}", day=f"{month}-07"
+    )
+    engine.set_manual(c, t, sid(c, slug))
+
+
+def test_fixed_is_sum_of_subcategory_medians(conn: sqlite3.Connection) -> None:
+    pay(conn, "9000.00", "2026-08")
+    for i, m in enumerate(months("2026-03", 6)):
+        spend(conn, "2300.00", m, "kredyt")
+        if i < 3:
+            spend(conn, "600.00", m, "ubezpieczenia")  # 3 z 6 mies. → mediana 300
+        if i in (3, 4):
+            spend(conn, "400.00", m, "media")  # 2 z 6 mies. → mediana 0
+        spend(conn, "50.00", m, "noclegi")  # nieregularne — kandydat do stałych
+    a = build(conn).auto
+    assert a is not None
+    # sumy miesięcy: 2900 ×3, 2700 ×2, 2300 → mediana sumy 2800; suma median 2300 + 300
+    assert a.fixed == Decimal("2600.00")
+    assert [(line.category.slug, line.median) for line in a.fixed_lines] == [
+        ("kredyt", Decimal("2300.00")),
+        ("ubezpieczenia", Decimal("300.00")),
+    ]
+    assert sum(line.median for line in a.fixed_lines) == a.fixed
+    assert a.fixed_lines[0].parent  # nazwa kategorii głównej
+    assert [(line.category.slug, line.median) for line in a.candidates] == [
+        ("noclegi", Decimal("50.00"))
+    ]
+
+
+def test_fixed_lines_skip_zero_and_follow_group_change(conn: sqlite3.Connection) -> None:
+    pay(conn, "9000.00", "2026-08")
+    for m in months("2026-03", 6):
+        spend(conn, "2300.00", m, "kredyt")
+    spend(conn, "40.00", "2026-08", "media")  # 1 z 6 mies. → mediana 0, pominięta
+    a = build(conn).auto
+    assert a is not None and [line.category.slug for line in a.fixed_lines] == ["kredyt"]
+    assert "wynagrodzenie" not in [line.category.slug for line in a.candidates]
+    taxonomy.set_flex_group(conn, sid(conn, "kredyt"), "flexible")
+    a = build(conn).auto
+    assert a is not None and a.fixed == 0 and a.amount == Decimal("9000.00")
+    assert [line.category.slug for line in a.candidates] == ["kredyt"]
