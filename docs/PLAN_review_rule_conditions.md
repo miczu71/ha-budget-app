@@ -120,3 +120,107 @@ Dev (kopia księgi, 0 reguł): reguła „sprzedawca = X i opis zawiera Y i kwot
 część grupy, reszta została w kolejce otwarta; zapis ~1 s.
 
 Czeka: checkpoint etapu 1 (user używa), etap 2 (Transakcje + grupy krajów) dopiero po „go”.
+
+---
+
+# Etap 2 (0.11.0) — reguła tylko na żądanie + Transakcje i grupy krajów
+
+
+### Kontekst
+
+Etap 1 (0.10.0, wydany, user zaakceptował 04.10): w kolejce „Do przejrzenia” pełne warunki
+reguły w miejscu („+ więcej warunków”), reguła może złapać część grupy. Plan w repo:
+ten plik (wyżej).
+
+Teraz user chce:
+1. **Etap 2** jak zaplanowano: to samo w miejscu na Transakcjach i przy sprzedawcach w grupach
+   krajów (koniec z przejściem do edytora przez „Zawsze dla X »” / „reguła…”).
+2. **Odwrócić domyślne zachowanie wszędzie, gdzie kategoryzujemy:** zapis kategorii domyślnie
+   **nie tworzy reguły** (kategoria ręczna). Pole wyboru działa odwrotnie niż dziś
+   („tylko te transakcje (bez reguły)” → **„utwórz regułę”**, domyślnie odznaczone).
+   Decyzja usera: przycisk z ptaszkiem w filtrze AI też nadaje kategorię ręczną (bez reguły).
+
+Skutek uboczny (zamierzony): kategoria ręczna obejmuje tylko zaznaczone, istniejące transakcje
+(trwale — te już nie wracają). **Przyszłe** transakcje tego sprzedawcy nie mają reguły, więc
+pojawią się w kolejce jako nowe pozycje (chyba że złapie je słownik sieci albo typ). Żeby
+kategoryzowały się same — „utwórz regułę” przy zapisie (świadomie, nie domyślnie).
+
+### Zachowanie po zmianie
+
+**Kolejka — każda grupa (sprzedawca, kraj, bez nazwy):**
+- Pod kategorią pole „utwórz regułę” (odznaczone). Wiersz reguły i „+ więcej warunków” widoczne
+  tylko po zaznaczeniu (CSS `:has(input[name=make_rule]:checked)`, bez dodatkowego żądania).
+- Odznaczone → kategoria ręczna dla zaznaczonych pozycji (jak dziś „tylko te”); odznaczone
+  pozycje zostają w kolejce.
+- Zaznaczone → reguła z warunków; to warunki decydują, które pozycje dostaną kategorię, więc
+  pola wyboru pozycji są wtedy wyszarzone i ignorowane (podgląd wymienia resztki, jak w etapie 1).
+  Reguła musi złapać ≥1 pozycję grupy.
+- Domyślny warunek 0: grupa sprzedawcy → „sprzedawca równa się <nazwa>”; grupa kraju →
+  najczęstszy sprzedawca grupy; grupa bez nazwy → pusty (trzeba wpisać, np. opis zawiera…).
+  Kierunek = kierunek grupy.
+- Grupa kraju: przy każdym sprzedawcy zamiast linku „reguła…” przycisk „reguła dla tego
+  sprzedawcy” — zaznacza „utwórz regułę” i wpisuje go do warunku 0 (kilka linii JS w `onclick`,
+  bez przeładowania).
+- ✓ w filtrze AI → kategoria ręczna dla całej grupy (`all=1`, bez `make_rule`).
+- Podpowiedź AI: ręcznie → sprzedawcy zaznaczonych pozycji (jak dziś); reguła →
+  `closed_merchants` (etap 1).
+- Po błędzie formularz zachowuje stan „utwórz regułę” i wpisane warunki.
+
+**Transakcje (`_txn_category.html`):**
+- W formularzu kategorii pole „utwórz regułę” (odznaczone) rozwija `_rule_conditions.html`
+  (prefiks `rule_`) + nazwę sprzedawcy; domyślnie „sprzedawca równa się <merchant>” + kierunek
+  ze znaku kwoty. Podgląd na żywo: nowy `POST /transactions/{id}/rule-preview`
+  (`engine.preview(..., release=txn)`, skrót: pasuje N, dostanie N, zmieni M).
+- Zapis: odznaczone → `engine.set_manual` jak dziś; zaznaczone → walidacja (reguła musi pasować
+  do tej transakcji — `engine.facts`), `rules.save`, zdjęcie ręcznej kategorii tej transakcji
+  (`set_manual(None)`), `recategorize`; chip pokazuje „reguła”.
+- Link „Zawsze dla X »” i flaga `suggest` znikają. Trasa `/rules/new?txn=` zostaje (bez linków).
+- Jeśli rozwinięty blok nie mieści się w komórce tabeli na 390 px — formularz w pełnej szerokości
+  (wiersz pod transakcją); decyzja po zrzucie z Playwright.
+
+### Implementacja (pliki)
+
+- `web/routes_review.py`: `only` → `make_rule`; `as_rule(g, form)` = `make_rule` zaznaczone;
+  w trybie reguły bez wymogu „wszystkie zaznaczone”; `default_rule(g)` dla krajów/bez nazwy;
+  usunąć `g.can_rule` z decyzji (zostaje tylko do domyślnego warunku); `preview_ctx`, `assign`,
+  `fail` przekazują `make_rule`. Docstring modułu.
+- `review.py`: `Group.can_rule` → zastąpić/przemianować (np. `default_merchant`).
+- `web/templates/_review_group.html`, `_review_li.html` (✓ bez zmian w `hx-vals`, tylko
+  semantyka), `_review_preview.html` (tekst trybu ręcznego jako domyślny; „Zaznacz «utwórz
+  regułę», żeby…”), `_review_saved.html`.
+- `web/routes_transactions.py` + `_txn_category.html`: pole, podgląd, zapis z regułą; wspólne
+  `rule_form` (`conditions_context`, `rule_from_form`, `describe`).
+- `web/static/app.css`: ukrywanie bloku reguły przez `:has`, wyszarzenie pozycji w trybie reguły,
+  układ na Transakcjach.
+- Testy: `tests/test_web_review.py` — istniejące testy reguł dostają `make_rule=1`; nowe:
+  domyślny zapis = ręczna bez reguły (także ✓ AI `all=1`), reguła w grupie kraju (tylko wskazany
+  sprzedawca), reguła w grupie bez nazwy po opisie, pozycje ignorowane w trybie reguły, błąd
+  zachowuje `make_rule`. `tests/test_web_categorize.py` (Transakcje) — zapis domyślny ręczny,
+  z regułą → źródło „rule” i reguła w bazie, podgląd, reguła niepasująca do transakcji → błąd,
+  brak linku „Zawsze dla”.
+- Docs: `budget/DOCS.md` (kolejka, filtr AI, Transakcje), `CHANGELOG.md` 0.11.0 z wyraźną
+  informacją o zmianie domyślnego zachowania, `docs/PLAN_review_rule_conditions.md` (etap 2 +
+  zmiana domyślnej), `docs/ROADMAP.md`. Wersja **0.11.0** (zmiana zachowania, nie łatka).
+
+### Kolejność
+1. Zaktualizować `docs/PLAN_review_rule_conditions.md` + ROADMAP, commit.
+2. TDD → pytest + ruff + mypy → panel dev na kopii księgi (`devserve.py`) +
+   Playwright 390 px i desktop (kolejka: sprzedawca, kraj, bez nazwy, ✓ AI; Transakcje),
+   konsola bez błędów → kopię usunąć.
+3. Release 0.11.0 (skill `release`, opublikowany) → update add-onu → weryfikacja na żywo przez
+   Ingress (tylko podgląd, bez zapisu) → wynik w PLAN + pamięć → **checkpoint**.
+
+### Ryzyka
+- Zmiana nawyku: dotychczasowy zapis tworzył regułę — CHANGELOG i opis w kolejce muszą to jasno
+  mówić; kolejka może rosnąć (nowe transakcje ręcznie skategoryzowanych sprzedawców).
+- `:has()` — Chromium 105+/Safari 15.4+ (HA Companion = Chromium WebView): OK.
+- Podgląd na Transakcjach = pełne przeliczenie (~0,8–1,2 s na hoście) — debounce 300 ms +
+  `hx-sync="this:replace"` jak w kolejce.
+- Hook pre-commit: tylko syntetyczne nazwy w testach.
+
+### Weryfikacja
+- `pytest` całość + ruff + mypy jak w CI.
+- Dev: zapis bez zaznaczenia → ręczna, brak reguły; z zaznaczeniem → reguła + resztki; grupa
+  kraju „reguła dla tego sprzedawcy”; ✓ AI → ręczna; Transakcje: ręczna i z regułą, podgląd.
+- Na żywo: plakietka v0.11.0, pola widoczne/ukryte zależnie od zaznaczenia, podgląd ≤ ~1,2 s,
+  konsola bez błędów.
