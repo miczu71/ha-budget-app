@@ -224,3 +224,18 @@ kategoryzowały się same — „utwórz regułę” przy zapisie (świadomie, n
   kraju „reguła dla tego sprzedawcy”; ✓ AI → ręczna; Transakcje: ręczna i z regułą, podgląd.
 - Na żywo: plakietka v0.11.0, pola widoczne/ukryte zależnie od zaznaczenia, podgląd ≤ ~1,2 s,
   konsola bez błędów.
+
+### Wynik etapu 2 (0.11.0, 2026-10-04)
+
+Wydane (release v0.11.0, opublikowane) i zainstalowane; 411 testów, ruff/mypy czyste.
+Zweryfikowane na żywo przez Ingress (390 px, tylko podgląd — bez zapisu): plakietka v0.11.0;
+w kolejce blok reguły schowany do zaznaczenia „utwórz regułę”, podgląd ręczny „… — bez reguły”,
+po zaznaczeniu podgląd reguły ~0,85 s; na Transakcjach „utwórz regułę” rozwija pola, podgląd
+~0,6 s, linku „Zawsze dla” brak; konsola bez błędów. Dev (kopia księgi): grupa kraju — przycisk
+„reguła dla tego sprzedawcy” zaznacza regułę i wpisuje sprzedawcę (5 z 61 pozycji, reszta
+wymieniona); zapis reguły z Transakcji → chip „reguła”; desktop i 390 px mieszczą blok pól.
+
+Odstępstwo: grupa kraju domyślnie podstawia najczęstszego sprzedawcę (przy remisie — pierwszy
+alfabetycznie, `Group.merchants()`).
+
+Czeka: checkpoint etapu 2 (user używa).
