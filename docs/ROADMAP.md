@@ -22,7 +22,7 @@ jawne „go” przed następnym).
 | M4d | **Poza planem (2026-10-02):** nowe kategorie główne, przenoszenie podkategorii, usuwanie pustej głównej | 0.6.0 (`PLAN_categories_move.md`) |
 | M4e | **Poza planem (2026-10-02):** wyszukiwanie na żywo (Reguły — nowe, Słownik, Transakcje), jednolite dopasowanie bez ogonków i wielkości liter, wiele słów | 0.6.1 (`PLAN_live_search.md`) |
 | M4f | **Poza planem (2026-10-03):** kolejka „Do przejrzenia” — edytowalny tekst reguły (zawiera / zaczyna się od) z podglądem innych grup; filtr po propozycji AI + „✓” | etap 1 = 0.8.0 (tekst reguły), etap 2 = 0.8.1/0.8.2 (filtr AI + zatwierdzenie) — wydane 2026-10-03; czeka checkpoint (`PLAN_review_rule_text.md`) |
-| M5a | **Budżet Flex: „ile mogę jeszcze wydać”** — ręczna kwota elastyczna, tempo, ekran „Budżet”, grupy edytowalne; potem encje | etap 1 = 0.7.0 wydane i zainstalowane 2026-10-02; czeka checkpoint, potem etap 2 (encje) (`PLAN_M5a.md`) |
+| M5a | **Budżet Flex: „ile mogę jeszcze wydać”** — ręczna kwota elastyczna, tempo, ekran „Budżet”, grupy edytowalne; potem encje | etap 1 = 0.7.0 wydane i zainstalowane 2026-10-02; etap 2 = 0.9.0 (encje `budget_flex_*`) w toku (`PLAN_M5a.md`) |
 | M5b | **Płatności cykliczne** — wykrywanie serii, stałe zapłacone/planowane | — |
 | M5c | **Skarbonki, trendy, limity** — nieregularne z celem rocznym, wykresy miesięczne, opcjonalne limity, `savings_rate` | — |
 | M6 | **Podsumowania + kalendarz płatności** — tydzień/miesiąc na telefon, kalendarz ICS | — |
@@ -202,7 +202,7 @@ Szczegóły: [`PLAN_M4c.md`](PLAN_M4c.md).
 **Wartość:** „ile zostało?” i „gdzie uciekają pieniądze?” — w panelu add-onu.
 
 **(2026-10-02) Podział:** M5a — „ile mogę jeszcze wydać” (ręczna kwota, tempo, ekran „Budżet”,
-edycja grupy podkategorii; etap 2: encje `flex_*`), szczegóły [`PLAN_M5a.md`](PLAN_M5a.md);
+edycja grupy podkategorii; etap 2 = 0.9.0: encje `flex_*`), szczegóły [`PLAN_M5a.md`](PLAN_M5a.md);
 M5b — płatności cykliczne, `fixed_paid`/`fixed_planned`; M5c — skarbonki, wykresy trendu,
 opcjonalne limity, `savings_rate`, `month_income`/`month_expenses`, `category_<slug>`.
 Poniżej zakres całego M5 sprzed podziału.

@@ -67,18 +67,40 @@ synchronizacji ani silnika kategorii. Start implementacji dopiero po jawnym „g
 6. Wydanie wg skilla `release` (bump `config.yaml`, CHANGELOG, DOCS — sekcja „Budżet”), aktualizacja
    przez Supervisor, weryfikacja przez Ingress w Playwright.
 
-## Etap 2 — 0.7.1: encje w HA
+## Etap 2 — 0.9.0: encje w HA
 
 **Wartość:** „zostało” w automatyzacjach i powiadomieniach (decyzja 10: encje tak, dashboardy nie).
+Numer zmieniony z 0.7.1 (wolne numery zajęły M4f 0.8.x). Poprawka podpowiedzi kwoty odpada — patrz
+„Pomiar po porządkach”. Zastosowanie encji jeszcze nieustalone → zestaw podstawowy z atrybutami,
+bez automatyzacji i bez osobnego binary_sensora tempa (`over_pace` jako atrybut).
 
-- `ha_publisher.build_entities` (`ha_publisher.py:83`) dostaje 4 sensory z `flex.build(today)`:
-  `budget_flex_budget`, `budget_flex_spent`, `budget_flex_remaining` (atrybuty: `per_day`,
-  `expected_today`, `uncategorized_count`, `month`), `budget_flex_per_day`; `device_class: monetary`,
-  `unit PLN`; bez ustawionej kwoty → `budget`/`remaining`/`per_day` = unknown.
-- Odświeżanie: istniejące `Service.refresh()` (`service.py:151`, po synchronizacji i w pętli
-  okresowej) + wywołanie po zapisie kwoty i zmianie grupy w panelu. Sprawdzić, czy interwał pętli
-  łapie zmianę dnia dla `per_day`; jeśli nie — odświeżenie o północy.
-- Testy w `tests/test_ha.py`; wydanie jak wyżej; encje sprawdzone przez `ha_search`/`ha_get_state`.
+1. **Encje** — `ha_publisher.build_entities` dostaje 4 sensory z `flex.build` dla bieżącego miesiąca
+   (`device_class: monetary`, `unit PLN`, **bez `state_class`** — bez statystyk długoterminowych,
+   decyzja 10); bez ustawionej kwoty → `budget`/`remaining`/`per_day` = unknown. Błąd `flex.build`
+   nie blokuje pozostałych encji.
+
+   | Encja | Stan | Atrybuty |
+   |---|---|---|
+   | `sensor.budget_flex_budget` | kwota miesiąca | `budget_from`, `suggested`, `month` |
+   | `sensor.budget_flex_spent` | elastyczne netto + bez kategorii | `uncategorized_amount`, `uncategorized_count`, `other_currency`, `month` |
+   | `sensor.budget_flex_remaining` | zostało | `per_day`, `expected_today`, `over_pace`, `used_pct`, `days_left`, `month` |
+   | `sensor.budget_flex_per_day` | zostało na dzień | `days_left` |
+
+2. **Świeżość** — `refresh()` dotąd tylko po synchronizacji i co 6 h:
+   - `Service.refresh_soon()` — odświeżenie w tle z krótkim opóźnieniem, seria wywołań = jedno
+     odświeżenie; middleware panelu woła je po każdym udanym `POST` (kwota, grupa, kolejka, reguły,
+     ręczne kategorie);
+   - `Service.daily_tick()` — odświeżenie tuż po północy (nowy `per_day`, nowy miesiąc).
+3. **Testy** (`tests/test_ha.py` i in.): encje bez kwoty / z kwotą, atrybuty, `next_midnight`,
+   middleware (POST 2xx tak, GET i 4xx nie), debounce.
+4. Wydanie wg skilla `release`; encje sprawdzone przez `ha_search`/`ha_get_state`.
+
+## Pomiar po porządkach (2026-10-04, przed etapem 2)
+
+Po przeniesieniu podkategorii z dużym stałym przelewem do grupy „Stałe” i części przeglądu kolejki
+IV–VIII podpowiedź spadła o około jedną czwartą. Wydatki bez kategorii nadal stanowią ok. 14%
+podpowiedzi (połowa w jednym miesiącu). Decyzja użytkownika: zamiast zmiany sposobu liczenia
+podpowiedzi — przegląd kolejki tych miesięcy, potem kwota wpisana ręcznie.
 
 ## Checkpoint po każdym etapie
 
