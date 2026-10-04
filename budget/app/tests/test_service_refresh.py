@@ -6,6 +6,7 @@ import asyncio
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import httpx
 import pytest
 
 from budget import service as service_mod
@@ -66,3 +67,50 @@ async def test_panel_post_schedules_refresh(
         assert r.status_code < 400 and calls == ["x"]
         r = await client.post("/nie-ma-takiej-trasy", data={})
         assert r.status_code >= 400 and calls == ["x"]
+
+
+class _DummyEB:
+    async def __aenter__(self) -> _DummyEB:
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        return None
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        httpx.ConnectError("[Errno -3] Try again"),  # DNS — to nie OSError
+        httpx.ReadTimeout("timeout"),
+        RuntimeError("cokolwiek"),
+    ],
+)
+async def test_session_check_survives_errors(
+    service: Service, monkeypatch: pytest.MonkeyPatch, error: Exception
+) -> None:
+    refreshed: list[int] = []
+
+    async def failing_status(*_: object) -> None:
+        raise error
+
+    async def fake_refresh() -> None:
+        refreshed.append(1)
+
+    monkeypatch.setattr(service, "missing_config", lambda: [])
+    monkeypatch.setattr(service, "eb_client", lambda: _DummyEB())
+    monkeypatch.setattr(service_mod.sessions, "current", lambda _conn: object())
+    monkeypatch.setattr(service_mod.sessions, "refresh_status", failing_status)
+    monkeypatch.setattr(service, "refresh", fake_refresh)
+    await service.session_check()  # nie rzuca — pętla session_watch żyje dalej
+    assert refreshed == [1]  # encje odświeżone mimo błędu sprawdzenia zgody
+
+
+async def test_session_check_survives_refresh_error(
+    service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def broken_refresh() -> None:
+        raise RuntimeError("MQTT")
+
+    monkeypatch.setattr(service, "missing_config", lambda: ["klucz"])
+    monkeypatch.setattr(service, "refresh", broken_refresh)
+    await service.session_check()

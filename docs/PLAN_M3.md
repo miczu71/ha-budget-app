@@ -193,7 +193,7 @@ Przed każdym commitem obowiązuje blokujący skan diffu na nazwy i miejsca z pr
 |---|---|
 | Doba z 3 slotami (02.10 13:30, 21:30, 03.10 06:30) | ✅ 3/3 `ok`, po 6 zapytań (3 konta × salda + transakcje), 0×429, 0 błędów w logu, `binary_sensor.budget_sync_problem` = off |
 | `requests_today` ≤ 4 na (konto, endpoint) | ✅ max 2 |
-| Limit per endpoint czy łącznie | ⏳ rozstrzygnie slot 03.10 21:30 (pierwsza doba kalendarzowa z 3 slotami) → `FINDINGS_millennium.md` |
+| Limit per endpoint czy łącznie | ✅ per endpoint — 03.10: 3 sloty, 6 zapytań na konto, 0×429, licznik max 3 na (konto, endpoint) → `FINDINGS_millennium.md` |
 | Suma kontrolna karty (druga migawka ITBD) | ⚠️ ITBD = bieżące zadłużenie; zmiana między migawkami zgodna z księgą z dokładnością < 2 zł (prawdopodobnie opłata jeszcze niewidoczna w API) — obserwacja, interpretacja zadłużenia → M9 |
 | Konto EUR | ✅ saldo 0, brak ruchów |
 | Encje, panel przez Ingress, sesja bez SCA | ✅ (02.10; `consent_days_left` zgodne z 2027-03-30) |

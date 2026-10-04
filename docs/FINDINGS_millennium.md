@@ -71,8 +71,11 @@ lokalnie (`/data/home/budget_dev/prod/`), tutaj tylko fakty o strukturze — bez
   kolejnych migawkach; zadłużenie karty w budżecie → M9.
 - **ITAV karty jest opóźnione:** nie zmieniło się między migawkami, choć ITBD się zmieniło.
 - **Limit zapytań:** doba 02.10 (2 sloty z harmonogramu + synchronizacja z panelu z PSU) przeszła
-  bez 429; licznik w add-onie max 2 na (konto, endpoint). Czy bank liczy limit per endpoint,
-  rozstrzygnie pierwsza doba z 3 slotami (03.10, slot 21:30 = 6 zapytań na konto łącznie).
+  bez 429; licznik w add-onie max 2 na (konto, endpoint). **Rozstrzygnięte 03.10: limit liczony
+  per endpoint** — doba z 3 slotami (06:30, 13:30, 21:30) dała 6 zapytań na konto łącznie
+  (3 × salda + 3 × transakcje), wszystkie `ok`, 0×429; licznik add-onu max 3 na (konto, endpoint).
+  Przy limicie łącznym 4 na konto slot 21:30 skończyłby się 429. Harmonogram 3×/dobę ma zapas
+  1 zapytania na (konto, endpoint) — synchronizacja z przycisku w HA (bez PSU) mieści się raz.
 
 ## Konsekwencje dla kolejnych etapów (do decyzji w checkpoincie)
 

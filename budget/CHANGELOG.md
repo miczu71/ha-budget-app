@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.1
+
+- **Poprawka:** sprawdzanie zgody bankowej (co 6 h) i okresowe odświeżanie encji nie zatrzymują się
+  już po błędzie sieci. Wcześniej chwilowy brak DNS albo zerwane połączenie z Enable Banking
+  (`httpx.ConnectError`) kończyły tę pętlę po cichu aż do restartu add-onu. Teraz błąd trafia do
+  logu jako ostrzeżenie, a kolejne sprawdzenie odbywa się normalnie.
+- Dokumentacja: limit 4 zapytań/dobę w Millennium jest liczony osobno dla każdego endpointu
+  (salda, transakcje), nie łącznie na konto.
+- Bez nowych encji ani usług.
+
 ## 0.11.0
 
 **Zmiana domyślnego zachowania:** zapis kategorii nie tworzy już reguły (M4h etap 2,

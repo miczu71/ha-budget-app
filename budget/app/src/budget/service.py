@@ -13,6 +13,8 @@ import sqlite3
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+import httpx
+
 from budget import ha_publisher, notifications, sessions, sync_service
 from budget.eb_client import EBClient, EBError, PsuHeaders
 from budget.ha_client import HAClient
@@ -141,14 +143,23 @@ class Service:
         """Status zgody z `GET /sessions` (Enable Banking — bez limitu banku) co kilka godzin."""
         await asyncio.sleep(20)
         while True:
+            await self.session_check()
+            await asyncio.sleep(SESSION_CHECK_EVERY.total_seconds())
+
+    async def session_check(self) -> None:
+        """Jeden przebieg `session_watch` — nigdy nie rzuca, inaczej pętla umiera po cichu."""
+        try:
             if not self.missing_config() and sessions.current(self.conn) is not None:
                 try:
                     async with self.eb_client() as eb:
                         await sessions.refresh_status(self.conn, eb)
-                except (EBError, ServiceError, OSError) as exc:
+                except (EBError, ServiceError, OSError, httpx.HTTPError) as exc:
                     log.warning("Sprawdzenie zgody nieudane: %s", exc)
+                except Exception:
+                    log.exception("Nieoczekiwany błąd sprawdzania zgody")
             await self.refresh()
-            await asyncio.sleep(SESSION_CHECK_EVERY.total_seconds())
+        except Exception:  # pętla zgody nie może umrzeć
+            log.exception("Błąd odświeżania encji po sprawdzeniu zgody")
 
     # --- HA ---------------------------------------------------------------------------------
 
