@@ -288,6 +288,12 @@ def consecutive_failures(conn: sqlite3.Connection) -> int:
     return count
 
 
+def manual_sync_needed(conn: sqlite3.Connection) -> bool:
+    """Ostatni przebieg nie zmieścił okna w dziennym limicie — potrzebna synchronizacja z panelu."""
+    row = conn.execute("SELECT status, detail FROM sync_log ORDER BY id DESC LIMIT 1").fetchone()
+    return bool(row and row["status"] == "partial" and "niepełne" in (row["detail"] or ""))
+
+
 def recent(conn: sqlite3.Connection, limit: int = 20) -> list[sqlite3.Row]:
     return conn.execute("SELECT * FROM sync_log ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
 

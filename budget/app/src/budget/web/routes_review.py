@@ -434,7 +434,7 @@ def router(panel: Panel) -> APIRouter:
             count=count,
             caught=caught,
             changed=changed,
-            pending=review.pending_count(conn),
+            inbox_count=len(panel.service.inbox()),
             queued=queued(m),
             cov=coverage(m),
             month=m,

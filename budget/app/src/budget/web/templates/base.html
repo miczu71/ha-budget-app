@@ -14,13 +14,15 @@
       <a href="{{ base }}/" class="{{ 'on' if page == 'status' }}">Status</a>
       <a href="{{ base }}/budget" class="{{ 'on' if page == 'budget' }}">Budżet</a>
       <a href="{{ base }}/spending" class="{{ 'on' if page == 'spending' }}">Wydatki</a>
-      <a href="{{ base }}/review" class="{{ 'on' if page == 'review' }}">Do przejrzenia <span id="nav-pending" class="nav-count">{{ pending or "" }}</span></a>
+      <a href="{{ base }}/recurring" class="{{ 'on' if page in ('recurring', 'series') }}">Cykliczne</a>
+      <a href="{{ base }}/review" class="{{ 'on' if page == 'review' }}">Do przejrzenia</a>
       <a href="{{ base }}/transactions" class="{{ 'on' if page == 'transactions' }}">Transakcje</a>
       <a href="{{ base }}/rules" class="{{ 'on' if page in ('rules', 'rule_form', 'dictionary', 'categories') }}">Reguły</a>
       <a href="{{ base }}/accounts" class="{{ 'on' if page == 'accounts' }}">Konta</a>
       <a href="{{ base }}/import" class="{{ 'on' if page == 'import' }}">Import CSV</a>
       <a href="{{ base }}/bank" class="{{ 'on' if page == 'bank' }}">Bank</a>
     </nav>
+    {% include "_bell.html" %}
     <span class="nav-version" title="wersja add-onu">v{{ version }}</span>
   </header>
   <main>

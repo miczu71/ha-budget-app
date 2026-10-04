@@ -55,7 +55,7 @@ def router(panel: Panel) -> APIRouter:
             "requests": requests,
             "limit": sync_service.DAILY_LIMIT,
             "balances": balances,
-            "checks": [(report.balance_line(c), c) for c in ledger.check_balances(conn)],
+            "checks": [(report.balance_line(c), c) for c in panel.service.balance_memo.get(conn)],
             "missing": service.missing_config(),
             "manual_needed": service.manual_sync_needed(),
             "busy": service.lock.locked(),

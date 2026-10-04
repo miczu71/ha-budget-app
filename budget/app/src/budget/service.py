@@ -15,9 +15,10 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from budget import ha_publisher, notifications, sessions, sync_service
+from budget import ha_publisher, inbox, notifications, sessions, sync_service
 from budget.eb_client import EBClient, EBError, PsuHeaders
 from budget.ha_client import HAClient
+from budget.recurring import detect
 from budget.settings import Settings, SettingsError, resolve_private_key_path
 from budget.suggest import engine as suggest
 from budget.sync_service import SyncResult
@@ -60,6 +61,7 @@ class Service:
         self.ai_lock = asyncio.Lock()
         self._ai_task: asyncio.Task[None] | None = None
         self._refresh_task: asyncio.Task[None] | None = None
+        self.balance_memo = inbox.BalanceMemo()
         self._eb_base_url = eb_base_url or settings.eb_base_url
 
     # --- Enable Banking ---------------------------------------------------------------------
@@ -96,9 +98,24 @@ class Service:
                 self.conn, eb, tz=self.tz, trigger=trigger, psu=psu, full=full
             )
         self.last_result = result
+        self.detect_series()
         await self.refresh()
         self.suggest_later()
         return result
+
+    # --- płatności cykliczne (M5b) ------------------------------------------------------------
+
+    def detect_series(self) -> list[detect.Proposal]:
+        """Nowe propozycje serii po synchronizacji (lokalnie, ułamek sekundy); błąd nie
+        zatrzymuje synchronizacji."""
+        try:
+            found = detect.run(self.conn, self.now().date())
+        except Exception:
+            log.exception("Błąd wykrywania płatności cyklicznych")
+            return []
+        if found:
+            log.info("Nowe propozycje płatności cyklicznych: %d", len(found))
+        return found
 
     # --- podpowiedzi AI (M4c) -----------------------------------------------------------------
 
@@ -164,9 +181,11 @@ class Service:
     # --- HA ---------------------------------------------------------------------------------
 
     def manual_sync_needed(self) -> bool:
-        row = self.conn.execute("SELECT status, detail FROM sync_log ORDER BY id DESC LIMIT 1")
-        last = row.fetchone()
-        return bool(last and last["status"] == "partial" and "niepełne" in (last["detail"] or ""))
+        return sync_service.manual_sync_needed(self.conn)
+
+    def inbox(self) -> list[inbox.Item]:
+        """Karty dzwonka (panel i encja `sensor.budget_inbox`)."""
+        return inbox.items(self.conn, self.now(), self.balance_memo)
 
     def refresh_soon(self) -> None:
         """Odświeżenie encji w tle po zapisie w panelu (kwota, grupa, kategorie)."""
@@ -196,7 +215,9 @@ class Service:
         now = self.now()
         if self.publisher is not None:
             await self.publisher.update(
-                ha_publisher.build_entities(self.conn, now=now, today=now.date())
+                ha_publisher.build_entities(
+                    self.conn, now=now, today=now.date(), inbox_items=self.inbox()
+                )
             )
         if not self.ha.available:
             return

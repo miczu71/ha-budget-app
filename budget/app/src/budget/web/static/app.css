@@ -416,3 +416,28 @@ form.move.group { margin-left: 0; }
 .pool .flex-lines .leaf-meta { grid-column: 1 / span 2; }
 form.move.add-fixed { margin: 10px 0 4px 20px; flex-wrap: wrap; }
 form.move.add-fixed select { max-width: 100%; flex: 1 1 200px; }
+
+/* M5b: dzwonek i centrum powiadomień */
+.bell { position: relative; display: inline-flex; align-items: center; padding: 8px 4px; color: var(--muted); text-decoration: none; }
+.bell.on { color: var(--text); }
+.bell .nav-count { position: absolute; top: 2px; right: -6px; margin: 0; }
+.inbox { list-style: none; margin: 0; padding: 0; }
+.inbox-item { border-left: 4px solid var(--accent); }
+.inbox-item.warn { border-left-color: var(--warn); }
+.inbox-item.error { border-left-color: var(--error); }
+.inbox-item a { display: flex; justify-content: space-between; gap: 12px; text-decoration: none; color: var(--text); font-weight: 600; }
+.inbox-item p { margin: 4px 0 0; }
+.inbox-count { font-variant-numeric: tabular-nums; color: var(--accent); }
+
+/* M5b: płatności cykliczne */
+.series-list { list-style: none; margin: 0; padding: 0; }
+.series-item { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.series-item:last-child { border-bottom: 0; }
+.series-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.series-head form { margin: 0; }
+.series-actions { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-top: 8px; }
+.series-actions form { margin: 0; }
+.series-txns { list-style: none; margin: 6px 0 0; padding: 0; }
+.series-txns li { display: grid; grid-template-columns: auto 1fr auto; gap: 0 10px; padding: 3px 0; overflow-wrap: anywhere; }
+.series-detect { margin: 12px 0; }
+.warn-text { color: var(--warn); }

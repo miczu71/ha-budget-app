@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% macro dir_label(s) %}{{ "wpływ" if s.direction == "in" else "wydatek" }}{% endmacro %}
+{% macro amount(s) %}<span class="{{ 'pos' if s.direction == 'in' else '' }}">{{ s.expected_amount | money("PLN") }}</span>{% endmacro %}
+{% block content %}
+<h1>Płatności cykliczne</h1>
+
+{% if proposed %}
+<section class="card">
+  <h2>Propozycje do potwierdzenia ({{ proposed | length }})</h2>
+  <p class="small muted">Wykryte z historii: ta sama nazwa, regularny odstęp i podobna kwota. Potwierdzona seria będzie liczona w kolejnych etapach (co zejdzie w tym miesiącu, zmiany kwot, pula). Odrzucona nie wróci.</p>
+  <ul class="series-list">
+    {% for v in proposed %}
+    <li class="series-item">
+      <div class="series-head">
+        <span class="cat-name">{{ v.s.name }}</span>
+        <span class="cat-amount">{{ amount(v.s) }}</span>
+      </div>
+      <div class="small muted">{{ dir_label(v.s) }} · {{ cadences[v.s.cadence] }}{% if v.s.anchor_day and v.s.cadence == "M" %} · zwykle ok. {{ v.s.anchor_day }}. dnia{% endif %} · tolerancja ±{{ v.s.tolerance | money("PLN") }} · {{ v.members | length }} wystąpień{% if v.few_history %} · <span class="warn-text">mało historii</span>{% endif %}</div>
+      <div class="small muted">warunki: {{ v.conditions }}</div>
+      {% if v.recent %}
+      <details class="small"><summary>ostatnie transakcje</summary>
+        <ul class="series-txns">
+          {% for t in v.recent %}<li><span>{{ t.day.isoformat() | pldate }}</span><span>{{ t.description[:60] }}</span><span class="cat-amount">{{ t.amount | money("PLN") }}</span></li>{% endfor %}
+        </ul>
+      </details>
+      {% endif %}
+      <div class="series-actions">
+        <form method="post" action="{{ base }}/recurring/{{ v.s.id }}/status"><input type="hidden" name="action" value="confirm"><button>Potwierdź</button></form>
+        <a href="{{ base }}/recurring/{{ v.s.id }}">Edytuj i potwierdź</a>
+        <form method="post" action="{{ base }}/recurring/{{ v.s.id }}/status"><input type="hidden" name="action" value="reject"><button class="secondary">Odrzuć</button></form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Aktywne serie ({{ active | length }})</h2>
+  {% if active %}
+  <ul class="series-list">
+    {% for v in active %}
+    <li class="series-item">
+      <div class="series-head">
+        <a class="cat-name" href="{{ base }}/recurring/{{ v.s.id }}">{{ v.s.name }}</a>
+        <span class="cat-amount">{{ amount(v.s) }}</span>
+      </div>
+      <div class="small muted">{{ dir_label(v.s) }} · {{ cadences[v.s.cadence] }}{% if v.s.cadence != "M" %} ({{ v.s.monthly | money("PLN") }}/mies.){% endif %}{% if v.last %} · ostatnio {{ v.last.day.isoformat() | pldate }}: {{ v.last.amount | money("PLN") }}{% else %} · brak transakcji{% endif %}{% if v.few_history %} · <span class="warn-text">mało historii</span>{% endif %}</div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="muted">Brak potwierdzonych serii.</p>{% endif %}
+  <form method="post" action="{{ base }}/recurring/detect" class="series-detect"><button class="secondary">Wykryj teraz</button> <span class="small muted">Wykrywanie działa też samo po każdej synchronizacji.</span></form>
+</section>
+
+{% if ended %}
+<section class="card">
+  <h2>Zakończone ({{ ended | length }})</h2>
+  <ul class="series-list">
+    {% for v in ended %}
+    <li class="series-item">
+      <div class="series-head">
+        <a class="cat-name" href="{{ base }}/recurring/{{ v.s.id }}">{{ v.s.name }}</a>
+        <form method="post" action="{{ base }}/recurring/{{ v.s.id }}/status"><input type="hidden" name="action" value="restore"><button class="secondary">Przywróć</button></form>
+      </div>
+      <div class="small muted">{{ dir_label(v.s) }} · {{ cadences[v.s.cadence] }} · {{ v.s.expected_amount | money("PLN") }}{% if v.last %} · ostatnio {{ v.last.day.isoformat() | pldate }}{% endif %}</div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% if rejected %}<p class="small muted">Odrzucone propozycje: {{ rejected }} — nie są proponowane ponownie.</p>{% endif %}
+{% endblock %}

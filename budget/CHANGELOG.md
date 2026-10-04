@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.14.0
+
+**Dzwonek i płatności cykliczne** (M5b etap 1, `docs/PLAN_M5b_E1.md`).
+
+- **Dzwonek w pasku panelu** z liczbą kart „do decyzji” i ekranem `/inbox`: bez kategorii
+  w bieżącym i poprzednim miesiącu, nowe propozycje serii, zgoda bankowa (< 30 dni /
+  nieaktywna), nieudane synchronizacje, rozbieżność uzgodnienia salda. Licznik przy
+  „Do przejrzenia” przeszedł do dzwonka.
+- **Zakładka „Cykliczne”**: wykrywanie serii po każdej synchronizacji i na żądanie
+  (co miesiąc / kwartał / rok, wydatki i wpływy, raty kredytu po typie), propozycje do
+  potwierdzenia, edycji albo odrzucenia, lista aktywnych i zakończonych serii, strona serii
+  z warunkami jak w regułach i dopasowanymi transakcjami.
+- Pula Flex bez zmian — serie wejdą do budżetu w kolejnych etapach.
+- Uzgodnienie salda na ekranie Status liczone raz na zmianę danych (szybsze odświeżanie).
+
+| Encja | Zmiana |
+|---|---|
+| `sensor.budget_inbox` | **nowa** — liczba kart w dzwonku; atrybut `items` (`kind`, `title`, `count`, `severity`) |
+
+Migracja bazy `009_series` (tabela `series`). Nowe trasy panelu: `GET /inbox`, `GET /recurring`,
+`GET /recurring/{id}`, `POST /recurring/detect`, `POST /recurring/{id}/save`,
+`POST /recurring/{id}/status`. Bez nowych usług.
+
 ## 0.13.0
 
 **Budżet: z czego składa się pula i jedno miejsce na koszty stałe** (M5a etap 4,

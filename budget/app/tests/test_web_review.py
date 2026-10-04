@@ -65,7 +65,7 @@ async def test_queue_page(client: httpx.AsyncClient, service: Service) -> None:
     assert "Zagranica" in page and "Szwajcaria" in page
     assert "Jan Testowski" in page and "Qwerty" in page and "Lidl" not in page
     assert page.index("Jan Testowski") < page.index("Qwerty")  # wg kwoty
-    assert 'class="nav-count">6<' in page  # 5 wydatków + 1 wpływ
+    assert 'id="nav-bell"' in page and "Do decyzji:" in page  # licznik w dzwonku (M5b)
     by_count = (await client.get("/review?sort=count")).text
     assert by_count.index("Qwerty") < by_count.index("Jan Testowski")
     incomes = (await client.get("/review?direction=in")).text
@@ -98,7 +98,7 @@ async def test_assign_rule(client: httpx.AsyncClient, service: Service) -> None:
     assert "Reguła" in p.text and "Restauracje" in p.text and "w tym 2 z tej grupy" in p.text
     r = await client.post("/review/assign", data=form)
     assert "zapisano" in r.text and "reguła" in r.text
-    assert 'id="nav-pending"' in r.text and 'hx-swap-oob="true"' in r.text
+    assert 'id="nav-bell"' in r.text and 'hx-swap-oob="true"' in r.text
     [rule] = rules.all_rules(conn)
     assert rule.conditions.direction == "out" and rule.conditions.text[0].value == "Qwerty"
     assert cat(conn, ids["q1"])[:2] == ("restauracje", "rule")
@@ -213,7 +213,7 @@ async def test_month_view(client: httpx.AsyncClient, service: Service) -> None:
     assert "Jan Testowski" not in page and "Szwajcaria" not in page
     assert f'href="{INGRESS}/review?direction=out&sort=amount"' in page  # wszystkie miesiące
     assert "month=2026-08" in page and 'name="month"' not in page  # grupy leniwe
-    assert 'class="nav-count">7<' in page  # licznik w nawigacji globalny
+    assert 'id="nav-bell"' in page
     sept = (await client.get("/review?month=2026-09&direction=in")).text
     assert "wrzesień 2026" in sept and "Jan Testowski" in sept
     assert "month=2026-09" in sept
@@ -258,7 +258,7 @@ async def test_month_view_only_selected(client: httpx.AsyncClient, service: Serv
     assert "zapisano" in r.text and "reguła" not in r.text
     assert cat(conn, ids["q1"])[1] == "manual" and cat(conn, aug)[0] is None
     assert "w kolejce w tym miesiącu: 4" in r.text  # wrzesień: 3 wydatki + 1 wpływ
-    assert 'id="nav-pending" class="nav-count" hx-swap-oob="true">5<' in r.text
+    assert 'id="nav-bell"' in r.text and 'hx-swap-oob="true"' in r.text
 
 
 async def test_spending_links_to_month_queue(client: httpx.AsyncClient, service: Service) -> None:

@@ -120,9 +120,34 @@ elastyczne** (codzienne: jedzenie, paliwo, zakupy, wyjścia).
 
 Jak „Wydatki”: miesiąc kalendarzowy po dacie transakcji, tylko PLN.
 
+## Płatności cykliczne
+
+Zakładka „Cykliczne”. Po każdej synchronizacji (i przyciskiem „Wykryj teraz”) add-on szuka w
+historii serii: ten sam sprzedawca/odbiorca i kierunek, regularny odstęp (co miesiąc, co
+kwartał, co rok) i podobna kwota; raty kredytu — po typie transakcji i koncie. Wykrywanie
+działa lokalnie, bez AI.
+
+- Wykryte serie to **propozycje**: „Potwierdź”, „Edytuj i potwierdź” (nazwa, kadencja,
+  oczekiwana kwota, tolerancja, warunki — te same pola co w regułach) albo „Odrzuć”
+  (odrzucona nie wróci).
+- Strona serii pokazuje transakcje spełniające warunki; zmiana warunków działa od razu
+  wstecz. Gdy transakcja pasuje do kilku serii, należy do tej o najbliższej kwocie.
+- Seria roczna z dwoma wystąpieniami ma dopisek „mało historii”.
+- „Zakończ serię” (np. wypowiedziana umowa) / „Przywróć”.
+
+Na razie serie nie zmieniają budżetu — statusy „zapłacone / oczekiwane”, zmiany kwot i pula
+z serii przyjdą w kolejnych wersjach.
+
+## Dzwonek — do decyzji
+
+Ikona dzwonka w pasku panelu z liczbą kart: transakcje bez kategorii z bieżącego miesiąca (i
+poprzedniego, dopóki je ma), nowe propozycje serii, zgoda bankowa wygasająca w ciągu 30 dni
+lub nieaktywna, nieudane synchronizacje, rozbieżność uzgodnienia salda. Karta prowadzi do
+miejsca, gdzie sprawę się załatwia, i znika sama, gdy zostanie załatwiona.
+
 ## Kolejka „Do przejrzenia”
 
-Zakładka z licznikiem w nawigacji zbiera wszystkie transakcje **bez kategorii** (to, co
+Zakładka zbiera wszystkie transakcje **bez kategorii** (to, co
 skategoryzowała reguła albo słownik, nie wymaga potwierdzania). Nagłówek pokazuje pokrycie
 wydatków kategoriami (% transakcji i % kwoty).
 
@@ -219,6 +244,7 @@ z propozycji) albo odrzuconą (inna kategoria) — liczniki na karcie AI na ekra
 | `sensor.budget_flex_spent` | Wydane elastyczne (z wydatkami bez kategorii — liczba i kwota w atrybutach) |
 | `sensor.budget_flex_remaining` | Zostało; w atrybutach `per_day`, `expected_today` (przy równym tempie), `over_pace`, `used_pct`, `days_left` |
 | `sensor.budget_flex_per_day` | Zostało na dzień do końca miesiąca (z dzisiejszym) |
+| `sensor.budget_inbox` | Liczba kart w dzwonku panelu; atrybut `items` — lista (`kind`, `title`, `count`, `severity`) |
 
 Encje budżetu liczone są jak ekran Budżet dla bieżącego miesiąca. Bez kwoty ręcznej i bez
 wpływów w poprzednim miesiącu `flex_budget`, `flex_remaining` i `flex_per_day` mają stan

@@ -1,11 +1,12 @@
 {# Warunki reguły: wiersze tekstowe od `cond_from` (domyślnie 0) i konto / typ / kierunek / kwota;
-   kontekst z `web.rule_form.conditions_context` (`crule`, `px` — prefiks nazw pól) #}
+   kontekst z `web.rule_form.conditions_context` (`crule`, `px` — prefiks nazw pól);
+   `text_optional` — pierwszy warunek tekstowy nieobowiązkowy (seria raty po typie) #}
 {% set first = cond_from or 0 %}
 {% for c in text %}{% if loop.index0 >= first %}
 <div class="cond">
   <select name="{{ px }}field_{{ loop.index0 }}" aria-label="pole">{% for k, v in fields.items() %}<option value="{{ k }}" {{ "selected" if c.field == k }}>{{ v }}</option>{% endfor %}</select>
   <select name="{{ px }}op_{{ loop.index0 }}" aria-label="operator">{% for k, v in ops.items() %}<option value="{{ k }}" {{ "selected" if c.op == k }}>{{ v }}</option>{% endfor %}</select>
-  <input type="text" name="{{ px }}value_{{ loop.index0 }}" value="{{ c.value }}" placeholder="{{ 'np. Lidl' if loop.first else 'opcjonalnie' }}" aria-label="wartość" maxlength="120" autocomplete="off" {{ "required" if loop.first }}>
+  <input type="text" name="{{ px }}value_{{ loop.index0 }}" value="{{ c.value }}" placeholder="{{ 'np. Lidl' if loop.first else 'opcjonalnie' }}" aria-label="wartość" maxlength="120" autocomplete="off" {{ "required" if loop.first and not text_optional }}>
 </div>
 {% endif %}{% endfor %}
 <div class="inline">

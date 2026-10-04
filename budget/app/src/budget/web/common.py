@@ -11,7 +11,7 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from budget import __version__, review
+from budget import __version__
 from budget.categorize.rules import OPS as RULE_OPS
 from budget.logging_utils import mask_iban
 from budget.service import Service
@@ -117,7 +117,7 @@ class Panel:
                 "base": self.base(request),
                 "messages": messages,
                 "page": name.removesuffix(".html"),
-                "pending": review.pending_count(self.conn),
+                "inbox_count": len(self.service.inbox()),
                 **ctx,
             },
         )

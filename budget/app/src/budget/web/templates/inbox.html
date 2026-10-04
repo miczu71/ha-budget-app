@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Do decyzji</h1>
+{% if items %}
+<ul class="inbox">
+  {% for i in items %}
+  <li class="card inbox-item {{ i.severity }}">
+    <a href="{{ base }}{{ i.link }}">
+      <span class="inbox-title">{{ i.title }}</span>
+      <span class="inbox-count">{{ i.count }}</span>
+    </a>
+    {% if i.detail %}<p class="small muted">{{ i.detail }}</p>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<section class="card"><p class="muted">Nic nie czeka na decyzję.</p></section>
+{% endif %}
+<p class="small muted">Karta znika, gdy sprawa zostanie załatwiona. Ta sama lista jest w Home Assistant jako encja „Do decyzji w panelu”.</p>
+{% endblock %}

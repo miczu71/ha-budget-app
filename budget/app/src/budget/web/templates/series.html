@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% set s = v.s %}
+{% block content %}
+<p class="small"><a href="{{ base }}/recurring">« Płatności cykliczne</a></p>
+<h1>{{ s.name }} <span class="badge">{{ series_statuses[s.status] }}</span></h1>
+
+<form method="post" action="{{ base }}/recurring/{{ s.id }}/save" class="card rule-form" hx-boost="false">
+  <div class="inline">
+    <label>Nazwa<input name="name" value="{{ s.name }}" maxlength="60" required></label>
+    <label>Kadencja
+      <select name="cadence">{% for k, label in cadences.items() %}<option value="{{ k }}" {{ "selected" if s.cadence == k }}>{{ label }}</option>{% endfor %}</select>
+    </label>
+    <label>Oczekiwana kwota<input name="expected_amount" inputmode="decimal" value="{{ s.expected_amount }}" size="10" required></label>
+    <label>Tolerancja ±<input name="tolerance" inputmode="decimal" value="{{ s.tolerance }}" size="8"></label>
+  </div>
+  <h2>Transakcje serii — warunki</h2>
+  <p class="small muted">Te same pola co w regułach kategorii. Kierunek jest wymagany, a do tego warunek tekstowy albo typ transakcji. Gdy transakcja pasuje do kilku serii, należy do tej o najbliższej kwocie.</p>
+  {% with text_optional = True %}{% include "_rule_conditions.html" %}{% endwith %}
+  <p class="actions-row">
+    {% if s.status == "proposed" %}
+    <button type="submit" name="confirm" value="1">Zapisz i potwierdź</button>
+    {% else %}
+    <button type="submit">Zapisz</button>
+    {% endif %}
+    <a href="{{ base }}/recurring">Anuluj</a>
+  </p>
+</form>
+{% if s.status in ("active", "ended") %}
+<form method="post" action="{{ base }}/recurring/{{ s.id }}/status" class="series-detect">
+  {% if s.status == "active" %}<input type="hidden" name="action" value="end"><button class="secondary">Zakończ serię</button> <span class="small muted">np. umowa wypowiedziana — transakcje zostają przypisane, seria przestaje być oczekiwana</span>
+  {% else %}<input type="hidden" name="action" value="restore"><button class="secondary">Przywróć serię</button>{% endif %}
+</form>
+{% elif s.status == "proposed" %}
+<form method="post" action="{{ base }}/recurring/{{ s.id }}/status" class="series-detect"><input type="hidden" name="action" value="reject"><button class="secondary">Odrzuć propozycję</button></form>
+{% endif %}
+
+<section class="card">
+  <h2>Transakcje serii ({{ v.members | length }}){% if v.few_history %} <span class="small warn-text">mało historii</span>{% endif %}</h2>
+  <p class="small muted">Według zapisanych warunków: {{ v.conditions }}.</p>
+  {% if members %}
+  <ul class="series-txns">
+    {% for t in members %}<li><span>{{ t.day.isoformat() | pldate }}</span><span>{{ t.merchant }}{% if t.description and t.description | upper != t.merchant | upper %} <span class="muted">· {{ t.description[:60] }}</span>{% endif %}</span><span class="cat-amount {{ 'pos' if t.amount > 0 }}">{{ t.amount | money("PLN") }}</span></li>{% endfor %}
+  </ul>
+  {% if v.members | length > members | length %}<p class="small muted">… i {{ v.members | length - members | length }} starszych.</p>{% endif %}
+  {% else %}<p class="muted">Żadna transakcja nie spełnia warunków.</p>{% endif %}
+</section>
+{% endblock %}

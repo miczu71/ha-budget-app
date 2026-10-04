@@ -1,4 +1,4 @@
-"""Encje HA przez MQTT Discovery (SPEC §6.1: zakres M3 + budżet Flex z M5a).
+"""Encje HA przez MQTT Discovery (SPEC §6.1: zakres M3 + budżet Flex z M5a + dzwonek z M5b).
 
 Jedno urządzenie „Budżet Domowy”; dostępność przez LWT (`budget/availability`), konfiguracje
 i stany retained. `default_entity_id` przypina entity_id (od HA 2026.4 `object_id` jest
@@ -14,7 +14,7 @@ import contextlib
 import json
 import logging
 import sqlite3
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
@@ -22,7 +22,7 @@ from typing import Any
 
 import aiomqtt
 
-from budget import __version__, flex, money, sessions, sync_service
+from budget import __version__, flex, inbox, money, sessions, sync_service
 from budget.logging_utils import mask_iban
 from budget.spending import month_start
 
@@ -82,7 +82,13 @@ def _balance_key(kind: str, currency: str, taken: set[str], account_id: int) -> 
     return f"{key}_{account_id}" if key in taken else key
 
 
-def build_entities(conn: sqlite3.Connection, *, now: datetime, today: date) -> list[Entity]:
+def build_entities(
+    conn: sqlite3.Connection,
+    *,
+    now: datetime,
+    today: date,
+    inbox_items: Sequence[inbox.Item] | None = None,
+) -> list[Entity]:
     entities: list[Entity] = []
     taken: set[str] = set()
     for acc in conn.execute("SELECT * FROM account ORDER BY id").fetchall():
@@ -182,6 +188,8 @@ def build_entities(conn: sqlite3.Connection, *, now: datetime, today: date) -> l
         )
     )
     entities += flex_entities(conn, today)
+    if inbox_items is not None:
+        entities.append(inbox_entity(inbox_items))
     entities.append(
         Entity(
             "button",
@@ -195,6 +203,22 @@ def build_entities(conn: sqlite3.Connection, *, now: datetime, today: date) -> l
         )
     )
     return entities
+
+
+def inbox_entity(items: Sequence[inbox.Item]) -> Entity:
+    """Dzwonek panelu (M5b): liczba kart; atrybut `items` — co czeka na decyzję."""
+    return Entity(
+        "sensor",
+        "inbox",
+        {"name": "Do decyzji w panelu", "icon": "mdi:bell-outline"},
+        state=str(len(items)),
+        attributes={
+            "items": [
+                {"kind": i.kind, "title": i.title, "count": i.count, "severity": i.severity}
+                for i in items
+            ]
+        },
+    )
 
 
 def _amount(value: Decimal | None) -> str | None:
