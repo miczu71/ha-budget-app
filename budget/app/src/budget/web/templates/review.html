@@ -77,4 +77,17 @@
   <p><a href="{{ base }}/review?{{ qs }}&limit={{ limit + 50 }}">pokaż więcej ({{ q.merchants_total - q.merchants | length }})</a></p>
   {% endif %}
 </section>
+<script>
+// Grupa kraju: „reguła dla tego sprzedawcy” — zaznacza „utwórz regułę” i wpisuje sprzedawcę
+function ruleFor(btn) {
+  var f = btn.form;
+  f.elements["make_rule"].checked = true;
+  f.elements["rule_field_0"].value = "merchant";
+  f.elements["rule_op_0"].value = "equals";
+  var v = f.elements["rule_value_0"];
+  v.value = btn.dataset.merchant;
+  v.dispatchEvent(new Event("input", { bubbles: true }));
+  f.querySelector(".rv-rule").scrollIntoView({ block: "center" });
+}
+</script>
 {% endblock %}

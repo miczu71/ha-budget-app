@@ -255,11 +255,13 @@ def preview(
     dictionary: Dictionary | None = None,
     *,
     release: int | None = None,
+    release_any: bool = False,
 ) -> Preview:
     """Skutek zapisania reguły (nowej na górze listy albo edytowanej w miejscu).
 
     `release` — transakcja, z której poprawki powstaje reguła: jej ręczna kategoria równa
-    kategorii reguły przejdzie pod regułę (`release_manual` przy zapisie)."""
+    kategorii reguły przejdzie pod regułę (`release_manual` przy zapisie); z `release_any` —
+    niezależnie od kategorii (reguła z formularza kategorii na Transakcjach zdejmuje ręczną)."""
     candidate = replace(rule, id=rule.id if rule.id is not None else PREVIEW_ID, enabled=True)
     rules = all_rules(conn)
     if rule.id is None:
@@ -268,7 +270,11 @@ def preview(
         rules = [candidate if r.id == rule.id else r for r in rules]
     txns = _load(conn, dictionary or merchants.builtin())
     for t in txns:
-        if t.id == release and t.is_manual and t.current.category_id == rule.category_id:
+        if (
+            t.id == release
+            and t.is_manual
+            and (release_any or t.current.category_id == rule.category_id)
+        ):
             t.is_manual = False
     result = _classify(txns, rules, _slugs(conn))
     out = Preview()

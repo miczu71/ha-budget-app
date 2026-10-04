@@ -1,5 +1,6 @@
-{# Formularz grupy: kategoria, „tylko te”, warunki reguły (warunek 0 zawsze widoczny, reszta pod
-   „więcej warunków” — `_rule_conditions.html`), pozycje z checkboxami; podgląd po każdej zmianie #}
+{# Formularz grupy: kategoria, „utwórz regułę” (domyślnie nie — kategoria ręczna dla zaznaczonych
+   pozycji), warunki reguły widoczne po zaznaczeniu (warunek 0 + „więcej warunków” —
+   `_rule_conditions.html`), pozycje z polami wyboru; podgląd po każdej zmianie #}
 {% from "_macros.html" import category_options %}
 {% macro items_list(items) %}
 <ul class="rv-items">
@@ -23,30 +24,29 @@
   {% if error %}<div class="msg error" role="alert">{{ error }}</div>{% endif %}
   <div class="rv-actions">
     <select name="category_id" aria-label="kategoria" required>{{ category_options(tree, pick, "— wybierz kategorię —") }}</select>
-    {% if g.can_rule %}<label class="check"><input type="checkbox" name="only"> tylko te transakcje (bez reguły)</label>{% endif %}
+    <label class="check"><input type="checkbox" name="make_rule" value="1" {{ "checked" if make_rule }}> utwórz regułę</label>
     <button type="submit">Zapisz</button>
   </div>
-  {% if g.can_rule %}
   {% set c0 = text[0] %}
-  <div class="rv-rule">
-    <span class="small muted">reguła:</span>
-    <select name="{{ px }}field_0" aria-label="pole reguły">{% for k, v in fields.items() %}<option value="{{ k }}" {{ "selected" if c0.field == k }}>{{ v }}</option>{% endfor %}</select>
-    <select name="{{ px }}op_0" aria-label="warunek reguły">{% for k, v in ops.items() %}<option value="{{ k }}" {{ "selected" if c0.op == k }}>{{ v }}</option>{% endfor %}</select>
-    <input type="text" name="{{ px }}value_0" value="{{ c0.value }}" maxlength="120" aria-label="tekst reguły" autocomplete="off">
-  </div>
-  {% set rc = crule.conditions %}
-  <details class="rv-more" {{ "open" if text[1].value or text[2].value or rc.account_id is not none or rc.kind or rc.amount_min is not none or rc.amount_max is not none or crule.rename or rc.direction != g.key.direction }}>
-    <summary class="small">+ więcej warunków (wszystkie muszą być spełnione)</summary>
-    <div class="rule-fields">
-      {% with cond_from = 1 %}{% include "_rule_conditions.html" %}{% endwith %}
-      <label>Nazwa sprzedawcy (opcjonalnie)<input name="{{ px }}rename" value="{{ crule.rename or '' }}" maxlength="60" autocomplete="off"></label>
+  <div class="rv-rulebox">
+    <div class="rv-rule">
+      <span class="small muted">reguła:</span>
+      <select name="{{ px }}field_0" aria-label="pole reguły">{% for k, v in fields.items() %}<option value="{{ k }}" {{ "selected" if c0.field == k }}>{{ v }}</option>{% endfor %}</select>
+      <select name="{{ px }}op_0" aria-label="warunek reguły">{% for k, v in ops.items() %}<option value="{{ k }}" {{ "selected" if c0.op == k }}>{{ v }}</option>{% endfor %}</select>
+      <input type="text" name="{{ px }}value_0" value="{{ c0.value }}" maxlength="120" aria-label="tekst reguły" autocomplete="off" placeholder="np. fragment nazwy">
     </div>
-  </details>
-  {% endif %}
+    {% set rc = crule.conditions %}
+    <details class="rv-more" {{ "open" if text[1].value or text[2].value or rc.account_id is not none or rc.kind or rc.amount_min is not none or rc.amount_max is not none or crule.rename or rc.direction != g.key.direction }}>
+      <summary class="small">+ więcej warunków (wszystkie muszą być spełnione)</summary>
+      <div class="rule-fields">
+        {% with cond_from = 1 %}{% include "_rule_conditions.html" %}{% endwith %}
+        <label>Nazwa sprzedawcy (opcjonalnie)<input name="{{ px }}rename" value="{{ crule.rename or '' }}" maxlength="60" autocomplete="off"></label>
+      </div>
+    </details>
+  </div>
   <div id="p-{{ gid }}" class="rv-preview small" aria-live="polite">
     {% if pv %}{% include "_review_preview.html" %}
-    {% elif g.can_rule %}<p class="muted">Wybierz kategorię — zapis utworzy regułę dla „{{ g.label }}” ({{ "wydatki" if g.key.direction == "out" else "wpływy" }}).</p>
-    {% else %}<p class="muted">Kategoria ręczna dla zaznaczonych pozycji (bez reguły).</p>{% endif %}
+    {% else %}<p class="muted">Kategoria ręczna dla zaznaczonych pozycji. Zaznacz „utwórz regułę”, żeby przyszłe transakcje dostawały kategorię same.</p>{% endif %}
   </div>
   <div hidden hx-post="{{ base }}/review/preview" hx-include="#f-{{ gid }}" hx-target="#p-{{ gid }}" hx-swap="innerHTML" hx-trigger="input delay:300ms from:#f-{{ gid }}" hx-sync="this:replace"></div>
   {% if g.key.kind == "country" %}
@@ -54,7 +54,7 @@
     {% set mc = ai_candidates(merchant, g.key.direction) %}
     <div class="rv-sub"><span class="cat-name">{{ merchant or "(bez nazwy)" }}</span>
       {% if mc %}<span class="small muted">AI: {{ mc | map(attribute="category.name") | join(", ") }}</span>{% endif %}
-      <a class="small" href="{{ base }}/rules/new?txn={{ items[0].id }}">reguła…</a></div>
+      {% if merchant %}<button type="button" class="link small" data-merchant="{{ merchant }}" onclick="ruleFor(this)">reguła dla tego sprzedawcy</button>{% endif %}</div>
     {{ items_list(items) }}
     {% endfor %}
   {% else %}

@@ -9,10 +9,11 @@
 <p>Reguła: {{ describe }} → <strong>{{ category.name }}</strong>.
   Pasuje {{ p.matches }} transakcji ({{ p.total | money("PLN") }}), kategorię dostanie {{ p.applied }}, w tym {% if here == g.count %}{{ g.count }} z tej grupy{% else %}{{ here }} z {{ g.count }} pozycji tej grupy{% endif %}.</p>
 {% if left %}{{ leftovers(left) }}{% endif %}
-{% if other_months %}<p class="msg warn">Reguła działa we wszystkich miesiącach — obejmie też {{ other_months }} tr. z innych miesięcy, które czekają w kolejce. Tylko ten miesiąc: zaznacz „tylko te transakcje”.</p>{% endif %}
+{% if other_months %}<p class="msg warn">Reguła działa we wszystkich miesiącach — obejmie też {{ other_months }} tr. z innych miesięcy, które czekają w kolejce. Tylko ten miesiąc: zapisz bez „utwórz regułę”.</p>{% endif %}
 {% if caught %}<p class="msg warn">Złapie też z kolejki — w innych grupach: {{ caught.total() }} tr. ({{ caught | length }}): {{ names(caught) }}.</p>{% endif %}
 {% if others %}<p class="msg warn">Zmieni też kategorię {{ others }} transakcji już skategoryzowanych inaczej (nowa reguła ma pierwszeństwo).</p>{% endif %}
 {% else %}
-<p>Kategoria ręczna <strong>{{ category.name }}</strong> dla {{ selected }} z {{ g.count }} pozycji{{ " — bez reguły" if g.can_rule }}.
-  {% if selected < g.count %}Odznaczone ({{ g.count - selected }}) zostaną w kolejce.{% endif %}</p>
+<p>Kategoria ręczna <strong>{{ category.name }}</strong> dla {{ selected }} z {{ g.count }} pozycji — bez reguły.
+  {% if selected < g.count %}Odznaczone ({{ g.count - selected }}) zostaną w kolejce.{% endif %}
+  <span class="muted">Przyszłe transakcje — tylko z „utwórz regułę”.</span></p>
 {% endif %}

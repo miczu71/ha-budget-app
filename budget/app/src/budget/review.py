@@ -88,9 +88,12 @@ class Group:
         return max(i.day for i in self.items)
 
     @property
-    def can_rule(self) -> bool:
-        """Reguła „sprzedawca równa się” tylko dla nazwanego sprzedawcy."""
-        return self.key.kind == "merchant" and self.key.value != ""
+    def default_merchant(self) -> str:
+        """Sprzedawca domyślnego warunku reguły: nazwa grupy sprzedawcy, w grupie kraju
+        najczęstszy sprzedawca; "" — grupa bez nazwy (warunek trzeba wpisać)."""
+        if self.key.kind == "merchant":
+            return self.key.value
+        return self.merchants()[0][0] if self.items else ""
 
     def merchants(self) -> list[tuple[str, list[Item]]]:
         """Pozycje grupy kraju podzielone po sprzedawcy (najwięcej pozycji najpierw)."""

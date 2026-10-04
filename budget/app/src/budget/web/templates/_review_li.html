@@ -10,9 +10,9 @@
       {% set cands = ai_candidates(g.key.value, g.key.direction) if g.key.kind == "merchant" else [] %}
       {% if cands %}
       <span class="rv-ai">
-        {% if ai and ai_name and g.can_rule %}<button type="button" class="rv-accept" hx-post="{{ base }}/review/assign" hx-vals='{{ {"kind": g.key.kind, "value": g.key.value, "direction": g.key.direction, "currency": g.key.currency, "gid": gid, "category_id": ai, "all": "1", "month": month.strftime("%Y-%m") if month else ""} | tojson }}' hx-target="#{{ gid }}" hx-swap="outerHTML" hx-disabled-elt="this" aria-label="zatwierdź: {{ ai_name }}">{{ ai_name }}</button>{% endif %}
+        {% if ai and ai_name and g.key.kind == "merchant" %}<button type="button" class="rv-accept" hx-post="{{ base }}/review/assign" hx-vals='{{ {"kind": g.key.kind, "value": g.key.value, "direction": g.key.direction, "currency": g.key.currency, "gid": gid, "category_id": ai, "all": "1", "month": month.strftime("%Y-%m") if month else ""} | tojson }}' hx-target="#{{ gid }}" hx-swap="outerHTML" hx-disabled-elt="this" aria-label="zatwierdź: {{ ai_name }}">{{ ai_name }}</button>{% endif %}
         <span class="small muted">AI:</span>
-        {% for c in cands if not (ai and ai_name and g.can_rule and c.category.id == ai) %}<button type="button" class="chip {{ 'on' if pick == c.category.id }}" hx-get="{{ base }}/review/item?{{ params }}&pick={{ c.category.id }}" hx-target="#{{ gid }}" hx-swap="outerHTML" title="{{ c.label }} · pewność {{ '%.0f' | format(c.confidence * 100) }}%">{{ c.category.name }}</button>{% endfor %}
+        {% for c in cands if not (ai and ai_name and g.key.kind == "merchant" and c.category.id == ai) %}<button type="button" class="chip {{ 'on' if pick == c.category.id }}" hx-get="{{ base }}/review/item?{{ params }}&pick={{ c.category.id }}" hx-target="#{{ gid }}" hx-swap="outerHTML" title="{{ c.label }} · pewność {{ '%.0f' | format(c.confidence * 100) }}%">{{ c.category.name }}</button>{% endfor %}
       </span>
       {% endif %}
     </summary>

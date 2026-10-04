@@ -1,4 +1,9 @@
-"""Ekran Transakcje: lista z filtrami, kategoria w wierszu (zmiana ręczna przez htmx).
+"""Ekran Transakcje: lista z filtrami, kategoria w wierszu (zmiana przez htmx).
+
+Zapis kategorii domyślnie ustawia kategorię ręczną tylko tej transakcji. „Utwórz regułę”
+rozwija w miejscu pola warunków (jak w kolejce i edytorze Reguł, `web.rule_form`) z warunkiem
+„sprzedawca równa się …” + kierunek; reguła musi objąć tę transakcję, a jej ręczna kategoria
+jest zdejmowana — kategorię daje odtąd reguła (też przyszłym transakcjom).
 
 Data na liście i w filtrach to data transakcji (bez niej: księgowania) — ta sama, po której
 ekran „Wydatki” przypisuje transakcję do miesiąca, więc linki z „Wydatków” pokazują te same
@@ -8,17 +13,29 @@ pozycje, które złożyły się na sumę.
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import replace
 from datetime import date
 from typing import Any
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
+from starlette.datastructures import FormData
 
 from budget import ledger
-from budget.categorize import engine, taxonomy
+from budget.categorize import engine, rules, taxonomy
+from budget.categorize.rules import Conditions, Rule, RuleError, TextCondition
 from budget.categorize.taxonomy import TaxonomyError
 from budget.normalize import search_words
 from budget.web.common import Panel
+from budget.web.rule_form import (
+    RULE,
+    accounts,
+    check_fragments,
+    conditions_context,
+    describe,
+    form_rule,
+    requested,
+)
 
 PAGE_SIZE = 50
 # Tekst do „Szukaj”: po `fold` (funkcja SQL z storage.db) — jak reguły, bez ogonków
@@ -136,36 +153,113 @@ def router(panel: Panel) -> APIRouter:
             },
         )
 
+    def txn_rule(t: sqlite3.Row) -> Rule:
+        """Domyślna reguła z transakcji: „sprzedawca równa się <sprzedawca>” + kierunek."""
+        text = (TextCondition("merchant", "equals", t["merchant"]),) if t["merchant"] else ()
+        direction = "out" if str(t["amount"]).startswith("-") else "in"
+        return Rule(None, 0, Conditions(text=text, direction=direction))
+
+    def checked_rule(t: sqlite3.Row, form: FormData) -> Rule:
+        """Reguła z formularza kategorii po walidacji warunków: musi objąć tę transakcję."""
+        rule = form_rule(form, txn_rule(t))
+        cond = rules.clean_conditions(conn, rule.conditions)
+        check_fragments(cond)
+        facts = engine.facts(conn, [int(t["id"])]).get(int(t["id"]))
+        if facts is None or not cond.matches(facts):
+            raise RuleError("Warunki nie pasują do tej transakcji — reguła by jej nie objęła.")
+        return replace(rule, conditions=cond)
+
+    def editor(
+        request: Request,
+        t: sqlite3.Row,
+        *,
+        form: FormData | None = None,
+        error: str | None = None,
+        category_id: int | None = None,
+    ) -> HTMLResponse:
+        try:
+            shown = form_rule(form, txn_rule(t))
+        except RuleError:
+            shown = txn_rule(t)
+        return panel.partial(
+            request,
+            "_txn_category.html",
+            t=t,
+            editing=True,
+            error=error,
+            pick=category_id,
+            make_rule=requested(form),
+            tree=taxonomy.tree(conn),
+            **conditions_context(conn, shown, RULE),
+        )
+
+    def leaf(form: FormData) -> int | None:
+        try:
+            cid = int(str(form.get("category_id") or ""))
+        except ValueError:
+            return None
+        return cid if cid in taxonomy.leaves(conn) else None
+
     @r.get("/transactions/{txn_id}/category", response_class=HTMLResponse)
     async def category_form(request: Request, txn_id: int, cancel: int = 0) -> HTMLResponse:
         t = txn_row(conn, txn_id)
         if t is None:
             return HTMLResponse("Nie ma takiej transakcji.", 404)
-        return panel.partial(
-            request, "_txn_category.html", t=t, editing=not cancel, tree=taxonomy.tree(conn)
-        )
+        if cancel:
+            return panel.partial(request, "_txn_category.html", t=t, editing=False)
+        return editor(request, t)
 
-    @r.post("/transactions/{txn_id}/category", response_class=HTMLResponse)
-    async def set_category(
-        request: Request, txn_id: int, category_id: str = Form("")
-    ) -> HTMLResponse:
-        error = None
-        try:
-            with ledger.transaction(conn):
-                engine.set_manual(conn, txn_id, int(category_id) if category_id else None)
-                engine.recategorize(conn)
-        except (TaxonomyError, ValueError) as exc:
-            error = str(exc)
+    @r.post("/transactions/{txn_id}/rule-preview", response_class=HTMLResponse)
+    async def rule_preview(request: Request, txn_id: int) -> HTMLResponse:
         t = txn_row(conn, txn_id)
         if t is None:
             return HTMLResponse("Nie ma takiej transakcji.", 404)
-        return panel.partial(
-            request,
-            "_txn_category.html",
-            t=t,
-            editing=False,
-            error=error,
-            suggest=error is None and t["category_source"] == "manual" and bool(t["merchant"]),
-        )
+        form = await request.form()
+        if not requested(form):
+            return HTMLResponse("")
+        try:
+            rule = checked_rule(t, form)
+        except RuleError as exc:
+            return panel.partial(request, "_txn_rule_preview.html", error=str(exc))
+        cid = leaf(form)
+        ctx: dict[str, Any] = {"describe": describe(rule, accounts(conn))}
+        if cid is not None:
+            ctx["category"] = taxonomy.all_categories(conn)[cid]
+            ctx["p"] = engine.preview(
+                conn, replace(rule, category_id=cid), release=txn_id, release_any=True
+            )
+        return panel.partial(request, "_txn_rule_preview.html", **ctx)
+
+    @r.post("/transactions/{txn_id}/category", response_class=HTMLResponse)
+    async def set_category(request: Request, txn_id: int) -> HTMLResponse:
+        t = txn_row(conn, txn_id)
+        if t is None:
+            return HTMLResponse("Nie ma takiej transakcji.", 404)
+        form = await request.form()
+        error = None
+        if requested(form):
+            cid = leaf(form)
+            try:
+                if cid is None:
+                    raise RuleError("Wybierz podkategorię.")
+                rule = checked_rule(t, form)
+                with ledger.transaction(conn):
+                    rules.save(conn, replace(rule, category_id=cid))
+                    engine.set_manual(conn, txn_id, None)  # kategorię daje teraz reguła
+                    engine.recategorize(conn)
+            except (RuleError, TaxonomyError) as exc:
+                return editor(request, t, form=form, error=str(exc), category_id=cid)
+        else:
+            category_id = str(form.get("category_id") or "")
+            try:
+                with ledger.transaction(conn):
+                    engine.set_manual(conn, txn_id, int(category_id) if category_id else None)
+                    engine.recategorize(conn)
+            except (TaxonomyError, ValueError) as exc:
+                error = str(exc)
+        t = txn_row(conn, txn_id)
+        if t is None:
+            return HTMLResponse("Nie ma takiej transakcji.", 404)
+        return panel.partial(request, "_txn_category.html", t=t, editing=False, error=error)
 
     return r

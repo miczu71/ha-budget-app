@@ -1,0 +1,6 @@
+{# Podgląd reguły z formularza kategorii na Transakcjach #}
+{% if error %}<div class="msg error" role="alert">{{ error }}</div>
+{% elif not category %}<p class="muted">Reguła: {{ describe }}. Wybierz kategorię.</p>
+{% else %}<p>Reguła: {{ describe }} → <strong>{{ category.name }}</strong>. Pasuje {{ p.matches }} transakcji ({{ p.total | money("PLN") }}), kategorię dostanie {{ p.applied }}{% if p.manual_skipped %} (ręczne zostają: {{ p.manual_skipped }}){% endif %}.
+  {% if p.changes %}Zmieni się kategoria {{ p.changes }} transakcji w księdze.{% endif %}</p>
+{% endif %}

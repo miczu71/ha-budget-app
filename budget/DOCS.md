@@ -58,7 +58,13 @@ Każda transakcja dostaje podkategorię automatycznie, w tej kolejności:
 
 Przelewy między Twoimi podlinkowanymi kontami (np. spłata karty) nie mają kategorii i nie liczą
 się do wydatków. Przelew do osoby kategoryzuje odbiorca, nie tytuł — dodaj regułę na odbiorcę
-(albo zmień kategorię jednej transakcji i kliknij **Zawsze dla …**).
+(albo przy zmianie kategorii transakcji zaznacz **utwórz regułę**).
+
+**Kategoria w wierszu Transakcji** — zapis domyślnie ustawia kategorię ręczną tylko tej
+transakcji. Zaznaczenie **utwórz regułę** rozwija w miejscu pola reguły (te same co w zakładce
+Reguły) z warunkiem „sprzedawca równa się …” i kierunkiem transakcji; podgląd pokazuje, ile
+transakcji reguła obejmie. Reguła musi pasować do tej transakcji, a jej ręczna kategoria jest
+zastępowana regułą.
 
 **Reguły** mają warunki (sprzedawca/odbiorca, opis, kontrahent, konto kontrahenta; „zawiera”,
 „równa się”, „zaczyna się od”; konto, typ, kierunek, zakres kwot) i podgląd na żywo: ile
@@ -106,10 +112,16 @@ skategoryzowała reguła albo słownik, nie wymaga potwierdzania). Nagłówek po
 wydatków kategoriami (% transakcji i % kwoty).
 
 - **Sprzedawcy i odbiorcy** — grupa = sprzedawca/odbiorca + kierunek (wydatek i wpływ od tej
-  samej osoby to osobne grupy), sortowanie po kwocie albo liczbie. Po wybraniu kategorii zapis
-  tworzy regułę „sprzedawca równa się … + kierunek”, więc kolejne transakcje skategoryzują się
-  same; podgląd ostrzega, gdy reguła zmieni też już skategoryzowane pozycje.
-- **Warunek reguły** — pod kategorią wiersz „reguła: [sprzedawca] [równa się] [nazwa]”. Nazwę
+  samej osoby to osobne grupy), sortowanie po kwocie albo liczbie.
+- **Zapis domyślnie bez reguły** — wybrana kategoria trafia jako **ręczna** do zaznaczonych
+  pozycji (odznaczone zostają w kolejce). Ręczna kategoria jest trwała, ale obejmuje tylko te
+  transakcje: przyszłe transakcje tego sprzedawcy pojawią się w kolejce jako nowe pozycje (chyba
+  że skategoryzuje je słownik sieci albo typ).
+- **Utwórz regułę** — zaznaczenie pokazuje pola reguły; zapis tworzy regułę (domyślnie
+  „sprzedawca równa się … + kierunek”), więc także przyszłe transakcje skategoryzują się same.
+  W tym trybie pozycje grupy wybierają warunki reguły (pola wyboru pozycji są nieaktywne);
+  podgląd ostrzega, gdy reguła zmieni też już skategoryzowane pozycje.
+- **Warunek reguły** — wiersz „reguła: [sprzedawca] [równa się] [nazwa]”. Nazwę
   można skrócić do fragmentu i wybrać „zawiera” albo „zaczyna się od” (np. „Qwerty” dla
   wszystkich sklepów sieci o nazwach „Qwerty 12”, „Qwerty-Sklep”…), a pole zmienić na opis/tytuł,
   kontrahenta albo konto kontrahenta. Fragment musi mieć co najmniej 3 znaki; podgląd na bieżąco
@@ -127,20 +139,20 @@ wydatków kategoriami (% transakcji i % kwoty).
   z propozycji AI z liczbą grup, np. „Restauracje i kawiarnie (14)” (8 najliczniejszych, reszta
   pod „więcej”). Wybór zostawia grupy, które
   mają tę podkategorię wśród swoich (do 3) propozycji; grupy kraju są wtedy ukryte. Przy każdej
-  grupie jest przycisk z ptaszkiem i nazwą podkategorii — dotknięcie zapisuje regułę „sprzedawca
-  równa się …” dla całej grupy i chowa wiersz. Inna kategoria, inne warunki albo część pozycji —
-  po rozwinięciu grupy, jak zwykle.
-- **Tylko te transakcje** albo odznaczenie części pozycji — kategoria ręczna, bez reguły
-  (jednorazowi sprzedawcy, odbiorca o mieszanym przeznaczeniu); odznaczone zostają w kolejce.
+  grupie jest przycisk z ptaszkiem i nazwą podkategorii — dotknięcie nadaje tę kategorię
+  **ręcznie** wszystkim pozycjom grupy (bez reguły) i chowa wiersz. Reguła, inna kategoria albo
+  część pozycji — po rozwinięciu grupy, jak zwykle.
 - **Zagranica** — sporadyczne płatności kartą za granicą, grupowane po kraju (z opisu
   transakcji) albo walucie, zwykle wyjazd: jedna decyzja, np. „Podróże”, dla całej grupy.
+  Przycisk „reguła dla tego sprzedawcy” przy sprzedawcy zaznacza „utwórz regułę” i wpisuje go do
+  warunku — reguła obejmie tylko jego pozycje, reszta grupy zostaje w kolejce.
   Zagraniczny sprzedawca obecny w co najmniej 3 różnych miesiącach (subskrypcja, doładowania)
   jest wśród zwykłych sprzedawców.
 - **Widok miesiąca** — „Nieskategoryzowane” na ekranie Wydatki otwiera kolejkę zawężoną do
   oglądanego miesiąca (`/review?month=RRRR-MM`, przejście « » między miesiącami, link „wszystkie
   miesiące”). Reguła zapisana z tego widoku działa we wszystkich miesiącach — podgląd podaje,
-  ile pozycji spoza miesiąca obejmie; żeby skategoryzować tylko ten miesiąc, zaznacz „tylko te
-  transakcje”.
+  ile pozycji spoza miesiąca obejmie; żeby skategoryzować tylko ten miesiąc, zapisz bez „utwórz
+  regułę”.
 
 ## Podpowiedzi kategorii z AI (opcjonalnie)
 

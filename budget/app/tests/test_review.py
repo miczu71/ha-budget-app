@@ -77,7 +77,8 @@ def test_queue_groups_expenses(conn: sqlite3.Connection) -> None:
     ]
     kebab = q.merchants[1]
     assert (kebab.first_day, kebab.last_day) == ("2026-09-01", "2026-09-05")
-    assert kebab.can_rule and not q.countries[0].can_rule
+    assert kebab.default_merchant == kebab.key.value
+    assert q.countries[0].default_merchant == q.countries[0].merchants()[0][0]
     # Lidl ze słownika, przelew własny, PDNG i konto poza budżetem — poza kolejką
     assert q.merchants_total == 2
     assert q.pending == 7  # 6 wydatków + 1 wpływ
@@ -120,7 +121,7 @@ def test_regular_foreign_merchant_is_merchant_group(conn: sqlite3.Connection) ->
     q = review.queue(conn)
     assert "Irlandia" not in [g.label for g in q.countries]  # subskrypcja, nie wyjazd
     lkjhg = next(g for g in q.merchants if g.label == "Lkjhg")
-    assert lkjhg.count == 3 and lkjhg.can_rule
+    assert lkjhg.count == 3 and lkjhg.default_merchant == lkjhg.key.value
     # dwa miesiące to jeszcze wyjazd
     add(conn, "-5.00", "card", "MNBVC 1 XYZ AUT 2026-05-02", day="2026-05-02")
     add(conn, "-5.00", "card", "MNBVC 1 XYZ AUT 2026-06-02", day="2026-06-02")

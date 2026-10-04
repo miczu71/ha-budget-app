@@ -9,12 +9,17 @@ własne pola o tych nazwach (grupa kolejki: `kind`, `direction`), np. `rule_kind
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import replace
 from typing import Any
 
 from starlette.datastructures import FormData
 
 from budget.categorize import rules
-from budget.categorize.rules import Conditions, Rule, TextCondition
+from budget.categorize.rules import Conditions, Rule, RuleError, TextCondition
+from budget.normalize import fold
+
+RULE = "rule_"  # prefiks pól reguły w formularzach kategorii (kolejka ma własne `kind`/`direction`)
+MIN_FRAGMENT = 3  # znaki (bez ogonków) w tekście warunku „zawiera” / „zaczyna się od”
 
 
 def _int(value: Any) -> int | None:
@@ -59,6 +64,32 @@ def rule_from_form(form: FormData, prefix: str = "") -> Rule:
         rename=str(form.get(f"{prefix}rename") or "") or None,
         enabled=form.get("enabled") is not None or form.get("id") is None,
     )
+
+
+def requested(form: FormData | None) -> bool:
+    """Reguła tylko na żądanie („utwórz regułę”); domyślnie kategoria ręczna."""
+    return form is not None and form.get("make_rule") is not None
+
+
+def form_rule(form: FormData | None, default: Rule, prefix: str = RULE) -> Rule:
+    """Reguła z pól formularza kategorii (bez kategorii i walidacji). Bez warunków tekstowych
+    (np. formularz bez bloku reguły) → `default`; pole kierunku niewysłane (nie: „oba”) →
+    kierunek z `default`."""
+    if form is None or not has_text(form, prefix):
+        return default
+    rule = replace(rule_from_form(form, prefix), id=None, enabled=True)
+    if f"{prefix}direction" not in form:
+        rule = replace(
+            rule, conditions=replace(rule.conditions, direction=default.conditions.direction)
+        )
+    return rule
+
+
+def check_fragments(cond: Conditions) -> None:
+    """Fragment tekstu w „zawiera” / „zaczyna się od” nie może być za krótki."""
+    for c in cond.text:
+        if c.op != "equals" and len(fold(c.value)) < MIN_FRAGMENT:
+            raise RuleError(f"Tekst reguły musi mieć co najmniej {MIN_FRAGMENT} znaki.")
 
 
 def accounts(conn: sqlite3.Connection) -> dict[int, str]:

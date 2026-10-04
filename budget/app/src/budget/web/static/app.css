@@ -328,6 +328,22 @@ form.rename span { flex: 1; align-self: center; }
 .rv-rule { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
 .rv-rule input[type="text"] { flex: 1; min-width: 12em; max-width: 360px; }
 .rv-preview p { margin: 4px 0 8px; }
+/* „utwórz regułę”: bez zaznaczenia pola reguły schowane (kategoria ręczna dla zaznaczonych
+   pozycji); z zaznaczeniem pozycje wybierają warunki, więc pola wyboru są nieaktywne */
+form:not(:has(input[name="make_rule"]:checked)) .rv-rulebox { display: none; }
+.cat-form .rv-rulebox { margin-top: 8px; flex-basis: 100%; }
+.rv-form:has(input[name="make_rule"]:checked) .rv-items input[type="checkbox"] {
+  opacity: 0.35;
+  pointer-events: none;
+}
+button.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+}
 /* „więcej warunków” w grupie kolejki — wspólne pola z edytora reguł (`_rule_conditions.html`) */
 .rv-list .rv-more summary { display: block; padding: 2px 0 6px; color: var(--accent); }
 .rv-more { margin-bottom: 6px; }

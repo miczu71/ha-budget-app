@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.11.0
+
+**Zmiana domyślnego zachowania:** zapis kategorii nie tworzy już reguły (M4h etap 2,
+`docs/PLAN_review_rule_conditions.md`).
+
+- **Kolejka „Do przejrzenia”:** pole „tylko te transakcje (bez reguły)” zastąpione przez
+  **„utwórz regułę”** (domyślnie odznaczone). Bez zaznaczenia zapis nadaje kategorię **ręczną**
+  zaznaczonym pozycjom — przyszłe transakcje tego sprzedawcy pojawią się w kolejce jako nowe
+  pozycje. Z zaznaczeniem pokazują się pola reguły (jak w 0.10.0), a pozycje grupy wybierają
+  warunki (pola wyboru pozycji są wtedy nieaktywne).
+- **Ptaszek w filtrze „Propozycja AI”** nadaje kategorię ręcznie całej grupie (bez reguły).
+- **Reguła w każdej grupie:** także w grupach krajów (przycisk „reguła dla tego sprzedawcy”
+  zamiast linku do edytora) i w grupach bez nazwy (warunek do wpisania, np. konto kontrahenta).
+- **Transakcje:** w formularzu kategorii „utwórz regułę” rozwija w miejscu pola reguły
+  (sprzedawca równa się … + kierunek, dodatkowe warunki, kwota, nazwa) z podglądem na żywo; reguła
+  musi pasować do tej transakcji i zastępuje jej ręczną kategorię. Link „Zawsze dla …” usunięty.
+- Bez nowych encji ani usług.
+
 ## 0.10.0
 
 Pełne warunki reguły w kolejce „Do przejrzenia” (M4h etap 1, `docs/PLAN_review_rule_conditions.md`).

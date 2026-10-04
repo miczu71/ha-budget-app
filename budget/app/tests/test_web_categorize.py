@@ -84,11 +84,13 @@ async def test_transactions_filters_and_manual_category(
 
     form = (await client.get(f"/transactions/{ids['kebab']}/category")).text
     assert "<select" in form and "automatycznie" in form
+    assert 'name="make_rule"' in form and 'name="make_rule" value="1" checked' not in form
     leaf = taxonomy.by_slug(service.conn)["restauracje"].id
     r = await client.post(f"/transactions/{ids['kebab']}/category", data={"category_id": str(leaf)})
     assert r.status_code == 200
     assert "Restauracje i kawiarnie" in r.text and "ręczna" in r.text
-    assert f"{INGRESS}/rules/new?txn={ids['kebab']}" in r.text
+    assert "/rules/new" not in r.text and "Zawsze dla" not in r.text
+    assert rules.all_rules(service.conn) == []  # domyślnie bez reguły
     r = await client.post(f"/transactions/{ids['kebab']}/category", data={"category_id": ""})
     assert "ręczna" not in r.text
     r = await client.post(f"/transactions/{ids['own']}/category", data={"category_id": str(leaf)})
@@ -226,3 +228,80 @@ async def test_rule_from_correction_takes_over_manual(
     await client.post("/rules/save", data=form)
     row = conn.execute("SELECT category_source FROM txn WHERE id = ?", (ids["salary"],)).fetchone()
     assert row[0] == "rule"
+
+
+# --- M4h/2: reguła z Transakcji w miejscu -------------------------------------------------------
+
+
+def _txn_rule(cid: int, value: str, **extra: str) -> dict[str, str]:
+    return {
+        "category_id": str(cid),
+        "make_rule": "1",
+        "rule_field_0": "merchant",
+        "rule_op_0": "equals",
+        "rule_value_0": value,
+        "rule_direction": "in",
+        **extra,
+    }
+
+
+async def test_txn_category_form_prefills_rule(client: httpx.AsyncClient, service: Service) -> None:
+    ids = _seed(service.conn)
+    form = (await client.get(f"/transactions/{ids['salary']}/category")).text
+    assert 'name="rule_value_0" value="Firma Sp Z O O"' in form
+    assert '<option value="in" selected' in form  # kierunek ze znaku kwoty
+    assert "rule-preview" in form
+
+
+async def test_txn_rule_preview_and_save(client: httpx.AsyncClient, service: Service) -> None:
+    ids = _seed(service.conn)
+    conn = service.conn
+    salary = taxonomy.by_slug(conn)["wynagrodzenie"].id
+    other = add(conn, "5100.00", "transfer_in", "Pensja X", "FIRMA SP Z O O", day=DAY)
+    engine.recategorize(conn)
+    data = _txn_rule(salary, "Firma Sp Z O O", rule_value_1="pensja", rule_field_1="description")
+    p = await client.post(f"/transactions/{ids['salary']}/rule-preview", data=data)
+    assert "opis / tytuł zawiera „pensja”" in p.text and "Pasuje 2" in p.text
+    r = await client.post(f"/transactions/{ids['salary']}/category", data=data)
+    assert "Wynagrodzenie" in r.text and "reguła" in r.text
+    [rule] = rules.all_rules(conn)
+    assert rule.conditions.direction == "in" and len(rule.conditions.text) == 2
+    for t in (ids["salary"], other):
+        row = conn.execute("SELECT category_source FROM txn WHERE id = ?", (t,)).fetchone()
+        assert row[0] == "rule"
+
+
+async def test_txn_rule_replaces_manual_category(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    ids = _seed(service.conn)
+    conn = service.conn
+    gifts = taxonomy.by_slug(conn)["prezenty"].id
+    salary = taxonomy.by_slug(conn)["wynagrodzenie"].id
+    await client.post(f"/transactions/{ids['salary']}/category", data={"category_id": str(gifts)})
+    await client.post(
+        f"/transactions/{ids['salary']}/category", data=_txn_rule(salary, "Firma Sp Z O O")
+    )
+    row = conn.execute(
+        "SELECT category_source, category_id FROM txn WHERE id = ?", (ids["salary"],)
+    ).fetchone()
+    assert tuple(row) == ("rule", salary)
+
+
+async def test_txn_rule_errors(client: httpx.AsyncClient, service: Service) -> None:
+    ids = _seed(service.conn)
+    conn = service.conn
+    salary = taxonomy.by_slug(conn)["wynagrodzenie"].id
+    bad = _txn_rule(salary, "Lidl")
+    p = await client.post(f"/transactions/{ids['salary']}/rule-preview", data=bad)
+    assert "nie pasują do tej transakcji" in p.text
+    r = await client.post(f"/transactions/{ids['salary']}/category", data=bad)
+    assert "nie pasują do tej transakcji" in r.text
+    assert 'name="make_rule" value="1" checked' in r.text and 'value="Lidl"' in r.text
+    r = await client.post(
+        f"/transactions/{ids['salary']}/category", data={**bad, "category_id": ""}
+    )
+    assert "Wybierz podkategorię" in r.text
+    assert rules.all_rules(conn) == []
+    row = conn.execute("SELECT category_id FROM txn WHERE id = ?", (ids["salary"],)).fetchone()
+    assert row[0] is None

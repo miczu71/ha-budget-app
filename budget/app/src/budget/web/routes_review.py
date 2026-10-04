@@ -1,24 +1,25 @@
 """Ekran „Do przejrzenia”: nieskategoryzowane w grupach, decyzja dla całej grupy naraz.
 
-Domyślnie zapis tworzy regułę „sprzedawca równa się X” + kierunek (przyszłe transakcje też
-dostaną kategorię). Warunek można zmienić (inne pole, „zawiera” / „zaczyna się od” z fragmentem
-tekstu — np. cała sieć sklepów jedną regułą), a pod „więcej warunków” dodać kolejne (wszystkie
-muszą być spełnione): drugie i trzecie pole tekstowe, konto, typ, kierunek, kwotę od–do i nazwę
-sprzedawcy — te same pola co w edytorze Reguł (`web.rule_form`). Reguła musi złapać co najmniej
-jedną pozycję grupy; pozycje, których nie złapie, zostają w kolejce (tak rozbija się mieszankę
-pod jednym odbiorcą). Podgląd pokazuje, ile pozycji grupy złapie, które zostaną i co jeszcze
-z kolejki obejmie.
-
-Kategoria ręczna („tylko te”) — gdy użytkownik tak wybierze, gdy odznaczy część pozycji albo
-dla grup kraju i grup bez nazwy, z których reguły „sprzedawca równa się” zrobić się nie da.
+Domyślnie zapis nadaje kategorię ręczną zaznaczonym pozycjom (bez reguły — przyszłe transakcje
+sprzedawcy wrócą do kolejki jako nowe pozycje); odznaczone zostają w kolejce. Regułę tworzy się
+na żądanie („utwórz regułę”, `make_rule`) w każdej grupie: domyślnie „sprzedawca równa się X”
++ kierunek (X — sprzedawca grupy, w grupie kraju najczęstszy; grupa bez nazwy — warunek do
+wpisania). Warunek można zmienić (inne pole, „zawiera” / „zaczyna się od” z fragmentem tekstu),
+a pod „więcej warunków” dodać kolejne (wszystkie muszą być spełnione): drugie i trzecie pole
+tekstowe, konto, typ, kierunek, kwotę od–do i nazwę sprzedawcy — te same pola co w edytorze
+Reguł (`web.rule_form`). W trybie reguły to warunki wybierają pozycje (pola wyboru pozycji są
+ignorowane); reguła musi złapać co najmniej jedną pozycję grupy, reszta zostaje w kolejce (tak
+rozbija się mieszankę pod jednym odbiorcą). Podgląd pokazuje, ile pozycji grupy złapie, które
+zostaną i co jeszcze z kolejki obejmie.
 
 Filtr `ai=<id podkategorii>` (przy włączonych podpowiedziach AI) zostawia grupy sprzedawców, które
 mają tę podkategorię wśród swoich propozycji (dowolnej z 3); w takim widoku przy każdej grupie jest
-„✓ <podkategoria>” — zapis reguły dla całej grupy jednym dotknięciem (wybór kategorii to filtr).
+„✓ <podkategoria>” — kategoria ręczna dla całej grupy jednym dotknięciem (wybór kategorii to
+filtr).
 
 Widok miesiąca (`month=RRRR-MM`, link z „Wydatków”) zawęża listę i zaznaczanie do pozycji
-z miesiąca; reguła zapisana z takiego widoku nadal obejmuje sprzedawcę we wszystkich miesiącach
-(podgląd mówi, ile pozycji spoza miesiąca dostanie kategorię).
+z miesiąca; reguła zapisana z takiego widoku nadal działa we wszystkich miesiącach (podgląd mówi,
+ile pozycji spoza miesiąca dostanie kategorię).
 """
 
 from __future__ import annotations
@@ -38,17 +39,22 @@ from budget import ledger, review, spending
 from budget.categorize import engine, rules, taxonomy
 from budget.categorize.rules import Conditions, Facts, Rule, RuleError, TextCondition
 from budget.categorize.taxonomy import Category, TaxonomyError
-from budget.normalize import fold
 from budget.review import Direction, Group, GroupKey, GroupKind, Item, Sort
 from budget.spending import add_months, month_label, parse_month
 from budget.suggest import engine as suggest
 from budget.web.common import Panel
-from budget.web.rule_form import accounts, conditions_context, describe, has_text, rule_from_form
+from budget.web.rule_form import (
+    RULE,
+    accounts,
+    check_fragments,
+    conditions_context,
+    describe,
+    form_rule,
+    requested,
+)
 
 PAGE = 50
 AI_TOP = 8  # podkategorie filtra AI widoczne od razu; reszta pod „więcej”
-MIN_FRAGMENT = 3  # znaki (bez ogonków) w tekście reguły „zawiera” / „zaczyna się od”
-RULE = "rule_"  # prefiks pól reguły — formularz grupy ma własne `kind` i `direction`
 
 
 def group_key(kind: Any, value: Any, direction: Any, currency: Any) -> GroupKey | None:
@@ -80,31 +86,12 @@ def selected_ids(form: FormData) -> set[int]:
     return out
 
 
-def as_rule(g: Group, selected: set[int], only: bool) -> bool:
-    """Reguła tylko dla nazwanego sprzedawcy, bez „tylko te” i z zaznaczoną całą grupą."""
-    return g.can_rule and not only and selected == {i.id for i in g.items}
-
-
 def default_rule(g: Group) -> Rule:
-    """Reguła z kolejki bez zmian użytkownika: „sprzedawca równa się <nazwa grupy>” + kierunek."""
-    return Rule(
-        None,
-        0,
-        Conditions(
-            text=(TextCondition("merchant", "equals", g.key.value),), direction=g.key.direction
-        ),
-    )
-
-
-def form_rule(g: Group, form: FormData | None) -> Rule:
-    """Reguła z pól formularza grupy (bez kategorii i walidacji); formularz bez warunków
-    tekstowych (np. „✓” w filtrze AI) → reguła domyślna."""
-    if form is None or not has_text(form, RULE):
-        return default_rule(g)
-    rule = replace(rule_from_form(form, RULE), id=None, enabled=True)
-    if f"{RULE}direction" not in form:  # pole kierunku niewysłane (nie: „oba”) → kierunek grupy
-        rule = replace(rule, conditions=replace(rule.conditions, direction=g.key.direction))
-    return rule
+    """Reguła z kolejki bez zmian użytkownika: „sprzedawca równa się <sprzedawca grupy>”
+    + kierunek (grupa bez nazwy — bez warunku tekstowego, trzeba go wpisać)."""
+    m = g.default_merchant
+    text = (TextCondition("merchant", "equals", m),) if m else ()
+    return Rule(None, 0, Conditions(text=text, direction=g.key.direction))
 
 
 def queue_facts(conn: sqlite3.Connection, groups: list[Group]) -> dict[int, Facts]:
@@ -122,9 +109,7 @@ def check_rule(
     albo reguła nie złapie żadnej pozycji grupy (część grupy wystarczy — reszta zostaje w
     kolejce)."""
     cond = rules.clean_conditions(conn, rule.conditions)
-    for c in cond.text:
-        if c.op != "equals" and len(fold(c.value)) < MIN_FRAGMENT:
-            raise RuleError(f"Tekst reguły musi mieć co najmniej {MIN_FRAGMENT} znaki.")
+    check_fragments(cond)
     if not caught_ids(g.items, cond, facts):
         raise RuleError(
             f"Warunki nie pasują do żadnej pozycji grupy „{g.label}” — reguła nie objęłaby "
@@ -204,7 +189,6 @@ def router(panel: Panel) -> APIRouter:
     def preview_ctx(
         g: Group,
         selected: set[int],
-        only: bool,
         cid: int | None,
         m: date | None,
         form: FormData | None = None,
@@ -213,7 +197,7 @@ def router(panel: Panel) -> APIRouter:
         ctx: dict[str, Any] = {
             "g": g,
             "selected": len(selected),
-            "rule": as_rule(g, selected, only),
+            "rule": requested(form),
             "category": taxonomy.all_categories(conn).get(cid) if cid else None,
         }
         if not ctx["rule"]:
@@ -221,7 +205,7 @@ def router(panel: Panel) -> APIRouter:
         groups = review.all_groups(conn)  # wszystkie miesiące
         facts = queue_facts(conn, groups)
         try:
-            candidate = form_rule(g, form)
+            candidate = form_rule(form, default_rule(g))
             cond = check_rule(conn, g, candidate, facts)
         except RuleError as exc:
             ctx["rule_error"] = str(exc)
@@ -320,7 +304,7 @@ def router(panel: Panel) -> APIRouter:
         if g is None:
             return HTMLResponse('<p class="muted">Ta grupa jest już przejrzana — odśwież.</p>')
         selected = selected_ids(form) & {i.id for i in g.items}
-        ctx = preview_ctx(g, selected, form.get("only") is not None, category(form), m, form)
+        ctx = preview_ctx(g, selected, category(form), m, form)
         return panel.partial(request, "_review_preview.html", **ctx)
 
     @r.get("/review/item", response_class=HTMLResponse)
@@ -341,7 +325,7 @@ def router(panel: Panel) -> APIRouter:
         if g is None:
             return HTMLResponse('<li class="rv-done muted">Ta grupa jest już przejrzana.</li>')
         cid = pick if pick in taxonomy.leaves(conn) else None
-        ctx = preview_ctx(g, {i.id for i in g.items}, False, cid, m)
+        ctx = preview_ctx(g, {i.id for i in g.items}, cid, m)
         return panel.partial(
             request,
             "_review_li.html",
@@ -388,7 +372,7 @@ def router(panel: Panel) -> APIRouter:
 
         def fail(message: str) -> HTMLResponse:
             try:
-                shown = form_rule(g, form)
+                shown = form_rule(form, default_rule(g))
             except RuleError:
                 shown = default_rule(g)
             return panel.partial(
@@ -401,22 +385,24 @@ def router(panel: Panel) -> APIRouter:
                 month=m,
                 pick=cid,
                 tree=taxonomy.tree(conn),
+                make_rule=use_rule,
                 **conditions_context(conn, shown, RULE),
             )
 
+        # reguła: pozycje wybierają warunki; ręcznie: zaznaczone pola wyboru
+        use_rule = requested(form)
         if cid is None:
             return fail("Wybierz podkategorię.")
-        if not selected:
+        if not use_rule and not selected:
             return fail("Zaznacz co najmniej jedną transakcję.")
-        if not selected <= {i.id for i in g.items}:
+        if not use_rule and not selected <= {i.id for i in g.items}:
             return fail("Lista transakcji się zmieniła — odśwież stronę.")
-        use_rule = as_rule(g, selected, form.get("only") is not None)
         caught: Counter[str] = Counter()
         try:
             if use_rule:
                 groups = review.all_groups(conn)
                 facts = queue_facts(conn, groups)
-                candidate = form_rule(g, form)
+                candidate = form_rule(form, default_rule(g))
                 cond = check_rule(conn, g, candidate, facts)
                 caught = elsewhere(groups, g, cond, facts)
                 count = len(caught_ids(g.items, cond, facts))

@@ -151,7 +151,7 @@ async def test_queue_chips_pick_and_assign(ai: httpx.AsyncClient, ai_service: Se
     assert page.count('class="chip ') == 3 and f"pick={r}" in page and f"pick={o}" in page
     li = (await ai.get("/review/item", params={**GROUP, "pick": str(s)})).text
     assert "<details open" in li and f'value="{s}" selected' in li
-    assert "Reguła" in li and "Spożywcze" in li  # gotowy podgląd
+    assert "Kategoria ręczna" in li and "Spożywcze" in li  # gotowy podgląd (domyślnie bez reguły)
     assert 'class="chip on"' in li  # wybrana propozycja wyróżniona
     # zapis inną kategorią → podpowiedź odrzucona; chipów już nie ma
     txn = ai_service.conn.execute("SELECT id FROM txn").fetchone()["id"]
@@ -288,7 +288,7 @@ async def test_ai_filter_bar_and_list(ai: httpx.AsyncClient, ai_service: Service
     assert "Nic do przejrzenia" in page and "pokaż wszystkie" in page
 
 
-async def test_ai_filter_check_saves_rule(ai: httpx.AsyncClient, ai_service: Service) -> None:
+async def test_ai_filter_check_is_manual(ai: httpx.AsyncClient, ai_service: Service) -> None:
     ids = _three(ai_service)
     r = await ai.post(
         "/review/assign",
@@ -302,9 +302,15 @@ async def test_ai_filter_check_saves_rule(ai: httpx.AsyncClient, ai_service: Ser
             "all": "1",
         },
     )
-    assert "zapisano" in r.text and "Asdfg: 2 tr." in r.text and "reguła" in r.text
-    [rule] = rules.all_rules(ai_service.conn)
-    assert rule.conditions.text[0] == rules.TextCondition("merchant", "equals", "Asdfg")
+    assert "zapisano" in r.text and "Asdfg: 2 tr." in r.text and "reguła" not in r.text
+    assert rules.all_rules(ai_service.conn) == []  # ✓ = kategoria ręczna, bez reguły
+    sources = {
+        row[0]
+        for row in ai_service.conn.execute(
+            "SELECT category_source FROM txn WHERE merchant = 'Asdfg'"
+        )
+    }
+    assert sources == {"manual"}
     status = ai_service.conn.execute(
         "SELECT status FROM suggestion WHERE merchant = 'Asdfg'"
     ).fetchone()["status"]
