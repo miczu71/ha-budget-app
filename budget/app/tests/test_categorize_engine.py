@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
+from dataclasses import replace
 from decimal import Decimal
 
 import pytest
@@ -328,3 +329,41 @@ def test_delete_rule_releases_transactions(conn: sqlite3.Connection) -> None:
     rules.delete(conn, rid)
     engine.recategorize(conn)
     assert cat(conn, t)[:2] == (None, None)
+
+
+def _naive(txns: list[engine._Txn], all_: list[Rule]) -> dict[int, Rule | None]:
+    """Referencja: pierwsza pasująca aktywna reguła po kolei (zachowanie sprzed indeksu)."""
+    active = [r for r in all_ if r.enabled]
+    return {t.id: next((r for r in active if r.conditions.matches(t.facts)), None) for t in txns}
+
+
+def test_rule_index_same_as_linear_scan(conn: sqlite3.Connection) -> None:
+    add(conn, "-50.00", "card", "LIDL UL. X XYZ POL 2026-09-10")
+    add(conn, "-12.00", "card", "LIDL UL. Y XYZ POL 2026-09-11", account=2)
+    add(conn, "-30.00", "card", "SKLEP ĄBC XYZ POL 2026-09-10")
+    add(conn, "-300.00", "card", "SKLEP ĄBC XYZ POL 2026-09-12")
+    add(conn, "40.00", "card", "SKLEP ĄBC XYZ POL 2026-09-13")
+    add(conn, "-100.00", "transfer_out", "Składka", "JXNA QWERTOWSKA")
+    add(conn, "100.00", "transfer_in", "Zwrot", "JXNA QWERTOWSKA")
+    add(conn, "-80.00", "transfer_out", "Opłata", "ŻÓŁW SPÓŁKA", counterparty_account="PL 11 2222")
+    add(conn, "-9.00", "card", "KAWIARNIA ZETA XYZ POL 2026-09-14")
+    rule(conn, "restauracje", ("merchant", "equals", "kawiarnia zeta"))
+    rule(conn, "media", ("counterparty_account", "contains", "PL112222"))
+    rule(conn, "dzieci-zakupy", ("merchant", "equals", "sklep abc"), amount_min=Decimal("100"))
+    rule(conn, "spozywcze", ("merchant", "equals", "SKLEP ABC"), direction="out")
+    rule(conn, "media", ("merchant", "equals", "Jxna Qwertowska"), direction="in")
+    rule(conn, "restauracje", ("merchant", "equals", "Jxna Qwertowska"), direction="out")
+    rule(conn, "media", ("description", "contains", "skladka"))  # wyżej niż equals na osobę
+    rule(conn, "dzieci-zakupy", ("merchant", "equals", "lidl"), account_id=2)
+    off = rule(conn, "media", ("merchant", "equals", "lidl"))
+    rules.set_enabled(conn, off, False)
+    rule(conn, "spozywcze", ("merchant", "starts_with", "kawiar"), ("merchant", "equals", "x"))
+    engine.recategorize(conn)
+    txns = engine._load(conn, engine.merchants.builtin())
+    all_ = rules.all_rules(conn)
+    index = engine._RuleIndex(all_)
+    assert {t.id: index.first(t.facts) for t in txns} == _naive(txns, all_)
+    # kolejność odwrócona: equals wyżej niż contains
+    reversed_ = [replace(r, priority=-r.priority) for r in reversed(all_)]
+    index = engine._RuleIndex(reversed_)
+    assert {t.id: index.first(t.facts) for t in txns} == _naive(txns, reversed_)

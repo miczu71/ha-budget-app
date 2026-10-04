@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.1
+
+Szybszy zapis reguł i podgląd w kolejce „Do przejrzenia” (`docs/PLAN_rule_index.md`).
+
+- **Przyczyna:** przeliczenie kategorii sprawdzało dla każdej transakcji wszystkie reguły po kolei,
+  więc każda nowa reguła z kolejki spowalniała kolejny zapis i podgląd (przy ~150 regułach ~5 s
+  podglądu i ~10 s zapisu na słabym CPU; baza danych to ułamek sekundy).
+- **Poprawka:** reguły „sprzedawca równa się X” (domyślne z kolejki) są w indeksie po nazwie
+  sprzedawcy; pozostałe reguły sprawdzane po kolei jak dotąd. Wynik kategoryzacji bez zmian
+  (ta sama kolejność reguł), czas zapisu ~1 s i prawie niezależny od liczby reguł. Przyspiesza też
+  przeliczenie po każdej synchronizacji i imporcie.
+- Bez nowych encji, usług ani zmian w panelu.
+
 ## 0.9.0
 
 „Ile zostało” w Home Assistant — encje budżetu elastycznego (M5a etap 2, `docs/PLAN_M5a.md`).

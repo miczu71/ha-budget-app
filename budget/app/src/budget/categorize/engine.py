@@ -23,7 +23,7 @@ from functools import lru_cache
 
 from budget.categorize import merchants, taxonomy
 from budget.categorize.merchants import Dictionary
-from budget.categorize.rules import Facts, Rule, all_rules
+from budget.categorize.rules import Facts, Rule, _norm, all_rules
 from budget.kinds import Kind
 
 KIND_DEFAULTS = {
@@ -104,13 +104,55 @@ def _load(conn: sqlite3.Connection, dictionary: Dictionary) -> list[_Txn]:
     return out
 
 
+class _RuleIndex:
+    """Pierwsza pasująca reguła bez sprawdzania wszystkich po kolei.
+
+    Reguła z warunkiem „sprzedawca równa się X” (domyślna z kolejki) może pasować tylko do
+    transakcji sprzedawcy X — trafia do słownika po znormalizowanej nazwie; reszta reguł jest
+    sprawdzana po kolei, ale tylko te wyżej na liście niż kandydat ze słownika. Wynik jak przy
+    sprawdzaniu wszystkich reguł po kolei, koszt prawie niezależny od liczby reguł."""
+
+    def __init__(self, rules: Sequence[Rule]) -> None:
+        self.by_merchant: dict[str, list[tuple[int, Rule]]] = {}
+        self.rest: list[tuple[int, Rule]] = []
+        for pos, r in enumerate(r for r in rules if r.enabled):
+            key = next(
+                (
+                    _norm(c.field, c.value)
+                    for c in r.conditions.text
+                    if c.field == "merchant" and c.op == "equals"
+                ),
+                None,
+            )
+            if key is None:
+                self.rest.append((pos, r))
+            else:
+                self.by_merchant.setdefault(key, []).append((pos, r))
+
+    def first(self, facts: Facts) -> Rule | None:
+        found = next(
+            (
+                (pos, r)
+                for pos, r in self.by_merchant.get(_norm("merchant", facts.merchant), ())
+                if r.conditions.matches(facts)
+            ),
+            None,
+        )
+        for pos, r in self.rest:
+            if found is not None and pos > found[0]:
+                break
+            if r.conditions.matches(facts):
+                return r
+        return found[1] if found else None
+
+
 def _classify(
     txns: Sequence[_Txn], rules: Sequence[Rule], slugs: dict[str, int]
 ) -> dict[int, Assignment]:
-    active = [r for r in rules if r.enabled]
+    index = _RuleIndex(rules)
     result: dict[int, Assignment] = {}
     for t in txns:
-        rule = next((r for r in active if r.conditions.matches(t.facts)), None)
+        rule = index.first(t.facts)
         merchant = (rule.rename if rule and rule.rename else None) or t.facts.merchant
         if t.is_manual:
             result[t.id] = Assignment(t.current.category_id, "manual", None, merchant)
