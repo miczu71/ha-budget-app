@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import date, timedelta
 
 import httpx
 import pytest
 
-from budget.categorize import taxonomy
+from budget.categorize import engine, taxonomy
 from budget.service import Service
 
+from .test_categorize_engine import add
 from .test_web import INGRESS, _client
 from .test_web_categorize import DAY, _seed
 
@@ -63,3 +65,27 @@ async def test_category_group_form(client: httpx.AsyncClient, service: Service) 
     assert taxonomy.all_categories(service.conn)[120].flex_group == "flexible"
     await client.post("/categories/3/group", data={"flex_group": "fixed"})
     assert "Grupę budżetu ma tylko podkategoria" in (await client.get("/categories")).text
+
+
+async def test_auto_pool_breakdown_and_back_to_auto(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _seed(service.conn)
+    prev = (date.fromisoformat(DAY) - timedelta(days=1)).replace(day=24)
+    t = add(service.conn, "6000.00", "transfer_in", "Pensja", "FIRMA X", day=prev.isoformat())
+    engine.set_manual(service.conn, t, taxonomy.by_slug(service.conn)["wynagrodzenie"].id)
+    page = (await client.get(f"/budget?month={MONTH}")).text
+    assert "— automatyczna, z wpływów z miesiąca:" in page
+    assert "Pula automatyczna" in page and "6\u202f000,00" in page
+    assert "Ustaw ręcznie od tego miesiąca" in page
+
+    await client.post("/budget/amount", data={"month": MONTH, "amount": "1000"})
+    page = (await client.get(f"/budget?month={MONTH}")).text
+    assert "— ręczna, obowiązuje od miesiąca:" in page
+    assert f'action="{INGRESS}/budget/auto"' in page
+
+    r = await client.post("/budget/auto", data={"month": MONTH})
+    assert r.status_code == 303
+    page = (await client.get(f"/budget?month={MONTH}")).text
+    assert "Pula automatyczna (z wpływów)" in page  # komunikat
+    assert "— automatyczna, z wpływów z miesiąca:" in page

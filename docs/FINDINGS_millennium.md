@@ -69,6 +69,13 @@ lokalnie (`/data/home/budget_dev/prod/`), tutaj tylko fakty o strukturze — bez
   obciążającej transakcji, a druga zmieniła się prawie o kwotę zwrotu zaksięgowanego w międzyczasie.
   Różnica < 2 zł, najpewniej opłata jeszcze niewidoczna w transakcjach API. Obserwujemy przy
   kolejnych migawkach; zadłużenie karty w budżecie → M9.
+- **ITBD karty wyprzedza i opóźnia API (2026-10-02/04):** zakup był w ITBD (476 zł) już
+  rano, a w transakcjach API pojawił się dopiero wieczorem (z datą księgowania z przyszłości);
+  uznanie (zwrot 100 zł z datą 30.09) trafiło do ITBD dopiero po południu 02.10. Kontrola
+  salda karty licząca różnice od pierwszej migawki pokazywała przez to fałszywą rozbieżność —
+  poprawione w 0.12.0 (znak zadłużenia, „w drodze” do 3 dni, baza ustawiana z panelu).
+  Zostaje stała różnica 1,67 zł (bank > księga): zwrot to dokładnie 100 zł, a w historii karty
+  w bankowości nie widać żadnego obciążenia na tę kwotę — niewyjaśniona, obserwacja.
 - **ITAV karty jest opóźnione:** nie zmieniło się między migawkami, choć ITBD się zmieniło.
 - **Limit zapytań:** doba 02.10 (2 sloty z harmonogramu + synchronizacja z panelu z PSU) przeszła
   bez 429; licznik w add-onie max 2 na (konto, endpoint). **Rozstrzygnięte 03.10: limit liczony

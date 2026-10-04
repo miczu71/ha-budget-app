@@ -71,7 +71,7 @@
 
   <h2 style="margin-top:14px">Uzgodnienie salda</h2>
   {% for c in rep.balance_checks %}
-  <div class="small"><span class="badge {{ 'ok' if c.ok else 'error' }}">{{ "OK" if c.ok else "rozbieżność" }}</span> konto #{{ c.account_id }}{% if c.days_checked %}: dni z saldem {{ c.days_checked }}, rozbieżnych {{ c.day_mismatches | length }}{% endif %}{% if c.snapshot_checks %}; migawek {{ c.snapshot_checks | length }}{% endif %}{% if c.note %} — {{ c.note }}{% endif %}</div>
+  <div class="small"><span class="badge {{ 'ok' if c.status == 'OK' else 'warn' if c.ok else 'error' }}">{{ c.status | lower }}</span> konto #{{ c.account_id }}{% if c.days_checked %}: dni z saldem {{ c.days_checked }}, rozbieżnych {{ c.day_mismatches | length }}{% endif %}{% if c.snapshot_checks %}; migawek {{ c.snapshot_checks | length }}{% endif %}{% if c.note %} — {{ c.note }}{% endif %}</div>
   {% endfor %}
 </section>
 

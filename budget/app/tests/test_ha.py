@@ -14,7 +14,7 @@ import pytest
 import respx
 
 from budget import flex, ha_publisher, notifications, sessions
-from budget.categorize import engine
+from budget.categorize import engine, taxonomy
 from budget.eb_models import Balance, SessionResponse
 from budget.ha_client import HAClient, HAError
 from budget.ledger import account_by_alias, ingest_balances
@@ -277,3 +277,23 @@ def test_flex_error_does_not_block_other_entities(monkeypatch: pytest.MonkeyPatc
     keys = {e.key for e in ha_publisher.build_entities(_ledger(), now=NOW, today=NOW.date())}
     assert "saldo_current_pln" in keys and "sync_now" in keys
     assert not any(k.startswith("flex_") for k in keys)
+
+
+def test_flex_entities_auto_pool(conn: db.sqlite3.Connection) -> None:
+    for m in ("2026-06", "2026-07", "2026-08"):
+        t = add(conn, "9000.00", "transfer_in", f"Pensja {m}", "FIRMA X", day=f"{m}-24")
+        engine.set_manual(conn, t, taxonomy.by_slug(conn)["wynagrodzenie"].id)
+    f = _flex(conn, date(2026, 9, 10))
+    assert f["flex_budget"].state == "9000.00"
+    attrs = f["flex_budget"].attributes
+    assert (attrs["source"], attrs["auto_amount"], attrs["income_base"]) == (
+        "auto",
+        "9000.00",
+        "9000.00",
+    )
+    assert (attrs["bonus_excluded"], attrs["fixed_median"], attrs["income_drop_pct"]) == (
+        "0.00",
+        "0.00",
+        None,
+    )
+    assert f["flex_remaining"].state == "9000.00"

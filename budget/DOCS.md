@@ -89,9 +89,19 @@ podkategorii) można usunąć.
 Ekran **Budżet** odpowiada na jedno pytanie: ile zostało w tym miesiącu na **wydatki
 elastyczne** (codzienne: jedzenie, paliwo, zakupy, wyjścia).
 
-- **Kwotę** ustawiasz w panelu — miesięcznie, od wybranego miesiąca do następnej zmiany
-  (zmiana „od tego miesiąca” nie zmienia wcześniejszych). Podpowiedź to mediana wydatków
-  elastycznych z 6 poprzednich pełnych miesięcy, zaokrąglona w górę do 10 zł.
+- **Pula automatyczna (z dochodu):** wpływy z poprzedniego miesiąca z podkategorii grupy
+  „przychody” (tylko skategoryzowane) minus koszty stałe (mediana z 6 pełnych miesięcy). Pensja
+  przychodzi pod koniec miesiąca, więc żyjesz z wypłaty poprzedniego miesiąca — pula jest znana
+  od 1. dnia. Niższa wypłata (np. po przekroczeniu progu podatkowego) obniża pulę od następnego
+  miesiąca, wyższa podnosi; nie ma tu średniej z dochodu. Oszczędności nie są odejmowane.
+- **Premia poza pulą:** jeśli wpływ ze źródła (np. pracodawcy), które wpłacało co najmniej
+  w 3 z ostatnich 12 miesięcy, przekracza 1,5 × górny kwartyl jego miesięcznych wpływów, do puli
+  idzie mediana z ostatnich 3 miesięcy tego źródła, a nadwyżka zostaje poza pulą.
+- Gdy główne źródło wpływów jest niższe o ponad 15% niż zwykle w tym roku, ekran dopisuje, że
+  to prawdopodobnie przekroczony próg podatkowy (bez żadnych obliczeń podatku).
+- **Kwota ręczna** nadpisuje automatyczną — od wybranego miesiąca do następnej zmiany (zmiana
+  „od tego miesiąca” nie zmienia wcześniejszych); „Wróć do automatycznej” przywraca pulę
+  z dochodu od danego miesiąca. Mediana wydatków elastycznych z 6 miesięcy jest pokazana obok.
 - **Wydane** = podkategorie z grupy „elastyczne” (netto, zwroty zmniejszają) **plus wydatki bez
   kategorii** — ostrożnie, żeby „zostało” nie było zawyżone. Jeśli taki wydatek okaże się stały
   albo nieregularny, po skategoryzowaniu wraca do puli. Link prowadzi do kolejki „Do przejrzenia”
@@ -200,13 +210,14 @@ z propozycji) albo odrzuconą (inna kategoria) — liczniki na karcie AI na ekra
 | `binary_sensor.budget_sync_problem` | Brak zgody albo nieudane synchronizacje |
 | `sensor.budget_requests_today` | Diagnostyka: najwięcej zapytań dziś na (konto, endpoint) bez PSU |
 | `button.budget_sync_now` | Synchronizacja na żądanie (w ramach limitu) |
-| `sensor.budget_flex_budget` | Kwota budżetu elastycznego w bieżącym miesiącu; podpowiedź w atrybucie `suggested` |
+| `sensor.budget_flex_budget` | Pula elastyczna w bieżącym miesiącu (ręczna albo z dochodu); w atrybutach `source` (`manual`/`auto`), `auto_amount`, `income_base`, `bonus_excluded`, `fixed_median`, `income_drop_pct`, mediana wydatków `suggested` |
 | `sensor.budget_flex_spent` | Wydane elastyczne (z wydatkami bez kategorii — liczba i kwota w atrybutach) |
 | `sensor.budget_flex_remaining` | Zostało; w atrybutach `per_day`, `expected_today` (przy równym tempie), `over_pace`, `used_pct`, `days_left` |
 | `sensor.budget_flex_per_day` | Zostało na dzień do końca miesiąca (z dzisiejszym) |
 
-Encje budżetu liczone są jak ekran Budżet dla bieżącego miesiąca. Bez ustawionej kwoty
-`flex_budget`, `flex_remaining` i `flex_per_day` mają stan „nieznany”. Odświeżają się po
+Encje budżetu liczone są jak ekran Budżet dla bieżącego miesiąca. Bez kwoty ręcznej i bez
+wpływów w poprzednim miesiącu `flex_budget`, `flex_remaining` i `flex_per_day` mają stan
+„nieznany”. Odświeżają się po
 synchronizacji, kilka sekund po każdym zapisie w panelu i tuż po północy. Nie mają statystyk
 długoterminowych (historia stanów — tak).
 

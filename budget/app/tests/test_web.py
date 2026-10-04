@@ -203,3 +203,25 @@ async def test_csv_import_map_accounts_transactions(
     assert filtered.status_code == 200 and "Nic nie pasuje do" in filtered.text
     page2 = await client.get("/transactions", params={"page": 2})
     assert page2.status_code == 200
+
+
+async def test_status_reconcile_base_button(service: Service) -> None:
+    from budget import ledger
+
+    from .test_ledger import CARD_IBAN, _itbd, account
+
+    with ledger.transaction(service.conn):
+        card = ledger.upsert_eb_account(service.conn, account("u-card", CARD_IBAN, "Visa"))
+    _itbd(service.conn, card, "0.00", "2026-10-01T07:00:00+00:00")
+    _itbd(service.conn, card, "50.00", "2026-10-05T07:00:00+00:00")
+    async with _client(service) as client:
+        page = (await client.get("/")).text
+        assert "W DRODZE" in page or "ROZBIEŻNOŚĆ" in page
+        assert f'action="{INGRESS}/status/reconcile-base"' in page
+        r = await client.post("/status/reconcile-base", data={"account_id": str(card)})
+        assert r.status_code == 303
+        page = (await client.get("/")).text
+        assert "baza kontroli salda od 2026-10-05T07:00" in page
+        assert f"#{card}: OK" in page and "/status/reconcile-base" not in page
+        r = await client.post("/status/reconcile-base", data={"account_id": "999"})
+        assert "Brak migawki" in (await client.get("/")).text

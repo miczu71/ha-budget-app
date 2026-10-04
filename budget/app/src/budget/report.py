@@ -133,7 +133,7 @@ def format_text(rep: LedgerReport) -> list[str]:
 
 
 def balance_line(check: BalanceCheck) -> str:
-    line = f"#{check.account_id}: {'OK' if check.ok else 'ROZBIEŻNOŚĆ'}"
+    line = f"#{check.account_id}: {check.status}"
     if check.days_checked:
         line += f"; dni z saldem CSV {check.days_checked}, rozbieżnych {len(check.day_mismatches)}"
         if check.day_mismatches:
@@ -143,4 +143,11 @@ def balance_line(check: BalanceCheck) -> str:
         line += f"; migawka {at[:16]}: bank {bank} / księga {calc}"
     if check.note:
         line += f"; {check.note}"
+    if check.base_at:
+        line += " (baza ustawiona w panelu)"
+    if check.status == "W DRODZE":
+        line += (
+            f"; różnica od {check.diff_since[:16] if check.diff_since else '?'} — autoryzacja "
+            "albo uznanie jeszcze niewidoczne w transakcjach API"
+        )
     return line

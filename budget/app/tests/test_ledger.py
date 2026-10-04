@@ -416,3 +416,88 @@ def test_mock_dataset_without_references_is_idempotent(
     again = api(conn, cur, raw)
     assert first.new == len([t for t in raw if t.status == "BOOK"])
     assert (again.new, again.updated) == (0, 0)
+
+
+def _itbd(conn: sqlite3.Connection, account_id: int, amount: str, at: str) -> None:
+    b = Balance.from_api(
+        {"balance_amount": {"currency": "PLN", "amount": amount}, "balance_type": "ITBD"}
+    )
+    ledger.ingest_balances(conn, account_id, [b], fetched_at=at)
+
+
+def _card_check(conn: sqlite3.Connection, card: int) -> ledger.BalanceCheck:
+    return next(c for c in ledger.check_balances(conn) if c.account_id == card)
+
+
+def test_card_check_uses_debt_sign_and_marks_pending_in_transit(
+    conn: sqlite3.Connection, accounts: tuple[int, int]
+) -> None:
+    _, card = accounts
+    _itbd(conn, card, "0.00", "2026-10-01T07:00:00+00:00")
+    # autoryzacja: zadłużenie rośnie, w API transakcji jeszcze nie ma
+    _itbd(conn, card, "50.00", "2026-10-01T19:00:00+00:00")
+    check = _card_check(conn, card)
+    assert check.delta_mode and check.status == "W DRODZE" and check.ok
+    # po zaksięgowaniu: zakup −50 w księdze = zadłużenie +50
+    api(
+        conn,
+        card,
+        [tx("C1", "2026-10-02", "-50.00", "SKLEP")],
+        card=True,
+        at="2026-10-02T07:00:00+00:00",
+    )
+    _itbd(conn, card, "50.00", "2026-10-02T07:00:30+00:00")
+    check = _card_check(conn, card)
+    assert check.snapshot_checks[-1][1:] == (Decimal("50.00"), Decimal("50.00"))
+    assert check.status == "OK" and check.ok
+    # zwrot w księdze i w zadłużeniu w tym samym pobraniu → dalej OK
+    api(
+        conn,
+        card,
+        [tx("C2", "2026-10-03", "20.00", "SKLEP")],
+        card=True,
+        at="2026-10-03T07:00:00+00:00",
+    )
+    _itbd(conn, card, "30.00", "2026-10-03T07:00:30+00:00")
+    assert _card_check(conn, card).status == "OK"
+
+
+def test_card_difference_older_than_transit_window_is_mismatch(
+    conn: sqlite3.Connection, accounts: tuple[int, int]
+) -> None:
+    _, card = accounts
+    _itbd(conn, card, "0.00", "2026-10-01T07:00:00+00:00")
+    _itbd(conn, card, "50.00", "2026-10-01T19:00:00+00:00")
+    _itbd(conn, card, "50.00", "2026-10-03T19:00:00+00:00")
+    assert _card_check(conn, card).status == "W DRODZE"
+    _itbd(conn, card, "50.00", "2026-10-04T19:00:00+00:00")  # 3 dni bez transakcji w API
+    check = _card_check(conn, card)
+    assert check.status == "ROZBIEŻNOŚĆ" and not check.ok
+
+
+def test_card_check_base_snapshot(conn: sqlite3.Connection, accounts: tuple[int, int]) -> None:
+    _, card = accounts
+    # pierwsza migawka złapana „w drodze”: autoryzacja w ITBD, zwrot już w API
+    api(
+        conn,
+        card,
+        [tx("C0", "2026-09-30", "100.00", "ZWROT")],
+        card=True,
+        at="2026-10-02T07:14:00+00:00",
+    )
+    _itbd(conn, card, "476.00", "2026-10-02T07:14:30+00:00")
+    api(
+        conn,
+        card,
+        [tx("C1", "2026-10-03", "-476.00", "SKLEP")],
+        card=True,
+        at="2026-10-02T19:30:00+00:00",
+    )
+    _itbd(conn, card, "377.67", "2026-10-02T19:30:30+00:00")
+    _itbd(conn, card, "377.67", "2026-10-06T19:30:30+00:00")
+    assert _card_check(conn, card).status == "ROZBIEŻNOŚĆ"
+    assert ledger.set_reconcile_base(conn, card) == "2026-10-06T19:30:30+00:00"
+    check = _card_check(conn, card)
+    assert check.status == "OK" and check.base_at == "2026-10-06T19:30:30+00:00"
+    _itbd(conn, card, "377.67", "2026-10-07T19:30:30+00:00")
+    assert _card_check(conn, card).status == "OK"

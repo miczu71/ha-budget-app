@@ -48,4 +48,12 @@ def router(panel: Panel) -> APIRouter:
         message = f"Budżet elastyczny {amount_text} — od miesiąca: {month_label(start)}."
         return panel.redirect(request, back, message)
 
+    @r.post("/budget/auto")
+    async def set_auto(request: Request, month: str = Form("")) -> Response:
+        today = panel.service.now().date()
+        start = parse_month(month, today)
+        flex.set_budget(panel.conn, start, None)
+        message = f"Pula automatyczna (z wpływów) — od miesiąca: {month_label(start)}."
+        return panel.redirect(request, f"/budget?month={start:%Y-%m}", message)
+
     return r

@@ -82,8 +82,15 @@
 
 <section class="card">
   <h2>Uzgodnienie salda</h2>
-  {% for line in checks %}
+  {% for line, c in checks %}
   <div class="small">{{ line }}</div>
+  {% if c.delta_mode and c.status != "OK" %}
+  <form method="post" action="{{ base }}/status/reconcile-base" class="small">
+    <input type="hidden" name="account_id" value="{{ c.account_id }}">
+    <button class="secondary">Przyjmij ostatnią migawkę konta #{{ c.account_id }} jako bazę</button>
+    <span class="muted">— gdy różnica to transakcje „w drodze” z chwili pierwszej migawki, a księga jest kompletna</span>
+  </form>
+  {% endif %}
   {% else %}
   <p class="muted">brak kont</p>
   {% endfor %}

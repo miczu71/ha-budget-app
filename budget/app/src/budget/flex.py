@@ -9,7 +9,10 @@ Zasady (`docs/PLAN_M5a.md`, decyzja 13 w `docs/ROADMAP.md`):
 - reszta jak w `spending`: miesiąc kalendarzowy, bez przelewów wewnętrznych, tylko PLN;
 - tempo liniowe: do końca dzisiejszego dnia „powinno” być wydane budżet × dzień / dni miesiąca;
 - mediany i podpowiedź kwoty z `HISTORY_MONTHS` pełnych miesięcy przed miesiącem ekranu, tylko
-  od miesiąca pierwszej transakcji w księdze (miesiące bez wydatków w kategorii liczą się jako 0).
+  od miesiąca pierwszej transakcji w księdze (miesiące bez wydatków w kategorii liczą się jako 0);
+- bez ręcznej kwoty pula jest automatyczna (etap 3, decyzja 14, `docs/PLAN_M5a_income.md`):
+  wpływy z grupy `income` z poprzedniego miesiąca − mediana stałych; nadwyżka nietypowo wysokiego
+  wpływu ze źródła (premia) zostaje poza pulą.
 """
 
 from __future__ import annotations
@@ -29,6 +32,11 @@ from budget.storage.db import now_iso
 
 HISTORY_MONTHS = 6
 BUDGET_MAX = Decimal("10000000")
+BONUS_WINDOW = 12  # miesięcy historii źródła wpływu do wykrycia premii
+BONUS_MIN_MONTHS = 3  # krótsza historia źródła = wpływ liczony w całości
+BONUS_RATIO = Decimal("1.5")  # premia: wpływ > 1,5 × 3. kwartyl miesięcznych wpływów źródła
+BONUS_TYPICAL_MONTHS = 3  # do puli idzie mediana z ostatnich miesięcy źródła
+DROP_RATIO = Decimal("0.15")  # dopisek o progu: główne źródło niższe o > 15%
 
 
 class FlexError(ValueError):
@@ -52,12 +60,36 @@ class HistoryMonth:
 
 
 @dataclass
+class IncomeSource:
+    name: str
+    amount: Decimal  # wpływy w miesiącu bazowym
+    bonus: Decimal = ZERO  # część poza pulą
+
+
+@dataclass
+class AutoBudget:
+    """Pula z dochodu: wpływy z `income_month` − premie − mediana stałych (nie poniżej 0)."""
+
+    income_month: date
+    income: Decimal
+    bonus: Decimal
+    fixed: Decimal
+    fixed_months: int
+    sources: list[IncomeSource] = field(default_factory=list)
+    drop: tuple[str, float] | None = None  # (główne źródło, spadek) — dopisek o progu
+
+    @property
+    def amount(self) -> Decimal:
+        return max(self.income - self.bonus - self.fixed, ZERO)
+
+
+@dataclass
 class FlexMonth:
     month: date
     prev_month: date
     next_month: date | None  # None, gdy następny miesiąc jeszcze się nie zaczął
-    budget: Decimal | None  # None — kwota nieustawiona
-    budget_from: date | None  # od którego miesiąca obowiązuje kwota
+    budget: Decimal | None  # ręczna albo automatyczna; None — brak obu
+    budget_from: date | None  # od którego miesiąca obowiązuje kwota ręczna
     spent: Decimal  # elastyczne netto + bez kategorii
     uncategorized: Decimal
     uncategorized_count: int
@@ -68,6 +100,8 @@ class FlexMonth:
     lines: list[FlexLine] = field(default_factory=list)
     history: list[HistoryMonth] = field(default_factory=list)
     other_currency: int = 0
+    budget_source: str | None = None  # "manual" | "auto" | None
+    auto: AutoBudget | None = None  # pula z dochodu (także przy ręcznej — informacyjnie)
 
     @property
     def is_current(self) -> bool:
@@ -122,8 +156,8 @@ class FlexMonth:
 # --- kwota budżetu ----------------------------------------------------------------------------
 
 
-def budget_for(conn: sqlite3.Connection, month: date) -> tuple[Decimal, date] | None:
-    """Kwota obowiązująca w miesiącu i miesiąc, od którego obowiązuje."""
+def budget_for(conn: sqlite3.Connection, month: date) -> tuple[Decimal | None, date] | None:
+    """Wpis obowiązujący w miesiącu i miesiąc, od którego obowiązuje (kwota None = auto)."""
     row = conn.execute(
         "SELECT month_from, amount FROM flex_budget WHERE month_from <= ? "
         "ORDER BY month_from DESC LIMIT 1",
@@ -131,7 +165,8 @@ def budget_for(conn: sqlite3.Connection, month: date) -> tuple[Decimal, date] | 
     ).fetchone()
     if row is None:
         return None
-    return Decimal(row["amount"]), date.fromisoformat(row["month_from"])
+    amount = Decimal(row["amount"]) if row["amount"] is not None else None
+    return amount, date.fromisoformat(row["month_from"])
 
 
 def parse_amount(value: str) -> Decimal:
@@ -144,13 +179,17 @@ def parse_amount(value: str) -> Decimal:
     return amount
 
 
-def set_budget(conn: sqlite3.Connection, month: date, amount: Decimal) -> None:
-    """Kwota od miesiąca `month` (do następnej zmiany)."""
+def set_budget(conn: sqlite3.Connection, month: date, amount: Decimal | None) -> None:
+    """Kwota od miesiąca `month` (do następnej zmiany); None = pula automatyczna."""
     conn.execute(
         "INSERT INTO flex_budget (month_from, amount, updated_at) VALUES (?, ?, ?) "
         "ON CONFLICT (month_from) DO UPDATE SET amount = excluded.amount, "
         "updated_at = excluded.updated_at",
-        (month_start(month).isoformat(), money.fmt(amount), now_iso()),
+        (
+            month_start(month).isoformat(),
+            money.fmt(amount) if amount is not None else None,
+            now_iso(),
+        ),
     )
 
 
@@ -192,6 +231,96 @@ def _group(s: Sums, leaves: list[Category], group: str) -> Decimal:
     )
 
 
+def _income_by_source(
+    conn: sqlite3.Connection, start: date, end: date
+) -> dict[str, dict[date, Decimal]]:
+    """Wpływy z podkategorii grupy `income` per źródło i miesiąc (filtry jak w `spending`)."""
+    income = {i for i, c in taxonomy.leaves(conn).items() if c.flex_group == "income"}
+    rows = conn.execute(
+        "SELECT coalesce(t.tx_date, t.booking_date) AS day, t.amount, t.category_id, "
+        "coalesce(nullif(t.merchant, ''), nullif(t.counterparty_name, ''), "
+        "nullif(t.description, ''), '?') AS source "
+        "FROM txn t JOIN account a ON a.id = t.account_id "
+        "WHERE t.status = 'BOOK' AND t.transfer_group IS NULL AND a.include_in_budget = 1 "
+        "AND t.currency = ? AND t.category_id IS NOT NULL "
+        "AND coalesce(t.tx_date, t.booking_date) >= ? AND coalesce(t.tx_date, t.booking_date) < ?",
+        (BASE_CURRENCY, start.isoformat(), end.isoformat()),
+    ).fetchall()
+    out: dict[str, dict[date, Decimal]] = {}
+    for r in rows:
+        if r["category_id"] in income:
+            m = month_start(date.fromisoformat(r["day"][:10]))
+            by_month = out.setdefault(str(r["source"]), {})
+            by_month[m] = by_month.get(m, ZERO) + Decimal(r["amount"])
+    return out
+
+
+def _bonus_limit(values: list[Decimal]) -> Decimal | None:
+    """Granica premii z historii źródła; None — za krótka historia."""
+    if len(values) < BONUS_MIN_MONTHS:
+        return None
+    q3 = Decimal(statistics.quantiles(values, n=4, method="inclusive")[2])
+    return BONUS_RATIO * q3
+
+
+def auto_budget(
+    conn: sqlite3.Connection, month: date, history: list[tuple[date, Sums]] | None = None
+) -> AutoBudget | None:
+    """Pula z dochodu na miesiąc `month`; None — brak wpływów w poprzednim miesiącu."""
+    start = month_start(month)
+    base = add_months(start, -1)
+    window = [add_months(base, -n) for n in range(BONUS_WINDOW, 0, -1)]
+    data = _income_by_source(conn, window[0], start)
+    sources = []
+    for name in sorted(data):
+        amount = data[name].get(base, ZERO)
+        if amount <= 0:
+            continue
+        past = [data[name][m] for m in window if data[name].get(m, ZERO) > 0]
+        limit = _bonus_limit(past)
+        bonus = ZERO
+        if limit is not None and amount > limit:
+            typical = Decimal(statistics.median(past[-BONUS_TYPICAL_MONTHS:]))
+            bonus = (amount - typical).quantize(money.CENT)
+        sources.append(IncomeSource(name, amount, bonus))
+    if not sources:
+        return None
+    if history is None:
+        history = _history(conn, start)
+    leaves = list(taxonomy.leaves(conn).values())
+    fixed = [_group(s, leaves, "fixed") for _, s in history]
+    out = AutoBudget(
+        income_month=base,
+        income=sum((s.amount for s in sources), ZERO),
+        bonus=sum((s.bonus for s in sources), ZERO),
+        fixed=Decimal(statistics.median(fixed)).quantize(money.CENT) if fixed else ZERO,
+        fixed_months=len(fixed),
+        sources=sources,
+    )
+    out.drop = _drop(data, base, sources)
+    return out
+
+
+def _drop(
+    data: dict[str, dict[date, Decimal]], base: date, sources: list[IncomeSource]
+) -> tuple[str, float] | None:
+    """Główne źródło niższe niż zwykle w tym roku (bez miesięcy z premią) — dopisek o progu."""
+    main = max(data, key=lambda name: sum(data[name].values()))
+    current = next((s for s in sources if s.name == main and not s.bonus), None)
+    if current is None:
+        return None
+    year = [v for m, v in sorted(data[main].items()) if m.year == base.year and m < base and v > 0]
+    limit = _bonus_limit(year)
+    if limit is not None:
+        year = [v for v in year if v <= limit]
+    if len(year) < 2:
+        return None
+    usual = Decimal(statistics.median(year))
+    if current.amount >= usual * (1 - DROP_RATIO):
+        return None
+    return main, float(1 - current.amount / usual)
+
+
 def build(conn: sqlite3.Connection, month: date, today: date) -> FlexMonth:
     start = month_start(month)
     nxt = add_months(start, 1)
@@ -201,14 +330,17 @@ def build(conn: sqlite3.Connection, month: date, today: date) -> FlexMonth:
     leaves = list(taxonomy.leaves(conn).values())
     flexible = [c for c in leaves if c.flex_group == "flexible"]
     current = start == month_start(today)
-    budget = budget_for(conn, start)
+    manual = budget_for(conn, start)
+    if manual is not None and manual[0] is None:
+        manual = None  # wpis „wróć do automatycznej”
+    auto = auto_budget(conn, start, history)
 
     out = FlexMonth(
         month=start,
         prev_month=add_months(start, -1),
         next_month=nxt if nxt <= today else None,
-        budget=budget[0] if budget else None,
-        budget_from=budget[1] if budget else None,
+        budget=manual[0] if manual else (auto.amount if auto else None),
+        budget_from=manual[1] if manual else None,
         spent=_spent(cur, flexible),
         uncategorized=cur.unc_out.amount,
         uncategorized_count=cur.unc_out.count,
@@ -218,6 +350,8 @@ def build(conn: sqlite3.Connection, month: date, today: date) -> FlexMonth:
         day=today.day if current else None,
         history=[HistoryMonth(m, _spent(s, flexible), s.unc_out.amount) for m, s in history],
         other_currency=cur.other_currency,
+        budget_source="manual" if manual else ("auto" if auto else None),
+        auto=auto,
     )
     for c in flexible:
         acc = cur.by_leaf.get(c.id)

@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.12.0
+
+**Budżet Flex: pula liczona z dochodu** (M5a etap 3, `docs/PLAN_M5a_income.md`).
+
+- **Pula automatyczna:** bez ręcznej kwoty pula elastyczna miesiąca = wpływy z poprzedniego
+  miesiąca (podkategorie z grupy „przychody”, tylko skategoryzowane) − koszty stałe (mediana
+  z 6 miesięcy). Pula idzie za faktyczną wypłatą: niższa pensja po przekroczeniu progu
+  podatkowego obniża pulę od następnego miesiąca, bez uśredniania dochodu.
+- **Premia poza pulą:** nietypowo wysoki wpływ ze stałego źródła (powyżej 1,5 × górnego kwartyla
+  z 12 miesięcy) zasila pulę tylko zwykłą kwotą; nadwyżka jest pokazana jako „premia poza pulą”.
+- **Dopisek o progu podatkowym**, gdy główne źródło wpływów jest niższe o ponad 15% niż zwykle
+  w tym roku.
+- **Kwota ręczna nadal działa** i ma pierwszeństwo; nowy przycisk „Wróć do automatycznej od
+  tego miesiąca”. Ekran Budżet pokazuje rozbicie puli (wpływy, premia, stałe).
+- **Kontrola salda karty:** liczy w znaku zadłużenia (ITBD karty jest dodatnie), różnica krótsza
+  niż 3 dni to „w drodze” (autoryzacja przed pojawieniem się w API), a na Status jest przycisk
+  „Przyjmij ostatnią migawkę jako bazę”. Wcześniej karta pokazywała fałszywą „ROZBIEŻNOŚĆ”.
+- Migracje bazy: 007 (pusta kwota = pula automatyczna), 008 (baza kontroli salda).
+
+| Encja | Zmiana |
+|---|---|
+| `sensor.budget_flex_budget` | ma wartość także bez ręcznej kwoty (pula z dochodu); nowe atrybuty `source`, `auto_amount`, `income_base`, `bonus_excluded`, `fixed_median`, `income_drop_pct` |
+| `sensor.budget_flex_remaining`, `sensor.budget_flex_per_day` | liczone od puli automatycznej, gdy brak ręcznej |
+
+Bez nowych encji ani usług.
+
 ## 0.11.1
 
 - **Poprawka:** sprawdzanie zgody bankowej (co 6 h) i okresowe odświeżanie encji nie zatrzymują się

@@ -19,6 +19,7 @@
     <input name="amount" inputmode="decimal" value="{{ '%d' | format(f.suggested) if f.suggested }}" placeholder="np. 2500" aria-label="miesięczny budżet elastyczny" required><button>Ustaw od tego miesiąca</button>
   </form>
   <p class="small muted">Wydane elastyczne w tym miesiącu: {{ f.spent | money("PLN") }}{% if f.uncategorized_count %} (w tym {{ f.uncategorized_count }} bez kategorii){% endif %}.</p>
+  <p class="small muted">Bez ręcznej kwoty pula liczy się sama z wpływów poprzedniego miesiąca (kategorie z grupy przychody) minus zwykłe koszty stałe — w {{ month_label(f.prev_month) }} nie ma takich wpływów.</p>
 </section>
 {% else %}
 {% set rem = f.remaining %}
@@ -68,12 +69,29 @@
     <p class="small muted">Informacyjnie — nie zmniejszają kwoty „zostało”. Szczegóły w <a href="{{ base }}/spending?month={{ ym }}">Wydatkach</a>. Przelewy między własnymi kontami, oszczędności i „poza budżetem” nie są liczone.{% if f.other_currency %} Pominięto {{ f.other_currency }} transakcji w innej walucie niż PLN.{% endif %}</p>
   </section>
   {% if f.budget is not none %}
+  {% set a = f.auto %}
   <section class="card">
     <h2>Kwota budżetu</h2>
-    <p>{{ f.budget | money("PLN") }} <span class="small muted">— obowiązuje od miesiąca: {{ month_label(f.budget_from) }}</span></p>
+    {% if f.budget_source == "manual" %}
+    <p>{{ f.budget | money("PLN") }} <span class="small muted">— ręczna, obowiązuje od miesiąca: {{ month_label(f.budget_from) }}</span></p>
+    {% if a %}<p class="small muted">Automatyczna (z wpływów z miesiąca: {{ month_label(a.income_month) }}): {{ a.amount | money("PLN") }}</p>
+    <form method="post" action="{{ base }}/budget/auto"><input type="hidden" name="month" value="{{ ym }}"><button class="secondary">Wróć do automatycznej od tego miesiąca</button></form>{% endif %}
+    {% else %}
+    <p>{{ f.budget | money("PLN") }} <span class="small muted">— automatyczna, z wpływów z miesiąca: {{ month_label(a.income_month) }}</span></p>
+    {% endif %}
+    {% if a %}
+    <dl class="kv flex-kv">
+      <dt>Wpływy ({{ month_label(a.income_month) }})</dt><dd>{{ a.income | money("PLN") }}</dd>
+      {% for s in a.sources if s.bonus %}<dt>premia poza pulą — {{ s.name }}</dt><dd class="neg">−{{ s.bonus | money("PLN") }}</dd>{% endfor %}
+      <dt>Koszty stałe{% if a.fixed_months %} (mediana {{ a.fixed_months }} mies.){% endif %}</dt><dd class="neg">−{{ a.fixed | money("PLN") }}</dd>
+      <dt>Pula automatyczna</dt><dd><strong>{{ a.amount | money("PLN") }}</strong></dd>
+    </dl>
+    {% if a.drop %}<p class="small warn-note">Wpływ z „{{ a.drop[0] }}” niższy niż zwykle w tym roku o {{ pct(a.drop[1]) }} — prawdopodobnie przekroczony próg podatkowy; zwykle wraca w styczniu. Pula idzie za niższą wypłatą.</p>{% endif %}
+    <p class="small muted">Żyjesz z wypłaty poprzedniego miesiąca, więc pula jest znana od 1. dnia. Oszczędności nie są odejmowane — oszczędzasz to, co zostanie.</p>
+    {% endif %}
     <form class="rename" method="post" action="{{ base }}/budget/amount">
       <input type="hidden" name="month" value="{{ ym }}">
-      <input name="amount" inputmode="decimal" placeholder="nowa kwota" aria-label="nowa kwota budżetu od miesiąca {{ label }}" required><button class="secondary">Zmień od tego miesiąca</button>
+      <input name="amount" inputmode="decimal" placeholder="kwota ręczna" aria-label="kwota ręczna budżetu od miesiąca {{ label }}" required><button class="secondary">{{ "Zmień" if f.budget_source == "manual" else "Ustaw ręcznie" }} od tego miesiąca</button>
     </form>
     {% if f.suggested %}<p class="small muted">Mediana wydatków elastycznych z {{ f.history | length }} mies.: {{ f.suggested | money("PLN") }} (z wydatkami bez kategorii — im więcej skategoryzujesz, tym trafniejsza).</p>{% endif %}
     {% if f.history %}

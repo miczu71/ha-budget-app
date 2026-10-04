@@ -147,3 +147,118 @@ def test_flex_group_change_moves_amount(conn: sqlite3.Connection) -> None:
         taxonomy.set_flex_group(conn, sid(conn, "dom"), "flexible")
     with pytest.raises(TaxonomyError, match="Nieznana"):
         taxonomy.set_flex_group(conn, sid(conn, "media"), "inne")
+
+
+# --- pula z dochodu (etap 3, decyzja 14) --------------------------------------------------------
+
+
+def pay(c: sqlite3.Connection, amount: str, month: str, src: str = "FIRMA X") -> int:
+    """Wpływ z podkategorii „Wynagrodzenie” 24. dnia miesiąca `RRRR-MM`."""
+    t = add(c, amount, "transfer_in", f"Wynagrodzenie {month}", src, day=f"{month}-24")
+    engine.set_manual(c, t, sid(c, "wynagrodzenie"))
+    return t
+
+
+def bill(c: sqlite3.Connection, amount: str, month: str) -> None:
+    t = add(c, f"-{amount}", "transfer_out", f"Prad {month}", "DOSTAWCA", day=f"{month}-05")
+    engine.set_manual(c, t, sid(c, "media"))
+
+
+def months(start: str, n: int) -> list[str]:
+    d = date.fromisoformat(f"{start}-01")
+    return [
+        f"{(d.year * 12 + d.month - 1 + i) // 12}-{(d.month - 1 + i) % 12 + 1:02d}"
+        for i in range(n)
+    ]
+
+
+def test_auto_pool_is_previous_month_income_minus_fixed_median(conn: sqlite3.Connection) -> None:
+    for m, fixed in zip(
+        months("2026-03", 6), ["300", "300", "500", "300", "300", "900"], strict=True
+    ):
+        pay(conn, "9000.00", m)
+        bill(conn, fixed, m)
+    add(conn, "200.00", "transfer_in", "Zwrot", "OSOBA X", day="2026-08-10")  # bez kategorii
+    f = build(conn)  # wrzesień: wypłata z sierpnia
+    assert f.budget_source == "auto" and f.budget_from is None
+    a = f.auto
+    assert a is not None and a.income_month == date(2026, 8, 1)
+    assert (a.income, a.bonus, a.fixed, a.fixed_months) == (
+        Decimal("9000.00"),
+        Decimal("0"),
+        Decimal("300.00"),
+        6,
+    )
+    assert a.amount == f.budget == Decimal("8700.00")
+    assert a.drop is None
+
+
+def test_lower_salary_lowers_next_month_pool_and_hints_threshold(
+    conn: sqlite3.Connection,
+) -> None:
+    for m in months("2026-01", 6):  # styczeń–czerwiec 9000, od lipca 6500
+        pay(conn, "9000.00", m)
+    pay(conn, "6500.00", "2026-07")
+    july = build(conn, month="2026-07-01", today="2026-07-10")
+    assert july.budget == Decimal("9000.00") and july.auto and july.auto.drop is None
+    aug = build(conn, month="2026-08-01", today="2026-08-10")
+    assert aug.budget == Decimal("6500.00")
+    assert aug.auto is not None and aug.auto.drop is not None
+    source, drop = aug.auto.drop
+    assert source == "Firma X" and drop == pytest.approx(2500 / 9000)
+
+
+def test_bonus_above_typical_stays_outside_pool(conn: sqlite3.Connection) -> None:
+    for m in months("2026-01", 3):
+        pay(conn, "9000.00", m)
+    pay(conn, "27000.00", "2026-04")
+    pay(conn, "1500.00", "2026-04", src="URZAD Y")  # nowe źródło — w całości
+    f = build(conn, month="2026-05-01", today="2026-05-10")
+    a = f.auto
+    assert a is not None
+    assert (a.income, a.bonus) == (Decimal("28500.00"), Decimal("18000.00"))
+    assert a.amount == Decimal("10500.00")  # 9000 typowe + 1500
+    assert [(s.name, s.bonus) for s in a.sources] == [
+        ("Firma X", Decimal("18000.00")),
+        ("Urzad Y", Decimal("0")),
+    ]
+    assert a.drop is None  # premia nie jest „spadkiem”
+
+
+def test_january_return_after_threshold_is_not_a_bonus(conn: sqlite3.Connection) -> None:
+    for m in months("2025-02", 5):
+        pay(conn, "9000.00", m)
+    for m in months("2025-07", 6):
+        pay(conn, "6500.00", m)
+    pay(conn, "11000.00", "2026-01")
+    f = build(conn, month="2026-02-01", today="2026-02-10")
+    assert f.auto is not None and f.auto.bonus == 0
+    assert f.budget == Decimal("11000.00")
+
+
+def test_auto_pool_edge_cases(conn: sqlite3.Connection) -> None:
+    assert build(conn).auto is None  # brak wpływów w sierpniu
+    pay(conn, "1000.00", "2026-08")
+    for m in months("2026-03", 6):
+        bill(conn, "1500", m)
+    f = build(conn)
+    assert f.auto is not None and f.auto.amount == 0 and f.budget == 0  # nie poniżej zera
+
+
+def test_manual_amount_overrides_and_back_to_auto(conn: sqlite3.Connection) -> None:
+    for m in months("2026-06", 4):
+        pay(conn, "9000.00", m)
+    flex.set_budget(conn, date(2026, 8, 1), Decimal("2500"))
+    f = build(conn)
+    assert (f.budget, f.budget_source, f.budget_from) == (
+        Decimal("2500.00"),
+        "manual",
+        date(2026, 8, 1),
+    )
+    assert f.auto is not None and f.auto.amount == Decimal("9000.00")  # widoczna obok
+    flex.set_budget(conn, date(2026, 9, 1), None)  # wróć do automatycznej od września
+    f = build(conn)
+    assert (f.budget, f.budget_source) == (Decimal("9000.00"), "auto")
+    aug = build(conn, month="2026-08-01", today="2026-09-10")
+    assert aug.budget == Decimal("2500.00")  # sierpień bez zmian
+    assert flex.budget_for(conn, date(2026, 10, 1)) == (None, date(2026, 9, 1))

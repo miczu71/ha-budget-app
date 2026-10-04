@@ -783,6 +783,9 @@ def _merchant_text(t: sqlite3.Row) -> str:
 # --- uzgodnienie salda ----------------------------------------------------------------------------
 
 
+IN_TRANSIT_DAYS = 3  # różnica karty krótsza niż to = autoryzacja/uznanie „w drodze”
+
+
 @dataclass
 class BalanceCheck:
     account_id: int
@@ -790,10 +793,25 @@ class BalanceCheck:
     day_mismatches: list[tuple[str, Decimal]] = field(default_factory=list)
     snapshot_checks: list[tuple[str, Decimal, Decimal]] = field(default_factory=list)
     note: str = ""
+    delta_mode: bool = False  # bez salda otwarcia: różnice względem migawki bazowej
+    base_at: str | None = None  # migawka bazowa ustawiona z panelu
+    diff_since: str | None = None  # od której migawki trwa obecna różnica (delta_mode)
+
+    @property
+    def status(self) -> str:
+        if not self.delta_mode:
+            ok = not self.day_mismatches and all(e == g for _, e, g in self.snapshot_checks)
+            return "OK" if ok else "ROZBIEŻNOŚĆ"
+        if not self.snapshot_checks or self.diff_since is None:
+            return "OK"
+        latest = datetime.fromisoformat(self.snapshot_checks[-1][0])
+        if latest - datetime.fromisoformat(self.diff_since) < timedelta(days=IN_TRANSIT_DAYS):
+            return "W DRODZE"
+        return "ROZBIEŻNOŚĆ"
 
     @property
     def ok(self) -> bool:
-        return not self.day_mismatches and all(e == g for _, e, g in self.snapshot_checks)
+        return self.status != "ROZBIEŻNOŚĆ"
 
 
 def check_balances(conn: sqlite3.Connection) -> list[BalanceCheck]:
@@ -803,10 +821,17 @@ def check_balances(conn: sqlite3.Connection) -> list[BalanceCheck]:
        dzień po dniu = saldo końca dnia z CSV (sprawdza też transakcje z API w oknie CSV).
     2. Migawki ITBD z API: saldo otwarcia + transakcje znane w chwili migawki (z referencją
        z pobrania nie późniejszego niż migawka albo sprzed granicy API) = saldo banku.
-       Bez salda otwarcia (karta) — porównanie różnic między migawkami.
+       Bez salda otwarcia (karta) — porównanie różnic względem migawki bazowej; ITBD karty to
+       zadłużenie (dodatnie), więc zmiana banku = −zmiana księgi. ITBD obejmuje autoryzacje
+       przed ich pojawieniem się w API, a uznania bywają w nim później — różnica krótsza niż
+       `IN_TRANSIT_DAYS` to „w drodze”; o wyniku decyduje ostatnia migawka.
     """
     out = []
-    for acc in conn.execute("SELECT id FROM account ORDER BY id").fetchall():
+    bases = {
+        int(r["account_id"]): str(r["snapshot_at"])
+        for r in conn.execute("SELECT account_id, snapshot_at FROM reconcile_base")
+    }
+    for acc in conn.execute("SELECT id, kind FROM account ORDER BY id").fetchall():
         account_id = int(acc["id"])
         check = BalanceCheck(account_id)
         txns = conn.execute(
@@ -858,14 +883,46 @@ def check_balances(conn: sqlite3.Connection) -> list[BalanceCheck]:
             for at, bank, known in known_sums:
                 check.snapshot_checks.append((at, bank, opening[1] + known))
         elif len(known_sums) >= 2:
+            base_at = bases.get(account_id)
+            if base_at is not None:
+                known_sums = [k for k in known_sums if k[0] >= base_at] or known_sums[-1:]
+                check.base_at = base_at
+            sign = -1 if acc["kind"] == "card" else 1
             first_at, first_bank, first_known = known_sums[0]
+            check.delta_mode = True
             for at, bank, known in known_sums[1:]:
-                check.snapshot_checks.append((at, bank - first_bank, known - first_known))
-            check.note = f"różnice względem migawki {first_at}"
+                expected = sign * (known - first_known)
+                check.snapshot_checks.append((at, bank - first_bank, expected))
+            diffs = [(at, bank - expected) for at, bank, expected in check.snapshot_checks]
+            last = diffs[-1][1] if diffs else Decimal(0)
+            for at, diff in reversed(diffs if last else []):  # początek obecnej różnicy
+                if diff != last:
+                    break
+                check.diff_since = at
+            what = "zadłużenia " if sign < 0 else ""
+            check.note = f"różnice {what}względem migawki {first_at}"
         else:
             check.note = "brak salda otwarcia i < 2 migawek — kontrola przy kolejnym pobraniu"
         out.append(check)
     return out
+
+
+def set_reconcile_base(conn: sqlite3.Connection, account_id: int) -> str | None:
+    """Ostatnia migawka ITBD konta jako baza kontroli; None — brak migawek."""
+    row = conn.execute(
+        "SELECT max(fetched_at) FROM balance_snapshot WHERE account_id = ? "
+        "AND balance_type = 'ITBD'",
+        (account_id,),
+    ).fetchone()
+    if not row or row[0] is None:
+        return None
+    conn.execute(
+        "INSERT INTO reconcile_base (account_id, snapshot_at, set_at) VALUES (?, ?, ?) "
+        "ON CONFLICT (account_id) DO UPDATE SET snapshot_at = excluded.snapshot_at, "
+        "set_at = excluded.set_at",
+        (account_id, row[0], now_iso()),
+    )
+    return str(row[0])
 
 
 def _csv_opening(

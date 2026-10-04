@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget import ledger, report, sessions, sync_service
@@ -55,7 +55,7 @@ def router(panel: Panel) -> APIRouter:
             "requests": requests,
             "limit": sync_service.DAILY_LIMIT,
             "balances": balances,
-            "checks": [report.balance_line(c) for c in ledger.check_balances(conn)],
+            "checks": [(report.balance_line(c), c) for c in ledger.check_balances(conn)],
             "missing": service.missing_config(),
             "manual_needed": service.manual_sync_needed(),
             "busy": service.lock.locked(),
@@ -91,6 +91,15 @@ def router(panel: Panel) -> APIRouter:
         if result.detail:
             text += f" — {result.detail}"
         return panel.redirect(request, "/", text, level)
+
+    @r.post("/status/reconcile-base")
+    async def reconcile_base(request: Request, account_id: int = Form(...)) -> Response:
+        at = ledger.set_reconcile_base(conn, account_id)
+        if at is None:
+            return panel.redirect(request, "/", "Brak migawki salda dla tego konta.", "error")
+        return panel.redirect(
+            request, "/", f"Konto #{account_id}: baza kontroli salda od {at[:16]}."
+        )
 
     @r.post("/ai/run")
     async def ai_run(request: Request) -> Response:

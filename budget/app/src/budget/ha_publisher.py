@@ -213,7 +213,7 @@ def _flex_sensor(key: str, name: str, icon: str, state: str | None, **attrs: Any
 
 
 def flex_entities(conn: sqlite3.Connection, today: date) -> list[Entity]:
-    """Budżet Flex bieżącego miesiąca (M5a); bez kwoty: kwota/zostało/na dzień = unknown."""
+    """Budżet Flex bieżącego miesiąca (M5a); bez puli: kwota/zostało/na dzień = unknown."""
     try:
         fm = flex.build(conn, month_start(today), today)
     except Exception:  # błąd budżetu nie może zablokować sald i statusu synchronizacji
@@ -226,7 +226,13 @@ def flex_entities(conn: sqlite3.Connection, today: date) -> list[Entity]:
             "Budżet elastyczny",
             "mdi:wallet",
             _amount(fm.budget),
+            source=fm.budget_source,
             budget_from=fm.budget_from.strftime("%Y-%m") if fm.budget_from else None,
+            auto_amount=_amount(fm.auto.amount) if fm.auto else None,
+            income_base=_amount(fm.auto.income) if fm.auto else None,
+            bonus_excluded=_amount(fm.auto.bonus) if fm.auto else None,
+            fixed_median=_amount(fm.auto.fixed) if fm.auto else None,
+            income_drop_pct=round(fm.auto.drop[1] * 100, 1) if fm.auto and fm.auto.drop else None,
             suggested=_amount(fm.suggested),
             month=month,
         ),
