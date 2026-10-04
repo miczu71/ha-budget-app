@@ -98,3 +98,25 @@ link do edytora z powrotem (user wybrał „w miejscu”).
   Regułach z pełnym opisem.
 - Na żywo (Ingress, Playwright): to samo na prawdziwej kolejce, bez zapisu (tylko podgląd) chyba że
   user sam zapisze; konsola bez błędów; czas podglądu ≤ ~1 s.
+
+## Wynik etapu 1 (0.10.0, 2026-10-04)
+
+Wydane (release v0.10.0, opublikowane) i zainstalowane; zweryfikowane na żywo przez Ingress
+(390 px): plakietka v0.10.0, „+ więcej warunków” rozwija pola, błąd „nie pasują do żadnej
+pozycji” przy kwocie spoza grupy, podgląd z kategorią ~0,85–1,2 s, konsola bez błędów. Na żywo
+tylko podgląd — reguł nie zapisywano.
+
+Odstępstwa od planu (świadome):
+- Zamiast `Preview.matched_ids` — `engine.facts(conn, ids)` dla pozycji kolejki: walidacja
+  „≥1 pozycja grupy” i lista resztek działają także przed wyborem kategorii (bez pełnego
+  przeliczenia księgi).
+- Pozycje, które zostaną w kolejce, są wymienione w podglądzie (do 5 + „i N innych”), zamiast
+  oznaczeń przy każdym checkboxie.
+- Pola reguły w kolejce mają prefiks `rule_` (formularz grupy ma własne `kind`/`direction`).
+- Puste dodatkowe wiersze warunków domyślnie „opis / tytuł zawiera” (także w edytorze Reguł).
+- Wiersz reguły w kolejce ma też wybór pola (nie tylko „sprzedawca”).
+
+Dev (kopia księgi, 0 reguł): reguła „sprzedawca = X i opis zawiera Y i kwota ≥ 50” złapała
+część grupy, reszta została w kolejce otwarta; zapis ~1 s.
+
+Czeka: checkpoint etapu 1 (user używa), etap 2 (Transakcje + grupy krajów) dopiero po „go”.
