@@ -70,7 +70,9 @@ host co add-on; host współdzielony z HA, więc czasy wahają się o kilkadzies
 | 150 | ~5,6 s → ~0,85 s | ~10,8 s → ~1,5 s |
 
 Na żywo przed wydaniem (0.9.0, ~130 reguł, przez Ingress): sam podgląd reguły w kolejce ~9,3–10,2 s
-(3 próby) — zapis liczy to samo i jeszcze przelicza całą księgę.
+(3 próby) — zapis liczy to samo i jeszcze przelicza całą księgę. **Po aktualizacji do 0.9.1
+(2026-10-04): ten sam podgląd ~0,7–0,9 s** (3 próby). Zapisu reguły nie testowałem na żywo — sprawdza
+użytkownik w kolejce; czeka checkpoint.
 
 Test równoważności (`test_rule_index_same_as_linear_scan`) porównuje indeks z dawną pętlą na
 mieszance reguł w obu kolejnościach; celowo zepsuty warunek pozycji w indeksie test łapie.
