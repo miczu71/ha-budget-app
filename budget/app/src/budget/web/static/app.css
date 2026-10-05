@@ -777,6 +777,7 @@ a.row:hover .row-title { text-decoration: underline; }
   align-items: center;
 }
 .pool form.move { gap: 8px; }
+.cats summary { min-height: var(--tap); } /* „Wpływy (…)” w puli: jeden wiersz = 42,5 px */
 
 /* M13 E3d: cele dotyku ≥ 44 px dla wszystkich pól i przycisków (u źródła, zamiast selektorów per ekran) */
 input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not(.visually-hidden),
