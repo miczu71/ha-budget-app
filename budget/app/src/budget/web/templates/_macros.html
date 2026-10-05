@@ -24,3 +24,32 @@ method="get" action="{{ action }}" role="search" hx-get="{{ action }}" hx-trigge
 {% macro search_count(shown, total, q, clear_url) %}
 {% if q %}<p class="search-count small muted">{{ shown }} z {{ total }} · <a href="{{ clear_url }}">wyczyść</a></p>{% endif %}
 {% endmacro %}
+
+{# Strzałki zmiany: Lucide (ISC), SVG #}
+{% macro arrow(up) -%}
+<svg class="arrow" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="{{ 'M7 7h10v10M7 17L17 7' if up else 'm7 7l10 10m0-10v10H7' }}"/></svg>
+{%- endmacro %}
+
+{# Zmiana względem poprzedniego okresu w procentach; `lower_is_better` odwraca znaczenie koloru #}
+{% macro change(cur, prev, lower_is_better=False) -%}
+{%- if not prev -%}
+<span class="chg muted">{{ "nowe" if cur else "—" }}</span>
+{%- else -%}
+{%- set d = (cur - prev) / prev * 100 -%}
+{%- if d | abs < 0.5 -%}
+<span class="chg" title="było {{ prev | money('PLN') }}">bez zmian</span>
+{%- else -%}
+<span class="chg {{ 'good' if (d < 0) == lower_is_better else 'bad' }}" title="było {{ prev | money('PLN') }}">{{ arrow(d > 0) }}{{ ("%+.0f" | format(d)).replace("-", "−") }}%</span>
+{%- endif -%}
+{%- endif -%}
+{%- endmacro %}
+
+{# Zmiana kwotowa (np. bilansu, który bywa ujemny, więc bez procentów); wyższa wartość = lepiej #}
+{% macro change_abs(cur, prev) -%}
+{%- set d = cur - prev -%}
+{%- if d == 0 -%}
+<span class="chg">bez zmian</span>
+{%- else -%}
+<span class="chg {{ 'good' if d > 0 else 'bad' }}" title="było {{ prev | money('PLN') }}">{{ arrow(d > 0) }}{{ "+" if d > 0 }}{{ d | money("PLN") }}</span>
+{%- endif -%}
+{%- endmacro %}

@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import AsyncIterator
+from datetime import date, timedelta
+from decimal import Decimal
 
 import httpx
 import pytest
 
+from budget import spending
+from budget.categorize.rules import Conditions, TextCondition
+from budget.recurring import series as S
 from budget.service import Service
+from budget.storage.db import now_iso
+from budget.web.routes_home import compare_label
 
 from .test_web import INGRESS, _client
 from .test_web_categorize import DAY, _seed
@@ -56,3 +64,134 @@ async def test_fonts_are_served_immutable(client: httpx.AsyncClient) -> None:
     for name in ("InterVariable.woff2", "SpaceGrotesk-wght.woff2"):
         r = await client.get(f"/static/fonts/{name}")
         assert r.status_code == 200 and "immutable" in r.headers["cache-control"]
+
+
+async def test_donut_slices_legend_and_links(client: httpx.AsyncClient, service: Service) -> None:
+    _seed(service.conn)  # Jedzenie 80 (id 2), Transport 200 (id 4), pensja bez kategorii
+    page = (await client.get("/")).text
+    assert page.count('class="slice c') == 2 and "Gdzie poszły pieniądze" in page
+    assert "<title>Transport: 200,00\xa0zł (71%)</title>" in page
+    assert "<title>Jedzenie: 80,00\xa0zł (29%)</title>" in page
+    assert page.index('class="legend-name">Transport') < page.index('class="legend-name">Jedzenie')
+    assert f'href="{INGRESS}/transactions?category=4&amp;date_from={DAY}&amp;date_to=' in page
+    assert '<span class="donut-total">280,00' in page  # środek: suma wydatków miesiąca
+
+
+async def test_uncategorized_slice_links_to_review(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _seed(service.conn)
+    from .test_categorize_engine import add
+
+    add(service.conn, "-40.00", "card", "SKLEP ABC XYZ", day=DAY)  # bez kategorii
+    page = (await client.get("/")).text
+    assert "<title>Bez kategorii: 40,00\xa0zł" in page
+    assert f'href="{INGRESS}/review?month={MONTH}"' in page
+
+
+async def test_empty_month_has_no_donut_and_no_upcoming(client: httpx.AsyncClient) -> None:
+    page = (await client.get("/?month=2020-01")).text
+    assert "Podsumowanie — styczeń 2020" in page
+    assert "Brak wydatków w tym miesiącu." in page and 'class="slice' not in page
+    assert "Za mało danych" in page and "Co jeszcze zejdzie" not in page
+    assert f'href="{INGRESS}/?month=2020-02"' in page  # strzałka do następnego miesiąca
+
+
+async def test_month_switch_and_current_month_has_no_next(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _seed(service.conn)
+    page = (await client.get("/")).text
+    first = date.today().replace(day=1)
+    prev = (first - timedelta(days=1)).replace(day=1)
+    assert f'href="{INGRESS}/?month={prev:%Y-%m}"' in page
+    assert f"?month={(first + timedelta(days=32)):%Y-%m}" not in page  # brak przyszłości
+    older = (await client.get(f"/?month={prev:%Y-%m}")).text
+    assert f"Podsumowanie — {spending.month_label(prev)}" in older
+    assert f'href="{INGRESS}/?month={MONTH}"' in older  # następny = bieżący
+
+
+def test_compare_label_partial_and_full_period() -> None:
+    def month(prev_from: date, prev_to: date) -> spending.Month:
+        return spending.Month(
+            month=date(2026, 9, 1),
+            prev_month=date(2026, 8, 1),
+            next_month=None,
+            prev_window=(prev_from, prev_to),
+        )
+
+    assert compare_label(month(date(2026, 8, 1), date(2026, 8, 6))) == "vs 1–5 sierpnia"
+    assert compare_label(month(date(2026, 8, 1), date(2026, 8, 2))) == "vs 1 sierpnia"
+    assert compare_label(month(date(2026, 8, 1), date(2026, 9, 1))) == "vs sierpień"
+
+
+async def test_balance_tiles_show_totals_and_change(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _seed(service.conn)
+    page = (await client.get("/")).text
+    assert "Bilans miesiąca" in page
+    assert '<span class="stat-label">Wydatki</span><span class="stat-value">280,00' in page
+    assert '<span class="stat-label">Wpływy</span><span class="stat-value">5' in page  # 5 000,00
+    assert "nowe" in page  # poprzedni okres bez danych
+
+
+async def test_upcoming_payments_card(client: httpx.AsyncClient, service: Service) -> None:
+    assert "Co jeszcze zejdzie" not in (await client.get("/")).text  # brak serii
+    S.insert(
+        service.conn,
+        name="Abonament Q",
+        direction="out",
+        cadence="M",
+        conditions=Conditions(text=(TextCondition("counterparty_name", "equals", "Q"),)),
+        expected=Decimal("43.00"),
+        tolerance=Decimal("5"),
+        anchor_day=date.today().day,  # termin dziś = oczekiwana
+        status="active",
+        origin="manual",
+        key=None,
+    )
+    page = (await client.get("/")).text
+    assert "Co jeszcze zejdzie" in page and "Abonament Q" in page and "43,00" in page
+    assert f'href="{INGRESS}/recurring"' in page
+    prev = (date.today().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    assert "Co jeszcze zejdzie" not in (await client.get(f"/?month={prev}")).text  # tylko bieżący
+
+
+async def test_recent_transactions_skip_internal_transfers(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _seed(service.conn)
+    page = (await client.get("/")).text
+    assert "Ostatnie transakcje" in page and "−200,00" in page and "5\u202f000,00" in page
+    assert "700,00" not in page  # spłata karty (przelew wewnętrzny) nie wchodzi
+    assert f'href="{INGRESS}/transactions?date_from={DAY}&amp;date_to=' in page
+
+
+async def test_freshness_line(client: httpx.AsyncClient, service: Service) -> None:
+    assert "Brak synchronizacji z bankiem" in (await client.get("/")).text
+    old = (service.now() - timedelta(days=3)).isoformat()
+    _sync(service.conn, old, "ok")
+    page = (await client.get("/")).text
+    assert "Dane z " in page and "nieświeże" in page
+    _sync(service.conn, now_iso(), "partial")
+    page = (await client.get("/")).text
+    assert "Dane z " in page and "nieświeże" not in page
+
+
+def _sync(conn: sqlite3.Connection, finished: str, status: str) -> None:
+    conn.execute(
+        "INSERT INTO sync_log (trigger, started_at, finished_at, status) "
+        "VALUES ('schedule', ?, ?, ?)",
+        (finished, finished, status),
+    )
+
+
+async def test_charts_render_in_both_themes(client: httpx.AsyncClient, service: Service) -> None:
+    _seed(service.conn)
+    for theme in ("copilot", "monarch"):
+        await client.post("/theme", data={"theme": theme})
+        page = (await client.get("/")).text
+        assert (
+            f'data-theme="{theme}"' in page and 'class="slice c' in page and 'class="bars"' in page
+        )

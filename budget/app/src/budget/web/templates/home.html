@@ -1,47 +1,108 @@
 {% extends "base.html" %}
-{% from "_macros.html" import pct %}
+{% from "_macros.html" import change, change_abs %}
+{% from "_charts.html" import donut, month_chart with context %}
 {% block content %}
-<h1>Podsumowanie — {{ label }}</h1>
+<div class="month-nav">
+  <a class="month-link" href="{{ base }}/?month={{ m.prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
+  <h1>Podsumowanie — {{ label }}</h1>
+  {% if m.next_month %}<a class="month-link" href="{{ base }}/?month={{ m.next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
+</div>
+<p class="fresh small {{ 'warn-text' if stale else 'muted' }}">
+  {% if sync_at %}Dane z {{ sync_at | ts }}{% if stale %} — nieświeże{% endif %}{% else %}Brak synchronizacji z bankiem{% endif %}
+  {% if consent_days is not none %}· zgoda bankowa jeszcze {{ consent_days }} {{ "dzień" if consent_days == 1 else "dni" }}{% endif %}
+  · <a href="{{ base }}/status">Status</a>
+</p>
 
 {% if f.budget is none %}
 <section class="card flex-hero">
   <h2>Ile możesz jeszcze wydać?</h2>
   <p class="muted">Pula na wydatki elastyczne nie jest jeszcze ustawiona.</p>
-  <a class="button" href="{{ base }}/budget">Ustaw budżet</a>
+  <a class="button" href="{{ base }}/budget?month={{ ym }}">Ustaw budżet</a>
 </section>
 {% else %}
-{% set rem = f.remaining %}
-<section class="card flex-hero">
-  <h2>Zostało na elastyczne</h2>
-  <div class="hero-amount {{ 'neg' if rem < 0 else 'pos' }}">{{ rem | money("PLN") }}</div>
-  <p class="muted">wydane {{ f.spent | money("PLN") }} z {{ f.budget | money("PLN") }}</p>
-  <div class="flex-bar {{ 'over' if f.over_pace or rem < 0 }}" role="img" aria-label="wydane {{ pct(f.used) }} budżetu, minęło {{ pct(f.elapsed) }} miesiąca">
-    <span class="fill" style="width: {{ pct([f.used, 1] | min) }}"></span>
-    <span class="mark" style="left: {{ pct(f.elapsed) }}"></span>
-  </div>
-  <dl class="kv flex-kv">
-    <dt>Na dzień do końca miesiąca</dt><dd><strong>{{ f.per_day | money("PLN") }}</strong> <span class="small muted">({{ f.days_left }} {{ "dzień" if f.days_left == 1 else "dni" }})</span></dd>
-    <dt>Tempo</dt><dd class="{{ 'neg' if f.over_pace else 'pos' }}">{% if f.over_pace %}ponad tempem o {{ (f.spent - f.expected) | money("PLN") }}{% else %}w tempie (zapas {{ (f.expected - f.spent) | money("PLN") }}){% endif %}</dd>
-  </dl>
-  <p class="small"><a href="{{ base }}/budget">Szczegóły budżetu</a></p>
-</section>
+{% with details=True %}{% include "_flex_hero.html" %}{% endwith %}
 {% endif %}
 
-<section class="card">
-  <h2>Do decyzji</h2>
-  {% if inbox_items or f.uncategorized_count %}
-  <ul class="inbox">
-    {% for i in inbox_items %}
-    <li class="inbox-item {{ i.severity }}">
-      <a href="{{ base }}{{ i.link }}"><span class="inbox-title">{{ i.title }}</span><span class="inbox-count">{{ i.count }}</span></a>
-    </li>
-    {% endfor %}
-  </ul>
-  {% if f.uncategorized_count %}
-  <p class="small warn-note"><a href="{{ base }}/review?month={{ month }}">{{ f.uncategorized_count }} {{ "wydatek" if f.uncategorized_count == 1 else "wydatków" }} bez kategorii w tym miesiącu — przejrzyj</a></p>
+<div class="home-grid">
+  <section class="card span2">
+    <h2>Gdzie poszły pieniądze</h2>
+    {% if slices %}
+    {% call donut(slices, "Wydatki w kategoriach, " ~ label) %}
+      <span class="donut-total">{{ m.expenses | money("PLN") }}</span>
+      <span class="donut-sub">wydatki</span>
+      <span class="donut-chg">{{ change(m.expenses, m.prev_expenses, True) }} <span class="muted">{{ compare }}</span></span>
+    {% endcall %}
+    {% else %}
+    <p class="muted">Brak wydatków w tym miesiącu.</p>
+    {% endif %}
+    <p class="small card-link"><a href="{{ base }}/spending?month={{ ym }}">Wszystkie kategorie i podkategorie »</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Do decyzji</h2>
+    {% if inbox_items %}
+    <ul class="inbox">
+      {% for i in inbox_items %}
+      <li class="inbox-item {{ i.severity }}">
+        <a href="{{ base }}{{ i.link }}"><span class="inbox-title">{{ i.title }}</span><span class="inbox-count">{{ i.count }}</span></a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">Nic nie czeka na decyzję.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Bilans miesiąca</h2>
+    <div class="stats">
+      <div class="stat"><span class="stat-label">Wydatki</span><span class="stat-value">{{ m.expenses | money("PLN") }}</span>{{ change(m.expenses, m.prev_expenses, True) }}</div>
+      <div class="stat"><span class="stat-label">Wpływy</span><span class="stat-value">{{ m.income | money("PLN") }}</span>{{ change(m.income, m.prev_income) }}</div>
+      <div class="stat"><span class="stat-label">Bilans</span><span class="stat-value {{ 'neg' if m.balance < 0 else 'pos' }}">{{ m.balance | money("PLN") }}</span>{{ change_abs(m.balance, m.prev_balance) }}</div>
+    </div>
+    <p class="small muted">{{ compare }}{% if m.prev_partial %} (ten sam okres){% endif %}</p>
+  </section>
+
+  {% if mv and mv.rows %}
+  <section class="card">
+    <h2>Co jeszcze zejdzie</h2>
+    <p class="small muted">jeszcze zejdzie <strong>{{ mv.out_planned | money("PLN") }}</strong>{% if mv.in_planned %} · jeszcze wpłynie <strong class="pos">{{ mv.in_planned | money("PLN") }}</strong>{% endif %}</p>
+    {% if upcoming %}
+    <ul class="rows">
+      {% for d in upcoming %}
+      <li><a class="row" href="{{ base }}/recurring/{{ d.series.id }}"><span class="row-date">{{ d.due.strftime('%d.%m') if d.due else '—' }}</span><span class="row-title">{{ d.series.name }}{% if d.status == 'late' %} <span class="badge warn">spóźniona</span>{% endif %}</span><span class="row-amount {{ 'pos' if d.series.direction == 'in' }}">{{ d.series.expected_amount | money("PLN") }}</span></a></li>
+      {% endfor %}
+    </ul>
+    {% if upcoming_more %}<p class="small muted">i jeszcze {{ upcoming_more }}…</p>{% endif %}
+    {% else %}
+    <p class="muted">Nic już nie zejdzie w tym miesiącu.</p>
+    {% endif %}
+    <p class="small card-link"><a href="{{ base }}/recurring">Cykliczne »</a></p>
+  </section>
   {% endif %}
-  {% else %}
-  <p class="muted">Nic nie czeka na decyzję.</p>
-  {% endif %}
-</section>
+
+  <section class="card">
+    <h2>Ostatnie transakcje</h2>
+    {% if recent %}
+    <ul class="rows">
+      {% for t in recent %}
+      <li><div class="row"><span class="row-date">{{ t.day[8:10] }}.{{ t.day[5:7] }}</span><span class="row-title">{{ t.merchant or t.counterparty_name or t.description or "—" }}<span class="row-sub small muted">{{ t.category_name or "bez kategorii" }}</span></span><span class="row-amount num {{ 'neg' if t.amount.startswith('-') else 'pos' }}">{{ t.amount | money(t.currency) }}</span></div></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">Brak transakcji w tym miesiącu.</p>
+    {% endif %}
+    <p class="small card-link"><a href="{{ base }}/transactions?{{ period }}">Wszystkie transakcje »</a></p>
+  </section>
+
+  <section class="card span2">
+    <h2>Ostatnie 12 miesięcy</h2>
+    {% if bars.has_data %}
+    {{ month_chart(bars) }}
+    <p class="small bars-legend"><span><i class="dot inc"></i>wpływy</span><span><i class="dot exp"></i>wydatki</span><span class="muted">dotknij miesiąca, żeby go zobaczyć</span></p>
+    {% else %}
+    <p class="muted">Za mało danych na wykres.</p>
+    {% endif %}
+  </section>
+</div>
 {% endblock %}

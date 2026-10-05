@@ -126,6 +126,22 @@ MONTHS = (
 )
 
 
+MONTHS_GEN = (
+    "stycznia",
+    "lutego",
+    "marca",
+    "kwietnia",
+    "maja",
+    "czerwca",
+    "lipca",
+    "sierpnia",
+    "września",
+    "października",
+    "listopada",
+    "grudnia",
+)
+
+
 def month_label(d: date) -> str:
     return f"{MONTHS[d.month - 1]} {d.year}"
 
@@ -207,6 +223,20 @@ def sums(
         else:
             s.by_leaf[int(r["category_id"])].add(amount)
     return s
+
+
+def recent(conn: sqlite3.Connection, start: date, end: date, limit: int = 5) -> list[sqlite3.Row]:
+    """Ostatnie zaksięgowane transakcje okresu [start, end) z tymi samymi filtrami co budżet."""
+    return conn.execute(
+        "SELECT t.id, t.amount, t.currency, t.merchant, t.counterparty_name, t.description, "
+        "coalesce(t.tx_date, t.booking_date) AS day, c.name AS category_name "
+        "FROM txn t JOIN account a ON a.id = t.account_id "
+        "LEFT JOIN category c ON c.id = t.category_id "
+        "WHERE t.status = 'BOOK' AND t.transfer_group IS NULL AND a.include_in_budget = 1 "
+        "AND coalesce(t.tx_date, t.booking_date) >= ? AND coalesce(t.tx_date, t.booking_date) < ? "
+        "ORDER BY day DESC, t.id DESC LIMIT ?",
+        (start.isoformat(), end.isoformat(), limit),
+    ).fetchall()
 
 
 def totals(leaves: Mapping[int, Category], s: Sums) -> tuple[Decimal, Decimal]:

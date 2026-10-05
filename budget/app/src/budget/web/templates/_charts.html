@@ -1,0 +1,45 @@
+{# Wykresy Podsumowania (M13 E2): SVG po stronie serwera; kolory to klasy z tokenów motywu.
+   Importować z kontekstem: {% from "_charts.html" import donut, bars with context %} (potrzebne `base`). #}
+
+{# Wykres kołowy; zawartość `caller()` trafia na środek (suma wydatków i zmiana) #}
+{% macro donut(slices, label) %}
+<div class="donut-wrap">
+  <div class="donut">
+    <svg viewBox="0 0 200 200" role="img" aria-label="{{ label }}">
+      <circle class="donut-track" cx="100" cy="100" r="76" />
+      {% for s in slices %}
+      <a href="{{ base }}{{ s.href }}">
+        <circle class="slice {{ s.color }}" data-i="{{ loop.index0 }}" cx="100" cy="100" r="76" pathLength="100" transform="rotate(-90 100 100)" style="stroke-dasharray: {{ s.dash }}; stroke-dashoffset: {{ s.offset }}; --i: {{ loop.index0 }}"><title>{{ s.label }}: {{ s.amount | money("PLN") }} ({{ s.pct }}%)</title></circle>
+      </a>
+      {% endfor %}
+    </svg>
+    <div class="donut-center">{{ caller() }}</div>
+  </div>
+  <ul class="legend">
+    {% for s in slices %}
+    <li class="legend-item" data-i="{{ loop.index0 }}">
+      <a href="{{ base }}{{ s.href }}"><i class="dot {{ s.color }}"></i><span class="legend-name">{{ s.label }}</span><span class="legend-amount">{{ s.amount | money("PLN") }}</span><span class="legend-pct">{{ s.pct }}%</span></a>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endmacro %}
+
+{# Słupki wpływów i wydatków z ostatnich miesięcy; słupek = link do tego miesiąca #}
+{% macro month_chart(chart) %}
+<svg class="bars" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-label="Wpływy i wydatki w ostatnich {{ chart.bars | length }} miesiącach">
+  {% for t in chart.ticks %}
+  <line class="grid-line" x1="{{ chart.plot_left }}" x2="{{ chart.plot_right }}" y1="{{ '%.1f' | format(t.y) }}" y2="{{ '%.1f' | format(t.y) }}" />
+  <text class="axis" x="{{ chart.plot_left - 5 }}" y="{{ '%.1f' | format(t.y + 3.5) }}" text-anchor="end">{{ t.label }}</text>
+  {% endfor %}
+  {% for b in chart.bars %}
+  <a href="{{ base }}{{ b.href }}" class="col{{ ' sel' if b.selected }}{{ ' partial' if b.partial }}">
+    <rect class="hit" x="{{ '%.1f' | format(b.slot_x) }}" y="0" width="{{ '%.1f' | format(b.slot_w) }}" height="{{ chart.baseline + 22 }}" rx="4" />
+    {% if b.income_h %}<rect class="bar inc" x="{{ '%.1f' | format(b.x) }}" y="{{ '%.1f' | format(chart.baseline - b.income_h) }}" width="{{ chart.bar_w }}" height="{{ '%.1f' | format(b.income_h) }}" rx="2" />{% endif %}
+    {% if b.expenses_h %}<rect class="bar exp" x="{{ '%.1f' | format(b.x + chart.bar_w + 1.5) }}" y="{{ '%.1f' | format(chart.baseline - b.expenses_h) }}" width="{{ chart.bar_w }}" height="{{ '%.1f' | format(b.expenses_h) }}" rx="2" />{% endif %}
+    <text class="axis" x="{{ '%.1f' | format(b.slot_x + b.slot_w / 2) }}" y="{{ chart.baseline + 14 }}" text-anchor="middle">{{ b.label }}</text>
+    <title>{{ month_label(b.month) }}{{ " (do dziś)" if b.partial }}: wpływy {{ b.income | money("PLN") }}, wydatki {{ b.expenses | money("PLN") }}</title>
+  </a>
+  {% endfor %}
+</svg>
+{% endmacro %}
