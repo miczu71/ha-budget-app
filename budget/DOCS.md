@@ -132,6 +132,11 @@ działa lokalnie, bez AI.
   (odrzucona nie wróci).
 - Strona serii pokazuje transakcje spełniające warunki; zmiana warunków działa od razu
   wstecz. Gdy transakcja pasuje do kilku serii, należy do tej o najbliższej kwocie.
+- **Ten miesiąc** (początek zakładki, przełączany miesiąc): aktywne serie z terminem i statusem
+  — zapłacone, oczekiwane (do 5 dni po terminie), spóźnione — oraz sumy „jeszcze zejdzie /
+  wpłynie”. Ta sama linia jest na ekranie Budżet. Pula Flex się od tego nie zmienia.
+- **Seria ręczna**: na Transakcjach „to się powtarza” otwiera formularz serii wypełniony
+  z transakcji; seria jest od razu aktywna (to główna droga dla płatności rocznych).
 - Seria roczna z dwoma wystąpieniami ma dopisek „mało historii”.
 - „Zakończ serię” (np. wypowiedziana umowa) / „Przywróć”.
 
@@ -245,6 +250,9 @@ z propozycji) albo odrzuconą (inna kategoria) — liczniki na karcie AI na ekra
 | `sensor.budget_flex_remaining` | Zostało; w atrybutach `per_day`, `expected_today` (przy równym tempie), `over_pace`, `used_pct`, `days_left` |
 | `sensor.budget_flex_per_day` | Zostało na dzień do końca miesiąca (z dzisiejszym) |
 | `sensor.budget_inbox` | Liczba kart w dzwonku panelu; atrybut `items` — lista (`kind`, `title`, `count`, `severity`) |
+| `sensor.budget_fixed_paid` | Wydatki z aktywnych serii zapłacone w bieżącym miesiącu; atrybut `items` (nazwa, termin, kwota, status) i liczniki |
+| `sensor.budget_fixed_planned` | Wydatki z serii, które jeszcze zejdą w tym miesiącu (oczekiwane + spóźnione) |
+| `sensor.budget_income_planned` | Wpływy z serii, które jeszcze wpłyną; atrybut `received` — już wpłynęło |
 
 Encje budżetu liczone są jak ekran Budżet dla bieżącego miesiąca. Bez kwoty ręcznej i bez
 wpływów w poprzednim miesiącu `flex_budget`, `flex_remaining` i `flex_per_day` mają stan

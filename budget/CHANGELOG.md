@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.15.0
+
+**„Ten miesiąc”: co jeszcze zejdzie i wpłynie** (M5b etap 2, `docs/PLAN_M5b_E2.md`).
+
+- **Cykliczne → „Ten miesiąc”**: aktywne serie z terminem i statusem (zapłacone / oczekiwane /
+  spóźnione, w minionych miesiącach „brak płatności”), sumy „zapłacone”, „jeszcze zejdzie”,
+  „wpłynęło”, „jeszcze wpłynie”; przełączanie miesięcy. Transakcja należy do najbliższego
+  terminu w promieniu 15 dni, więc płatność 30. na termin 1. liczy się do miesiąca terminu.
+- **Budżet**: linia „Cykliczne: zapłacone … · jeszcze zejdzie … · jeszcze wpłynie …”
+  z linkiem do szczegółów.
+- **„To się powtarza”** na Transakcjach: formularz serii wypełniony z transakcji, z podglądem
+  objętych transakcji; zapis tworzy od razu aktywną serię ręczną (detektor nie zaproponuje
+  jej ponownie). Transakcje serii mają plakietkę „cykliczna: nazwa”.
+- Pula Flex bez zmian (stałe z serii — etap 4).
+
+| Encja | Zmiana |
+|---|---|
+| `sensor.budget_fixed_paid` | **nowa** — wydatki z serii zapłacone w tym miesiącu; atrybuty `items`, `paid_count`, `expected_count`, `late_count` |
+| `sensor.budget_fixed_planned` | **nowa** — wydatki z serii, które jeszcze zejdą (oczekiwane + spóźnione) |
+| `sensor.budget_income_planned` | **nowa** — wpływy z serii, które jeszcze wpłyną; atrybuty `received`, `items`, liczniki |
+
+Bez migracji bazy. Nowe trasy panelu: `GET /recurring/new?txn=ID`, `POST /recurring/new`,
+`POST /recurring/new/preview`; `GET /recurring?month=RRRR-MM`. Bez nowych usług.
+
 ## 0.14.0
 
 **Dzwonek i płatności cykliczne** (M5b etap 1, `docs/PLAN_M5b_E1.md`).
