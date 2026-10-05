@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% set s = v.s %}
 {% block content %}
-<p class="small"><a href="{{ base }}/recurring">« Płatności cykliczne</a></p>
+<p class="small back"><a href="{{ base }}/recurring">« Płatności cykliczne</a></p>
 <h1>{{ s.name }} <span class="badge">{{ series_statuses[s.status] }}</span></h1>
 
 {% set form_action = "/recurring/" ~ s.id ~ "/save" %}{% set new = False %}

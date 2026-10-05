@@ -800,3 +800,12 @@ select, textarea, button { min-height: var(--tap); }
 .leaf form.move select { flex: 1; min-width: 0; max-width: none; padding: 9px 12px; font-size: inherit; }
 .leaf form.move button { padding: 9px 12px; font-size: inherit; }
 .leaf[open] { padding-bottom: 10px; }
+/* Linki i etykiety: wiersze serii, akcje serii, powrót, linki w tekście (Budżet, Reguły, Status), „w budżecie” na Kontach */
+a.row { min-height: var(--tap); align-content: center; }
+.series-head a.cat-name, .series-actions a, p.back a, .recurring-line a, p.muted a, .msg a {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+}
+label.check { min-height: var(--tap); }
+label.check input[type="checkbox"] { width: 20px; height: 20px; flex: none; }

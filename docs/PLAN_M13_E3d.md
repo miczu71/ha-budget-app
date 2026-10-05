@@ -95,6 +95,15 @@ grupy i przeniesienia → 303, baza zgodna. Pomiar: `/categories` 0 elementów <
 zrzuty Kategorii; przegląd wzrokowy 360/1280 px zwinięte i rozwinięte bez uwag. Nowy test `test_categories_leaf_row_collapses_edit_forms`;
 511 testów, ruff, mypy czyste.
 
+## Wynik kroku 3 (resztki z pomiaru, 2026-10-05)
+
+`app.css` (blok „M13 E3d”): `a.row` 44 px (wiersze nadchodzących serii), `inline-flex` + `min-height` dla nazw i akcji serii,
+linku powrotu (`p.back a`, nowa klasa `back` w `series.html`/`series_new.html`) i linków w tekście (`.recurring-line a`,
+`p.muted a`, `.msg a` — jak w E3b/E3c), `label.check` 44 px z polem 20 px (Konta). Świeża kopia z tym samym zasiewem: **0 elementów
+< 44 px na wszystkich 17 ekranach przy 360/390/1280 px**, bez przepełnienia, konsola czysta; zmieniły się tylko zrzuty Podsumowania,
+Budżetu, Reguł, Statusu, Kont, Cyklicznych i serii (przegląd 360 px bez uwag; linki w zdaniu podnoszą swoją linię — widać w pustym
+stanie Reguł). Zgłoszone poza zakresem: pusty stan Reguł radzi „Zawsze dla …” — przycisk usunięty w M4h.
+
 ## Weryfikacja
 `BUDGET_OPTIONS_PATH=/nonexistent .venv/bin/python -m pytest -q`, `ruff check`, `ruff format --check`, `mypy`; pomiar Playwright jak
 w E3c (wysokość < 44 px = 0, przepełnienie, konsola); zrzuty przed/po 360 i 1280 px; cache: `fetch(app.css, {cache: "reload"})`;
