@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.19.0
+
+**Rozszerzone Podsumowanie** (M13 etap 2, `docs/PLAN_M13_E2.md`), w obu wyglądach (Copilot i Monarch).
+
+- **Wykres kołowy wydatków** miesiąca: sześć największych kategorii, „Inne” i „Bez kategorii”; w środku suma i zmiana
+  względem poprzedniego okresu. Wycinek i wiersz legendy prowadzą do transakcji tej kategorii (albo do kolejki
+  „Do przejrzenia”). Kolor kategorii jest stały, a lime, czerwień i żółć zostają zarezerwowane dla znaczeń.
+- **Przełączanie miesięcy** na całym ekranie (« wrzesień), także karta „Zostało” dla miesięcy minionych.
+- **Bilans miesiąca:** wydatki, wpływy i bilans ze zmianą względem poprzedniego okresu. Bieżący, niepełny miesiąc jest
+  porównywany z tym samym zakresem dni poprzedniego miesiąca (podpis mówi to wprost, np. „vs 1–5 września”).
+- **Co jeszcze zejdzie:** najbliższe płatności z serii cyklicznych i sumy „jeszcze zejdzie / jeszcze wpłynie” (bieżący miesiąc).
+- **Ostatnie transakcje** (5, bez przelewów własnych) i **wykres 12 miesięcy** (wpływy i wydatki; słupek otwiera ten miesiąc).
+- **Linia „Dane z …”:** czas ostatniej udanej synchronizacji (ostrzeżenie, gdy dane są starsze niż 30 godzin) i dni do końca zgody.
+- Karta „Zostało” jest wspólna dla Budżetu i Podsumowania; na telefonie pary etykieta i wartość są jedna pod drugą.
+- Poprawka separatora tysięcy w kwotach wyglądu Monarch (znak U+202F z Inter zamiast zbyt wąskiego z szeryfa).
+- Bez zmian w logice budżetu, encjach i schemacie bazy.
+
 ## 0.18.1
 
 **Drugi wygląd panelu: Monarch, z przełącznikiem „Wygląd”** (M13 etap 1b, `docs/PLAN_M13_E1b.md`).
