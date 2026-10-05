@@ -97,4 +97,10 @@ osobne i dają się odwrócić przez `git revert`.
 
 ## Wynik
 
-—
+2026-10-05: 0.17.0 wydane i zainstalowane (479 testów, CI zielone, release v0.17.0, bez migracji).
+Sonda na kopii księgi: 19 propozycji → 14 aktywnych serii wydatkowych, żadna pominięta regułą
+oszczędności; `flex.build` ~20 ms; spadek „wydane” mniejszy niż suma serii. Panel dev: Playwright
+mobile, 0 błędów konsoli. Na żywo: log add-onu bez błędów, MQTT połączone, `sensor.budget_flex_budget`
+po odświeżeniu = 6 103,98 zł (przed: 6 230,76 zł), stałe 8 424,88 zł (z tego serie 8 358,48 zł,
+atrybut `fixed_series`), `sensor.budget_inbox` = 0. Panel przez Ingress niesprawdzony przez Claude
+(proxy ha-mcp 403) — do obejrzenia przez użytkownika na checkpoincie. Checkpoint E4 = zamknięcie M5b.
