@@ -59,3 +59,25 @@ daty nie zależy. `Snapshot` nie zapisuje wyniku wewnątrz transakcji (`total_ch
 - Świadomie pominięte po `simplify`: memo `assign` (≈1,3 ms lokalnie; zmierzyć na produkcji po wydaniu), `detect.run`
   (raz na sync), wspólny helper seedu w testach, scalenie z `BalanceMemo`.
 - Do zmierzenia na produkcji po wydaniu: kryterium sukcesu z sekcji „Ograniczenia”.
+
+## Wynik wydania 0.21.0 (2026-10-05, produkcja)
+Wydane i zainstalowane (release v0.21.0, sha `5d96e74`, backup add-onu przed aktualizacją, `/healthz` = 0.21.0, konsola bez
+błędów). Strony przed i po zrenderowane na kopii księgi z 19 seriami: 10 z 10 identyczne co do bajtu. CI: pierwszy run
+anulowany przez GitHub po 15 min bez runnera (kolejka), ponowiony — zielony.
+
+Pomiar GET z iframe Ingress, mediana z 5 prób (ms), przed → po:
+
+| Ekran | przed | po | | Ekran | przed | po |
+|---|---|---|---|---|---|---|
+| `/` | 1425 | 440 | | `/transactions` | 563 | 244 |
+| `/budget` | 1320 | 324 | | `/rules` | 534 | 212 |
+| `/recurring` | 1698 | 318 | | `/status` | 464 | 258 |
+| `/inbox` | 853 | 203 | | `/spending` | 474 | 267 |
+| `/review` | 715 | 445 | | `/accounts` | 1126 | 865 |
+
+`/healthz` w trakcie `/recurring`: 1,5–2,5 s → ~210 ms (zniknęło zamrażanie od tego żądania).
+
+**Kryterium (< 400 ms, `/` i `/recurring` < 600 ms): spełnione na 8 z 10 ekranów.** Poza progiem: `/review` 445 ms (kandydat
+„kolejka Do przejrzenia”) i `/accounts` 865 ms (nie dotknięte E1; przyczyna nieznana — do zdiagnozowania). Pomiar bywa
+zaszumiony: pojedyncze piki 1,7–2 s (`/spending`, `/review`) w pierwszej minucie po restarcie add-onu.
+Następne do decyzji: `/accounts`, kolejka Do przejrzenia, handlery poza pętlą zdarzeń, PRAGMA/indeksy.
