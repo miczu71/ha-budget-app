@@ -104,3 +104,10 @@ mobile, 0 błędów konsoli. Na żywo: log add-onu bez błędów, MQTT połączo
 po odświeżeniu = 6 103,98 zł (przed: 6 230,76 zł), stałe 8 424,88 zł (z tego serie 8 358,48 zł,
 atrybut `fixed_series`), `sensor.budget_inbox` = 0. Panel przez Ingress niesprawdzony przez Claude
 (proxy ha-mcp 403) — do obejrzenia przez użytkownika na checkpoincie. Checkpoint E4 = zamknięcie M5b.
+
+Poprawka 0.17.1 (2026-10-05, wywiad po E4): oczekiwana kwota serii wpływowej to mediana 6 wpływów,
+więc po spadku wypłaty (II próg) była zawyżona, a tolerancja z rozrzutu chowała zmianę przed kartą
+„inna kwota”. Od 0.17.1 nowa propozycja serii wpływowej = ostatni wpływ niebędący premią
+(> 1,5 × mediany ogona pomijany), tolerancja 10%; wydatki bez zmian. Istniejące serie nie są
+przeliczane — kwotę i tolerancję poprawia użytkownik w Cykliczne → Edytuj. Zainstalowane
+2026-10-05 13:15 (481 testów, log bez błędów).
