@@ -307,7 +307,7 @@ td.date { white-space: nowrap; }
   mask: var(--i-chevron) center / contain no-repeat;
   transition: transform 0.15s;
 }
-.cats details[open] summary .cat-name::before,
+.cats details[open] > summary .cat-name::before,
 .rv-list details[open] summary .cat-name::before,
 .leaf[open] summary .cat-name::before { transform: rotate(90deg); }
 .grid { margin-bottom: 14px; }
@@ -527,7 +527,8 @@ label.search input {
 .pool { margin: 4px 0 8px; }
 .pool .pool-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 0 10px 20px; }
 .pool details > .flex-lines, .pool details > p, .pool details > form { margin-left: 20px; }
-.pool .flex-lines .leaf-meta { grid-column: 1 / span 2; }
+.pool .flex-lines .leaf { grid-column: 1 / span 2; }
+.pool .leaf > .leaf-meta, .pool .leaf > form { margin-left: 22px; }
 form.move.add-fixed { margin: 10px 0 4px 20px; flex-wrap: wrap; }
 form.move.add-fixed select { max-width: 100%; flex: 1 1 200px; }
 

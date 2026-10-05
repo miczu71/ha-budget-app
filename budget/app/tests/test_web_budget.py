@@ -115,6 +115,11 @@ async def test_pool_components_and_fixed_editing(
     assert "Kredyt" in page and "2 300,00" in page
     kredyt, noclegi = slugs["kredyt"].id, slugs["noclegi"].id
     assert f'action="{INGRESS}/budget/fixed/{kredyt}"' in page  # przenieś ze stałych
+    # wiersz stałej rozwija „Przenieś”; summary bez kotwicy, link do transakcji w rozwinięciu
+    row = page.split('<details class="leaf">')[1].split("</details>")[0]
+    summary, body = row.split("</summary>")
+    assert "Kredyt" in summary and "<a " not in summary
+    assert f'href="{INGRESS}/transactions?category={kredyt}"' in body and 'class="move"' in body
     assert f'value="{noclegi}"' in page  # kandydat do dodania
     assert "3 700,00" in page  # 6000 − 2300
 

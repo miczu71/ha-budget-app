@@ -97,19 +97,19 @@
         <h3 class="small">Podkategorie stałe spoza serii</h3>
         <ul class="flex-lines">
           {% for line in a.fixed_lines %}
-          <li>
-            <a href="{{ base }}/transactions?category={{ line.category.id }}">{{ line.category.name }}</a>
-            <span class="cat-amount">{{ line.median | money("PLN") }}</span>
+          <li><details class="leaf">
+            <summary><span class="cat-name">{{ line.category.name }}</span><span class="cat-amount">{{ line.median | money("PLN") }}</span></summary>
             <div class="leaf-meta small">
               <span class="muted">{{ line.parent }}</span>
-              <form class="move" method="post" action="{{ base }}/budget/fixed/{{ line.category.id }}">
-                <input type="hidden" name="month" value="{{ ym }}">
-                <select name="flex_group" aria-label="przenieś {{ line.category.name }} do grupy">
-                  {% for key, glabel in groups.items() if key != "fixed" %}<option value="{{ key }}"{{ " selected" if key == "flexible" }}>{{ glabel }}</option>{% endfor %}
-                </select><button class="secondary">Przenieś</button>
-              </form>
+              <a href="{{ base }}/transactions?category={{ line.category.id }}">Transakcje</a>
             </div>
-          </li>
+            <form class="move" method="post" action="{{ base }}/budget/fixed/{{ line.category.id }}">
+              <input type="hidden" name="month" value="{{ ym }}">
+              <select name="flex_group" aria-label="przenieś {{ line.category.name }} do grupy">
+                {% for key, glabel in groups.items() if key != "fixed" %}<option value="{{ key }}"{{ " selected" if key == "flexible" }}>{{ glabel }}</option>{% endfor %}
+              </select><button class="secondary">Przenieś</button>
+            </form>
+          </details></li>
           {% endfor %}
         </ul>
         {% else %}<p class="small muted">Brak podkategorii stałych z wydatkami w ostatnich miesiącach.</p>{% endif %}
