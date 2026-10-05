@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.20.2
+
+**Cele dotyku na pozostałych ekranach** (M13 etap 3d, `docs/PLAN_M13_E3d.md`). Po tym wydaniu wszystkie ekrany panelu mają
+cele dotyku co najmniej 44 px.
+
+- Kategorie: wiersz podkategorii pokazuje nazwę, grupę budżetu i liczbę transakcji; zmiana nazwy, grupy i przeniesienie
+  rozwijają się po dotknięciu wiersza (wcześniej dwa małe formularze w każdym wierszu).
+- Konta, Bank, Import, Status, Płatności cykliczne i strona serii: pola, przyciski, pola wyboru, nazwy serii, „Edytuj
+  i potwierdź” i link powrotu mają co najmniej 44 px; wiersze nadchodzących serii na Podsumowaniu również.
+- Linki w środku zdania (np. „Status” w linii „Dane z …”, „Kategoriach”, „Bank”) mają powiększony niewidoczny obszar dotyku,
+  bez rozsuwania wierszy tekstu.
+- Wewnętrznie: jedna reguła dla wszystkich pól i przycisków zamiast reguł per ekran. Bez zmian w logice budżetu, encjach
+  i schemacie bazy.
+
 ## 0.20.1
 
 **Cele dotyku na Podsumowaniu, w Wydatkach i Budżecie** (M13 etapy 3b i 3c, `docs/PLAN_M13_E3b.md`, `docs/PLAN_M13_E3c.md`).
