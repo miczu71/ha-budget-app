@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="pl">
+<html lang="pl" data-theme="{{ theme }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#000814">
+  <meta name="color-scheme" content="{{ 'light' if theme == 'monarch' else 'dark' }}">
+  <meta name="theme-color" content="{{ '#efecea' if theme == 'monarch' else '#000814' }}">
   <title>Budżet Domowy</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="{{ base }}/static/app.css?v={{ version }}">
@@ -34,6 +34,14 @@
         <a href="{{ base }}/bank" class="{{ 'on' if page == 'bank' }}">Bank</a>
         <div class="sep" role="separator"></div>
         <a href="{{ base }}/status" class="{{ 'on' if page == 'status' }}">Status</a>
+        <div class="sep" role="separator"></div>
+        {# pełne przeładowanie (hx-boost wyłączony): data-theme jest na <html>, poza podmienianym <body> #}
+        <form method="post" action="{{ base }}/theme" class="theme-form" hx-boost="false">
+          <input type="hidden" name="back" value="{{ request.url.path }}{{ '?' ~ request.url.query if request.url.query }}">
+          <span class="theme-label">Wygląd</span>
+          <button name="theme" value="copilot" class="theme-opt{{ ' on' if theme == 'copilot' }}">Copilot</button>
+          <button name="theme" value="monarch" class="theme-opt{{ ' on' if theme == 'monarch' }}">Monarch</button>
+        </form>
       </div>
     </details>
   </header>

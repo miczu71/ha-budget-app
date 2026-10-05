@@ -1,0 +1,3 @@
+SourceSerif4-latin.woff2: Source Serif 4.005 (Adobe, SIL OFL 1.1, patrz SourceSerif-OFL.txt), wariant zmienny (Roman),
+przycięty narzędziem fonttools (pyftsubset) do łaciny (U+0020-007E, U+00A0-017F, interpunkcja, U+202F, U+20AC, U+2212),
+osie wght i opsz zachowane. "Source" jest znakiem towarowym Adobe.

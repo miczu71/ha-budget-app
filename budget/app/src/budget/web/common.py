@@ -16,9 +16,12 @@ from budget.categorize.rules import OPS as RULE_OPS
 from budget.logging_utils import mask_iban
 from budget.service import Service
 from budget.spending import month_label
+from budget.storage import db
 from budget.suggest import engine as suggest
 
 HERE = Path(__file__).parent
+THEMES = ("copilot", "monarch")  # pierwszy = domyślny
+THEME_KEY = "ui_theme"
 KIND_LABELS = {
     "card": "karta",
     "card_refund": "zwrot (karta)",
@@ -103,6 +106,11 @@ class Panel:
             return []
         return suggest.candidates(self.conn, merchant, direction)
 
+    def theme(self) -> str:
+        """Motyw wyglądu (M13 E1b); brak albo nieznana wartość = domyślny."""
+        value = db.kv_get(self.conn, THEME_KEY)
+        return value if value in THEMES else THEMES[0]
+
     @staticmethod
     def base(request: Request) -> str:
         return request.headers.get("x-ingress-path", "").rstrip("/")
@@ -118,6 +126,7 @@ class Panel:
                 "base": self.base(request),
                 "messages": messages,
                 "page": name.removesuffix(".html"),
+                "theme": self.theme(),
                 "inbox_items": inbox_items,
                 "inbox_count": len(inbox_items),
                 **ctx,

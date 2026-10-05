@@ -41,3 +41,16 @@ Tylko jasny (jak Copilot jest tylko ciemny).
 
 ## Cofnięcie
 `git revert` commita E1b; klucz `ui_theme` w kv jest nieszkodliwy.
+
+## Wynik lokalny (2026-10-05, bez wydania)
+
+Zbudowane i sprawdzone na kopii księgi: 493 testy, ruff i mypy bez uwag; 12 ekranów × 360 i 1280 px × 2 motywy bez
+przepełnienia poziomego i bez błędów w konsoli; kontrast liczony w przeglądarce ≥ 4,5:1 dla całego tekstu (najniżej stopka
+w Monarch 4,77:1, przycisk Ink na pomarańczu 5,66:1); przełączanie z menu ⚙ w prawdziwej przeglądarce wraca na tę samą stronę.
+Detektor impeccable: tylko znane ostrzeżenia „overused-font” (Inter, Space Grotesk).
+
+Szczegóły wykonania:
+- Source Serif 4 przycięty do łaciny (146 kB zamiast 429 kB, osie `wght` i `opsz` zachowane), notka o pochodzeniu przy licencji.
+- Baza CSS: tokeny `--elev`, `--on-accent`, `--r-input` zamiast wartości zaszytych pod Copilota (wygląd Copilot bez zmian).
+- Monarch: pola formularzy białe (jak w specyfikacji), kwota „Zostało” w Ink (jeden akcent), nagłówek miesiąca 19 px na telefonie.
+- Przełącznik: klasa `theme-opt` współdzieli styl z `.chip`, ale ma własną nazwę, bo testy liczą `class="chip` na ekranie przeglądu.
