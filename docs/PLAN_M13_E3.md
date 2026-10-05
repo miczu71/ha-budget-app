@@ -97,3 +97,14 @@ kategorii bez elementów < 44 px (poza celowo ukrytym przyciskiem „Filtruj” 
 bez przepełnienia poziomego, konsola czysta, stronicowanie obecne. Regresja `/review?ai=…` po scaleniu reguł: bez zmian
 (rv-accept 2, tylko pola wyboru 20 px). 1280 px: układ tabeli bez zmian. 510 testów, ruff, mypy czyste.
 Do oceny: wiersze z „to się powtarza” w kolumnie „Szczegóły” są wyższe (link 44 px), więc lista jest dłuższa.
+
+## Wynik kroku 3 (Reguły, 2026-10-05, lokalnie, bez commita)
+
+Kroki 1 i 2 scommitowane lokalnie (bez pusha). Zmiany kroku 3: `static/app.css` (blok „M13 E3: Reguły” z kartami wiersza
+na ≤ 640 px; `table.rules .actions` bez zawijania), `rules.html` (klasy `rule-link`, `tap`, `cond-cell`, `tx-link`),
+`rule_form.html` („Anuluj” z `tx-link`), `_rules_tabs.html` (klasa `rules-tabs`). Pomiar 360 px na kopii z 8 regułami
+(w tym wyłączona i z nazwą): przed — tabela przewijała się poziomo o 63 px, przyciski akcji 29 px, zakładki i linki 41 px,
+„+ Nowa reguła” 39 px; po — brak przewijania, wszystkie elementy ≥ 44 px (lista, lista z filtrem bez przycisków przesuwania,
+nowa reguła, edycja reguły; poza ukrytym „Filtruj” i polem wyboru 20 px z labelem 44 px). Słownik, Do przejrzenia, Transakcje,
+Cykliczne, Kategorie odpowiadają. 1280 px: akcje w jednym rzędzie, tabela bez zmian układu. 510 testów, ruff, mypy czyste,
+konsola bez błędów. Do oceny: lista reguł na telefonie to teraz karty (warunki, kategoria + trafienia, rząd czterech przycisków).
