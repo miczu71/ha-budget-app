@@ -95,4 +95,4 @@ odstęp liczony także w miesiącach kalendarzowych (płatność „w miesiącu�
 raty kredytu grupowane po typie i koncie (opis zmienia się co ratę), tolerancja z kwot typowych
 (premia jej nie poszerza), seria roczna tylko przy kwotach w granicach 10%. Na żywo przez
 Ingress: „Wykryj teraz” → 20 propozycji, dzwonek 1 karta, `sensor.budget_inbox` = 1.
-Czeka checkpoint E1 (przegląd propozycji przez użytkownika).
+Checkpoint E1 zamknięty przez użytkownika 2026-10-05; E2 (0.15.0) po akceptacji planu etapu.
