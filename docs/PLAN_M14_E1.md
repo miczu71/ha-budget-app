@@ -48,3 +48,14 @@ Kroki 1–5: lokalne commity (`git reset`/`revert`). Po wydaniu: backup add-onu 
 ## Ryzyka
 Duży diff (commity per grupa wywołań); stare liczby przy błędnej sygnaturze (gruba sygnatura = małe ryzyko);
 pierwszy odczyt po zapisie liczy „zimno”, jak dziś.
+
+## Wynik lokalny (kroki 1–5, commit `945ca58`, bez pushu i wydania)
+**Korekta zakresu (weryfikacja decyzji):** pomiar na kopii z 19 syntetycznymi seriami pokazał, że kosztuje `S.candidates`
+(~14 ms, składnik każdego ciężkiego wywołania), a nie sumy (`sums` 0,4 ms, 12 miesięcy 4,4 ms) ani drzewo kategorii (0,2 ms).
+Zakres zawężony do przynależności do serii; sumy i kategorie nie są cache'owane. Sygnatura bez dnia: nic zapamiętanego od
+daty nie zależy. `Snapshot` nie zapisuje wyniku wewnątrz transakcji (`total_changes` nie maleje po ROLLBACK).
+- Test stron: 6 żądań = 18 przebiegów po księdze przed, **1** po. 516 testów, ruff, mypy czyste.
+- Lokalnie (ciepły cache): `inbox.items` 16,6 → 3,2 ms, `schedule.for_month` 14,4 → 1,7 ms, `flex.build` 19,1 → 5,6 ms.
+- Świadomie pominięte po `simplify`: memo `assign` (≈1,3 ms lokalnie; zmierzyć na produkcji po wydaniu), `detect.run`
+  (raz na sync), wspólny helper seedu w testach, scalenie z `BalanceMemo`.
+- Do zmierzenia na produkcji po wydaniu: kryterium sukcesu z sekcji „Ograniczenia”.
