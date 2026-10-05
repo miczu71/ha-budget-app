@@ -108,3 +108,9 @@ na ≤ 640 px; `table.rules .actions` bez zawijania), `rules.html` (klasy `rule-
 nowa reguła, edycja reguły; poza ukrytym „Filtruj” i polem wyboru 20 px z labelem 44 px). Słownik, Do przejrzenia, Transakcje,
 Cykliczne, Kategorie odpowiadają. 1280 px: akcje w jednym rzędzie, tabela bez zmian układu. 510 testów, ruff, mypy czyste,
 konsola bez błędów. Do oceny: lista reguł na telefonie to teraz karty (warunki, kategoria + trafienia, rząd czterech przycisków).
+
+## Wynik kroku 4 (wydanie 0.20.0, 2026-10-05)
+
+Przed tagiem: kopia księgi, 390×844 i 1280×900, ekrany `/review` (z otwartą grupą), `/transactions`, `/rules`, `/rules/new`: bez
+przepełnienia poziomego, bez elementów < 44 px (poza polami wyboru, których `label` ma 44 px), konsola bez błędów.
+Poza zakresem E3: na Podsumowaniu (`/`) zostały małe linki (16–23 px) i `a.button` 39 px — kandydat na osobny drobny etap.

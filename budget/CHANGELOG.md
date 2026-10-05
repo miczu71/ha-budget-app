@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.20.0
+
+**Ekrany robocze na telefonie** (M13 etap 3, `docs/PLAN_M13_E3.md`).
+
+- Do przejrzenia, Transakcje i Reguły mają cele dotyku co najmniej 44 px: chipy kategorii i podpowiedzi AI, przyciski, pola
+  formularzy, przełączniki rozwijania, linki oraz wiersze pozycji (cały wiersz zaznacza pozycję).
+- Lista reguł na telefonie to karty (warunki, kategoria, trafienia i rząd przycisków) zamiast tabeli przewijanej w poziomie;
+  na komputerze tabela bez zmian.
+- Wewnętrznie: token `--tap` w stylach, reguły ograniczone do klas tych ekranów. Bez zmian w logice budżetu, encjach i schemacie bazy.
+
 ## 0.19.1
 
 **Jeden wygląd: Monarch** (M13 etap 1c, `docs/PLAN_M13_E1b.md`).
