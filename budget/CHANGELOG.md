@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.16.0
+
+**Zmiany serii w dzwonku** (M5b etap 3, `docs/PLAN_M5b_E3.md`).
+
+- **Trzy rodzaje zmian** aktywnych serii: *inna kwota* (ostatni zapłacony termin poza
+  kwotą ± tolerancja), *spóźniona* (termin z bieżącego lub poprzedniego miesiąca bez płatności)
+  i *ustała* (dwa ostatnie terminy bez płatności; zastępuje kartę „spóźniona”).
+- **Cykliczne → „Zmiany”**: przyciski „Przyjmij nową” / „Jednorazowo”, „Pomiń ten okres”,
+  „Zakończ” / „Zostaw”. Decyzje zapisuje nowa tabela `series_ack` (migracja 010, addytywna).
+- **Dzwonek** i `sensor.budget_inbox` dostają po jednej karcie na rodzaj zmiany.
+- Pominięty termin ma status „pominięte” i nie liczy się do „jeszcze zejdzie / wpłynie”.
+- Pula Flex bez zmian (stałe z serii — etap 4).
+
 ## 0.15.0
 
 **„Ten miesiąc”: co jeszcze zejdzie i wpłynie** (M5b etap 2, `docs/PLAN_M5b_E2.md`).
