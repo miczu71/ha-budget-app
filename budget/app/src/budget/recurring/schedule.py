@@ -11,7 +11,8 @@ w którym padła.
 Status terminu: zapłacone (jest transakcja), oczekiwane (do `WINDOW` dni po terminie),
 spóźnione (później, miesiąc bieżący albo przyszły) i brak płatności (miesiąc już minął).
 Spóźnione nadal liczą się do „jeszcze zejdzie / wpłynie”; brak płatności w minionym
-miesiącu — nie.
+miesiącu — nie. Termin, który użytkownik pominął („pomiń ten okres”, E3), ma status
+„pominięte” i nie liczy się do „jeszcze zejdzie / wpłynie”.
 """
 
 from __future__ import annotations
@@ -32,14 +33,25 @@ WINDOW = 5  # dni po terminie, zanim płatność jest spóźniona
 MATCH_DAYS = 15  # transakcja dalej niż tyle dni od każdego terminu jest „dodatkowa”
 STEP = {"M": 1, "Q": 3, "Y": 12}
 
-PAID, EXPECTED, LATE, MISSING, EXTRA = "paid", "expected", "late", "missing", "extra"
+PAID, EXPECTED, LATE, MISSING, EXTRA, SKIPPED = (
+    "paid",
+    "expected",
+    "late",
+    "missing",
+    "extra",
+    "skipped",
+)
 STATUS_LABELS = {
     PAID: "zapłacone",
     EXPECTED: "oczekiwane",
     LATE: "spóźnione",
     MISSING: "brak płatności",
     EXTRA: "dodatkowa",
+    SKIPPED: "pominięte",
 }
+
+# Decyzje użytkownika o zmianach serii: (id serii, okres RRRR-MM terminu, rodzaj) → decyzja.
+Acks = Mapping[tuple[int, str, str], str]
 
 
 @dataclass(frozen=True)
@@ -119,8 +131,10 @@ def month_view(
     members: Mapping[int, Sequence[Candidate]],
     month: date,
     today: date,
+    acks: Acks | None = None,
 ) -> MonthView:
     """Terminy aktywnych serii w miesiącu `month` ze statusami, po dacie terminu."""
+    acks = acks or {}
     month = month_start(month)
     nxt = add_months(month, 1)
     view = MonthView(month)
@@ -141,6 +155,8 @@ def month_view(
         if due is not None:
             paid = tuple(taken[due])
             status = PAID if paid else _status(due, today, month)
+            if status in (LATE, MISSING) and acks.get((s.id, f"{due:%Y-%m}", "late")) == "skip":
+                status = SKIPPED
             view.rows.append(Due(s, due, status, paid))
         if extras:
             view.rows.append(Due(s, None, EXTRA, tuple(extras)))
@@ -148,8 +164,36 @@ def month_view(
     return view
 
 
+def history(
+    s: Series,
+    members: Sequence[Candidate],
+    today: date,
+    acks: Acks | None = None,
+) -> list[Due]:
+    """Terminy serii od najstarszego do bieżącego miesiąca (ok. trzech kadencji wstecz).
+
+    Terminy sprzed pierwszej transakcji serii są pominięte — nowa seria (np. ręczna) nie ma
+    „braków” z czasu, zanim istniała."""
+    if not members:
+        return []
+    current = month_start(today)
+    first = members[0].day - timedelta(days=MATCH_DAYS)
+    rows: list[Due] = []
+    for back in range(STEP[s.cadence] * 3, -1, -1):
+        view = month_view([s], {s.id: members}, add_months(current, -back), today, acks)
+        rows += [d for d in view.rows if d.due is not None and d.due >= first]
+    return rows
+
+
+def acks_from_db(conn: sqlite3.Connection) -> dict[tuple[int, str, str], str]:
+    return {
+        (int(r["series_id"]), r["period"], r["kind"]): r["decision"]
+        for r in conn.execute("SELECT series_id, period, kind, decision FROM series_ack")
+    }
+
+
 def for_month(conn: sqlite3.Connection, month: date, today: date) -> MonthView:
     """Widok miesiąca z bazy: aktywne serie + przynależność liczona od zera."""
     all_series = S.all_series(conn, ("active",))
     members = S.assign(all_series, S.candidates(conn)) if all_series else {}
-    return month_view(all_series, members, month, today)
+    return month_view(all_series, members, month, today, acks_from_db(conn))
