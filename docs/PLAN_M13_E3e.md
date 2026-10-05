@@ -1,6 +1,7 @@
 # M13 E3e — domknięcie M13
 
 Status: **plan zaakceptowany 2026-10-05**, kroki 0–5 po kolei, checkpoint po każdym kroku, wydanie (0.20.3) po osobnym „go”.
+Wynik: wydane 0.20.3 2026-10-05, checkpoint zamknięty przez użytkownika 2026-10-06.
 Zależy od 0.20.2 (E3d, checkpoint zamknięty przez użytkownika 2026-10-05). Zasady jak w `PLAN_M13_E3.md`: bez nowych funkcji,
 bez zmian logiki, encji i schematu.
 
