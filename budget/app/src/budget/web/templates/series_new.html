@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% set s = draft %}
+{% block content %}
+<p class="small"><a href="{{ base }}/transactions">« Transakcje</a></p>
+<h1>Nowa płatność cykliczna</h1>
+<p class="small muted">Wypełnione z wybranej transakcji. Seria od razu jest aktywna i liczy się w „Ten miesiąc”; poniżej widać, które transakcje obejmie.</p>
+{% set form_action = "/recurring/new" %}{% set new = True %}
+{% include "_series_form.html" %}
+{% endblock %}

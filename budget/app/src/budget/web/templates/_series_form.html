@@ -1,0 +1,29 @@
+{# Formularz serii: edycja (series.html) i nowa seria ręczna (series_new.html) #}
+<form method="post" action="{{ base }}{{ form_action }}" class="card rule-form" hx-boost="false" id="series-form">
+  <div class="inline">
+    <label>Nazwa<input name="name" value="{{ s.name }}" maxlength="60" required></label>
+    <label>Kadencja
+      <select name="cadence">{% for k, label in cadences.items() %}<option value="{{ k }}" {{ "selected" if s.cadence == k }}>{{ label }}</option>{% endfor %}</select>
+    </label>
+    <label>Oczekiwana kwota<input name="expected_amount" inputmode="decimal" value="{{ s.expected_amount }}" size="10" required></label>
+    <label>Tolerancja ±<input name="tolerance" inputmode="decimal" value="{{ s.tolerance }}" size="8"></label>
+  </div>
+  <h2>Transakcje serii — warunki</h2>
+  <p class="small muted">Te same pola co w regułach kategorii. Kierunek jest wymagany, a do tego warunek tekstowy albo typ transakcji. Gdy transakcja pasuje do kilku serii, należy do tej o najbliższej kwocie.</p>
+  {% with text_optional = True %}{% include "_rule_conditions.html" %}{% endwith %}
+  <p class="actions-row">
+    {% if new %}
+    <input type="hidden" name="anchor_day" value="{{ s.anchor_day or '' }}">
+    <button type="submit">Utwórz serię</button>
+    {% elif s.status == "proposed" %}
+    <button type="submit" name="confirm" value="1">Zapisz i potwierdź</button>
+    {% else %}
+    <button type="submit">Zapisz</button>
+    {% endif %}
+    <a href="{{ base }}{{ "/transactions" if new else "/recurring" }}">Anuluj</a>
+  </p>
+  {% if new %}
+  <div hidden hx-post="{{ base }}/recurring/new/preview" hx-include="#series-form" hx-target="#series-preview" hx-swap="innerHTML" hx-trigger="load, input delay:300ms from:#series-form, change from:#series-form" hx-sync="this:replace"></div>
+  <div id="series-preview" class="small"></div>
+  {% endif %}
+</form>

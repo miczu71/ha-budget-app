@@ -26,6 +26,8 @@ from budget.categorize import engine, rules, taxonomy
 from budget.categorize.rules import Conditions, Rule, RuleError, TextCondition
 from budget.categorize.taxonomy import TaxonomyError
 from budget.normalize import search_words
+from budget.recurring import series as S
+from budget.recurring.series import Series
 from budget.web.common import Panel
 from budget.web.rule_form import (
     RULE,
@@ -131,10 +133,18 @@ def router(panel: Panel) -> APIRouter:
             f"ORDER BY {TXN_DATE} DESC, t.id DESC LIMIT ? OFFSET ?",
             [*params, PAGE_SIZE, (page - 1) * PAGE_SIZE],
         ).fetchall()
+        live = S.all_series(conn, ("active", "ended"))
+        page_txns = S.candidates(conn, [int(t["id"]) for t in rows])
+        belongs: dict[int, Series] = {}
+        for sid, hit in S.assign(live, page_txns).items():
+            for c in hit:
+                belongs[c.id] = next(x for x in live if x.id == sid)
         return panel.render(
             request,
             "transactions.html",
             rows=rows,
+            series_of=belongs,
+            repeatable={c.id for c in page_txns},
             total=total,
             page=page,
             pages=max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1),

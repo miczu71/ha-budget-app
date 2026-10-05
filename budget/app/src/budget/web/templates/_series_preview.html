@@ -1,0 +1,10 @@
+{# Podgląd nowej serii ręcznej: transakcje, które obejmie #}
+{% if error %}<div class="msg error" role="alert">{{ error }}</div>
+{% else %}
+<p>{{ describe }} — obejmie {{ members | length }} {{ "transakcję" if members | length == 1 else "transakcji" }}{% if stolen %}; {{ stolen }} należy już do innej serii o bliższej kwocie{% endif %}.</p>
+{% if members %}
+<ul class="series-txns">
+  {% for t in members[-6:] | reverse %}<li><span>{{ t.day.isoformat() | pldate }}</span><span>{{ t.description[:60] }}</span><span class="cat-amount">{{ t.amount | money("PLN") }}</span></li>{% endfor %}
+</ul>
+{% endif %}
+{% endif %}

@@ -215,3 +215,50 @@ async def test_this_month_section(client: httpx.AsyncClient, service: Service) -
     assert "Ten miesiąc" in page and "zapłacone" in page and "Qwertyflix" in page
     assert "Jeszcze zejdzie" in page
     assert "Ten miesiąc" in (await client.get("/recurring?month=2020-01")).text
+
+
+async def test_manual_series_from_transaction(client: httpx.AsyncClient, service: Service) -> None:
+    conn = service.conn
+    _account(conn)
+    today = service.now().date()
+    tid = add(conn, "-43.00", "transfer_out", "Abonament", "Qwertyflix Sp", day=today.isoformat())
+    page = (await client.get("/transactions")).text
+    assert f'href="{INGRESS}/recurring/new?txn={tid}"' in page and "to się powtarza" in page
+
+    form = (await client.get(f"/recurring/new?txn={tid}")).text
+    assert "Nowa płatność cykliczna" in form and 'value="Qwertyflix Sp"' in form
+    assert (
+        f'action="{INGRESS}/recurring/new"' in form
+        and f'name="anchor_day" value="{today.day}"' in form
+    )
+
+    data = {
+        "name": "Qwertyflix",
+        "cadence": "M",
+        "expected_amount": "43,00",
+        "tolerance": "5",
+        "anchor_day": str(today.day),
+        "field_0": "merchant",
+        "op_0": "equals",
+        "value_0": "Qwertyflix Sp",
+        "direction": "out",
+    }
+    pre = (await client.post("/recurring/new/preview", data=data)).text
+    assert "obejmie 1 transakcję" in pre
+    bad = (await client.post("/recurring/new/preview", data={**data, "expected_amount": "0"})).text
+    assert "kwotę większą od zera" in bad
+
+    r = await client.post("/recurring/new", data=data)
+    assert r.status_code == 303
+    [s] = S.all_series(conn)
+    assert (s.status, s.origin, s.anchor_day) == ("active", "manual", today.day)
+    assert s.group_key == S.group_key("Qwertyflix Sp", "out")
+    assert r.headers["location"] == f"{INGRESS}/recurring/{s.id}"
+
+    page = (await client.get("/transactions")).text
+    assert "cykliczna: Qwertyflix" in page and "to się powtarza" not in page
+    assert "zapłacone" in (await client.get("/recurring")).text
+
+    r = await client.post("/recurring/new", data={**data, "name": ""})
+    assert "Podaj nazwę" in (await client.get(r.headers["location"].removeprefix(INGRESS))).text
+    assert len(S.all_series(conn)) == 1

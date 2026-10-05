@@ -4,27 +4,8 @@
 <p class="small"><a href="{{ base }}/recurring">« Płatności cykliczne</a></p>
 <h1>{{ s.name }} <span class="badge">{{ series_statuses[s.status] }}</span></h1>
 
-<form method="post" action="{{ base }}/recurring/{{ s.id }}/save" class="card rule-form" hx-boost="false">
-  <div class="inline">
-    <label>Nazwa<input name="name" value="{{ s.name }}" maxlength="60" required></label>
-    <label>Kadencja
-      <select name="cadence">{% for k, label in cadences.items() %}<option value="{{ k }}" {{ "selected" if s.cadence == k }}>{{ label }}</option>{% endfor %}</select>
-    </label>
-    <label>Oczekiwana kwota<input name="expected_amount" inputmode="decimal" value="{{ s.expected_amount }}" size="10" required></label>
-    <label>Tolerancja ±<input name="tolerance" inputmode="decimal" value="{{ s.tolerance }}" size="8"></label>
-  </div>
-  <h2>Transakcje serii — warunki</h2>
-  <p class="small muted">Te same pola co w regułach kategorii. Kierunek jest wymagany, a do tego warunek tekstowy albo typ transakcji. Gdy transakcja pasuje do kilku serii, należy do tej o najbliższej kwocie.</p>
-  {% with text_optional = True %}{% include "_rule_conditions.html" %}{% endwith %}
-  <p class="actions-row">
-    {% if s.status == "proposed" %}
-    <button type="submit" name="confirm" value="1">Zapisz i potwierdź</button>
-    {% else %}
-    <button type="submit">Zapisz</button>
-    {% endif %}
-    <a href="{{ base }}/recurring">Anuluj</a>
-  </p>
-</form>
+{% set form_action = "/recurring/" ~ s.id ~ "/save" %}{% set new = False %}
+{% include "_series_form.html" %}
 {% if s.status in ("active", "ended") %}
 <form method="post" action="{{ base }}/recurring/{{ s.id }}/status" class="series-detect">
   {% if s.status == "active" %}<input type="hidden" name="action" value="end"><button class="secondary">Zakończ serię</button> <span class="small muted">np. umowa wypowiedziana — transakcje zostają przypisane, seria przestaje być oczekiwana</span>

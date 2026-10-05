@@ -122,12 +122,16 @@ def group_key(merchant: str, direction: str) -> str:
     return f"{_norm('merchant', merchant)}|{direction}"
 
 
-def candidates(conn: sqlite3.Connection) -> list[Candidate]:
-    """Transakcje, które mogą należeć do serii, rosnąco po dacie."""
+def candidates(conn: sqlite3.Connection, ids: Sequence[int] | None = None) -> list[Candidate]:
+    """Transakcje, które mogą należeć do serii, rosnąco po dacie (`ids` — tylko te z listy)."""
+    only = ""
+    if ids is not None:
+        only = f"AND t.id IN ({','.join('?' * len(ids))}) "
     rows = conn.execute(
         "SELECT t.id, coalesce(t.tx_date, t.booking_date) AS day, t.amount, t.merchant, "
         f"t.description FROM txn t JOIN account a ON a.id = t.account_id WHERE {CANDIDATES_WHERE} "
-        "AND coalesce(t.tx_date, t.booking_date) IS NOT NULL ORDER BY day, t.id"
+        f"AND coalesce(t.tx_date, t.booking_date) IS NOT NULL {only}ORDER BY day, t.id",
+        list(ids) if ids is not None else [],
     ).fetchall()
     known = engine.facts(conn, [int(r["id"]) for r in rows])
     out = []
