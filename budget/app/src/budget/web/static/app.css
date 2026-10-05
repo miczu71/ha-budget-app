@@ -768,3 +768,14 @@ table.rules .actions button, .rule-form select, .rule-form button,
   table.rules td.actions form { flex: 1; }
   table.rules td.actions button { width: 100%; padding: 0 8px; }
 }
+
+/* M13 E3b: cele dotyku ≥ 44 px na Podsumowaniu i w nagłówkach miesięcy; etykiety osi wykresu pod linią siatki */
+.month-link, .fresh a, .card-link a, .warn-note a, .flex-hero p.small a {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+}
+.month-link:last-child { justify-content: flex-end; }
+.inbox-item a { min-height: var(--tap); align-items: center; }
+.bars .tick { pointer-events: none; }
+.bars .axis { paint-order: stroke; stroke: var(--surface-1); stroke-width: 3px; stroke-linejoin: round; }

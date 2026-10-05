@@ -115,7 +115,8 @@ def donut_slices(
 # --- słupki 12 miesięcy -----------------------------------------------------------------------
 
 WIDTH, HEIGHT = 320, 170
-LEFT, RIGHT, TOP, BOTTOM = 30, 4, 8, 22
+# etykiety osi Y leżą w obszarze wykresu, więc słupek ma ≥ 24 px na telefonie
+LEFT, RIGHT, TOP, BOTTOM = 4, 4, 8, 22
 BAR_W, BAR_GAP = 8.0, 1.5
 
 
