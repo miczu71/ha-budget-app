@@ -15,9 +15,9 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from budget import ha_publisher, inbox, notifications, sessions, sync_service
+from budget import ha_publisher, inbox, notifications, sessions, summary, sync_service
 from budget.eb_client import EBClient, EBError, PsuHeaders
-from budget.ha_client import HAClient
+from budget.ha_client import HAClient, HAError
 from budget.recurring import detect
 from budget.settings import Settings, SettingsError, resolve_private_key_path
 from budget.snapshot import Snapshot
@@ -102,6 +102,7 @@ class Service:
         self.last_result = result
         self.detect_series()
         await self.refresh()
+        await self.refresh_calendar()
         self.suggest_later()
         return result
 
@@ -179,6 +180,52 @@ class Service:
             await self.refresh()
         except Exception:  # pętla zgody nie może umrzeć
             log.exception("Błąd odświeżania encji po sprawdzeniu zgody")
+
+    # --- podsumowania i kalendarz (M6) -------------------------------------------------------
+
+    async def send_summary(self, msg: summary.Message) -> None:
+        """Wysyłka przez `summary_notify_service`; rzuca `ServiceError`, gdy się nie da."""
+        target = self.settings.summary_notify_service
+        if not target:
+            raise ServiceError("Podsumowania wyłączone — ustaw opcję summary_notify_service.")
+        url = self.notifier.panel_url
+        data = {"clickAction": url, "url": url} if url else None
+        try:
+            await self.ha.notify(target, msg.title, msg.text, data)
+        except HAError as exc:
+            raise ServiceError(f"{target}: {exc}") from exc
+        log.info("Podsumowanie %s (%s) wysłane do %s", msg.kind, msg.period, target)
+
+    async def send_due_summaries(self) -> None:
+        """Jeden przebieg `summaries` — nigdy nie rzuca."""
+        if not self.settings.summary_notify_service or not self.ha.available:
+            return
+        try:
+            async with self.lock:  # poranna synchronizacja najpierw
+                due = summary.due(self.snapshot, self.now())
+            for msg in due:
+                await self.send_summary(msg)
+                summary.mark_sent(self.conn, msg)
+        except ServiceError as exc:
+            log.warning("Podsumowanie niewysłane: %s", exc)
+        except Exception:
+            log.exception("Błąd podsumowania")
+
+    async def summaries(self) -> None:
+        """Podsumowania o `summary.SEND_AT`; zaległe z dzisiaj zaraz po starcie."""
+        while True:
+            await self.send_due_summaries()
+            now = self.now()
+            await asyncio.sleep(max(summary.next_send(now).timestamp() - now.timestamp(), 1))
+
+    async def refresh_calendar(self) -> None:
+        """Remote Calendar w HA pobiera ICS raz na dobę — po synchronizacji wcześniej."""
+        if not self.settings.calendar_entity or not self.ha.available:
+            return
+        try:
+            await self.ha.update_entity(self.settings.calendar_entity)
+        except HAError as exc:
+            log.warning("Odświeżenie %s nieudane: %s", self.settings.calendar_entity, exc)
 
     # --- HA ---------------------------------------------------------------------------------
 

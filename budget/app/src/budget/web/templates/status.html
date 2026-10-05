@@ -96,6 +96,25 @@
   {% endfor %}
 </section>
 
+<section class="card" id="summaries">
+  <h2>Podsumowania na telefon</h2>
+  {% if not summaries.target %}
+  <p class="muted">Wyłączone — ustaw usługę powiadomień (opcja <code>summary_notify_service</code>, np. <code>notify.&lt;grupa&gt;</code>) w konfiguracji add-onu.</p>
+  {% else %}
+  <p class="small muted">Do <code>{{ summaries.target }}</code> o 7:00: tygodniowe w poniedziałek, zamknięcie miesiąca 1. dnia.{% if summaries.sent.weekly %} Ostatnie tygodniowe: {{ summaries.sent.weekly }}.{% endif %}{% if summaries.sent.monthly %} Ostatnie miesięczne: {{ summaries.sent.monthly }}.{% endif %}</p>
+  {% endif %}
+  {% for m in summaries.previews %}
+  <h3>{{ m.title }}</h3>
+  <pre class="summary-preview">{{ m.text }}</pre>
+  {% if summaries.target %}
+  <form method="post" action="{{ base }}/summary/send" hx-boost="true" hx-disabled-elt="find button">
+    <input type="hidden" name="kind" value="{{ m.kind }}">
+    <button type="submit" class="secondary">Wyślij teraz</button>
+  </form>
+  {% endif %}
+  {% endfor %}
+</section>
+
 <section class="card ai-card">
   <h2>Podpowiedzi AI</h2>
   {% if not ai.enabled %}

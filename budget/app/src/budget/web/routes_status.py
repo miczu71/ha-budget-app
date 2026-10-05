@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import ledger, report, sessions, sync_service
+from budget import ledger, report, sessions, summary, sync_service
 from budget.eb_client import PsuHeaders
 from budget.service import ServiceError
 from budget.storage import db
 from budget.suggest import engine as suggest
 from budget.suggest.client import AIError
 from budget.web.common import Panel
+
+log = logging.getLogger(__name__)
 
 
 def psu_from_request(request: Request) -> PsuHeaders:
@@ -60,6 +63,22 @@ def router(panel: Panel) -> APIRouter:
             "manual_needed": service.manual_sync_needed(),
             "busy": service.lock.locked(),
             "ai": ai_context(),
+            "summaries": summaries_context(),
+        }
+
+    def summaries_context() -> dict[str, Any]:
+        today = service.now().date()
+        try:
+            previews = [
+                summary.build(service.snapshot, k, today) for k in (summary.WEEKLY, summary.MONTHLY)
+            ]
+        except Exception:  # podgląd nie może zablokować ekranu Status
+            log.exception("Podgląd podsumowań")
+            previews = []
+        return {
+            "target": service.settings.summary_notify_service,
+            "previews": previews,
+            "sent": db.kv_get(conn, summary.SENT_KEY) or {},
         }
 
     def ai_context() -> dict[str, Any]:
@@ -91,6 +110,16 @@ def router(panel: Panel) -> APIRouter:
         if result.detail:
             text += f" — {result.detail}"
         return panel.redirect(request, "/status", text, level)
+
+    @r.post("/summary/send")
+    async def summary_send(request: Request, kind: str = Form(...)) -> Response:
+        if kind not in (summary.WEEKLY, summary.MONTHLY):
+            return panel.redirect(request, "/status", "Nieznane podsumowanie.", "error")
+        try:
+            await service.send_summary(summary.build(service.snapshot, kind, service.now().date()))
+        except ServiceError as exc:
+            return panel.redirect(request, "/status", str(exc), "error")
+        return panel.redirect(request, "/status", "Podsumowanie wysłane.")
 
     @r.post("/status/reconcile-base")
     async def reconcile_base(request: Request, account_id: int = Form(...)) -> Response:

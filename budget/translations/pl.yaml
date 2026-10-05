@@ -20,6 +20,12 @@ configuration:
   notify_service:
     name: Usługa powiadomień
     description: Opcjonalnie, np. notify.<osoba> — dodatkowo do powiadomień w HA (zgoda wygasa, nieudane synchronizacje).
+  summary_notify_service:
+    name: Usługa podsumowań
+    description: Opcjonalnie, np. notify.<grupa> — podsumowanie tygodnia w poniedziałek i zamknięcie miesiąca 1. dnia, o 7:00. Puste = wyłączone.
+  calendar_entity:
+    name: Encja kalendarza płatności
+    description: Opcjonalnie, np. calendar.<nazwa> — encja Remote Calendar czytająca /calendar.ics, odświeżana po każdej synchronizacji.
   consent_warning_days:
     name: Ostrzeżenie o zgodzie (dni)
     description: Ile dni przed wygaśnięciem zgody bankowej przypominać o odnowieniu.

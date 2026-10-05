@@ -267,6 +267,31 @@ Powiadomienie w HA (i opcjonalnie przez `notify_service`) gdy: zgoda wygasa w ci
 nie udały, okno transakcji nie zmieściło się w limicie. Aktywne powiadomienie jest
 przypominane raz na dobę i znika samo, gdy problem ustąpi.
 
+## Podsumowania na telefon
+
+Opcja `summary_notify_service` (np. `notify.<grupa>`; puste = wyłączone) włącza dwie wiadomości
+o 7:00:
+
+- **w poniedziałek** — ile zostało z puli i ile na dzień, tempo względem planu (do wczoraj),
+  top 3 kategorie minionego tygodnia (wydatki elastyczne i bez kategorii), płatności cykliczne
+  do zapłaty w 7 dni, liczba do przejrzenia;
+- **1. dnia miesiąca** — zamknięcie poprzedniego miesiąca: wydane z puli, top 3 kategorie,
+  liczba do przejrzenia.
+
+Dotknięcie wiadomości otwiera panel. Jeśli add-on nie działał o 7:00, wiadomość wychodzi po
+starcie tego samego dnia (bez dubli). Podgląd obu wiadomości i „Wyślij teraz” — ekran Status.
+
+## Kalendarz płatności
+
+Add-on wystawia `http://<nazwa hosta add-onu>:8099/calendar.ics` (nazwa hosta to slug z `-`
+zamiast `_`, np. `abcd1234-budget`): terminy aktywnych serii cyklicznych od początku miesiąca do
+60 dni naprzód, z kwotą i statusem (zapłacone, spóźnione…). Adres odpowiada tylko Home Assistant
+Core — panel nadal tylko przez Ingress.
+
+1. Ustawienia → Urządzenia i usługi → Dodaj integrację → **Remote Calendar**, URL jak wyżej.
+2. Wpisz utworzoną encję (np. `calendar.platnosci`) w opcji `calendar_entity` — add-on odświeży
+   ją po każdej synchronizacji (sama integracja pobiera kalendarz rzadko).
+
 ## Odnowienie zgody
 
 Zgoda PSD2 jest ważna maksymalnie 180 dni. Przed wygaśnięciem: **Bank → Odnów zgodę** —

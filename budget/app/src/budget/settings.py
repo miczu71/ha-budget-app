@@ -22,6 +22,7 @@ DEFAULT_OPTIONS_PATH = "/data/options.json"
 DEFAULT_EB_BASE_URL = "https://api.enablebanking.com"
 _TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _NOTIFY_RE = re.compile(r"^notify\.[a-z0-9_]+$")
+_CALENDAR_RE = re.compile(r"^calendar\.[a-z0-9_]+$")
 _ENV_PREFIX = "BUDGET_"
 
 
@@ -42,6 +43,8 @@ class Settings(BaseModel):
     consent_warning_days: int = Field(default=14, ge=1, le=60)
     log_level: Literal["debug", "info", "warning", "error"] = "info"
     notify_service: str | None = None  # alias osoby, np. notify.<osoba>
+    summary_notify_service: str | None = None  # podsumowania M6; None = wyłączone
+    calendar_entity: str | None = None  # encja Remote Calendar odświeżana po synchronizacji
     aspsp_name: str = "Bank Millennium"
     aspsp_country: str = "PL"
     ai_base_url: str | None = None  # router OpenAI-compatible (np. freellmapi); None = wyłączone
@@ -68,17 +71,26 @@ class Settings(BaseModel):
             raise ValueError(f"nieprawidłowe godziny w sync_times (oczekiwane HH:MM): {bad}")
         return tuple(sorted(set(value)))
 
-    @field_validator("notify_service")
+    @field_validator("notify_service", "summary_notify_service")
     @classmethod
     def _check_notify(cls, value: str | None) -> str | None:
         if value is not None and not _NOTIFY_RE.match(value):
-            raise ValueError(f"notify_service: oczekiwane notify.<nazwa>, a jest {value!r}")
+            raise ValueError(f"oczekiwane notify.<nazwa>, a jest {value!r}")
+        return value
+
+    @field_validator("calendar_entity")
+    @classmethod
+    def _check_calendar(cls, value: str | None) -> str | None:
+        if value is not None and not _CALENDAR_RE.match(value):
+            raise ValueError(f"calendar_entity: oczekiwane calendar.<nazwa>, a jest {value!r}")
         return value
 
     @field_validator(
         "eb_application_id",
         "eb_redirect_url",
         "notify_service",
+        "summary_notify_service",
+        "calendar_entity",
         "ai_base_url",
         "ai_api_key",
         mode="before",

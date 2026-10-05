@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.22.0
+
+**Podsumowania na telefon i kalendarz płatności** (M6, `docs/PLAN_M6.md`).
+
+- Nowa opcja `summary_notify_service`: w poniedziałek o 7:00 podsumowanie tygodnia (zostało z puli,
+  na dzień, tempo, top 3 kategorie tygodnia, płatności cykliczne w 7 dni, do przejrzenia), 1. dnia
+  miesiąca zamknięcie poprzedniego miesiąca. Wiadomość nie wysłana o 7:00 (add-on nie działał)
+  wychodzi po starcie tego samego dnia. Podgląd i „Wyślij teraz” na ekranie Status.
+- Kalendarz płatności `/calendar.ics` dla integracji Remote Calendar (terminy serii na 60 dni,
+  z kwotą i statusem); dostępny tylko dla Home Assistant Core. Opcja `calendar_entity` — odświeżenie
+  encji kalendarza po każdej synchronizacji. Instrukcja w dokumentacji add-onu.
+- Bez zmian w schemacie bazy i istniejących encjach.
+
 ## 0.21.1
 
 **Szybsze Konta i Import** (M14 etap 1b, `docs/PLAN_M14_E1.md`).

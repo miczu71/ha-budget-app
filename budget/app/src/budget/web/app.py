@@ -1,7 +1,8 @@
 """Panel add-onu (Ingress) — fabryka aplikacji; ekrany w `routes_*.py`.
 
 - Ingress: prefiks z nagłówka `X-Ingress-Path` trafia do szablonów jako `base`; żądania spoza
-  proxy Supervisora (172.30.32.2) są odrzucane (poza trybem dev).
+  proxy Supervisora (172.30.32.2) są odrzucane (poza trybem dev). Wyjątek: `/calendar.ics`
+  także z HA Core (sieć hosta → brama sieci hassio 172.30.32.1) dla Remote Calendar.
 - Mobile WebView (aplikacja HA) agresywnie cache'uje: HTML i odpowiedzi `no-store`, statyki
   z `?v=<wersja>` i `immutable`, wersja widoczna w nawigacji.
 - Wszystkie endpointy są `async` — działają w pętli usługi (jedno połączenie SQLite).
@@ -9,6 +10,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request
@@ -21,6 +23,7 @@ from budget.web import (
     routes_accounts,
     routes_bank,
     routes_budget,
+    routes_calendar,
     routes_home,
     routes_import,
     routes_inbox,
@@ -35,7 +38,11 @@ from budget.web.common import HERE, Panel, fmt_date, fmt_money
 
 __all__ = ["create_app", "fmt_date", "fmt_money"]
 
+log = logging.getLogger(__name__)
+
 INGRESS_PROXY = "172.30.32.2"
+HA_CORE = "172.30.32.1"
+CALENDAR_PATH = "/calendar.ics"
 
 
 def create_app(service: Service, *, dev: bool = False) -> FastAPI:
@@ -48,7 +55,10 @@ def create_app(service: Service, *, dev: bool = False) -> FastAPI:
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         peer = request.client.host if request.client else ""
-        if not dev and peer != INGRESS_PROXY:
+        calendar = request.url.path == CALENDAR_PATH and peer == HA_CORE
+        if not dev and peer != INGRESS_PROXY and not calendar:
+            if request.url.path == CALENDAR_PATH:
+                log.warning("Kalendarz: odrzucone żądanie z %s", peer)
             return Response("Dostęp tylko przez panel Home Assistant (Ingress).", 403)
         response = await call_next(request)
         if request.method == "POST" and response.status_code < 400:
@@ -72,6 +82,7 @@ def create_app(service: Service, *, dev: bool = False) -> FastAPI:
         routes_accounts,
         routes_import,
         routes_bank,
+        routes_calendar,
     ):
         app.include_router(module.router(panel))
 

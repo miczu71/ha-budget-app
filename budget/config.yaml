@@ -1,5 +1,5 @@
 name: "Budżet Domowy"
-version: "0.21.1"
+version: "0.22.0"
 slug: budget
 description: "Budżet domowy z automatycznym pobieraniem transakcji z banku (PSD2 / Enable Banking)"
 url: "https://github.com/miczu71/ha-budget-app"
@@ -28,6 +28,8 @@ options:
   aspsp_country: "PL"
   sync_times: ["06:30", "13:30", "21:30"]
   notify_service: ""
+  summary_notify_service: ""
+  calendar_entity: ""
   consent_warning_days: 14
   currency: "PLN"
   month_start_day: 1
@@ -44,6 +46,8 @@ schema:
   aspsp_country: "match(^[A-Z]{2}$)"
   sync_times: ["match(^([01]\\d|2[0-3]):[0-5]\\d$)"]
   notify_service: "match(^(notify\\.[a-z0-9_]+)?$)?"
+  summary_notify_service: "match(^(notify\\.[a-z0-9_]+)?$)?"
+  calendar_entity: "match(^(calendar\\.[a-z0-9_]+)?$)?"
   consent_warning_days: "int(1,60)"
   currency: str
   month_start_day: "int(1,28)"

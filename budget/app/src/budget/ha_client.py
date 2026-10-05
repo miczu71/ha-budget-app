@@ -97,9 +97,17 @@ class HAClient:
             "persistent_notification", "dismiss", {"notification_id": notification_id}
         )
 
-    async def notify(self, service: str, title: str, message: str) -> None:
+    async def notify(
+        self, service: str, title: str, message: str, data: dict[str, Any] | None = None
+    ) -> None:
         """`service` w postaci `notify.<nazwa>` (alias osoby)."""
         domain, _, name = service.partition(".")
         if domain != "notify" or not name:
             raise HAError(f"oczekiwana usługa notify.<nazwa>, a jest {service!r}")
-        await self.call_service("notify", name, {"title": title, "message": message})
+        payload: dict[str, Any] = {"title": title, "message": message}
+        if data:
+            payload["data"] = data
+        await self.call_service("notify", name, payload)
+
+    async def update_entity(self, entity_id: str) -> None:
+        await self.call_service("homeassistant", "update_entity", {"entity_id": entity_id})

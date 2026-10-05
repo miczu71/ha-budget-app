@@ -20,6 +20,12 @@ configuration:
   notify_service:
     name: Notify service
     description: Optional, e.g. notify.<person> — in addition to HA notifications (consent expiring, failed syncs).
+  summary_notify_service:
+    name: Summary notify service
+    description: Optional, e.g. notify.<group> — weekly summary on Monday and month close on the 1st, at 07:00. Empty = off.
+  calendar_entity:
+    name: Payment calendar entity
+    description: Optional, e.g. calendar.<name> — Remote Calendar entity reading /calendar.ics, refreshed after each sync.
   consent_warning_days:
     name: Consent warning (days)
     description: How many days before the bank consent expires to remind about renewal.
