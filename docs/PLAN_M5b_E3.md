@@ -113,3 +113,13 @@ Gałąź: `main` (jak w poprzednich etapach).
 Przed update: poprzedni release v0.15.0 (reinstalacja wersji przez Supervisor). Tabela
 `series_ack` jest addytywna, więc 0.15.0 działa na bazie po migracji 010. Commity kodu są
 osobne i dają się odwrócić przez `git revert`.
+
+## Wynik
+
+2026-10-05: 0.16.0 wydane i zainstalowane (472 testy, release v0.16.0, migracja 010 zastosowana).
+Sonda na kopii księgi (19 potwierdzonych serii): 1 karta („spóźniona”), wykrywanie ~18 ms;
+panel dev: `/recurring` ~175 ms, `/inbox` ~40 ms, Playwright mobile 0 błędów konsoli, „Pomiń ten
+okres” usuwa kartę i daje status „pominięte”. Na żywo: log bez błędów, MQTT połączone,
+`sensor.budget_inbox` = 0 (brak zmian do decyzji); panel przez Ingress niesprawdzony przez
+Claude (proxy ha-mcp 403, brak LLAT) — do obejrzenia przez użytkownika na checkpoincie.
+Checkpoint E3 czeka; E4 (0.17.0, pula) po „go”.
