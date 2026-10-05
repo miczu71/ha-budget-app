@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.17.0
+
+**Pula Flex ze stałymi z serii** (M5b etap 4, `docs/PLAN_M5b_E4.md`).
+
+- **Stałe w puli = serie + mediany spoza serii.** Aktywna seria wydatkowa wchodzi do kosztów
+  stałych oczekiwaną kwotą w przeliczeniu na miesiąc (kwartalna ⅓, roczna 1/12); mediany
+  podkategorii „stałe” liczą się bez transakcji serii, więc nic nie jest liczone dwa razy.
+- **Transakcje serii wypadają z „wydane”** elastycznych (miesiąc, historia, podpowiedź kwoty,
+  linie kategorii) i z „Poza pulą”; w „Poza pulą” pojawia się wiersz „Cykliczne”.
+- **Seria oszczędnościowa nie zmienia puli**: gdy ostatnia transakcja serii ma kategorię
+  z grupy oszczędności, przychodów albo „poza budżetem”, seria zostaje poza pulą.
+- **Budżet → Koszty stałe**: sekcja „Płatności cykliczne” (nazwa z linkiem do serii, kadencja,
+  kwota na miesiąc) i „Podkategorie stałe spoza serii”.
+- Encja `sensor.budget_flex_budget` dostaje atrybut `fixed_series`; `fixed_median` to nadal
+  całość stałych. Kwota ręczna bez zmian, serie wpływów nie wpływają na pulę. Bez migracji.
+
 ## 0.16.0
 
 **Zmiany serii w dzwonku** (M5b etap 3, `docs/PLAN_M5b_E3.md`).
