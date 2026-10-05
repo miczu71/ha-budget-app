@@ -55,6 +55,8 @@ async def test_nav_and_empty_pages(client: httpx.AsyncClient) -> None:
     page = (await client.get("/")).text
     assert f'href="{INGRESS}/spending"' in page and f'href="{INGRESS}/rules"' in page
     assert "brak wydatków" in (await client.get("/spending")).text
+    rules_page = (await client.get("/rules")).text
+    assert "Zawsze dla" not in rules_page and "utwórz regułę" in rules_page
 
 
 async def test_spending_page(client: httpx.AsyncClient, service: Service) -> None:
