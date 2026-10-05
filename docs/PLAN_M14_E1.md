@@ -103,3 +103,13 @@ Pomiar GET z iframe Ingress, mediana z 5 prób (ms), 0.20.3 → 0.21.1:
 **Kryterium (< 400 ms, `/` i `/recurring` < 600 ms) spełnione na wszystkich 11 ekranach.** Pomiar zaszumiony (pojedynczy pik
 2 s na `/inbox`; `/review` 445 w poprzednim pomiarze, 393 w tym — tuż pod progiem). Dalej do decyzji: kolejka Do przejrzenia
 (najbliżej progu), handlery poza pętlą zdarzeń, PRAGMA/indeksy, zimny dzwonek po zapisie (`check_balances`).
+
+## Zamknięcie M14 (2026-10-06)
+Pomiar kolejki „Do przejrzenia” na produkcji (0.21.1, 17 grup): lista `/review` ~300 ms, rozwinięcie grupy ~45 ms, podgląd reguły
+z kategorią ~40 ms (pik 133 ms) — założenie „podgląd przy każdym znaku jest wąskim gardłem” się nie potwierdziło. Zimny start po
+zapisie szacowany z różnicy `/status` (464 ms w 0.20.3, 130 ms w 0.21.1) na ~0,3 s jednorazowo po zapisie zmieniającym
+transakcje, reguły, serie lub kategorie (wcześniej płaciła tyle każda strona); to oszczędność z różnicy czasów, nie pomiar.
+Pomiar zimnego startu zapisem konta odrzucony: `POST /accounts/{id}` woła `service.refresh()` synchronicznie i rozgrzałby cache.
+**Decyzja użytkownika: M14 zamknięty.** Niezrobione świadomie: handlery poza pętlą zdarzeń (niska wartość po E1), PRAGMA i indeksy
+(zysk mały przy ~3 tys. wierszy), pomiar ścieżki zapisu (wymaga prawdziwego zapisu w danych użytkownika). Wracamy, gdy użytkownik
+znów poczuje spowolnienie; kandydaci i dowody są w `docs/PLAN_M14_E1.md` i raporcie z 2026-10-05.
