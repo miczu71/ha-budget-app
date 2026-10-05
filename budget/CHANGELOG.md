@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.21.0
+
+**Szybszy panel** (M14 etap 1, `docs/PLAN_M14_E1.md`).
+
+- Przynależność transakcji do serii cyklicznych (czytanie i parsowanie całej księgi) liczyła się trzy razy na jedno
+  wyświetlenie strony: dzwonek na każdym ekranie, Podsumowanie, Budżet, Cykliczne i encje MQTT. Teraz liczy się raz i jest
+  ważna do pierwszego zapisu w księdze (transakcja, reguła, seria, kategoria, kwota Flex).
+- Wygląd i wyniki bez zmian (strony zrenderowane przed i po są identyczne co do bajtu); bez zmian w encjach i schemacie bazy.
+
 ## 0.20.3
 
 **Domknięcie refaktoru UI** (M13 etap 3e, `docs/PLAN_M13_E3e.md`).
