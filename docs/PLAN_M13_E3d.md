@@ -99,7 +99,8 @@ zrzuty Kategorii; przegląd wzrokowy 360/1280 px zwinięte i rozwinięte bez uwa
 
 `app.css` (blok „M13 E3d”): `a.row` 44 px (wiersze nadchodzących serii), `inline-flex` + `min-height` dla nazw i akcji serii,
 linku powrotu (`p.back a`, nowa klasa `back` w `series.html`/`series_new.html`) i linków w tekście (`.recurring-line a`,
-`p.muted a`, `.msg a` — jak w E3b/E3c), `label.check` 44 px z polem 20 px (Konta). Świeża kopia z tym samym zasiewem: **0 elementów
+`p.muted a`, `.msg a` — jak w E3b/E3c), `label.check` 44 px z polem 20 px (Konta). Kopia z kroku 2 (restart na świeżą kopię się
+nie udał — `kill` trafił w podpowłokę, nie w serwer; przed i po mierzone na tych samych danych z seriami): **0 elementów
 < 44 px na wszystkich 17 ekranach przy 360/390/1280 px**, bez przepełnienia, konsola czysta; zmieniły się tylko zrzuty Podsumowania,
 Budżetu, Reguł, Statusu, Kont, Cyklicznych i serii (przegląd 360 px bez uwag; linki w zdaniu podnoszą swoją linię — widać w pustym
 stanie Reguł). Zgłoszone poza zakresem: pusty stan Reguł radzi „Zawsze dla …” — przycisk usunięty w M4h.
