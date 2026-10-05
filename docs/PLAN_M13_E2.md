@@ -108,3 +108,21 @@ na górze (dzwonek i „Do decyzji” już to niosą).
 `BUDGET_OPTIONS_PATH=/nonexistent .venv/bin/python -m pytest -q`, `ruff check`, `ruff format --check`, `mypy`; zrzuty obu motywów;
 na żywo: stopka `v0.19.0`, wykres kołowy z prawdziwymi danymi, kliknięcie wycinka otwiera przefiltrowane transakcje, strzałka
 miesiąca zmienia cały ekran, słupek 12 miesięcy przenosi na ten miesiąc, konsola czysta.
+
+## Wynik lokalny (2026-10-05, bez wydania)
+
+Zbudowane i sprawdzone na kopii księgi, w obu motywach: 516 testów, ruff, mypy bez uwag; strona główna odpowiada w 12–56 ms;
+360 i 1280 px bez przepełnienia poziomego i bez błędów w konsoli; kontrast tekstu ≥ 4,77:1 (Monarch) i ≥ 5,69:1 (Copilot),
+wycinki i słupki ≥ 3:1 względem karty; `prefers-reduced-motion` wyłącza animację. Detektor impeccable: znane ostrzeżenia
+o krojach i fałszywy alarm `layout-transition` dla `stroke-width` w SVG.
+
+Odstępstwa i decyzje w trakcie:
+- Tytuł ekranu to sam miesiąc („Październik 2026”), bo aktywna zakładka mówi „Podsumowanie”, a pełny tytuł łamał się
+  na telefonie na trzy linie.
+- Karta „Ustaw budżet” tylko dla bieżącego miesiąca; dla miesiąca minionego bez budżetu jej nie ma.
+- Wykres 12 miesięcy ma maksymalną szerokość 520 px; przy miesiącu minionym (bez karty „Co jeszcze zejdzie”) leży obok
+  „Ostatnich transakcji”, przy bieżącym zajmuje całą szerokość.
+- Wykryte po drodze: klasa `.bar` (pasek udziału z Wydatków) nadpisywała wysokość słupków w SVG, więc słupki mają
+  klasy `b-inc` i `b-exp`; reguła koła dotyczy tylko bezpośredniego `svg`.
+- Skaner prywatności zablokował `"marca"` (dopełniacz miesiąca) jako ulicę; dopisane do allowlisty skanera (poza repo).
+

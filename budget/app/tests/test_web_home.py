@@ -91,7 +91,7 @@ async def test_uncategorized_slice_links_to_review(
 
 async def test_empty_month_has_no_donut_and_no_upcoming(client: httpx.AsyncClient) -> None:
     page = (await client.get("/?month=2020-01")).text
-    assert "Podsumowanie — styczeń 2020" in page
+    assert "<h1>Styczeń 2020</h1>" in page
     assert "Brak wydatków w tym miesiącu." in page and 'class="slice' not in page
     assert "Za mało danych" in page and "Co jeszcze zejdzie" not in page
     assert f'href="{INGRESS}/?month=2020-02"' in page  # strzałka do następnego miesiąca
@@ -107,7 +107,7 @@ async def test_month_switch_and_current_month_has_no_next(
     assert f'href="{INGRESS}/?month={prev:%Y-%m}"' in page
     assert f"?month={(first + timedelta(days=32)):%Y-%m}" not in page  # brak przyszłości
     older = (await client.get(f"/?month={prev:%Y-%m}")).text
-    assert f"Podsumowanie — {spending.month_label(prev)}" in older
+    assert f"<h1>{spending.month_label(prev).capitalize()}</h1>" in older
     assert f'href="{INGRESS}/?month={MONTH}"' in older  # następny = bieżący
 
 

@@ -47,3 +47,18 @@ Siatka 4 px, padding karty 20 px (16 px na telefonie), odstęp elementów 16 px.
 - Kwota wydatku w wierszu jest neutralna (biała), kolor mają wpływy (lime) i przekroczenia (coral).
 - Ikony i grafiki zawsze SVG: Lucide (ISC, https://github.com/lucide-icons/lucide) przez iconify.design,
   osadzane inline albo jako maska CSS (`--i-chevron`, `--i-check`). Animacje wyłącznie jako Lottie, lokalnie.
+
+## Wykresy (M13 E2)
+- SVG po stronie serwera (`web/charts.py` liczy geometrię, `_charts.html` składa SVG), bez JS i bez bibliotek; ikony zmiany
+  jako Lucide.
+- **Kolor kategorii jest stały** (`id % 8`), kolizja w jednym wykresie przesuwa mniejszy wycinek na następny wolny kolor.
+  Kod nie zna palety: klasy `c1…c8`, `other`, `unc` mapują tokeny `--chart-1…8`, `--chart-other`, `--chart-unc` motywu.
+- **Kolory znaczeniowe są zarezerwowane** (nie służą kategoriom): wpływ/dobrze `--pos`, przekroczenie/źle `--neg`,
+  ostrzeżenie `--warn` (w wykresie kołowym to „Bez kategorii”).
+- Copilot: tangerine, hot pink, fiolet, sky, ember, olive + pochodne teal i jasny indygo; „Inne” = slate.
+  Monarch (pochodna paleta ciepłych ziem, bo styl nie ma kolorów kategorii): ember, ink, terakota, przygaszony niebieski,
+  szałwia, oliwka, śliwka, ciepły brąz; „Inne” = kamień. Słupki: wpływy `--pos`, wydatki `--accent` (Copilot) albo Ink (Monarch).
+- Wycinki i słupki ≥ 3:1 względem karty, tekst ≥ 4,5:1; wycinek i legenda są linkami; legenda ma wiersze ≥ 44 px.
+- Jedna animacja: wjazd wycinków (dasharray), wyłączona przy `prefers-reduced-motion`.
+- Porównania zmian liczone rzetelnie: bieżący (niepełny) miesiąc vs ten sam zakres dni poprzedniego, podpis mówi to wprost.
+

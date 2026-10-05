@@ -649,7 +649,7 @@ form.move.add-fixed select { max-width: 100%; flex: 1 1 200px; }
 }
 .donut-wrap { display: grid; gap: 16px; align-items: center; justify-items: center; }
 .donut { position: relative; width: min(100%, 230px); container-type: inline-size; }
-.donut svg { display: block; width: 100%; height: auto; overflow: visible; }
+.donut > svg { display: block; width: 100%; height: auto; overflow: visible; }
 .donut-track { fill: none; stroke: var(--surface-2); stroke-width: 26; }
 .slice {
   fill: none;
@@ -718,7 +718,7 @@ form.move.add-fixed select { max-width: 100%; flex: 1 1 200px; }
 .legend-pct { text-align: right; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .dot { width: 12px; height: 12px; border-radius: 50%; background: currentColor; display: inline-block; flex: none; }
 @media (min-width: 640px) {
-  .donut-wrap { grid-template-columns: 230px 1fr; gap: 28px; justify-items: stretch; }
+  .donut-wrap { grid-template-columns: 230px minmax(0, 480px); gap: 32px; justify-items: stretch; justify-content: center; }
   .donut { justify-self: center; }
 }
 .donut-wrap:has(.legend-item:hover) .slice,
@@ -775,14 +775,15 @@ a.row:hover .row-title { text-decoration: underline; }
 .row-date { color: var(--text-3); font-size: 13px; font-variant-numeric: tabular-nums; }
 .row-title { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 .row-amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.bars { display: block; width: 100%; height: auto; }
+.bars { display: block; width: 100%; max-width: 520px; height: auto; }
 .bars .grid-line { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 3; }
 .bars .axis { fill: var(--text-3); font-size: 11px; }
 .bars .hit { fill: transparent; }
 .bars .col:hover .hit, .bars .col.sel .hit { fill: var(--surface-2); }
-.bars .bar.inc { fill: var(--bar-income); }
-.bars .bar.exp { fill: var(--bar-expense); }
-.bars .col.partial .bar { opacity: 0.55; }
+.bars .b-inc { fill: var(--bar-income); }
+.bars .b-exp { fill: var(--bar-expense); }
+.bars .col.partial .b-inc,
+.bars .col.partial .b-exp { opacity: 0.55; }
 .bars .col.sel .axis { fill: var(--text); font-weight: 600; }
 .bars-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; margin: 8px 0 0; }
 .bars-legend span { display: inline-flex; align-items: center; gap: 6px; }

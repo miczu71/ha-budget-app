@@ -35,8 +35,8 @@
   {% for b in chart.bars %}
   <a href="{{ base }}{{ b.href }}" class="col{{ ' sel' if b.selected }}{{ ' partial' if b.partial }}">
     <rect class="hit" x="{{ '%.1f' | format(b.slot_x) }}" y="0" width="{{ '%.1f' | format(b.slot_w) }}" height="{{ chart.baseline + 22 }}" rx="4" />
-    {% if b.income_h %}<rect class="bar inc" x="{{ '%.1f' | format(b.x) }}" y="{{ '%.1f' | format(chart.baseline - b.income_h) }}" width="{{ chart.bar_w }}" height="{{ '%.1f' | format(b.income_h) }}" rx="2" />{% endif %}
-    {% if b.expenses_h %}<rect class="bar exp" x="{{ '%.1f' | format(b.x + chart.bar_w + 1.5) }}" y="{{ '%.1f' | format(chart.baseline - b.expenses_h) }}" width="{{ chart.bar_w }}" height="{{ '%.1f' | format(b.expenses_h) }}" rx="2" />{% endif %}
+    {% if b.income_h %}<rect class="b-inc" x="{{ '%.1f' | format(b.x) }}" y="{{ '%.1f' | format(chart.baseline - b.income_h) }}" width="{{ chart.bar_w }}" height="{{ '%.1f' | format(b.income_h) }}" rx="2" />{% endif %}
+    {% if b.expenses_h %}<rect class="b-exp" x="{{ '%.1f' | format(b.x + chart.bar_w + 1.5) }}" y="{{ '%.1f' | format(chart.baseline - b.expenses_h) }}" width="{{ chart.bar_w }}" height="{{ '%.1f' | format(b.expenses_h) }}" rx="2" />{% endif %}
     <text class="axis" x="{{ '%.1f' | format(b.slot_x + b.slot_w / 2) }}" y="{{ chart.baseline + 14 }}" text-anchor="middle">{{ b.label }}</text>
     <title>{{ month_label(b.month) }}{{ " (do dziś)" if b.partial }}: wpływy {{ b.income | money("PLN") }}, wydatki {{ b.expenses | money("PLN") }}</title>
   </a>

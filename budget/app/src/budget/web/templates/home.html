@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% from "_macros.html" import change, change_abs %}
 {% from "_charts.html" import donut, month_chart with context %}
+{% set has_upcoming = mv and mv.rows %}
 {% block content %}
 <div class="month-nav">
   <a class="month-link" href="{{ base }}/?month={{ m.prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
-  <h1>Podsumowanie — {{ label }}</h1>
+  <h1>{{ label | capitalize }}</h1>
   {% if m.next_month %}<a class="month-link" href="{{ base }}/?month={{ m.next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
 </div>
 <p class="fresh small {{ 'warn-text' if stale else 'muted' }}">
@@ -14,11 +15,13 @@
 </p>
 
 {% if f.budget is none %}
+{% if f.is_current %}
 <section class="card flex-hero">
   <h2>Ile możesz jeszcze wydać?</h2>
   <p class="muted">Pula na wydatki elastyczne nie jest jeszcze ustawiona.</p>
   <a class="button" href="{{ base }}/budget?month={{ ym }}">Ustaw budżet</a>
 </section>
+{% endif %}
 {% else %}
 {% with details=True %}{% include "_flex_hero.html" %}{% endwith %}
 {% endif %}
@@ -63,7 +66,7 @@
     <p class="small muted">{{ compare }}{% if m.prev_partial %} (ten sam okres){% endif %}</p>
   </section>
 
-  {% if mv and mv.rows %}
+  {% if has_upcoming %}
   <section class="card">
     <h2>Co jeszcze zejdzie</h2>
     <p class="small muted">jeszcze zejdzie <strong>{{ mv.out_planned | money("PLN") }}</strong>{% if mv.in_planned %} · jeszcze wpłynie <strong class="pos">{{ mv.in_planned | money("PLN") }}</strong>{% endif %}</p>
@@ -95,7 +98,7 @@
     <p class="small card-link"><a href="{{ base }}/transactions?{{ period }}">Wszystkie transakcje »</a></p>
   </section>
 
-  <section class="card span2">
+  <section class="card{{ ' span2' if has_upcoming }}">
     <h2>Ostatnie 12 miesięcy</h2>
     {% if bars.has_data %}
     {{ month_chart(bars) }}
