@@ -114,3 +114,59 @@ def test_moved_subcategory_counts_under_new_main(conn: sqlite3.Connection) -> No
     assert set(groups) == {"zakupy-codzienne", "transport"}
     assert groups["zakupy-codzienne"].amount == Decimal("40.00")
     assert groups["zakupy-codzienne"].prev == Decimal("100.00")  # poprzedni miesiąc też
+
+
+def test_totals_match_build(conn: sqlite3.Connection) -> None:
+    buy = add(conn, "-100.00", "card", "LIDL XYZ POL 2026-09-02", day="2026-09-02")
+    add(conn, "20.00", "card_refund", "LIDL XYZ POL 2026-09-05", day="2026-09-05", refund_of=buy)
+    add(conn, "-40.00", "card", "SKLEP ABC XYZ", day="2026-09-04")  # bez kategorii
+    add(conn, "150.00", "transfer_in", "Zwrot", "JAN NOWAK", day="2026-09-11")  # bez kategorii
+    sav = add(conn, "-1000.00", "transfer_out", "Lokata", "JA SAM", day="2026-09-12")
+    engine.set_manual(conn, sav, sid(conn, "oszczednosci-przelewy"))
+    add(conn, "-700.00", "card_repayment", "", None, day="2026-09-14", transfer_group="t1")
+    m = build(conn)
+    s = spending.sums(conn, date(2026, 9, 1), date(2026, 10, 1))
+    assert spending.totals(taxonomy.leaves(conn), s) == (m.income, m.expenses)
+    # zwrot netto, bez lokaty
+    assert (m.income, m.expenses) == (Decimal("150.00"), Decimal("120.00"))
+
+
+def test_prev_window_is_same_period_for_current_month(conn: sqlite3.Connection) -> None:
+    add(conn, "-10.00", "card", "LIDL A", day="2026-08-03")
+    add(conn, "-90.00", "card", "LIDL B", day="2026-08-25")  # po 5. dniu — poza oknem porównania
+    add(conn, "-20.00", "card", "LIDL C", day="2026-09-02")
+    m = build(conn, today="2026-09-05")
+    assert m.prev_window == (date(2026, 8, 1), date(2026, 8, 6)) and m.prev_partial
+    assert (m.expenses, m.prev_expenses) == (Decimal("20.00"), Decimal("10.00"))
+    # minięty miesiąc: pełny poprzedni, bez „częściowego”
+    past = build(conn, "2026-08-01", today="2026-09-05")
+    assert past.prev_window == (date(2026, 7, 1), date(2026, 8, 1)) and not past.prev_partial
+    assert build(conn, "2026-09-01", today="2026-09-30").prev_expenses == Decimal("100.00")
+
+
+def test_prev_window_never_exceeds_the_month(conn: sqlite3.Connection) -> None:
+    add(conn, "-10.00", "card", "LIDL A", day="2026-09-30")
+    m = build(conn, "2026-10-01", today="2026-10-31")  # wrzesień ma 30 dni, październik 31
+    assert m.prev_window == (date(2026, 9, 1), date(2026, 10, 1)) and not m.prev_partial
+    assert m.prev_expenses == Decimal("10.00")
+
+
+def test_monthly_totals(conn: sqlite3.Connection) -> None:
+    engine.set_manual(
+        conn,
+        add(conn, "5000.00", "transfer_in", "Pensja", "FIRMA X", day="2026-07-10"),
+        sid(conn, "wynagrodzenie"),
+    )
+    add(conn, "-30.00", "card", "LIDL A", day="2026-07-15")
+    add(conn, "-45.00", "card", "LIDL B", day="2026-09-03")
+    add(conn, "200.00", "transfer_in", "Zwrot", "JAN NOWAK", day="2026-09-04")  # bez kategorii
+    engine.recategorize(conn)
+    rows = spending.monthly_totals(conn, date(2026, 9, 20), n=3)
+    assert [r.month for r in rows] == [date(2026, 7, 1), date(2026, 8, 1), date(2026, 9, 1)]
+    assert [r.partial for r in rows] == [False, False, True]
+    assert [(r.income, r.expenses) for r in rows] == [
+        (Decimal("5000.00"), Decimal("30.00")),
+        (Decimal("0"), Decimal("0")),
+        (Decimal("200.00"), Decimal("45.00")),
+    ]
+    assert len(spending.monthly_totals(conn, date(2026, 1, 5))) == 12  # przez granicę roku

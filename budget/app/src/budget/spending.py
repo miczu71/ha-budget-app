@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import sqlite3
 from collections import defaultdict
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from budget.categorize import taxonomy
@@ -81,6 +81,24 @@ class Month:
     uncategorized_in_count: int = 0
     coverage: Coverage = field(default_factory=Coverage)
     other_currency: int = 0
+    # porównanie z poprzednim okresem: dla bieżącego (niepełnego) miesiąca ten sam zakres dni
+    prev_income: Decimal = ZERO
+    prev_expenses: Decimal = ZERO
+    prev_balance: Decimal = ZERO
+    prev_window: tuple[date, date] | None = None  # [od, do) poprzedniego okresu
+
+    @property
+    def prev_partial(self) -> bool:
+        """Porównanie z częścią poprzedniego miesiąca (oglądany miesiąc jest jeszcze niepełny)."""
+        return self.prev_window is not None and self.prev_window[1] < self.month
+
+
+@dataclass(frozen=True)
+class MonthTotals:
+    month: date
+    income: Decimal
+    expenses: Decimal
+    partial: bool  # bieżący miesiąc, jeszcze niepełny
 
 
 def month_start(d: date) -> date:
@@ -191,6 +209,31 @@ def sums(
     return s
 
 
+def totals(leaves: Mapping[int, Category], s: Sums) -> tuple[Decimal, Decimal]:
+    """Wpływy i wydatki okresu z sum, wg reguł `build` (grupa podkategorii decyduje o sekcji)."""
+    income, expenses = s.unc_in.amount, s.unc_out.amount
+    for leaf in leaves.values():
+        acc = s.by_leaf.get(leaf.id)
+        if acc is None or leaf.flex_group in ("savings", "excluded"):
+            continue
+        if leaf.flex_group == "income":
+            income += acc.amount
+        else:
+            expenses -= acc.amount  # wydatki są ujemne, zwrot zmniejsza kategorię
+    return income, expenses
+
+
+def monthly_totals(conn: sqlite3.Connection, today: date, n: int = 12) -> list[MonthTotals]:
+    """Wpływy i wydatki ostatnich `n` miesięcy do bieżącego włącznie, od najstarszego."""
+    leaves, current = taxonomy.leaves(conn), month_start(today)
+    out = []
+    for back in range(n - 1, -1, -1):
+        month = add_months(current, -back)
+        income, expenses = totals(leaves, sums(conn, month, add_months(month, 1)))
+        out.append(MonthTotals(month, income, expenses, month == current))
+    return out
+
+
 def coverage(
     conn: sqlite3.Connection, start: date | None = None, end: date | None = None
 ) -> Coverage:
@@ -211,6 +254,14 @@ def build(conn: sqlite3.Connection, month: date, today: date) -> Month:
         coverage=cur.coverage,
         other_currency=cur.other_currency,
     )
+    # rzetelne porównanie: bieżący miesiąc z tym samym zakresem dni poprzedniego, nie z całym
+    prev_end = start
+    if start == month_start(today):
+        prev_end = min(prev_start + timedelta(days=today.day), start)
+    prev_window = prev if prev_end == start else sums(conn, prev_start, prev_end)
+    out.prev_window = (prev_start, prev_end)
+    out.prev_income, out.prev_expenses = totals(taxonomy.leaves(conn), prev_window)
+    out.prev_balance = prev_window.balance
     out.uncategorized_out, out.uncategorized_out_count = cur.unc_out.amount, cur.unc_out.count
     out.uncategorized_in, out.uncategorized_in_count = cur.unc_in.amount, cur.unc_in.count
 
