@@ -27,6 +27,7 @@
   unicode-range: U+202F;
 }
 :root {
+  --tap: 44px; /* minimalny cel dotyku */
   --canvas: #efecea;
   --surface-1: #fff;
   --surface-2: #f7f5f3;
@@ -333,7 +334,7 @@ td.date { white-space: nowrap; }
 .cat-chip.empty { color: var(--warn); border-style: dashed; }
 .cat-chip .src { color: var(--muted); font-size: 11px; margin-left: 6px; }
 .cat-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.rv-ai { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.rv-ai { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .cat-form .rv-ai { flex-basis: 100%; }
 button.chip, a.chip {
   background: var(--bg);
@@ -347,7 +348,7 @@ button.chip, a.chip {
 }
 button.chip.on, a.chip.on { background: var(--accent); color: var(--on-accent); }
 a.chip { text-decoration: none; display: inline-block; }
-.rv-ai-filter { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 10px; }
+.rv-ai-filter { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 10px; }
 .rv-f-more { flex-basis: 100%; }
 .rv-f-more summary { cursor: pointer; color: var(--link); padding: 2px 0; }
 .rv-f-more .rv-ai-filter { margin: 6px 0 0; }
@@ -713,3 +714,17 @@ a.row:hover .row-title { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) {
   .slice { animation: none; }
 }
+
+/* M13 E3: cele dotyku ≥ 44 px na ekranie „Do przejrzenia” (zakres: klasy rv-*) */
+.rv-actions select, .rv-actions button, .rv-ai-run button,
+.rv-rule select, .rv-rule input[type="text"],
+.rule-fields select, .rule-fields input:not([type="checkbox"]),
+.rv-sub button.link { min-height: var(--tap); }
+.rv-list button.chip, .rv-ai-filter a.chip, button.rv-accept,
+.rv-f-more summary, .rv-list .rv-more summary, .rv-tabs a, .rv-links a {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+}
+.rv-items label.check, .rv-actions label.check { min-height: var(--tap); align-items: center; }
+.rv-items input[type="checkbox"], .rv-actions input[type="checkbox"] { width: 20px; height: 20px; flex: none; }
