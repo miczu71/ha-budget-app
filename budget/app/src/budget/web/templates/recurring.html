@@ -12,7 +12,7 @@
     {% for c in changes %}
     <li class="series-item">
       <div class="series-head">
-        <a class="cat-name" href="{{ base }}/recurring/{{ c.series.id }}">{{ c.series.name }}</a>
+        <a class="cat-name tap" href="{{ base }}/recurring/{{ c.series.id }}">{{ c.series.name }}</a>
         <span class="badge {{ 'error' if c.kind != 'amount' else '' }}">{{ {"amount": "inna kwota", "late": "spóźniona", "stopped": "ustała?"}[c.kind] }}</span>
       </div>
       <div class="small muted">{{ c.detail }}</div>
@@ -29,9 +29,9 @@
 {% endif %}
 
 <div class="month-nav">
-  <a class="month-link" href="{{ base }}/recurring?month={{ prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
+  <a class="month-link tap" href="{{ base }}/recurring?month={{ prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
   <strong>{{ label }}</strong>
-  {% if next_month %}<a class="month-link" href="{{ base }}/recurring?month={{ next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
+  {% if next_month %}<a class="month-link tap" href="{{ base }}/recurring?month={{ next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
 </div>
 <section class="card" id="this-month">
   <h2>Ten miesiąc</h2>
@@ -46,7 +46,7 @@
     {% for d in mv.rows %}
     <li class="series-item">
       <div class="series-head">
-        <a class="cat-name" href="{{ base }}/recurring/{{ d.series.id }}">{{ d.series.name }}</a>
+        <a class="cat-name tap" href="{{ base }}/recurring/{{ d.series.id }}">{{ d.series.name }}</a>
         <span class="cat-amount {{ 'pos' if d.series.direction == 'in' }}">{{ (d.paid_amount if d.txns else d.series.expected_amount) | money("PLN") }}</span>
       </div>
       <div class="small muted">
@@ -82,7 +82,7 @@
       {% endif %}
       <div class="series-actions">
         <form method="post" action="{{ base }}/recurring/{{ v.s.id }}/status"><input type="hidden" name="action" value="confirm"><button>Potwierdź</button></form>
-        <a href="{{ base }}/recurring/{{ v.s.id }}">Edytuj i potwierdź</a>
+        <a class="tap" href="{{ base }}/recurring/{{ v.s.id }}">Edytuj i potwierdź</a>
         <form method="post" action="{{ base }}/recurring/{{ v.s.id }}/status"><input type="hidden" name="action" value="reject"><button class="secondary">Odrzuć</button></form>
       </div>
     </li>
@@ -98,7 +98,7 @@
     {% for v in active %}
     <li class="series-item">
       <div class="series-head">
-        <a class="cat-name" href="{{ base }}/recurring/{{ v.s.id }}">{{ v.s.name }}</a>
+        <a class="cat-name tap" href="{{ base }}/recurring/{{ v.s.id }}">{{ v.s.name }}</a>
         <span class="cat-amount">{{ amount(v.s) }}</span>
       </div>
       <div class="small muted">{{ dir_label(v.s) }} · {{ cadences[v.s.cadence] }}{% if v.s.cadence != "M" %} ({{ v.s.monthly | money("PLN") }}/mies.){% endif %}{% if v.last %} · ostatnio {{ v.last.day.isoformat() | pldate }}: {{ v.last.amount | money("PLN") }}{% else %} · brak transakcji{% endif %}{% if v.few_history %} · <span class="warn-text">mało historii</span>{% endif %}</div>
@@ -116,7 +116,7 @@
     {% for v in ended %}
     <li class="series-item">
       <div class="series-head">
-        <a class="cat-name" href="{{ base }}/recurring/{{ v.s.id }}">{{ v.s.name }}</a>
+        <a class="cat-name tap" href="{{ base }}/recurring/{{ v.s.id }}">{{ v.s.name }}</a>
         <form method="post" action="{{ base }}/recurring/{{ v.s.id }}/status"><input type="hidden" name="action" value="restore"><button class="secondary">Przywróć</button></form>
       </div>
       <div class="small muted">{{ dir_label(v.s) }} · {{ cadences[v.s.cadence] }} · {{ v.s.expected_amount | money("PLN") }}{% if v.last %} · ostatnio {{ v.last.day.isoformat() | pldate }}{% endif %}</div>

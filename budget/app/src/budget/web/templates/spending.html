@@ -4,9 +4,9 @@
 {% set period = "date_from=" ~ date_from ~ "&date_to=" ~ date_to %}
 {% block content %}
 <div class="month-nav">
-  <a class="month-link" href="{{ base }}/spending?month={{ m.prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
+  <a class="month-link tap" href="{{ base }}/spending?month={{ m.prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
   <h1>Wydatki — {{ label }}</h1>
-  {% if m.next_month %}<a class="month-link" href="{{ base }}/spending?month={{ m.next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
+  {% if m.next_month %}<a class="month-link tap" href="{{ base }}/spending?month={{ m.next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
 </div>
 
 <div class="grid summary">
@@ -35,12 +35,12 @@
         <ul class="subcats">
           {% for c in g.children %}
           <li>
-            <a href="{{ base }}/transactions?category={{ c.category.id }}&{{ period }}">{{ c.category.name }}</a>
+            <a class="tap" href="{{ base }}/transactions?category={{ c.category.id }}&{{ period }}">{{ c.category.name }}</a>
             <span class="cat-amount">{{ c.amount | money("PLN") }}</span>
             <span class="cat-meta small muted">{{ c.count }} tr. · {{ delta(c) }}</span>
           </li>
           {% endfor %}
-          <li><a class="small" href="{{ base }}/transactions?category={{ g.category.id }}&{{ period }}">wszystkie transakcje: {{ g.category.name }} »</a></li>
+          <li><a class="small tap" href="{{ base }}/transactions?category={{ g.category.id }}&{{ period }}">wszystkie transakcje: {{ g.category.name }} »</a></li>
         </ul>
       </details>
     </li>
@@ -62,10 +62,10 @@
     <h2>Wpływy</h2>
     <dl class="kv">
       {% for line in m.income_lines %}
-      <dt><a href="{{ base }}/transactions?category={{ line.category.id }}&{{ period }}">{{ line.category.name }}</a></dt><dd>{{ line.amount | money("PLN") }}</dd>
+      <dt><a class="tap" href="{{ base }}/transactions?category={{ line.category.id }}&{{ period }}">{{ line.category.name }}</a></dt><dd>{{ line.amount | money("PLN") }}</dd>
       {% endfor %}
       {% if m.uncategorized_in %}
-      <dt><a href="{{ base }}/review?direction=in&month={{ m.month.strftime('%Y-%m') }}">bez kategorii</a> <span class="small muted">({{ m.uncategorized_in_count }})</span></dt><dd>{{ m.uncategorized_in | money("PLN") }}</dd>
+      <dt><a class="tap" href="{{ base }}/review?direction=in&month={{ m.month.strftime('%Y-%m') }}">bez kategorii</a> <span class="small muted">({{ m.uncategorized_in_count }})</span></dt><dd>{{ m.uncategorized_in | money("PLN") }}</dd>
       {% endif %}
     </dl>
     {% if not m.income_lines and not m.uncategorized_in %}<p class="muted">brak</p>{% endif %}
@@ -74,7 +74,7 @@
     <h2>Oszczędności i poza budżetem</h2>
     <dl class="kv">
       {% for line in m.savings_lines + m.excluded_lines %}
-      <dt><a href="{{ base }}/transactions?category={{ line.category.id }}&{{ period }}">{{ line.category.name }}</a></dt><dd>{{ line.amount | money("PLN") }}</dd>
+      <dt><a class="tap" href="{{ base }}/transactions?category={{ line.category.id }}&{{ period }}">{{ line.category.name }}</a></dt><dd>{{ line.amount | money("PLN") }}</dd>
       {% endfor %}
     </dl>
     {% if not m.savings_lines and not m.excluded_lines %}<p class="muted">brak</p>{% endif %}

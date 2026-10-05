@@ -4,9 +4,9 @@
 {% set has_upcoming = mv and mv.rows %}
 {% block content %}
 <div class="month-nav">
-  <a class="month-link" href="{{ base }}/?month={{ m.prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
+  <a class="month-link tap" href="{{ base }}/?month={{ m.prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
   <h1>{{ label | capitalize }}</h1>
-  {% if m.next_month %}<a class="month-link" href="{{ base }}/?month={{ m.next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
+  {% if m.next_month %}<a class="month-link tap" href="{{ base }}/?month={{ m.next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
 </div>
 <p class="fresh small {{ 'warn-text' if stale else 'muted' }}">
   {% if sync_at %}Dane z {{ sync_at | ts }}{% if stale %} — nieświeże{% endif %}{% else %}Brak synchronizacji z bankiem{% endif %}
@@ -38,7 +38,7 @@
     {% else %}
     <p class="muted">Brak wydatków w tym miesiącu.</p>
     {% endif %}
-    <p class="small card-link"><a href="{{ base }}/spending?month={{ ym }}">Wszystkie kategorie i podkategorie »</a></p>
+    <p class="small card-link"><a class="tap" href="{{ base }}/spending?month={{ ym }}">Wszystkie kategorie i podkategorie »</a></p>
   </section>
 
   <section class="card">
@@ -80,7 +80,7 @@
     {% else %}
     <p class="muted">Nic już nie zejdzie w tym miesiącu.</p>
     {% endif %}
-    <p class="small card-link"><a href="{{ base }}/recurring">Cykliczne »</a></p>
+    <p class="small card-link"><a class="tap" href="{{ base }}/recurring">Cykliczne »</a></p>
   </section>
   {% endif %}
 
@@ -95,7 +95,7 @@
     {% else %}
     <p class="muted">Brak transakcji w tym miesiącu.</p>
     {% endif %}
-    <p class="small card-link"><a href="{{ base }}/transactions?{{ period }}">Wszystkie transakcje »</a></p>
+    <p class="small card-link"><a class="tap" href="{{ base }}/transactions?{{ period }}">Wszystkie transakcje »</a></p>
   </section>
 
   <section class="card{{ ' span2' if has_upcoming }}">

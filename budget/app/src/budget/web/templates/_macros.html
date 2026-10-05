@@ -22,7 +22,7 @@ method="get" action="{{ action }}" role="search" hx-get="{{ action }}" hx-trigge
 {% endmacro %}
 
 {% macro search_count(shown, total, q, clear_url) %}
-{% if q %}<p class="search-count small muted">{{ shown }} z {{ total }} · <a href="{{ clear_url }}">wyczyść</a></p>{% endif %}
+{% if q %}<p class="search-count small muted">{{ shown }} z {{ total }} · <a class="tap" href="{{ clear_url }}">wyczyść</a></p>{% endif %}
 {% endmacro %}
 
 {# Strzałki zmiany: Lucide (ISC), SVG #}

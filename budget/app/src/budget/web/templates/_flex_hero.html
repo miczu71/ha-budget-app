@@ -20,5 +20,5 @@
   {% if f.uncategorized_count %}
   <p class="small warn-note"><a href="{{ base }}/review?month={{ ym }}">W tym {{ f.uncategorized_count }} {{ "wydatek" if f.uncategorized_count == 1 else "wydatków" }} bez kategorii ({{ f.uncategorized | money("PLN") }}) — przejrzyj »</a><br>Liczone jako elastyczne; jeśli to stałe albo nieregularne, po skategoryzowaniu wrócą do puli.</p>
   {% endif %}
-  {% if details %}<p class="small"><a class="tx-link" href="{{ base }}/budget?month={{ ym }}">Szczegóły budżetu</a></p>{% endif %}
+  {% if details %}<p class="small"><a class="tap" href="{{ base }}/budget?month={{ ym }}">Szczegóły budżetu</a></p>{% endif %}
 </section>

@@ -20,7 +20,7 @@
     {% else %}
     <button type="submit">Zapisz</button>
     {% endif %}
-    <a href="{{ base }}{{ "/transactions" if new else "/recurring" }}">Anuluj</a>
+    <a class="tap" href="{{ base }}{{ "/transactions" if new else "/recurring" }}">Anuluj</a>
   </p>
   {% if new %}
   <div hidden hx-post="{{ base }}/recurring/new/preview" hx-include="#series-form" hx-target="#series-preview" hx-swap="innerHTML" hx-trigger="load, input delay:300ms from:#series-form, change from:#series-form" hx-sync="this:replace"></div>

@@ -39,6 +39,8 @@ dwuwarstwowy cień (`--elev`). Siatka 4 px, padding karty 20 px (16 na telefonie
   Reguły · Konta · Import CSV · Bank · Status (ostatni). Aktywna zakładka ma pomarańczowe podkreślenie. Na telefonie pasek
   przewija się poziomo (zanik krawędzi jako wskazówka). Wersja add-onu w stopce strony.
 - Nowe elementy SVG dostają unikalne nazwy klas (stare `.bar` nadpisywało wysokość `rect`).
+- Cele dotyku ≥ 44 px (`--tap`): pola i przyciski mają to globalnie; link samodzielny dostaje klasę `tap`; link w zdaniu
+  ma obszar dotyku przez `::after` (lista selektorów w `app.css`), żeby wiersz tekstu nie rósł.
 
 ## Wykresy (M13 E2)
 - SVG po stronie serwera (`web/charts.py` liczy geometrię, `_charts.html` składa SVG), bez JS i bez bibliotek.

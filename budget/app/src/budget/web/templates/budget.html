@@ -4,9 +4,9 @@
 {% set ym = f.month.strftime('%Y-%m') %}
 {% block content %}
 <div class="month-nav">
-  <a class="month-link" href="{{ base }}/budget?month={{ f.prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
+  <a class="month-link tap" href="{{ base }}/budget?month={{ f.prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
   <h1>Budżet — {{ label }}</h1>
-  {% if f.next_month %}<a class="month-link" href="{{ base }}/budget?month={{ f.next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
+  {% if f.next_month %}<a class="month-link tap" href="{{ base }}/budget?month={{ f.next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
 </div>
 
 {% if mv.rows %}
@@ -36,7 +36,7 @@
     <ul class="flex-lines">
       {% for line in f.lines %}
       <li>
-        <a href="{{ base }}/transactions?category={{ line.category.id }}&{{ period }}">{{ line.category.name }}</a>
+        <a class="tap" href="{{ base }}/transactions?category={{ line.category.id }}&{{ period }}">{{ line.category.name }}</a>
         <span class="cat-amount">{{ line.amount | money("PLN") }}</span>
         <span class="small muted">{{ line.parent }}{% if f.history %} · zwykle {{ line.median | money("PLN") }}{% endif %}{% if line.count %} · {{ line.count }} tr.{% endif %}</span>
       </li>
@@ -86,7 +86,7 @@
         <ul class="flex-lines">
           {% for line in a.series_lines %}
           <li>
-            <a href="{{ base }}/recurring/{{ line.series.id }}">{{ line.series.name }}</a>
+            <a class="tap" href="{{ base }}/recurring/{{ line.series.id }}">{{ line.series.name }}</a>
             <span class="cat-amount">{{ line.monthly | money("PLN") }}</span>
             <span class="small muted">{{ cadences[line.series.cadence] }}{% if line.series.cadence != "M" %} · {{ line.series.expected_amount | money("PLN") }}{% endif %}</span>
           </li>
@@ -101,7 +101,7 @@
             <summary><span class="cat-name">{{ line.category.name }}</span><span class="cat-amount">{{ line.median | money("PLN") }}</span></summary>
             <div class="leaf-meta small">
               <span class="muted">{{ line.parent }}</span>
-              <a href="{{ base }}/transactions?category={{ line.category.id }}">Transakcje</a>
+              <a class="tap" href="{{ base }}/transactions?category={{ line.category.id }}">Transakcje</a>
             </div>
             <form class="move" method="post" action="{{ base }}/budget/fixed/{{ line.category.id }}">
               <input type="hidden" name="month" value="{{ ym }}">
@@ -137,7 +137,7 @@
     <details class="small">
       <summary>wydane w poprzednich miesiącach</summary>
       <dl class="kv">
-        {% for h in f.history | reverse %}<dt><a href="{{ base }}/budget?month={{ h.month.strftime('%Y-%m') }}">{{ month_label(h.month) }}</a></dt><dd>{{ h.spent | money("PLN") }}{% if h.uncategorized %}<br><span class="small muted">w tym bez kategorii {{ h.uncategorized | money("PLN") }}</span>{% endif %}</dd>{% endfor %}
+        {% for h in f.history | reverse %}<dt><a class="tap" href="{{ base }}/budget?month={{ h.month.strftime('%Y-%m') }}">{{ month_label(h.month) }}</a></dt><dd>{{ h.spent | money("PLN") }}{% if h.uncategorized %}<br><span class="small muted">w tym bez kategorii {{ h.uncategorized | money("PLN") }}</span>{% endif %}</dd>{% endfor %}
       </dl>
     </details>
     {% endif %}
