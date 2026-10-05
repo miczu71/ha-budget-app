@@ -7,13 +7,14 @@ import re
 import stat
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import NoReturn
 from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
 import respx
 
-from budget import __version__, sessions
+from budget import __version__, ledger, sessions
 from budget.eb_models import SessionResponse
 from budget.ha_client import HAClient
 from budget.service import Service
@@ -225,3 +226,16 @@ async def test_status_reconcile_base_button(service: Service) -> None:
         assert f"#{card}: OK" in page and "/status/reconcile-base" not in page
         r = await client.post("/status/reconcile-base", data={"account_id": "999"})
         assert "Brak migawki" in (await client.get("/status")).text
+
+
+async def test_accounts_page_skips_balance_checks(
+    client: httpx.AsyncClient, service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Konta pokazują tylko listę kont — bez kosztownego uzgodnienia sald z raportu księgi."""
+    service.inbox()  # dzwonek zapamiętuje uzgodnienie (BalanceMemo), więc nie liczy go ponownie
+
+    def forbidden(*_: object) -> NoReturn:
+        raise AssertionError("ekran Konta nie powinien uzgadniać sald")
+
+    monkeypatch.setattr(ledger, "check_balances", forbidden)
+    assert (await client.get("/accounts")).status_code == 200

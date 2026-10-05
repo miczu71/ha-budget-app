@@ -54,15 +54,16 @@ class LedgerReport:
     balance_checks: list[BalanceCheck] = field(default_factory=list)
 
 
-def build(conn: sqlite3.Connection) -> LedgerReport:
-    rep = LedgerReport()
+def accounts(conn: sqlite3.Connection) -> list[AccountSummary]:
+    """Konta z zakresami transakcji per źródło — tanie, bez reszty raportu (ekran Konta)."""
+    out = []
     for acc in conn.execute("SELECT * FROM account ORDER BY id").fetchall():
         rows = conn.execute(
             "SELECT source, count(*) AS n, min(booking_date) AS d0, max(booking_date) AS d1 "
             "FROM txn WHERE account_id = ? AND status = 'BOOK' GROUP BY source ORDER BY source",
             (acc["id"],),
         ).fetchall()
-        rep.accounts.append(
+        out.append(
             AccountSummary(
                 id=int(acc["id"]),
                 kind=acc["kind"],
@@ -73,6 +74,11 @@ def build(conn: sqlite3.Connection) -> LedgerReport:
                 sources=[SourceRange(r["source"], int(r["n"]), r["d0"], r["d1"]) for r in rows],
             )
         )
+    return out
+
+
+def build(conn: sqlite3.Connection) -> LedgerReport:
+    rep = LedgerReport(accounts=accounts(conn))
     rep.csv_rows = [
         CsvRowCount(r["acc"], r["status"], int(r["n"]))
         for r in conn.execute(

@@ -15,7 +15,7 @@ def router(panel: Panel) -> APIRouter:
 
     @r.get("/accounts", response_class=HTMLResponse)
     async def accounts(request: Request) -> HTMLResponse:
-        return panel.render(request, "accounts.html", rep=report.build(conn))
+        return panel.render(request, "accounts.html", accounts=report.accounts(conn))
 
     @r.post("/accounts/{account_id}")
     async def save_account(

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Konta</h1>
-{% for a in rep.accounts %}
+{% for a in accounts %}
 <section class="card">
   <h2>#{{ a.id }} {{ a.display_name or account_kinds.get(a.kind, a.kind) }}</h2>
   <dl class="kv">
