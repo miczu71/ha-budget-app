@@ -81,3 +81,25 @@ Pomiar GET z iframe Ingress, mediana z 5 prób (ms), przed → po:
 „kolejka Do przejrzenia”) i `/accounts` 865 ms (nie dotknięte E1; przyczyna nieznana — do zdiagnozowania). Pomiar bywa
 zaszumiony: pojedyncze piki 1,7–2 s (`/spending`, `/review`) w pierwszej minucie po restarcie add-onu.
 Następne do decyzji: `/accounts`, kolejka Do przejrzenia, handlery poza pętlą zdarzeń, PRAGMA/indeksy.
+
+## Wynik wydania 0.21.1 (2026-10-05, produkcja) — E1b: Konta i Import
+Diagnoza `/accounts` (865 ms): ekran budował `report.build` (pełny raport dla CLI, m.in. `ledger.check_balances` = 72% czasu
+na kopii), a szablon używał tylko listy kont. Poprawka: `report.accounts(conn)` dla Kont; `report.build(conn, balance_checks)`
+z wynikiem z `BalanceMemo` dla Importu (CLI liczy sam). Testy: `/accounts` i `/import` po rozgrzaniu memo nie wołają
+`check_balances` (czerwone przed, zielone po). 518 testów; `/accounts` i `/import` identyczne co do bajtu z 0.21.0.
+Wydane: release v0.21.1 (sha `946d2ce`), CI zielone, backup add-onu przed aktualizacją, `/healthz` = 0.21.1, konsola bez błędów.
+
+Pomiar GET z iframe Ingress, mediana z 5 prób (ms), 0.20.3 → 0.21.1:
+
+| Ekran | 0.20.3 | 0.21.1 | | Ekran | 0.20.3 | 0.21.1 |
+|---|---|---|---|---|---|---|
+| `/` | 1425 | 438 | | `/transactions` | 563 | 238 |
+| `/budget` | 1320 | 351 | | `/rules` | 534 | 217 |
+| `/recurring` | 1698 | 308 | | `/status` | 464 | 130 |
+| `/inbox` | 853 | 293 | | `/spending` | 474 | 183 |
+| `/review` | 715 | 393 | | `/accounts` | 1126 | 125 |
+| `/import` | — | 155 | | `/healthz` | 22 | 17 |
+
+**Kryterium (< 400 ms, `/` i `/recurring` < 600 ms) spełnione na wszystkich 11 ekranach.** Pomiar zaszumiony (pojedynczy pik
+2 s na `/inbox`; `/review` 445 w poprzednim pomiarze, 393 w tym — tuż pod progiem). Dalej do decyzji: kolejka Do przejrzenia
+(najbliżej progu), handlery poza pętlą zdarzeń, PRAGMA/indeksy, zimny dzwonek po zapisie (`check_balances`).
