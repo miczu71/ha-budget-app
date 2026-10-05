@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.18.0
+
+**Nowy wygląd panelu i strona główna „Podsumowanie”** (M13 etap 1, `docs/PLAN_M13.md`).
+
+- **Styl Copilot Money, tylko ciemny:** granatowe tło, karty z wewnętrznym cieniem, jeden niebieski
+  kolor akcji. Kroje Inter i Space Grotesk oraz ikony Lucide (SVG) są w add-onie — bez zewnętrznych
+  zasobów. Kwota wydatku w wierszu jest biała; kolor mają wpływy (zielony) i przekroczenia (czerwony).
+- **Strona główna `/` = Podsumowanie:** „Zostało na elastyczne” z paskiem tempa i kwotą na dzień oraz
+  karta „Do decyzji”. Wykresy, top kategorii i ostatnie transakcje dojdą w 0.19.0.
+- **Nowa nawigacja:** Podsumowanie · Budżet · Wydatki · Cykliczne · Transakcje, dzwonek i menu ⚙ z pozostałymi
+  ekranami (Do przejrzenia, Reguły, Konta, Import CSV, Bank, Status na końcu). Wersja add-onu jest w stopce.
+- **Status przeniesiony na `/status`** (menu ⚙ → Status); karty „Nieudane synchronizacje” i „Synchronizacja
+  niepełna” w dzwonku prowadzą tam. Zakładki i skróty do starego adresu `/` otworzą Podsumowanie.
+- Bez zmian w logice budżetu, encjach i bazie danych.
+
 ## 0.17.1
 
 **Wypłata w seriach wpływowych: ostatnia kwota zamiast mediany** (poprawka M5b).

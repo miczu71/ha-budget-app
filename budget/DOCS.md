@@ -26,7 +26,7 @@ przelewy między kontami, uzgadnianie salda.
 3. **Import CSV** (opcjonalnie): eksport historii z bankowości internetowej. Starsze transakcje
    uzupełniają historię sprzed 90 dni dostępnych w API. Import można powtarzać — nic się nie
    zdubluje.
-4. **Status** → **Synchronizuj teraz** — pierwsze pobranie.
+4. **⚙ → Status** → **Synchronizuj teraz** — pierwsze pobranie.
 
 ## Synchronizacja i limit banku
 

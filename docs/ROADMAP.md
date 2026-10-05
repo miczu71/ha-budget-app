@@ -34,7 +34,7 @@ jawne „go” przed następnym).
 | M10 | **Moduł oszczędności** — cele i postęp oszczędzania, stopa oszczędności w czasie (zakres do wywiadu) | — |
 | M11 | **Integracja z trackerem akcji** (osobny add-on autora) — wartość pakietu akcji w majątku netto, wpływy ze sprzedaży/dywidend powiązane z księgą (zakres do wywiadu) | — |
 | M12 | **Czat AI z danymi** — pytania o własne finanse w języku naturalnym w panelu (zakres danych wysyłanych do LLM do ustalenia, jak decyzja 12) | — |
-| M13 | **Całkowity refaktor UI** panelu — styl Copilot Money (tylko ciemny), strona główna = podsumowanie budżetu, Status w menu ⚙ | w toku (wywiad 2026-10-05, `PLAN_M13.md`): E1 0.18.0 fundament + nawigacja + Podsumowanie v0, E2 0.19.0 wykresy i strona główna, E3 0.20.0 ekrany robocze |
+| M13 | **Całkowity refaktor UI** panelu — styl Copilot Money (tylko ciemny), strona główna = podsumowanie budżetu, Status w menu ⚙ | w toku (wywiad 2026-10-05, `PLAN_M13.md`): E1 0.18.0 fundament + nawigacja + Podsumowanie v0 (wydane, czeka na instalację i checkpoint), E2 0.19.0 wykresy i strona główna, E3 0.20.0 ekrany robocze |
 
 Mapowanie starego planu (SPEC §10) na nowy: storage+dedup → M2; sync_service, panel, pakowanie,
 HA publisher (podstawy) → M3; kategoryzacja → M4/M7; `budget_engine` → M5; import CSV → M2;
