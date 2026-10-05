@@ -62,3 +62,7 @@ Odstępstwa i ustalenia:
   rysowane za kolumnami z `pointer-events: none`. Ryzyko: wysoki słupek w ostatniej kolumnie przykryje etykietę (obrys w kolorze karty).
 - Poza zakresem, do osobnej decyzji: `/spending` (ok. 25 linków 19–23 px) i `/budget` (wiersze podkategorii 23 px, linki 16 px,
   pola 43 px), wykryte przy pomiarze; w E3 `.month-nav` był wykluczony z pomiaru (strzałki Do przejrzenia 23 px) — poprawione tu.
+
+## Wydanie
+
+Wydane jako 0.20.1 (jedno wydanie E3b + E3c, 2026-10-05).

@@ -91,3 +91,7 @@ Sekcji „Koszty stałe” (`.pool form.move`, `form.add-fixed`) **nie dało si�
 poprzedniego miesiąca w grupach, więc `f.auto` jest puste); reguły sprawdzone na wiernie wstrzykniętym markupie z szablonu:
 summary/link/select/button 44 px (summary 43 w wersji uproszczonej), bez przepełnienia. Do potwierdzenia na prawdziwych danych w HA.
 510 testów, ruff, mypy czyste.
+
+## Wydanie
+
+Wydane jako 0.20.1 (jedno wydanie E3b + E3c, 2026-10-05).

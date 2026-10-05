@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.20.1
+
+**Cele dotyku na Podsumowaniu, w Wydatkach i Budżecie** (M13 etapy 3b i 3c, `docs/PLAN_M13_E3b.md`, `docs/PLAN_M13_E3c.md`).
+
+- Podsumowanie: strzałki miesięcy (także w Do przejrzenia i Wydatkach), link „Status”, linki pod kartami, pozycje „Do decyzji”
+  i „Ustaw budżet” mają cele dotyku co najmniej 44 px.
+- Wykres 12 miesięcy: etykiety osi pionowej leżą w obszarze wykresu (po prawej, pod linią siatki, bez zera), dzięki czemu
+  słupki mają ok. 24 px szerokości na telefonie (było 22 px).
+- Wydatki i Budżet: linki podkategorii i linii bilansu, formularze kwoty i formularze kosztów stałych mają co najmniej 44 px.
+- Wewnętrznie: reguły CSS ograniczone do klas tych ekranów. Bez zmian w logice budżetu, encjach i schemacie bazy.
+
 ## 0.20.0
 
 **Ekrany robocze na telefonie** (M13 etap 3, `docs/PLAN_M13_E3.md`).
