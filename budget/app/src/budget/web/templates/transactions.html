@@ -44,7 +44,7 @@
 </section>
 
 <section class="card" id="tx-results">
-  <p class="search-count small muted">{{ total }} {{ "transakcja" if total == 1 else ("transakcje" if total % 10 in (2, 3, 4) and total % 100 not in (12, 13, 14) else "transakcji") }}{% if filtered %} · <a href="{{ base }}/transactions">wyczyść filtry</a>{% endif %}</p>
+  <p class="search-count small muted">{{ total }} {{ "transakcja" if total == 1 else ("transakcje" if total % 10 in (2, 3, 4) and total % 100 not in (12, 13, 14) else "transakcji") }}{% if filtered %} · <a class="tx-link" href="{{ base }}/transactions">wyczyść filtry</a>{% endif %}</p>
   <div class="table-wrap"><table class="tx">
     <thead><tr><th>Data</th><th>Sprzedawca / opis</th><th class="num">Kwota</th><th>Kategoria</th><th>Szczegóły</th></tr></thead>
     <tbody>
@@ -60,8 +60,8 @@
           {% if t.orig_currency and t.orig_currency != t.currency %} · {{ t.orig_amount | money(t.orig_currency) }}{% endif %}
           {% if t.booking_date and t.booking_date != t.day %} · księg. {{ t.booking_date | pldate }}{% endif %}
           <span class="flags">
-          {% if t.id in series_of %}<a class="badge" href="{{ base }}/recurring/{{ series_of[t.id].id }}" title="płatność cykliczna">cykliczna: {{ series_of[t.id].name }}</a>
-          {% elif t.id in repeatable %}<a class="small" href="{{ base }}/recurring/new?txn={{ t.id }}">to się powtarza</a>{% endif %}
+          {% if t.id in series_of %}<a class="badge tx-link" href="{{ base }}/recurring/{{ series_of[t.id].id }}" title="płatność cykliczna">cykliczna: {{ series_of[t.id].name }}</a>
+          {% elif t.id in repeatable %}<a class="small tx-link" href="{{ base }}/recurring/new?txn={{ t.id }}">to się powtarza</a>{% endif %}
           {% if t.refund_of %}<span class="badge" title="zwrot powiązany z zakupem">zwrot</span>{% endif %}
           <span class="badge" title="źródło kwoty i daty">{{ "API" if t.source == "eb" else "CSV" }}</span>
           </span>

@@ -333,7 +333,7 @@ td.date { white-space: nowrap; }
 }
 .cat-chip.empty { color: var(--warn); border-style: dashed; }
 .cat-chip .src { color: var(--muted); font-size: 11px; margin-left: 6px; }
-.cat-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cat-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .rv-ai { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .cat-form .rv-ai { flex-basis: 100%; }
 button.chip, a.chip {
@@ -728,3 +728,15 @@ a.row:hover .row-title { text-decoration: underline; }
 }
 .rv-items label.check, .rv-actions label.check { min-height: var(--tap); align-items: center; }
 .rv-items input[type="checkbox"], .rv-actions input[type="checkbox"] { width: 20px; height: 20px; flex: none; }
+
+/* M13 E3: cele dotyku ≥ 44 px na ekranie „Transakcje” */
+.cat-form select, .cat-form button, .search-form select,
+.search-form input:not([type="checkbox"]):not(.visually-hidden) { min-height: var(--tap); }
+.cat-chip, .tx-link, .pager a, .cat-form label.check {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+}
+.cat-form .rv-ai button.chip { min-height: var(--tap); display: inline-flex; align-items: center; }
+.cat-form input[type="checkbox"] { width: 20px; height: 20px; flex: none; }
+.pager a { padding: 0 8px; }
