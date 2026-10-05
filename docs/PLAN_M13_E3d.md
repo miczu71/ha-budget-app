@@ -1,11 +1,20 @@
-# M13 E3d — cele dotyku na pozostałych ekranach (szkic, do zaplanowania)
+# M13 E3d — cele dotyku na pozostałych ekranach
 
-Status: **zapisane, nie zaplanowane**. Szczegółowy plan (kroki, komendy, cofnięcie) i wywiad dopiero na polecenie; zależy od
-0.20.1 (E3b + E3c, wydane 2026-10-05). Zasady jak w `PLAN_M13_E3.md`: bez nowych funkcji, bez zmian logiki, encji i schematu;
-jeden etap naraz, checkpoint po każdym kroku, wydanie po osobnym „go”.
+Status: **plan zaakceptowany 2026-10-05**, kroki 0–4 po kolei, checkpoint po każdym kroku, wydanie po osobnym „go”.
+Zależy od 0.20.1 (E3b + E3c). Zasady jak w `PLAN_M13_E3.md`: bez nowych funkcji, bez zmian logiki, encji i schematu.
 
-## Cel
-Cele dotyku ≥ 44 px (pomiar bez wykluczeń, 360/390/1280 px) na ekranach, których nie objęły E3, E3b i E3c.
+## Ograniczenia
+1. Korzysta jedna osoba, głównie telefon w HA Companion; czasem desktop.
+2. Automatycznie dzieje się tylko render istniejących danych; wydanie dopiero po „go”.
+3. Wygląd = Monarch (`DESIGN.md`); statyki `?v=` rosną z wersją.
+4. **Sukces:** na **wszystkich** ekranach panelu przy 360, 390 i 1280 px zero linków/przycisków/pól < 44 px (pomiar bez
+   wykluczeń), bez przepełnienia poziomego, konsola czysta; testy, `ruff`, `mypy` zielone; zrzuty przed/po ekranów niezmienianych
+   bez regresji.
+
+## Decyzja (wywiad 2026-10-05)
+Wiersz podkategorii na `/categories` = **rozwijany wiersz** (`<details>`, bez JS): `summary` pokazuje nazwę, grupę budżetu i liczbę
+transakcji; po rozwinięciu trzy istniejące formularze (nazwa, grupa, przenieś) w 44 px. Odrzucone: podniesienie formularzy w
+miejscu (lista ~2× dłuższa) i zostawienie gęstych.
 
 ## Stan wyjściowy (pomiar kroku 0 E3c, 2026-10-05, 360 px, kopia księgi)
 | Ekran | Elementy < 44 px |
@@ -19,16 +28,37 @@ Cele dotyku ≥ 44 px (pomiar bez wykluczeń, 360/390/1280 px) na ekranach, któ
 | `/dictionary`, `/inbox` | bez uwag |
 Poza tym: strony ze szczegółami serii (`series.html`, `series_new.html`) i nawigacja główna / dzwonek (`base.html`) — nie zmierzone.
 
-## Kierunek do rozważenia
-- Większość to globalny `padding: 9px 12px` dający 40–43 px. Jedna reguła `input, select, button, textarea { min-height: var(--tap) }`
-  załatwiłaby je naraz (podejście „u źródła”), zamiast osobnych selektorów per ekran.
-- **Decyzja projektowa (do wywiadu):** zagęszczone formularze `form.move` w listach na `/categories` (82 sztuki po 26 px). Warianty:
-  podnieść do 44 px (lista wydłuży się), przenieść akcję do rozwijanego wiersza albo zostawić (kompromis względem gęstości).
-- Ryzyko globalnej reguły: zmiana układu wszystkich formularzy naraz → zrzuty przed/po każdego ekranu, nie tylko zmienianego.
+## Kroki
 
-## Etapy (propozycja, do potwierdzenia po wywiadzie)
-0. Pomiar pełny (z zasianiem danych dla Kategorii, Banku, Importu) i zrzuty „przed”.
-1. Reguła globalna dla pól i przycisków + regresja wszystkich ekranów.
-2. Kategorie: decyzja o `form.move`, potem implementacja.
-3. Pozostałe linki (Status 19 px), seria cykliczna, nawigacja główna, dzwonek.
-4. Wydanie 0.20.2 (lub kolejna wersja): bump, CHANGELOG, push, CI, release, backup add-onu, update w HA.
+**Krok 0 — pomiar pełny (odczyt, kopia w scratchpadzie).** `devserve.py` na kopii `~/budget_dev/prod/ledger.db`, zasiew brakujących
+stanów (Bank, Import, seria cykliczna `series.html`/`series_new.html`, nawigacja i dzwonek `base.html`), pomiar Playwright bez
+wykluczeń na wszystkich ekranach, zrzuty „przed” 360 i 1280 px. Wynik wpisuję tutaj. Cofnięcie: niepotrzebne (kopia usuwana).
+
+**Krok 1 — reguła globalna** (`static/app.css`, blok „M13 E3d”):
+```css
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not(.visually-hidden),
+select, textarea, button { min-height: var(--tap); }
+```
+Selektory z E3/E3b/E3c, które ta reguła zastępuje, usuwam tylko gdy zrzuty zostają identyczne co do piksela. Regresja: zrzuty
+przed/po **każdego** ekranu. Cofnięcie: `git revert`.
+
+**Krok 2 — Kategorie** (`templates/categories.html`, `app.css`, testy `/categories`): `<li>` → `<details class="leaf">`,
+`summary` = nazwa + etykieta grupy + liczba tr.; w środku trzy istniejące formularze bez zmian `action`/`name` (trasy POST
+nietknięte). Akcje „Zmień”/„Ustaw”/„Przenieś” sprawdzone POST-em na kopii; zrzuty `/budget` (wspólna `form.move` w `.pool`).
+Cofnięcie: `git revert`.
+
+**Krok 3 — resztki z pomiaru:** link na Statusie (19 px), Cykliczne/serie, nawigacja, dzwonek — dokładnie to, co pokaże krok 0.
+
+**Krok 4 — wydanie 0.20.2** (po osobnym „go”): skill `simplify`, skill `release` (bump `config.yaml`/`__init__.py`/
+`pyproject.toml`, CHANGELOG, push, CI, `gh release create v0.20.2`), backup add-onu, update w HA (`update.budzet_domowy_update`),
+weryfikacja przez użytkownika na telefonie. Cofnięcie: przywrócenie backupu add-onu.
+
+## Weryfikacja
+`BUDGET_OPTIONS_PATH=/nonexistent .venv/bin/python -m pytest -q`, `ruff check`, `ruff format --check`, `mypy`; pomiar Playwright jak
+w E3c (wysokość < 44 px = 0, przepełnienie, konsola); zrzuty przed/po 360 i 1280 px; cache: `fetch(app.css, {cache: "reload"})`;
+sprzątanie: kill po PID, usunięcie kopii księgi.
+
+## Ryzyka
+- Reguła globalna zmienia każdy formularz naraz → regresja wszystkich ekranów, nie tylko zmienianych.
+- `form.move` wspólna z `/budget` (`.pool`) → po kroku 2 zrzuty Budżetu.
+- „Koszty stałe” nie renderują się na kopii (jak w E3c) → potwierdzenie na prawdziwych danych w HA.
