@@ -211,6 +211,8 @@ async def test_this_month_section(client: httpx.AsyncClient, service: Service) -
         origin="manual",
         key=None,
     )
+    budget = (await client.get("/budget")).text
+    assert "Cykliczne: zapłacone" in budget and "jeszcze zejdzie" in budget
     page = (await client.get("/recurring")).text
     assert "Ten miesiąc" in page and "zapłacone" in page and "Qwertyflix" in page
     assert "Jeszcze zejdzie" in page

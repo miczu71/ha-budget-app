@@ -9,6 +9,10 @@
   {% if f.next_month %}<a class="month-link" href="{{ base }}/budget?month={{ f.next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
 </div>
 
+{% if mv.rows %}
+<p class="small recurring-line">Cykliczne: zapłacone <strong>{{ mv.out_paid | money("PLN") }}</strong> · jeszcze zejdzie <strong>{{ mv.out_planned | money("PLN") }}</strong>{% if mv.in_planned or mv.in_received %} · jeszcze wpłynie <strong>{{ mv.in_planned | money("PLN") }}</strong>{% endif %} · <a href="{{ base }}/recurring{{ '?month=' ~ ym if not f.is_current }}">szczegóły</a></p>
+{% endif %}
+
 {% if f.budget is none %}
 <section class="card flex-hero">
   <h2>Ile możesz wydać na wydatki elastyczne w miesiącu?</h2>

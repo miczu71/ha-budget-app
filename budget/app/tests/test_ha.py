@@ -297,3 +297,43 @@ def test_flex_entities_auto_pool(conn: db.sqlite3.Connection) -> None:
         None,
     )
     assert f["flex_remaining"].state == "9000.00"
+
+
+# --- encje płatności cyklicznych (M5b E2) ---------------------------------------------------
+
+
+def test_recurring_entities(conn: db.sqlite3.Connection) -> None:
+    from budget.categorize.rules import Conditions, TextCondition
+    from budget.recurring import series as S
+
+    add(conn, "-43.00", "transfer_out", "Abonament", "Qwertyflix Sp", day="2026-10-01")
+    for name, direction, amount, anchor in (
+        ("Qwertyflix", "out", "43", 1),
+        ("Czynsz wymyślony", "out", "1000", 28),
+        ("Pensja wymyślona", "in", "5000", 24),
+    ):
+        merchant = "Qwertyflix Sp" if name == "Qwertyflix" else "Nikt Taki"
+        S.insert(
+            conn,
+            name=name,
+            direction=direction,
+            cadence="M",
+            conditions=Conditions(
+                text=(TextCondition("merchant", "equals", merchant),), direction=direction
+            ),
+            expected=Decimal(amount),
+            tolerance=Decimal("5"),
+            anchor_day=anchor,
+            status="active",
+            origin="manual",
+            key=None,
+        )
+    ents = ha_publisher.build_entities(conn, now=NOW, today=NOW.date())
+    e = {x.key: x for x in ents if x.key in ("fixed_paid", "fixed_planned", "income_planned")}
+    assert set(e) == {"fixed_paid", "fixed_planned", "income_planned"}
+    assert e["fixed_paid"].state == "43.00" and e["fixed_paid"].attributes["paid_count"] == 1
+    assert e["fixed_planned"].state == "1000.00"
+    assert e["income_planned"].state == "5000.00"
+    assert e["income_planned"].attributes["items"][0]["status"] == "expected"
+    _, payload = e["fixed_paid"].discovery()
+    assert payload["default_entity_id"] == "sensor.budget_fixed_paid"

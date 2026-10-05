@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, Response
 from budget import flex
 from budget.categorize import taxonomy
 from budget.categorize.taxonomy import TaxonomyError
+from budget.recurring import schedule
 from budget.spending import add_months, month_label, parse_month
 from budget.web.common import Panel, fmt_money
 
@@ -36,6 +37,7 @@ def router(panel: Panel) -> APIRouter:
             date_to=date.fromordinal(end).isoformat(),
             fixed_open=fixed,
             groups=taxonomy.FLEX_LABELS,
+            mv=schedule.for_month(panel.conn, start, today),
         )
 
     @r.post("/budget/amount")

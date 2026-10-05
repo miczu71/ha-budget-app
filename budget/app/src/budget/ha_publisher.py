@@ -24,6 +24,7 @@ import aiomqtt
 
 from budget import __version__, flex, inbox, money, sessions, sync_service
 from budget.logging_utils import mask_iban
+from budget.recurring import schedule
 from budget.spending import month_start
 
 log = logging.getLogger(__name__)
@@ -188,6 +189,7 @@ def build_entities(
         )
     )
     entities += flex_entities(conn, today)
+    entities += recurring_entities(conn, today)
     if inbox_items is not None:
         entities.append(inbox_entity(inbox_items))
     entities.append(
@@ -288,6 +290,65 @@ def flex_entities(conn: sqlite3.Connection, today: date) -> list[Entity]:
             "mdi:calendar-today",
             _amount(fm.per_day),
             days_left=fm.days_left,
+        ),
+    ]
+
+
+def recurring_entities(conn: sqlite3.Connection, today: date) -> list[Entity]:
+    """Płatności cykliczne bieżącego miesiąca (M5b E2): zapłacone / jeszcze zejdzie / wpłynie."""
+    try:
+        mv = schedule.for_month(conn, month_start(today), today)
+    except Exception:  # błąd serii nie może zablokować sald i statusu synchronizacji
+        log.exception("Encje płatności cyklicznych pominięte")
+        return []
+    month = mv.month.strftime("%Y-%m")
+
+    def items(direction: str) -> list[dict[str, Any]]:
+        return [
+            {
+                "name": d.series.name,
+                "due": d.due.isoformat() if d.due else None,
+                "amount": _amount(d.paid_amount if d.txns else d.series.expected_amount),
+                "status": d.status,
+            }
+            for d in mv.rows
+            if d.series.direction == direction
+        ]
+
+    def counts(direction: str) -> dict[str, int]:
+        rows = [d for d in mv.rows if d.series.direction == direction]
+        return {
+            "paid_count": sum(d.status in (schedule.PAID, schedule.EXTRA) for d in rows),
+            "expected_count": sum(d.status == schedule.EXPECTED for d in rows),
+            "late_count": sum(d.status == schedule.LATE for d in rows),
+        }
+
+    return [
+        _flex_sensor(
+            "fixed_paid",
+            "Cykliczne zapłacone",
+            "mdi:calendar-check",
+            _amount(mv.out_paid),
+            month=month,
+            items=items("out"),
+            **counts("out"),
+        ),
+        _flex_sensor(
+            "fixed_planned",
+            "Cykliczne jeszcze zejdą",
+            "mdi:calendar-clock",
+            _amount(mv.out_planned),
+            month=month,
+        ),
+        _flex_sensor(
+            "income_planned",
+            "Cykliczne wpływy jeszcze wpłyną",
+            "mdi:calendar-arrow-right",
+            _amount(mv.in_planned),
+            month=month,
+            received=_amount(mv.in_received),
+            items=items("in"),
+            **counts("in"),
         ),
     ]
 
