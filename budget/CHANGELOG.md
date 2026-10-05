@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.17.1
+
+**Wypłata w seriach wpływowych: ostatnia kwota zamiast mediany** (poprawka M5b).
+
+- Nowa propozycja serii **wpływowej** ma oczekiwaną kwotę równą ostatniemu wpływowi niebędącemu
+  premią (powyżej 1,5 × mediany ostatnich 6 pomijany) i tolerancję 10%. Dotąd mediana z 6 miesięcy
+  zawyżała kwotę po spadku wypłaty, a szeroka tolerancja chowała tę zmianę przed kartą „inna kwota”.
+- Serie wydatkowe bez zmian. Istniejące serie nie przeliczają się same — kwotę i tolerancję
+  poprawiasz w Cykliczne → seria → Edytuj; kolejne zmiany wypłaty zgłasza karta „inna kwota”.
+- Pula Flex bez zmian (serie wpływów jej nie ruszają).
+
 ## 0.17.0
 
 **Pula Flex ze stałymi z serii** (M5b etap 4, `docs/PLAN_M5b_E4.md`).

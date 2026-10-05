@@ -108,6 +108,23 @@ def test_income_and_bonus_does_not_widen_tolerance(conn: sqlite3.Connection) -> 
     assert p.tolerance < Decimal("1000")
 
 
+def test_income_expected_is_last_payout_not_median(conn: sqlite3.Connection) -> None:
+    # wypłata po spadku (II próg): mediana 6 dałaby 8 150, a ostatnia to 7 000
+    monthly(
+        conn, "Firma Qwerty", ["9200.00", "9300.00", "7000.00", "6800.00", "6900.00", "7000.00"]
+    )
+    p = proposals(conn)["Firma Qwerty"]
+    assert p.expected == Decimal("7000.00") and p.tolerance == Decimal("700.00")
+
+
+def test_income_last_bonus_is_skipped_but_outflow_unchanged(conn: sqlite3.Connection) -> None:
+    monthly(conn, "Firma Qwerty", ["7000.00", "7100.00", "6900.00", "7000.00", "30000.00"])
+    assert proposals(conn)["Firma Qwerty"].expected == Decimal("7000.00")  # premia pominięta
+    monthly(conn, "Czynsz Qwerty", ["-1000.00", "-1000.00", "-1200.00", "-1200.00", "-1200.00"])
+    out = proposals(conn)["Czynsz Qwerty"]
+    assert out.expected == Decimal("1200.00") and out.tolerance == Decimal("200.00")  # rozrzut
+
+
 def test_loan_grouped_by_kind(conn: sqlite3.Connection) -> None:
     for i, d in enumerate(("2026-06-14", "2026-07-14", "2026-08-14", "2026-09-14")):
         add(conn, "-4800.00", "loan", f"Rata nr {i} kapitał {100 + i}", None, day=d)

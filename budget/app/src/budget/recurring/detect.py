@@ -10,6 +10,10 @@ Kadencja z mediany odstępów między wystąpieniami (ostatnie `MAX_GAPS`): co n
 najmniej `IN_WINDOW` z ostatnich `AMOUNT_TAIL` kwot w granicach `AMOUNT_SPREAD` od mediany
 (zakupy u tego samego sprzedawcy raz w miesiącu to nie seria); seria roczna ma najwyżej dwa
 wystąpienia w historii, więc jej kwoty muszą się zgadzać w granicach `MIN_TOLERANCE_PCT`.
+Seria wpływów (wypłata) ma oczekiwaną kwotę równą ostatniemu wpływowi niebędącemu premią
+(`PREMIUM_RATIO` × mediana ogona) i wąską tolerancję `MIN_TOLERANCE_PCT` — mediana z kilku
+miesięcy zawyża kwotę po spadku wypłaty, a szeroka tolerancja chowa tę zmianę przed kartą „inna
+kwota”.
 Proponowane są tylko serie żywe: ostatnie wystąpienie nie starsze niż górna granica okna
 + `ALIVE_SLACK`.
 """
@@ -43,6 +47,7 @@ AMOUNT_TAIL = 6
 AMOUNT_SPREAD = Decimal("0.35")
 MIN_TOLERANCE_PCT = Decimal("0.10")
 MIN_TOLERANCE = Decimal("5.00")
+PREMIUM_RATIO = Decimal("1.5")  # wpływ powyżej 1,5 × mediany ogona to premia, nie wypłata
 
 
 @dataclass(frozen=True)
@@ -99,10 +104,13 @@ def _group(txns: Sequence[Candidate], key: str, today: date) -> Proposal | None:
     close = [a for a in tail if abs(a - expected) <= band]
     if len(close) < IN_WINDOW * len(tail):
         return None
-    # rozrzut tylko z kwot typowych — premia czy jednorazowa dopłata nie poszerza tolerancji
-    spread = max((abs(a - expected) for a in close), default=Decimal(0))
-    tolerance = max(expected * MIN_TOLERANCE_PCT, MIN_TOLERANCE, spread).quantize(money.CENT)
     last = txns[-1]
+    income = last.direction == "in"
+    if income:  # ostatnia wypłata, nie mediana; premia pominięta
+        expected = next(a for a in reversed(tail) if a <= PREMIUM_RATIO * expected)
+    # rozrzut tylko z kwot typowych — premia czy jednorazowa dopłata nie poszerza tolerancji
+    spread = Decimal(0) if income else max((abs(a - expected) for a in close), default=Decimal(0))
+    tolerance = max(expected * MIN_TOLERANCE_PCT, MIN_TOLERANCE, spread).quantize(money.CENT)
     if last.facts.kind == LOAN:
         name = LOAN_NAME
         cond = Conditions(kind=LOAN, account_id=last.facts.account_id, direction=last.direction)
