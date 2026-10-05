@@ -119,3 +119,31 @@ Repo `/config/addons/ha-budget-app`, gałąź `main` (konwencja repo), `PATH=$HO
 - CI na GitHubie zielone;
 - zrzuty 360 i 1280 bez defektów, detektor bez znalezisk krytycznych;
 - na żywo: `/` = Podsumowanie, Status w menu ⚙ działa (synchronizacja, AI), wersja 0.18.0 widoczna w UI.
+
+## Wynik E1 (0.18.0, 2026-10-05)
+
+Wydane (release `v0.18.0`, CI zielone) i zainstalowane w HA z backupem add-onu `f6938514` („Budżet Domowy 0.17.1”,
+tuż przed update'em). 487 testów, ruff i mypy bez uwag.
+
+**Dowody:** zrzuty lokalne (360 i 1280 px, 12 ekranów) bez przepełnienia poziomego, bez błędów w konsoli, kontrast
+treści ≥ 7:1; na żywo przez Ingress (390 i 1280 px) stopka `v0.18.0`, fonty Inter i Space Grotesk załadowane,
+`/status` działa, konsola bez błędów. Detektor impeccable: tylko ostrzeżenia „overused-font” (Inter, Space Grotesk;
+świadomy wybór, bo Refero wskazuje je jako otwarte zamienniki fontów Copilota).
+
+**Odstępstwa od planu E1 (do oceny na checkpoincie):**
+1. **„Do przejrzenia” w menu ⚙** (pierwsza pozycja). Plan wymieniał tylko Reguły, Konta, Import, Bank, Status, ale kolejka
+   przeglądu zostałaby bez bezpośredniego wejścia (poza dzwonkiem i linkiem z Podsumowania).
+2. **Wersja add-onu w stopce strony**, nie w pasku nawigacji (miejsce zajęły dzwonek i ⚙); nadal widoczna na każdym ekranie.
+3. **Fonty bez `?v=` w ścieżce** (CSS jest plikiem statycznym; fonty są stałymi wydaniami OFL, serwowane `immutable`).
+4. **Treść w grubości 400**, nie 300–400 (cienki tekst na telefonie był za słaby); nagłówki Space Grotesk 500–600.
+5. **Kwota wydatku w wierszu biała** (kolor tylko wpływ i przekroczenie), bo koralowe kwoty na setkach transakcji dawały
+   wrażenie alarmu.
+6. **Poprawka pakowania:** `package-data` nie obejmowało `static/fonts/`, więc obraz (`pip install .` i `rm -rf src`)
+   zgubiłby fonty bez żadnego błędu. Dodane globy i test `test_package_data_covers_every_static_file`.
+7. **Ikony i grafiki zawsze SVG** (Lucide, ISC, przez iconify.design): dzwonek, ⚙, a szewrony i ptaszek z CSS-owych
+   ramek zamienione na maski SVG. Animacje, gdy będą potrzebne, jako Lottie.
+
+**Znane, odłożone:** długie wartości w `.kv` (np. „Tempo”) zawijają się na telefonie w 3 linie (stare zachowanie, karta
+„Zostało” zostanie przebudowana w E2); Inter ładowany w całości (352 kB, bez przycinania do łaciny); trzy starsze kopie makra
+`pct` w szablonach; chipy i małe przyciski poniżej 44 px (E3, ekrany robocze).
+
