@@ -55,4 +55,13 @@ między etapami.
 
 ## Wynik
 
-(uzupełniane po wydaniu)
+- 2026-10-06: 0.22.0 wydane (v0.22.0, CI zielone) i zainstalowane z backupem add-onu; 539 testów.
+- Remote Calendar dodany przez ha-mcp (URL `http://<host add-onu>:8099/calendar.ics`) — walidacja
+  przeszła, więc wyjątek allowlisty dla HA Core (`172.30.32.1`) działa; encja `calendar.platnosci`
+  pokazuje terminy serii (także kwartalne, ze statusami) zgodne z Cykliczne. Nazwa hosta zamiast
+  IP — IP add-onu zmienia się przy restarcie (zmieniło się przy tym wdrożeniu).
+- Opcje ustawione: `summary_notify_service` (grupa domowników), `calendar_entity`; po restarcie
+  start czysty, nic nie wysłane (wtorek). Status na żywo: podgląd obu wiadomości z danymi
+  produkcji, 0 błędów konsoli, przyciski 44 px.
+- Niezweryfikowane: dostarczenie na telefony — pierwsza wiadomość w poniedziałek o 7:00 (bez
+  testowej wysyłki w nocy); wtedy sprawdzić też, czy dotknięcie otwiera panel.
