@@ -49,6 +49,23 @@ do rozwiniętej części (summary bez kotwicy, jak w Kategoriach).
   summary „Wpływy” (42,5 px), jak na żywo; linki w zdaniu trafiają w ±20 px przez `::after`; Koszty stałe: 5 wierszy z
   `form.move`.
 
+## Wynik kroków 1–4 (2026-10-05, lokalnie, niewypchnięte)
+1. Pusty stan Reguł: „zaznacz «utwórz regułę»”; test w `test_nav_and_empty_pages` (czerwony przed zmianą).
+2. `.cats summary { min-height: var(--tap) }`: „Wpływy” 42,5 → 44 px. Zrzuty 390/1280: Wydatki i Budżet 1280 identyczne,
+   Budżet 390 zmieniony tylko pod wierszem „Wpływy” (+1,5 px). Pułapka pomiaru: szewrony mają `transition` obrotu —
+   `reducedMotion` jej nie wyłącza; skrypt zrzutów wstrzykuje `transition: none`.
+3. Koszty stałe: `details.leaf` (summary = nazwa + mediana; rozwinięcie = kategoria główna, „Transakcje”, „Przenieś”), wcięcie
+   22 px. Przy okazji szewron `.cats details[open] > summary` (bez `>` zagnieżdżone wiersze w otwartych „Kosztach stałych”
+   miały obrócony szewron). Wydatki i Kategorie: zrzuty identyczne; 5 wierszy po 44 px; „Przenieś” klikiem w przeglądarce
+   działa (303, wiersz znika), przywrócone przez „Dodaj do stałych”.
+4. `a.tap` (jedna reguła) zamiast linków w listach selektorów E3–E3d; `tx-link` → `tap` (była tylko celem dotyku);
+   konwencja w `DESIGN.md`. Kopia przygotowana tak, by objąć możliwie wszystkie stany: wykryte serie (6 potwierdzonych,
+   13 propozycji) i syntetyczne podpowiedzi AI (12 sprzedawców, z „więcej”). 29 widoków × 390/1280 px: **58/58 zrzutów
+   identycznych co do bajtu**, style obliczone 1620 linków identyczne. Pomiar powtarzalny dopiero po: `networkidle` po otwarciu
+   `<details>` i pominięciu `details[hx-get]` (leniwe grupy kolejki — bez linków objętych zmianą). Niewyrenderowane na kopii:
+   sekcja „Zmiany” w Cyklicznych (link „Edytuj i potwierdź”) — klasa dopisana w szablonie, sprawdzenie na żywo.
+511 testów zielonych po każdym kroku.
+
 ## Weryfikacja
 `BUDGET_OPTIONS_PATH=/nonexistent .venv/bin/python -m pytest -q`, `ruff check`, `ruff format --check`, `mypy`; pomiar Playwright
 jak w E3c (wysokość < 44 px = 0, przepełnienie, konsola); sprzątanie: kill po PID, usunięcie kopii księgi.
