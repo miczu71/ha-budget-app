@@ -19,7 +19,7 @@ from starlette.datastructures import FormData
 from budget import money
 from budget.categorize.rules import Conditions, Rule, RuleError, TextCondition
 from budget.ledger import transaction
-from budget.recurring import schedule
+from budget.recurring import changes, schedule
 from budget.recurring import series as S
 from budget.recurring.series import Candidate, Series, SeriesError
 from budget.spending import add_months, month_label, parse_month
@@ -115,6 +115,7 @@ def router(panel: Panel) -> APIRouter:
             ended=by_status["ended"],
             rejected=len(by_status["rejected"]),
             mv=schedule.for_month(conn, start, today),
+            changes=changes.for_db(conn, today),
             label=month_label(start),
             prev_month=add_months(start, -1),
             prev_label=month_label(add_months(start, -1)),
@@ -270,5 +271,42 @@ def router(panel: Panel) -> APIRouter:
             "restore": "przywrócona",
         }
         return panel.redirect(request, "/recurring", f"Seria „{s.name}” {messages[action]}.")
+
+    @r.post("/recurring/{series_id}/change")
+    async def decide_change(
+        request: Request,
+        series_id: int,
+        kind: str = Form(""),
+        period: str = Form(""),
+        action: str = Form(""),
+    ) -> Response:
+        """Decyzja o zmianie serii z sekcji „Zmiany” (kwotę „przyjmij nową” liczy serwer)."""
+        back = "/recurring#changes"
+        try:
+            if action == "end":
+                s = S.set_status(conn, series_id, "end")
+                return panel.redirect(request, back, f"Seria „{s.name}” zakończona.")
+            if action == "accept":
+                today = panel.service.now().date()
+                found = next(
+                    (
+                        c
+                        for c in changes.for_db(conn, today)
+                        if (c.series.id, c.kind, c.period) == (series_id, kind, period)
+                        and c.amount is not None
+                    ),
+                    None,
+                )
+                if found is None or found.amount is None:
+                    return panel.redirect(request, back, "Ta zmiana już nie istnieje.", "error")
+                changes.accept_amount(conn, series_id, found.amount)
+                message = f"Nowa kwota serii „{found.series.name}”: {money.fmt(found.amount)}."
+                return panel.redirect(request, back, message)
+            if changes.DECISIONS.get(kind) == action:
+                changes.ack(conn, series_id, period, kind)
+                return panel.redirect(request, back, "Zapisano decyzję.")
+        except SeriesError as exc:
+            return panel.redirect(request, back, str(exc), "error")
+        return panel.redirect(request, back, "Nieznana akcja.", "error")
 
     return r

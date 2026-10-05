@@ -264,3 +264,68 @@ async def test_manual_series_from_transaction(client: httpx.AsyncClient, service
     r = await client.post("/recurring/new", data={**data, "name": ""})
     assert "Podaj nazwę" in (await client.get(r.headers["location"].removeprefix(INGRESS))).text
     assert len(S.all_series(conn)) == 1
+
+
+async def test_series_changes_cards_and_decisions(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    conn = service.conn
+    _account(conn)
+    today = service.now().date()
+    day = min(today.day, 28)
+    start = today.replace(day=1)
+    for back, amount in ((2, "-43.00"), (1, "-80.00")):
+        y, m = divmod(start.year * 12 + start.month - 1 - back, 12)
+        add(
+            conn,
+            amount,
+            "transfer_out",
+            "Abonament",
+            "Qwertyflix Sp",
+            day=f"{y}-{m + 1:02}-{day:02}",
+        )
+    sid = S.insert(
+        conn,
+        name="Qwertyflix",
+        direction="out",
+        cadence="M",
+        conditions=Conditions(
+            text=(TextCondition("merchant", "equals", "Qwertyflix Sp"),), direction="out"
+        ),
+        expected=Decimal("43"),
+        tolerance=Decimal("5"),
+        anchor_day=today.day,
+        status="active",
+        origin="manual",
+        key=None,
+    )
+    page = (await client.get("/recurring")).text
+    assert 'id="changes"' in page and "Zmiany (1)" in page and "inna kwota" in page
+    assert "zapłacono 80.00 zamiast 43.00" in page and "Przyjmij nową" in page
+    cards = inbox.items(conn, service.now(), inbox.BalanceMemo())
+    assert [(i.kind, i.count, i.link) for i in cards if i.kind.startswith("series_")] == [
+        ("series_amount", 1, "/recurring#changes")
+    ]
+
+    # zła kombinacja rodzaju i akcji nic nie zmienia
+    r = await client.post(f"/recurring/{sid}/change", data={"kind": "late", "action": "once"})
+    assert r.status_code == 303 and r.headers["location"].endswith("/recurring#changes")
+    assert "Zmiany (1)" in (await client.get("/recurring")).text
+
+    # „jednorazowo” chowa kartę, ale nie zmienia kwoty serii
+    prev = f"{start.year - (start.month == 1)}-{(start.month - 2) % 12 + 1:02}"
+    r = await client.post(
+        f"/recurring/{sid}/change", data={"kind": "amount", "period": prev, "action": "once"}
+    )
+    assert r.status_code == 303
+    assert "Zmiany (" not in (await client.get("/recurring")).text
+    assert S.get(conn, sid).expected_amount == Decimal("43.00")
+
+    # „przyjmij nową” (po cofnięciu decyzji) ustawia kwotę z transakcji
+    conn.execute("DELETE FROM series_ack")
+    r = await client.post(
+        f"/recurring/{sid}/change", data={"kind": "amount", "period": prev, "action": "accept"}
+    )
+    assert r.status_code == 303
+    assert S.get(conn, sid).expected_amount == Decimal("80.00")
+    assert "Zmiany (" not in (await client.get("/recurring")).text

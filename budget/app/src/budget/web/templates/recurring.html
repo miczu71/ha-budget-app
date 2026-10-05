@@ -4,6 +4,30 @@
 {% block content %}
 <h1>Płatności cykliczne</h1>
 
+{% if changes %}
+<section class="card" id="changes">
+  <h2>Zmiany ({{ changes | length }})</h2>
+  <p class="small muted">Wykryte w ostatnich terminach aktywnych serii. Po decyzji karta znika z dzwonka.</p>
+  <ul class="series-list">
+    {% for c in changes %}
+    <li class="series-item">
+      <div class="series-head">
+        <a class="cat-name" href="{{ base }}/recurring/{{ c.series.id }}">{{ c.series.name }}</a>
+        <span class="badge {{ 'error' if c.kind != 'amount' else '' }}">{{ {"amount": "inna kwota", "late": "spóźniona", "stopped": "ustała?"}[c.kind] }}</span>
+      </div>
+      <div class="small muted">{{ c.detail }}</div>
+      <div class="series-actions">
+        {% macro act(action, label, secondary=false) %}<form method="post" action="{{ base }}/recurring/{{ c.series.id }}/change"><input type="hidden" name="kind" value="{{ c.kind }}"><input type="hidden" name="period" value="{{ c.period }}"><input type="hidden" name="action" value="{{ action }}"><button{% if secondary %} class="secondary"{% endif %}>{{ label }}</button></form>{% endmacro %}
+        {% if c.kind == "amount" %}{{ act("accept", "Przyjmij nową") }}{{ act("once", "Jednorazowo", true) }}
+        {% elif c.kind == "late" %}{{ act("skip", "Pomiń ten okres", true) }}
+        {% else %}{{ act("end", "Zakończ") }}{{ act("keep", "Zostaw", true) }}{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <div class="month-nav">
   <a class="month-link" href="{{ base }}/recurring?month={{ prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
   <strong>{{ label }}</strong>

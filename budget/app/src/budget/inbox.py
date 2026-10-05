@@ -18,7 +18,7 @@ from datetime import date, datetime
 from typing import Literal
 
 from budget import ledger, notifications, review, sessions, sync_service
-from budget.recurring import series
+from budget.recurring import changes, series
 from budget.spending import add_months, month_label, month_start
 
 Severity = Literal["info", "warn", "error"]
@@ -145,8 +145,29 @@ def new_series(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> lis
     ]
 
 
+SERIES_CHANGES = {
+    changes.AMOUNT: ("series_amount", "Inna kwota płatności cyklicznej", "info"),
+    changes.LATE: ("series_late", "Spóźniona płatność cykliczna", "warn"),
+    changes.STOPPED: ("series_stopped", "Płatność cykliczna chyba ustała", "warn"),
+}
+
+
+def series_changes(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Jedna karta na rodzaj zmiany serii (szczegóły i decyzje: `/recurring#changes`)."""
+    found = changes.for_db(conn, ctx.today)
+    out = []
+    for kind, (item_kind, title, severity) in SERIES_CHANGES.items():
+        mine = [c for c in found if c.kind == kind]
+        if mine:
+            names = ", ".join(sorted({c.series.name for c in mine}))
+            out.append(
+                Item(item_kind, title, len(mine), "/recurring#changes", severity, names)  # type: ignore[arg-type]
+            )
+    return out
+
+
 Provider = Callable[[sqlite3.Connection, Context, BalanceMemo], list[Item]]
-PROVIDERS: tuple[Provider, ...] = (operational, uncategorized, new_series)
+PROVIDERS: tuple[Provider, ...] = (operational, uncategorized, new_series, series_changes)
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
 
 
