@@ -6,7 +6,7 @@
 
 <section class="card">
   <p class="small muted">Wygrywa pierwsza pasująca reguła z góry listy. Reguły mają pierwszeństwo przed słownikiem sieci; ręcznie ustawionej kategorii nic nie nadpisuje. Zwrot dostaje kategorię zakupu.</p>
-  <p><a class="button" href="{{ base }}/rules/new">+ Nowa reguła</a></p>
+  <p><a class="button tap" href="{{ base }}/rules/new">+ Nowa reguła</a></p>
   {% if total %}
   <form class="search-form" {{ live_search_attrs(base ~ "/rules", "rules-list") }}>
     {{ search_input(q, "wartość warunku, kategoria, nazwa") }}
@@ -22,7 +22,7 @@
     {% for it in items %}
       {% set rule = it.rule %}
       <tr class="rule-row {{ 'disabled' if not rule.enabled }}">
-        <td><a href="{{ base }}/rules/{{ rule.id }}">{{ it.text }}</a>{% if rule.rename %}<br><span class="small muted">nazwa: {{ rule.rename }}</span>{% endif %}{% if not rule.enabled %} <span class="badge warn">wyłączona</span>{% endif %}</td>
+        <td class="cond-cell"><a class="rule-link" href="{{ base }}/rules/{{ rule.id }}">{{ it.text }}</a>{% if rule.rename %}<br><span class="small muted">nazwa: {{ rule.rename }}</span>{% endif %}{% if not rule.enabled %} <span class="badge warn">wyłączona</span>{% endif %}</td>
         <td>{{ it.category.name if it.category else "—" }}</td>
         <td class="num">{{ rule.hits }}</td>
         <td class="actions">
@@ -38,7 +38,7 @@
     </tbody>
   </table></div>
   {% elif total %}
-  <p class="muted">Nic nie pasuje do „{{ q }}”. <a href="{{ base }}/rules">Wyczyść</a></p>
+  <p class="muted">Nic nie pasuje do „{{ q }}”. <a class="tx-link" href="{{ base }}/rules">Wyczyść</a></p>
   {% else %}
   <p class="muted">Brak reguł. Najszybciej: na ekranie Transakcje zmień kategorię i kliknij „Zawsze dla …”, albo zacznij od kolejki <a href="{{ base }}/review">Do przejrzenia</a> (grupy sprzedawców, reguła jednym zapisem).</p>
   {% endif %}

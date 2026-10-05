@@ -368,7 +368,7 @@ button.rv-accept::before {
 .rv-ai-run { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 8px 0; }
 .cat-form select { max-width: 220px; }
 td.cat { min-width: 140px; }
-table.rules .actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+table.rules .actions { display: flex; gap: 4px; flex-wrap: nowrap; justify-content: flex-end; }
 table.rules .actions button { padding: 4px 10px; }
 table.rules tr.disabled td { opacity: 0.6; }
 button.danger { color: var(--error); }
@@ -740,3 +740,31 @@ a.row:hover .row-title { text-decoration: underline; }
 .cat-form .rv-ai button.chip { min-height: var(--tap); display: inline-flex; align-items: center; }
 .cat-form input[type="checkbox"] { width: 20px; height: 20px; flex: none; }
 .pager a { padding: 0 8px; }
+
+/* M13 E3: cele dotyku ≥ 44 px na ekranie „Reguły” */
+table.rules .actions button, .rule-form select, .rule-form button,
+.rule-form input:not([type="checkbox"]) { min-height: var(--tap); }
+.rule-link, a.button.tap, .actions-row a, .rules-tabs a, .rule-form label.check, .search-count a {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+}
+.rule-form input[type="checkbox"] { width: 20px; height: 20px; flex: none; }
+@media (max-width: 640px) {
+  .table-wrap:has(table.rules) { overflow-x: visible; }
+  table.rules thead { display: none; }
+  table.rules, table.rules tbody { display: block; }
+  table.rules tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  table.rules td { border: 0; padding: 0; }
+  table.rules td.cond-cell { grid-column: 1 / span 2; }
+  table.rules td.num::before { content: "trafienia: "; color: var(--muted); }
+  table.rules td.actions { grid-column: 1 / span 2; margin-top: 6px; }
+  table.rules td.actions form { flex: 1; }
+  table.rules td.actions button { width: 100%; padding: 0 8px; }
+}
