@@ -1,5 +1,8 @@
 # M13 — Refaktor UI panelu Budżet Domowy (styl Copilot Money)
 
+> **Aktualizacja 2026-10-05:** ostatecznie wybrany został styl **Monarch** (jasny), nie Copilot Money; opis
+> kierunku wizualnego niżej jest historyczny, obowiązujący jest `DESIGN.md` (zob. `PLAN_M13_E1b.md`).
+
 ## Context
 
 M5b zamknięty 2026-10-05. W roadmapie M13 („całkowity refaktor UI”) było oznaczone „po M5b, zakres do wywiadu”,

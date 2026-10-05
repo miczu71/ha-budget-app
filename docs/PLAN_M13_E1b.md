@@ -54,3 +54,11 @@ Szczegóły wykonania:
 - Baza CSS: tokeny `--elev`, `--on-accent`, `--r-input` zamiast wartości zaszytych pod Copilota (wygląd Copilot bez zmian).
 - Monarch: pola formularzy białe (jak w specyfikacji), kwota „Zostało” w Ink (jeden akcent), nagłówek miesiąca 19 px na telefonie.
 - Przełącznik: klasa `theme-opt` współdzieli styl z `.chip`, ale ma własną nazwę, bo testy liczą `class="chip` na ekranie przeglądu.
+
+## Decyzja i E1c (2026-10-05)
+
+Po rozszerzeniu Podsumowania (E2, 0.19.0) użytkownik wybrał **Monarch**. E1c: usunięty motyw Copilot, przełącznik „Wygląd”,
+trasa `POST /theme`, ustawienie `ui_theme` w `Panel`, kroje Space Grotesk i testy przełącznika; wartości Monarch przeniesione
+do reguł bazowych CSS (bez warstwy `[data-theme="monarch"]`). Wygląd bez zmian: 30 zrzutów (15 ekranów × 360 i 1280 px) przed
+i po refaktorze jest identycznych co do piksela. Klucz `ui_theme` zostaje w kv istniejących baz jako nieszkodliwa pozostałość.
+

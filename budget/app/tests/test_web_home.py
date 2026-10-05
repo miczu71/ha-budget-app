@@ -61,7 +61,7 @@ async def test_status_page_moved_to_status(client: httpx.AsyncClient) -> None:
 
 
 async def test_fonts_are_served_immutable(client: httpx.AsyncClient) -> None:
-    for name in ("InterVariable.woff2", "SpaceGrotesk-wght.woff2"):
+    for name in ("InterVariable.woff2", "SourceSerif4-latin.woff2"):
         r = await client.get(f"/static/fonts/{name}")
         assert r.status_code == 200 and "immutable" in r.headers["cache-control"]
 
@@ -187,11 +187,12 @@ def _sync(conn: sqlite3.Connection, finished: str, status: str) -> None:
     )
 
 
-async def test_charts_render_in_both_themes(client: httpx.AsyncClient, service: Service) -> None:
+async def test_charts_render_and_there_is_no_theme_switch(
+    client: httpx.AsyncClient, service: Service
+) -> None:
     _seed(service.conn)
-    for theme in ("copilot", "monarch"):
-        await client.post("/theme", data={"theme": theme})
-        page = (await client.get("/")).text
-        assert (
-            f'data-theme="{theme}"' in page and 'class="slice c' in page and 'class="bars"' in page
-        )
+    page = (await client.get("/")).text
+    assert 'class="slice c' in page and 'class="bars"' in page
+    assert "data-theme" not in page and 'content="#efecea"' in page  # jeden wygląd (Monarch)
+    assert "Wygląd" not in page and "/theme" not in page
+    assert (await client.post("/theme", data={"theme": "neon"})).status_code in (404, 405)

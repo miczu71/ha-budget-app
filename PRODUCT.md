@@ -42,5 +42,5 @@ kwoty w PLN.
 5. Prywatność ponad wygodę: nic zewnętrznego w renderowaniu strony.
 
 ## Accessibility & Inclusion
-Kontrast tekstu treści co najmniej WCAG AA na ciemnym tle; cele dotykowe min. 44 px na telefonie;
+Kontrast tekstu treści co najmniej WCAG AA na jasnym tle (Linen i Paper); cele dotykowe min. 44 px na telefonie;
 `prefers-reduced-motion` respektowane.

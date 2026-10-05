@@ -29,7 +29,6 @@ from budget.web import (
     routes_rules,
     routes_spending,
     routes_status,
-    routes_theme,
     routes_transactions,
 )
 from budget.web.common import HERE, Panel, fmt_date, fmt_money
@@ -63,7 +62,6 @@ def create_app(service: Service, *, dev: bool = False) -> FastAPI:
     for module in (
         routes_home,
         routes_status,
-        routes_theme,
         routes_budget,
         routes_spending,
         routes_recurring,
