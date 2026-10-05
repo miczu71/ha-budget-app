@@ -116,6 +116,14 @@ kopia, bez puli i z pulą 6000): 0 elementów < 44 px, z realnym testem trafieni
 (1)+(2) identyczne co do bajtu; (3) zmienia tylko Podsumowanie, Budżet, Reguły i Status. Odłożone: wspólna klasa dla linków
 samodzielnych zamiast list selektorów E3–E3d (osobny etap); kompaktowe `form.move` (dotyka „Koszty stałe”).
 
+## Wynik kroku 4 — wydanie 0.20.2 (2026-10-05)
+
+Bump 0.20.1 → 0.20.2 (`8e31f15`), CI zielone, release `v0.20.2` opublikowany (nie draft), backup add-onu `3da526f6`
+(„Budżet Domowy 0.20.1”), update przez `update.budzet_domowy_update` → zainstalowane 0.20.2. Na żywo przez Ingress: stopka
+v0.20.2, `app.css?v=0.20.2`, 45 rozwijanych wierszy w Kategoriach; pomiar 15 ekranów przy 390/1280 px (tylko GET, `details`
+otwarte poza menu ⚙): bez przepełnienia i błędów konsoli, sekcja „Koszty stałe” wyrenderowana bez uwag. **Jedyny element < 44 px:**
+`details.small summary` „Wpływy (…)” na Budżecie przy 390 px = 43 px (reguła E3c, niewidoczna na kopii) — do decyzji użytkownika.
+
 ## Weryfikacja
 `BUDGET_OPTIONS_PATH=/nonexistent .venv/bin/python -m pytest -q`, `ruff check`, `ruff format --check`, `mypy`; pomiar Playwright jak
 w E3c (wysokość < 44 px = 0, przepełnienie, konsola); zrzuty przed/po 360 i 1280 px; cache: `fetch(app.css, {cache: "reload"})`;
