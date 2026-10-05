@@ -124,4 +124,4 @@ E1 jest największy — jeśli plan etapu pokaże, że za duży, dzieli się na 
 
 ## Wynik
 
-—
+2026-10-05: M5b zamknięty przez użytkownika (E1 0.14.0 … E4 0.17.0, poprawka 0.17.1). Szczegóły i pomiary w `PLAN_M5b_E1.md`–`PLAN_M5b_E4.md`.
