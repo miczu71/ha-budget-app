@@ -53,6 +53,28 @@ Cofnięcie: `git revert`.
 `pyproject.toml`, CHANGELOG, push, CI, `gh release create v0.20.2`), backup add-onu, update w HA (`update.budzet_domowy_update`),
 weryfikacja przez użytkownika na telefonie. Cofnięcie: przywrócenie backupu add-onu.
 
+## Wynik kroku 0 (pomiar pełny, 2026-10-05, kopia księgi + zasiew: „Wykryj teraz” i 3 serie potwierdzone, bez wykluczeń)
+
+Wszystkie `details` otwarte, `input[checkbox]` mierzony po swoim `label`. 360 i 1280 px dają ten sam obraz; przepełnienia
+poziomego i błędów konsoli brak na żadnym ekranie. Bez uwag: `/transactions`, `/review`, `/rules/new`, `/dictionary`,
+`/recurring/new`, `/inbox` oraz nawigacja i dzwonek (`base.html`) na każdym ekranie.
+
+| Ekran | Elementy < 44 px (liczba × najmniejsza wysokość) | Krok |
+|---|---|---|
+| `/categories` | `form.rename` `input` 70 × 43, `button` 70 × 43; `form.move` (grupa i przenieś) `select` 82 × 26, `button` 82 × 26 | 1, 2 |
+| `/accounts` | `input[text]` 3 × 40, `button` 3 × 41, `label.check` 3 × 20 | 1, 3 |
+| `/bank` | `input[file]` 2 × 41, `input[text]` 1 × 40, `button` 3 × 41 | 1 |
+| `/import` | `input[file]` 1 × 41, `button` 1 × 41 | 1 |
+| `/status` | link w `div.msg.warn` 1 × 19, `button` 1 × 41 | 1, 3 |
+| `/recurring` | `a.cat-name` w `.series-head` do 6 × 23, link „Edytuj i potwierdź” 16 × 23, `button` 32 × 41, „Wykryj teraz” 1 × 41 | 1, 3 |
+| `/recurring/{id}` | link powrotu 1 × 16, `button` 1 × 41 | 1, 3 |
+| `/` (Podsumowanie) | `li > a.row` w nadchodzących seriach 1–3 × 41 (stan z seriami; E3b mierzył bez serii) | 3 |
+| `/budget` | link „szczegóły” w `p.recurring-line` 1 × 16 (stan z seriami) | 3 |
+| `/rules` | link „Do przejrzenia” w pustym stanie 1 × 19 (kopia bez reguł) | 3 |
+
+Wniosek: reguła globalna (krok 1) zamyka wszystkie pola i przyciski 40–43 px; krok 2 zostaje bez zmian; krok 3 obejmuje linki
+`a.row`, `a.cat-name`, „Edytuj i potwierdź”, „szczegóły”, linki w tekście (Status, Reguły, powrót z serii) i `label.check` na Kontach.
+
 ## Weryfikacja
 `BUDGET_OPTIONS_PATH=/nonexistent .venv/bin/python -m pytest -q`, `ruff check`, `ruff format --check`, `mypy`; pomiar Playwright jak
 w E3c (wysokość < 44 px = 0, przepełnienie, konsola); zrzuty przed/po 360 i 1280 px; cache: `fetch(app.css, {cache: "reload"})`;
