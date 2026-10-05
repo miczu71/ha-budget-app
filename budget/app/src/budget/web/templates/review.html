@@ -10,7 +10,7 @@
   <h1>Do przejrzenia — {{ label }}</h1>
   {% if next_month %}<a class="month-link tap" href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}&month={{ next_month.strftime('%Y-%m') }}{{ aq }}" aria-label="następny miesiąc">{{ month_name(next_month) }} »</a>{% else %}<span class="month-link"></span>{% endif %}
 </div>
-<p class="small rv-links"><a class="tap" href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}{{ aq }}">wszystkie miesiące »</a> · <a class="tap" href="{{ base }}/spending?month={{ month.strftime('%Y-%m') }}">wydatki: {{ label }} »</a></p>
+<p class="small"><a class="tap" href="{{ base }}/review?direction={{ direction }}&sort={{ sort }}{{ aq }}">wszystkie miesiące »</a> · <a class="tap" href="{{ base }}/spending?month={{ month.strftime('%Y-%m') }}">wydatki: {{ label }} »</a></p>
 {% else %}
 <h1>Do przejrzenia</h1>
 {% endif %}
@@ -74,7 +74,7 @@
     {% for g in q.merchants %}{% with gid = "m" ~ loop.index, open = False, error = None %}{% include "_review_li.html" %}{% endwith %}{% endfor %}
   </ul>
   {% if q.merchants_total > q.merchants | length %}
-  <p class="rv-links"><a class="tap" href="{{ base }}/review?{{ qs }}&limit={{ limit + 50 }}">pokaż więcej ({{ q.merchants_total - q.merchants | length }})</a></p>
+  <p><a class="tap" href="{{ base }}/review?{{ qs }}&limit={{ limit + 50 }}">pokaż więcej ({{ q.merchants_total - q.merchants | length }})</a></p>
   {% endif %}
 </section>
 <script>

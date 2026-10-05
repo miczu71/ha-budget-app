@@ -288,6 +288,7 @@ td.date { white-space: nowrap; }
   grid-template-columns: 1fr auto;
   gap: 2px 12px;
   padding: 10px 0;
+  min-height: var(--tap); /* jeden wiersz („Wpływy (…)” w puli) = 42,5 px */
   cursor: pointer;
   list-style: none;
   color: var(--text);
@@ -526,9 +527,9 @@ label.search input {
 /* M5a etap 4: składniki puli w „Kwocie budżetu” — rozwinięcia jak w „Wydatkach” */
 .pool { margin: 4px 0 8px; }
 .pool .pool-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 0 10px 20px; }
-.pool details > .flex-lines, .pool details > p, .pool details > form { margin-left: 20px; }
+.pool > li > details > :is(.flex-lines, p, form) { margin-left: 20px; }
 .pool .flex-lines .leaf { grid-column: 1 / span 2; }
-.pool .leaf > .leaf-meta, .pool .leaf > form { margin-left: 22px; }
+.pool .leaf > .leaf-meta { margin-left: 22px; } /* jak `.leaf form` */
 form.move.add-fixed { margin: 10px 0 4px 20px; flex-wrap: wrap; }
 form.move.add-fixed select { max-width: 100%; flex: 1 1 200px; }
 
@@ -742,7 +743,7 @@ a.tap {
 .cat-form .rv-ai button.chip { min-height: var(--tap); display: inline-flex; align-items: center; }
 .pager a { padding: 0 8px; }
 
-/* M13 E3: cele dotyku ≥ 44 px na ekranie „Reguły” */
+/* M13 E3: ekran „Reguły” — pola wyboru formularza, tabela na telefonie */
 .rule-form label.check {
   min-height: var(--tap);
   display: inline-flex;
@@ -767,20 +768,19 @@ a.tap {
   table.rules td.actions button { width: 100%; padding: 0 8px; }
 }
 
-/* M13 E3b: cele dotyku ≥ 44 px na Podsumowaniu i w nagłówkach miesięcy; etykiety osi wykresu pod linią siatki */
+/* M13 E3b: nagłówki miesięcy, dzwonek; etykiety osi wykresu pod linią siatki */
 .month-link:last-child { justify-content: flex-end; }
 .inbox-item a { min-height: var(--tap); align-items: center; }
 .bars .tick { pointer-events: none; }
 .bars .axis { paint-order: stroke; stroke: var(--surface-1); stroke-width: 3px; stroke-linejoin: round; }
 
-/* M13 E3c: cele dotyku ≥ 44 px w Wydatkach i Budżecie (zakres: .subcats, .kv, .flex-lines, .pool) */
+/* M13 E3c: cele dotyku ≥ 44 px w Wydatkach i Budżecie */
 details.small summary {
   min-height: var(--tap);
   display: inline-flex;
   align-items: center;
 }
 .pool form.move { gap: 8px; }
-.cats summary { min-height: var(--tap); } /* „Wpływy (…)” w puli: jeden wiersz = 42,5 px */
 
 /* M13 E3d: cele dotyku ≥ 44 px dla wszystkich pól i przycisków (u źródła, zamiast selektorów per ekran) */
 input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not(.visually-hidden),

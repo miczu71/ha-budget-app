@@ -22,7 +22,7 @@
     {% for it in items %}
       {% set rule = it.rule %}
       <tr class="rule-row {{ 'disabled' if not rule.enabled }}">
-        <td class="cond-cell"><a class="rule-link tap" href="{{ base }}/rules/{{ rule.id }}">{{ it.text }}</a>{% if rule.rename %}<br><span class="small muted">nazwa: {{ rule.rename }}</span>{% endif %}{% if not rule.enabled %} <span class="badge warn">wyłączona</span>{% endif %}</td>
+        <td class="cond-cell"><a class="tap" href="{{ base }}/rules/{{ rule.id }}">{{ it.text }}</a>{% if rule.rename %}<br><span class="small muted">nazwa: {{ rule.rename }}</span>{% endif %}{% if not rule.enabled %} <span class="badge warn">wyłączona</span>{% endif %}</td>
         <td>{{ it.category.name if it.category else "—" }}</td>
         <td class="num">{{ rule.hits }}</td>
         <td class="actions">
