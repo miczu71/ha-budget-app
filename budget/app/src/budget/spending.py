@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections import defaultdict
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -155,15 +156,23 @@ def _rows(conn: sqlite3.Connection, start: date | None, end: date | None) -> lis
         where.append("coalesce(t.tx_date, t.booking_date) < ?")
         params.append(end.isoformat())
     return conn.execute(
-        "SELECT t.amount, t.currency, t.category_id FROM txn t "
+        "SELECT t.id, t.amount, t.currency, t.category_id FROM txn t "
         f"JOIN account a ON a.id = t.account_id WHERE {' AND '.join(where)}",
         params,
     ).fetchall()
 
 
-def sums(conn: sqlite3.Connection, start: date | None, end: date | None) -> Sums:
+def sums(
+    conn: sqlite3.Connection,
+    start: date | None,
+    end: date | None,
+    skip: Collection[int] = (),
+) -> Sums:
+    """Sumy okresu; transakcje z `skip` (np. serie liczone w puli, M5b E4) są pomijane."""
     s = Sums()
     for r in _rows(conn, start, end):
+        if r["id"] in skip:
+            continue
         if r["currency"] != BASE_CURRENCY:
             s.other_currency += 1
             continue

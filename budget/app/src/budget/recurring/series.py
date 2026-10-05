@@ -77,6 +77,7 @@ class Candidate:
     merchant: str  # nazwa wyświetlana (z ewentualną zmianą nazwy z reguły)
     description: str
     facts: Facts
+    category_id: int | None = None
 
     @property
     def direction(self) -> str:
@@ -129,7 +130,8 @@ def candidates(conn: sqlite3.Connection, ids: Sequence[int] | None = None) -> li
         only = f"AND t.id IN ({','.join('?' * len(ids))}) "
     rows = conn.execute(
         "SELECT t.id, coalesce(t.tx_date, t.booking_date) AS day, t.amount, t.merchant, "
-        f"t.description FROM txn t JOIN account a ON a.id = t.account_id WHERE {CANDIDATES_WHERE} "
+        "t.description, t.category_id FROM txn t JOIN account a ON a.id = t.account_id "
+        f"WHERE {CANDIDATES_WHERE} "
         f"AND coalesce(t.tx_date, t.booking_date) IS NOT NULL {only}ORDER BY day, t.id",
         list(ids) if ids is not None else [],
     ).fetchall()
@@ -145,6 +147,7 @@ def candidates(conn: sqlite3.Connection, ids: Sequence[int] | None = None) -> li
                 merchant=r["merchant"] or f.merchant,
                 description=r["description"] or "",
                 facts=f,
+                category_id=r["category_id"],
             )
         )
     return out

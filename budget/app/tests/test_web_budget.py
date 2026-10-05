@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from datetime import date, timedelta
+from decimal import Decimal
 
 import httpx
 import pytest
 
 from budget.categorize import engine, taxonomy
+from budget.categorize.rules import Conditions, TextCondition
+from budget.recurring import series as S
 from budget.service import Service
 
 from .test_categorize_engine import add
@@ -130,6 +133,39 @@ async def test_pool_components_and_fixed_editing(
     assert "Grupę budżetu ma tylko podkategoria" in (await client.get("/budget")).text
     await client.post(f"/budget/fixed/{noclegi}", data={"month": MONTH, "flex_group": "zle"})
     assert "Nieznana grupa budżetu" in (await client.get("/budget")).text
+
+
+async def test_pool_lists_series_and_recurring_row(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    conn = service.conn
+    _seed(conn)
+    slugs = taxonomy.by_slug(conn)
+    prev = (date.fromisoformat(DAY) - timedelta(days=1)).replace(day=24)
+    t = add(conn, "6000.00", "transfer_in", "Pensja", "FIRMA X", day=prev.isoformat())
+    engine.set_manual(conn, t, slugs["wynagrodzenie"].id)
+    t = add(conn, "-45.00", "transfer_out", "Abo", "STRIM Q", day=DAY)
+    engine.set_manual(conn, t, slugs["spozywcze"].id)
+    sid = S.insert(
+        conn,
+        name="Strim Q",
+        direction="out",
+        cadence="Q",
+        conditions=Conditions(
+            text=(TextCondition("counterparty_name", "equals", "STRIM Q"),), direction="out"
+        ),
+        expected=Decimal("300.00"),
+        tolerance=Decimal("5"),
+        anchor_day=int(DAY[8:]),
+        status="active",
+        origin="manual",
+        key=None,
+    )
+    page = (await client.get(f"/budget?month={MONTH}")).text
+    assert "Płatności cykliczne" in page and "Strim Q" in page
+    assert f'href="{INGRESS}/recurring/{sid}"' in page
+    assert "100,00" in page  # kwartalna ⅓ na miesiąc
+    assert "<dt>Cykliczne</dt>" in page and "5\u202f900,00" in page  # 6000 − 100
 
 
 async def test_add_to_fixed_from_list(client: httpx.AsyncClient, service: Service) -> None:

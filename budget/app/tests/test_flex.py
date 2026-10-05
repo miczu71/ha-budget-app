@@ -10,7 +10,9 @@ import pytest
 
 from budget import flex
 from budget.categorize import engine, taxonomy
+from budget.categorize.rules import Conditions, TextCondition
 from budget.categorize.taxonomy import TaxonomyError
+from budget.recurring import series as S
 
 from .test_categorize_engine import add, conn, sid
 
@@ -310,3 +312,112 @@ def test_fixed_lines_skip_zero_and_follow_group_change(conn: sqlite3.Connection)
     a = build(conn).auto
     assert a is not None and a.fixed == 0 and a.amount == Decimal("9000.00")
     assert [line.category.slug for line in a.candidates] == ["kredyt"]
+
+
+# --- serie cykliczne w puli (M5b E4, decyzja 4) -------------------------------------------------
+
+
+def serie(
+    c: sqlite3.Connection,
+    slug: str,
+    amount: str,
+    cadence: str = "M",
+    status: str = "active",
+    direction: str = "out",
+) -> int:
+    """Seria na odbiorcę z `spend` (`ODBIORCA <slug>`)."""
+    cond = Conditions(
+        text=(TextCondition("counterparty_name", "equals", f"ODBIORCA {slug}"),),
+        direction=direction,
+    )
+    return S.insert(
+        c,
+        name=f"Seria {slug}",
+        direction=direction,
+        cadence=cadence,
+        conditions=cond,
+        expected=Decimal(amount),
+        tolerance=Decimal("5"),
+        anchor_day=7,
+        status=status,
+        origin="manual",
+        key=None,
+    )
+
+
+def seed_year(c: sqlite3.Connection, slug: str, amount: str) -> None:
+    for m in months("2026-03", 7):  # marzec–wrzesień
+        spend(c, amount, m, slug)
+
+
+def test_series_in_flexible_category_leaves_spent_and_enters_fixed(
+    conn: sqlite3.Connection,
+) -> None:
+    pay(conn, "9000.00", "2026-08")
+    seed_year(conn, "spozywcze", "50.00")
+    spend(conn, "30.00", "2026-09", "paliwo")
+    before = build(conn)
+    assert before.spent == Decimal("80.00") and before.recurring == 0
+    assert before.auto is not None and before.auto.fixed == 0
+    serie(conn, "spozywcze", "50.00")
+    f = build(conn)
+    assert f.spent == Decimal("30.00") and f.recurring == Decimal("50.00")
+    assert [line.category.slug for line in f.lines] == ["paliwo"]
+    assert f.history and all(h.spent <= Decimal("30.00") for h in f.history)
+    a = f.auto
+    assert a is not None and a.fixed == a.fixed_series == Decimal("50.00")
+    assert a.amount == Decimal("8950.00")
+    assert [(line.series.name, line.monthly) for line in a.series_lines] == [
+        ("Seria spozywcze", Decimal("50.00"))
+    ]
+
+
+def test_series_in_fixed_category_is_not_counted_twice(conn: sqlite3.Connection) -> None:
+    pay(conn, "9000.00", "2026-08")
+    seed_year(conn, "kredyt", "2300.00")
+    assert build(conn).auto is not None and build(conn).auto.fixed == Decimal("2300.00")  # type: ignore[union-attr]
+    serie(conn, "kredyt", "2300.00")
+    f = build(conn)
+    a = f.auto
+    assert a is not None and a.fixed == Decimal("2300.00")  # seria, bez mediany kredytu
+    assert a.fixed_lines == [] and len(a.series_lines) == 1
+    assert f.fixed == 0 and f.recurring == Decimal("2300.00")  # „poza pulą” bez podwójnego
+
+
+def test_quarterly_and_yearly_series_are_monthly_share(conn: sqlite3.Connection) -> None:
+    pay(conn, "9000.00", "2026-08")
+    serie(conn, "ubezpieczenia", "300.00", cadence="Q")
+    serie(conn, "media", "1200.00", cadence="Y")
+    a = build(conn).auto
+    assert a is not None and a.fixed == Decimal("200.00")  # 100 + 100, serie bez transakcji
+    assert [line.monthly for line in a.series_lines] == [Decimal("100.00")] * 2
+
+
+def test_savings_series_stays_outside_pool(conn: sqlite3.Connection) -> None:
+    pay(conn, "9000.00", "2026-08")
+    seed_year(conn, "oszczednosci-przelewy", "500.00")
+    serie(conn, "oszczednosci-przelewy", "500.00")
+    f = build(conn)
+    assert f.auto is not None and f.auto.series_lines == [] and f.auto.fixed == 0
+    assert f.recurring == 0 and f.auto.amount == Decimal("9000.00")
+
+
+def test_only_active_outgoing_series_count(conn: sqlite3.Connection) -> None:
+    pay(conn, "9000.00", "2026-08")
+    seed_year(conn, "spozywcze", "50.00")
+    serie(conn, "spozywcze", "50.00", status="proposed")
+    serie(conn, "spozywcze", "50.00", status="ended")
+    serie(conn, "spozywcze", "50.00", status="rejected")
+    f = build(conn)
+    assert f.auto is not None and f.auto.series_lines == [] and f.recurring == 0
+    assert f.spent == Decimal("50.00")  # transakcje zostają w „wydane”
+    serie(conn, "wynagrodzenie", "9000.00", direction="in")
+    assert build(conn).auto.series_lines == []  # type: ignore[union-attr]
+
+
+def test_manual_budget_unchanged_but_spent_excludes_series(conn: sqlite3.Connection) -> None:
+    seed_year(conn, "spozywcze", "50.00")
+    flex.set_budget(conn, date(2026, 9, 1), Decimal("1000"))
+    serie(conn, "spozywcze", "50.00")
+    f = build(conn)
+    assert f.budget == Decimal("1000.00") and f.spent == 0 and f.remaining == Decimal("1000.00")

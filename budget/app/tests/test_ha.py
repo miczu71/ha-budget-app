@@ -296,6 +296,7 @@ def test_flex_entities_auto_pool(conn: db.sqlite3.Connection) -> None:
         "0.00",
         None,
     )
+    assert attrs["fixed_series"] == "0.00"
     assert f["flex_remaining"].state == "9000.00"
 
 

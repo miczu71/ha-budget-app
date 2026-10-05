@@ -258,6 +258,7 @@ def flex_entities(conn: sqlite3.Connection, today: date) -> list[Entity]:
             income_base=_amount(fm.auto.income) if fm.auto else None,
             bonus_excluded=_amount(fm.auto.bonus) if fm.auto else None,
             fixed_median=_amount(fm.auto.fixed) if fm.auto else None,
+            fixed_series=_amount(fm.auto.fixed_series) if fm.auto else None,
             income_drop_pct=round(fm.auto.drop[1] * 100, 1) if fm.auto and fm.auto.drop else None,
             suggested=_amount(fm.suggested),
             month=month,

@@ -14,7 +14,11 @@ Zasady (`docs/PLAN_M5a.md`, decyzja 13 w `docs/ROADMAP.md`):
   wpływy z grupy `income` z poprzedniego miesiąca − stałe; nadwyżka nietypowo wysokiego
   wpływu ze źródła (premia) zostaje poza pulą;
 - stałe = suma median podkategorii z grupy `fixed` (etap 4, decyzja 15,
-  `docs/PLAN_M5a_fixed.md`) — składniki sumują się do kwoty w puli.
+  `docs/PLAN_M5a_fixed.md`) — składniki sumują się do kwoty w puli;
+- serie cykliczne (M5b E4, decyzja 4, `docs/PLAN_M5b_E4.md`): aktywna seria wydatkowa wchodzi
+  do stałych kwotą oczekiwaną w przeliczeniu na miesiąc, a jej transakcje wypadają z „wydane”,
+  median i „poza pulą” (bez podwójnego liczenia). Wyjątek: seria, której ostatnia transakcja
+  ma kategorię z grupy oszczędności, przychodów albo „poza budżetem” — nie zmienia puli.
 """
 
 from __future__ import annotations
@@ -29,6 +33,8 @@ from decimal import ROUND_CEILING, Decimal
 from budget import money
 from budget.categorize import taxonomy
 from budget.categorize.taxonomy import Category
+from budget.recurring import series as S
+from budget.recurring.series import Series
 from budget.spending import BASE_CURRENCY, ZERO, Sums, add_months, month_start, sums
 from budget.storage.db import now_iso
 
@@ -39,6 +45,7 @@ BONUS_MIN_MONTHS = 3  # krótsza historia źródła = wpływ liczony w całości
 BONUS_RATIO = Decimal("1.5")  # premia: wpływ > 1,5 × 3. kwartyl miesięcznych wpływów źródła
 BONUS_TYPICAL_MONTHS = 3  # do puli idzie mediana z ostatnich miesięcy źródła
 DROP_RATIO = Decimal("0.15")  # dopisek o progu: główne źródło niższe o > 15%
+OUTSIDE_POOL = {"savings", "income", "excluded"}  # grupy ostatniej transakcji: seria poza pulą
 
 
 class FlexError(ValueError):
@@ -76,22 +83,45 @@ class FixedLine:
 
 
 @dataclass
+class SeriesLine:
+    series: Series
+    monthly: Decimal  # oczekiwana kwota w przeliczeniu na miesiąc
+
+
+@dataclass
+class Pool:
+    """Serie liczone w puli: ich transakcje są pomijane w „wydane”, medianach i „poza pulą”."""
+
+    lines: list[SeriesLine] = field(default_factory=list)
+    txns: list[S.Candidate] = field(default_factory=list)
+
+    @property
+    def skip(self) -> set[int]:
+        return {t.id for t in self.txns}
+
+
+@dataclass
 class AutoBudget:
     """Pula z dochodu: wpływy z `income_month` − premie − stałe (nie poniżej 0)."""
 
     income_month: date
     income: Decimal
     bonus: Decimal
-    fixed: Decimal  # suma `fixed_lines`
+    fixed: Decimal  # suma `series_lines` i `fixed_lines`
     fixed_months: int
     sources: list[IncomeSource] = field(default_factory=list)
-    fixed_lines: list[FixedLine] = field(default_factory=list)  # podkategorie stałe
+    series_lines: list[SeriesLine] = field(default_factory=list)  # serie cykliczne
+    fixed_lines: list[FixedLine] = field(default_factory=list)  # podkategorie stałe spoza serii
     candidates: list[FixedLine] = field(default_factory=list)  # pozostałe wydatkowe, do „dodaj”
     drop: tuple[str, float] | None = None  # (główne źródło, spadek) — dopisek o progu
 
     @property
     def amount(self) -> Decimal:
         return max(self.income - self.bonus - self.fixed, ZERO)
+
+    @property
+    def fixed_series(self) -> Decimal:
+        return sum((line.monthly for line in self.series_lines), ZERO)
 
 
 @dataclass
@@ -106,6 +136,7 @@ class FlexMonth:
     uncategorized_count: int
     fixed: Decimal  # informacyjnie
     non_monthly: Decimal  # informacyjnie
+    recurring: Decimal  # informacyjnie: zapłacone w miesiącu z serii liczonych w puli
     days_in_month: int
     day: int | None  # dzisiejszy dzień miesiąca; None dla miesięcy minionych
     lines: list[FlexLine] = field(default_factory=list)
@@ -217,7 +248,27 @@ def _first_month(conn: sqlite3.Connection) -> date | None:
     return month_start(date.fromisoformat(row[0][:10])) if row and row[0] else None
 
 
-def _history(conn: sqlite3.Connection, start: date) -> list[tuple[date, Sums]]:
+def pool_series(conn: sqlite3.Connection) -> Pool:
+    """Aktywne serie wydatkowe liczone w puli (reguła: ostatnia transakcja nie z grup poza pulą)."""
+    live = [s for s in S.all_series(conn, ("active",)) if s.direction == "out"]
+    if not live:
+        return Pool()
+    members = S.assign(live, S.candidates(conn))
+    groups = {i: c.flex_group for i, c in taxonomy.leaves(conn).items()}
+    pool = Pool()
+    for s in live:
+        txns = members.get(s.id, [])
+        if txns and groups.get(txns[-1].category_id or 0) in OUTSIDE_POOL:
+            continue
+        pool.lines.append(SeriesLine(s, s.monthly))
+        pool.txns += txns
+    pool.lines.sort(key=lambda line: (-line.monthly, line.series.name))
+    return pool
+
+
+def _history(
+    conn: sqlite3.Connection, start: date, skip: set[int] | None = None
+) -> list[tuple[date, Sums]]:
     """Pełne miesiące przed `start` (najwyżej `HISTORY_MONTHS`), od pierwszej transakcji."""
     first = _first_month(conn)
     if first is None:
@@ -226,7 +277,7 @@ def _history(conn: sqlite3.Connection, start: date) -> list[tuple[date, Sums]]:
     for n in range(HISTORY_MONTHS, 0, -1):
         m = add_months(start, -n)
         if m >= first:
-            out.append((m, sums(conn, m, add_months(m, 1))))
+            out.append((m, sums(conn, m, add_months(m, 1), skip or ())))
     return out
 
 
@@ -292,7 +343,10 @@ def _bonus_limit(values: list[Decimal]) -> Decimal | None:
 
 
 def auto_budget(
-    conn: sqlite3.Connection, month: date, history: list[tuple[date, Sums]] | None = None
+    conn: sqlite3.Connection,
+    month: date,
+    history: list[tuple[date, Sums]] | None = None,
+    pool: Pool | None = None,
 ) -> AutoBudget | None:
     """Pula z dochodu na miesiąc `month`; None — brak wpływów w poprzednim miesiącu."""
     start = month_start(month)
@@ -313,16 +367,20 @@ def auto_budget(
         sources.append(IncomeSource(name, amount, bonus))
     if not sources:
         return None
+    if pool is None:
+        pool = pool_series(conn)
     if history is None:
-        history = _history(conn, start)
+        history = _history(conn, start, pool.skip)
     fixed_lines = _medians(conn, history, {"fixed"}, include=True)
     out = AutoBudget(
         income_month=base,
         income=sum((s.amount for s in sources), ZERO),
         bonus=sum((s.bonus for s in sources), ZERO),
-        fixed=sum((line.median for line in fixed_lines), ZERO),
+        fixed=sum((line.median for line in fixed_lines), ZERO)
+        + sum((line.monthly for line in pool.lines), ZERO),
         fixed_months=len(history),
         sources=sources,
+        series_lines=pool.lines,
         fixed_lines=fixed_lines,
         candidates=_medians(conn, history, {"fixed", "income"}, include=False),
     )
@@ -353,8 +411,10 @@ def _drop(
 def build(conn: sqlite3.Connection, month: date, today: date) -> FlexMonth:
     start = month_start(month)
     nxt = add_months(start, 1)
-    cur = sums(conn, start, nxt)
-    history = _history(conn, start)
+    pool = pool_series(conn)
+    skip = pool.skip
+    cur = sums(conn, start, nxt, skip)
+    history = _history(conn, start, skip)
     parents = {m.category.id: m.category.name for m in taxonomy.tree(conn)}
     leaves = list(taxonomy.leaves(conn).values())
     flexible = [c for c in leaves if c.flex_group == "flexible"]
@@ -362,7 +422,7 @@ def build(conn: sqlite3.Connection, month: date, today: date) -> FlexMonth:
     manual = budget_for(conn, start)
     if manual is not None and manual[0] is None:
         manual = None  # wpis „wróć do automatycznej”
-    auto = auto_budget(conn, start, history)
+    auto = auto_budget(conn, start, history, pool)
 
     out = FlexMonth(
         month=start,
@@ -375,6 +435,7 @@ def build(conn: sqlite3.Connection, month: date, today: date) -> FlexMonth:
         uncategorized_count=cur.unc_out.count,
         fixed=_group(cur, leaves, "fixed"),
         non_monthly=_group(cur, leaves, "non_monthly"),
+        recurring=sum((abs(t.amount) for t in pool.txns if start <= t.day < nxt), ZERO),
         days_in_month=calendar.monthrange(start.year, start.month)[1],
         day=today.day if current else None,
         history=[HistoryMonth(m, _spent(s, flexible), s.unc_out.amount) for m, s in history],
