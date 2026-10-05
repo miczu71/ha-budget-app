@@ -18,7 +18,7 @@
   <h2>Ile możesz wydać na wydatki elastyczne w miesiącu?</h2>
   <p class="small muted">Elastyczne to codzienne wydatki: jedzenie, paliwo, zakupy, wyjścia. Stałe (rachunki, subskrypcje, kredyt) i nieregularne (remont, podróże, prezenty) są liczone obok i nie zmniejszają tej kwoty. Grupę podkategorii zmienisz w <a href="{{ base }}/categories">Kategoriach</a>.</p>
   {% if f.suggested %}<p>Podpowiedź: <strong>{{ f.suggested | money("PLN") }}</strong> <span class="small muted">— mediana z {{ f.history | length }} mies., z wydatkami bez kategorii; wpisana poniżej, możesz ją zmienić</span></p>{% endif %}
-  <form class="rename" method="post" action="{{ base }}/budget/amount">
+  <form class="rename tap-form" method="post" action="{{ base }}/budget/amount">
     <input type="hidden" name="month" value="{{ ym }}">
     <input name="amount" inputmode="decimal" value="{{ '%d' | format(f.suggested) if f.suggested }}" placeholder="np. 2500" aria-label="miesięczny budżet elastyczny" required><button>Ustaw od tego miesiąca</button>
   </form>
@@ -52,7 +52,7 @@
       {% if f.recurring %}<dt>Cykliczne</dt><dd>{{ f.recurring | money("PLN") }}</dd>{% endif %}
       <dt>Nieregularne</dt><dd>{{ f.non_monthly | money("PLN") }}</dd>
     </dl>
-    <p class="small muted">Informacyjnie — nie zmniejszają kwoty „zostało”. Szczegóły w <a href="{{ base }}/spending?month={{ ym }}">Wydatkach</a>. Przelewy między własnymi kontami, oszczędności i „poza budżetem” nie są liczone.{% if f.other_currency %} Pominięto {{ f.other_currency }} transakcji w innej walucie niż PLN.{% endif %}</p>
+    <p class="small muted">Informacyjnie — nie zmniejszają kwoty „zostało”. Szczegóły w <a class="tx-link" href="{{ base }}/spending?month={{ ym }}">Wydatkach</a>. Przelewy między własnymi kontami, oszczędności i „poza budżetem” nie są liczone.{% if f.other_currency %} Pominięto {{ f.other_currency }} transakcji w innej walucie niż PLN.{% endif %}</p>
   </section>
   {% if f.budget is not none %}
   {% set a = f.auto %}
@@ -128,7 +128,7 @@
     {% if a.drop %}<p class="small warn-note">Wpływ z „{{ a.drop[0] }}” niższy niż zwykle w tym roku o {{ pct(a.drop[1]) }} — prawdopodobnie przekroczony próg podatkowy; zwykle wraca w styczniu. Pula idzie za niższą wypłatą.</p>{% endif %}
     <p class="small muted">Żyjesz z wypłaty poprzedniego miesiąca, więc pula jest znana od 1. dnia. Oszczędności nie są odejmowane — oszczędzasz to, co zostanie.</p>
     {% endif %}
-    <form class="rename" method="post" action="{{ base }}/budget/amount">
+    <form class="rename tap-form" method="post" action="{{ base }}/budget/amount">
       <input type="hidden" name="month" value="{{ ym }}">
       <input name="amount" inputmode="decimal" placeholder="kwota ręczna" aria-label="kwota ręczna budżetu od miesiąca {{ label }}" required><button class="secondary">{{ "Zmień" if f.budget_source == "manual" else "Ustaw ręcznie" }} od tego miesiąca</button>
     </form>

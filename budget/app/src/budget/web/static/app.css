@@ -779,3 +779,12 @@ table.rules .actions button, .rule-form select, .rule-form button,
 .inbox-item a { min-height: var(--tap); align-items: center; }
 .bars .tick { pointer-events: none; }
 .bars .axis { paint-order: stroke; stroke: var(--surface-1); stroke-width: 3px; stroke-linejoin: round; }
+
+/* M13 E3c: cele dotyku ≥ 44 px w Wydatkach i Budżecie (zakres: .subcats, .kv, .flex-lines, .pool, .tap-form) */
+.subcats a, .kv dt a, .flex-lines li a, details.small summary {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+}
+.tap-form input, .tap-form button, .pool form.move select, .pool form.move button { min-height: var(--tap); }
+.pool form.move { gap: 8px; }
