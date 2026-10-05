@@ -75,6 +75,16 @@ poziomego i błędów konsoli brak na żadnym ekranie. Bez uwag: `/transactions`
 Wniosek: reguła globalna (krok 1) zamyka wszystkie pola i przyciski 40–43 px; krok 2 zostaje bez zmian; krok 3 obejmuje linki
 `a.row`, `a.cat-name`, „Edytuj i potwierdź”, „szczegóły”, linki w tekście (Status, Reguły, powrót z serii) i `label.check` na Kontach.
 
+## Wynik kroku 1 (reguła globalna, 2026-10-05)
+
+Blok „M13 E3d” na końcu `app.css`. Zrzuty 360/1280 px wszystkich 17 ekranów (z `reducedMotion: reduce` — bez tego
+animacja koła na `/` dawała różne zrzuty przy tym samym kodzie): zmieniły się tylko Konta, Bank, Import, Status, Cykliczne,
+seria i Kategorie (pola/przyciski 40–43 → 44 px, przegląd wzrokowy bez uwag); pozostałe 20 zrzutów identycznych co do bajtu.
+Usunięte dublujące selektory z E3 (`.rv-actions`/`.rv-rule`/`.rule-fields`/`.rv-sub button.link`, `.cat-form`/`.search-form`,
+`table.rules .actions button`/`.rule-form`) i E3c (`.tap-form`, `.pool form.move select/button`) oraz osierocona klasa `tap-form`
+w `budget.html` — wszystkie 34 zrzuty i pomiar identyczne przed i po usunięciu. Zostało (do kroków 2–3): Kategorie
+`form.move` 44 px w wierszu (krok 2), linki i `label.check` z tabeli kroku 0 (krok 3). 510 testów, ruff, mypy czyste.
+
 ## Weryfikacja
 `BUDGET_OPTIONS_PATH=/nonexistent .venv/bin/python -m pytest -q`, `ruff check`, `ruff format --check`, `mypy`; pomiar Playwright jak
 w E3c (wysokość < 44 px = 0, przepełnienie, konsola); zrzuty przed/po 360 i 1280 px; cache: `fetch(app.css, {cache: "reload"})`;

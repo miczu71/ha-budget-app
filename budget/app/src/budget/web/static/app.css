@@ -716,10 +716,6 @@ a.row:hover .row-title { text-decoration: underline; }
 }
 
 /* M13 E3: cele dotyku ≥ 44 px na ekranie „Do przejrzenia” (zakres: klasy rv-*) */
-.rv-actions select, .rv-actions button, .rv-ai-run button,
-.rv-rule select, .rv-rule input[type="text"],
-.rule-fields select, .rule-fields input:not([type="checkbox"]),
-.rv-sub button.link { min-height: var(--tap); }
 .rv-list button.chip, .rv-ai-filter a.chip, button.rv-accept,
 .rv-f-more summary, .rv-list .rv-more summary, .rv-tabs a, .rv-links a {
   min-height: var(--tap);
@@ -730,8 +726,6 @@ a.row:hover .row-title { text-decoration: underline; }
 .rv-items input[type="checkbox"], .rv-actions input[type="checkbox"] { width: 20px; height: 20px; flex: none; }
 
 /* M13 E3: cele dotyku ≥ 44 px na ekranie „Transakcje” */
-.cat-form select, .cat-form button, .search-form select,
-.search-form input:not([type="checkbox"]):not(.visually-hidden) { min-height: var(--tap); }
 .cat-chip, .tx-link, .pager a, .cat-form label.check {
   min-height: var(--tap);
   display: inline-flex;
@@ -742,8 +736,6 @@ a.row:hover .row-title { text-decoration: underline; }
 .pager a { padding: 0 8px; }
 
 /* M13 E3: cele dotyku ≥ 44 px na ekranie „Reguły” */
-table.rules .actions button, .rule-form select, .rule-form button,
-.rule-form input:not([type="checkbox"]) { min-height: var(--tap); }
 .rule-link, a.button.tap, .actions-row a, .rules-tabs a, .rule-form label.check, .search-count a {
   min-height: var(--tap);
   display: inline-flex;
@@ -780,11 +772,14 @@ table.rules .actions button, .rule-form select, .rule-form button,
 .bars .tick { pointer-events: none; }
 .bars .axis { paint-order: stroke; stroke: var(--surface-1); stroke-width: 3px; stroke-linejoin: round; }
 
-/* M13 E3c: cele dotyku ≥ 44 px w Wydatkach i Budżecie (zakres: .subcats, .kv, .flex-lines, .pool, .tap-form) */
+/* M13 E3c: cele dotyku ≥ 44 px w Wydatkach i Budżecie (zakres: .subcats, .kv, .flex-lines, .pool) */
 .subcats a, .kv dt a, .flex-lines li a, details.small summary {
   min-height: var(--tap);
   display: inline-flex;
   align-items: center;
 }
-.tap-form input, .tap-form button, .pool form.move select, .pool form.move button { min-height: var(--tap); }
 .pool form.move { gap: 8px; }
+
+/* M13 E3d: cele dotyku ≥ 44 px dla wszystkich pól i przycisków (u źródła, zamiast selektorów per ekran) */
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not(.visually-hidden),
+select, textarea, button { min-height: var(--tap); }
