@@ -105,6 +105,17 @@ nie udał — `kill` trafił w podpowłokę, nie w serwer; przed i po mierzone n
 Budżetu, Reguł, Statusu, Kont, Cyklicznych i serii (przegląd 360 px bez uwag; linki w zdaniu podnoszą swoją linię — widać w pustym
 stanie Reguł). Zgłoszone poza zakresem: pusty stan Reguł radzi „Zawsze dla …” — przycisk usunięty w M4h.
 
+## Krok 4a — `simplify` przed wydaniem (2026-10-05)
+
+Wybrane przez użytkownika z raportu: (1) dokończone sprzątanie — `label.check` (`min-height`, checkbox 20 px) w jednej regule
+bazowej, usunięte kopie per ekran (`.rv-*`, `.cat-form`, `.rule-form`); (2) `.leaf summary` dzieli ukrycie znacznika z `.cats summary`;
+(3) **linki w zdaniu** (`.fresh a`, `.warn-note a`, `.recurring-line a`, `p.muted a`, `.msg a`) mają obszar dotyku 44 px przez
+`::after` (`inset: calc(50% - var(--tap) / 2) 0`) zamiast `inline-flex` — wiersz tekstu nie rośnie; samodzielny „Szczegóły budżetu”
+dostał `tx-link`, szeroki selektor `.flex-hero p.small a` usunięty; „Wydatkach” w zdaniu na Budżecie bez `tx-link`. Pomiar (świeża
+kopia, bez puli i z pulą 6000): 0 elementów < 44 px, z realnym testem trafienia `elementFromPoint` ±20 px dla linków z `::after`;
+(1)+(2) identyczne co do bajtu; (3) zmienia tylko Podsumowanie, Budżet, Reguły i Status. Odłożone: wspólna klasa dla linków
+samodzielnych zamiast list selektorów E3–E3d (osobny etap); kompaktowe `form.move` (dotyka „Koszty stałe”).
+
 ## Weryfikacja
 `BUDGET_OPTIONS_PATH=/nonexistent .venv/bin/python -m pytest -q`, `ruff check`, `ruff format --check`, `mypy`; pomiar Playwright jak
 w E3c (wysokość < 44 px = 0, przepełnienie, konsola); zrzuty przed/po 360 i 1280 px; cache: `fetch(app.css, {cache: "reload"})`;

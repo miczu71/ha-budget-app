@@ -205,7 +205,8 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 .num.neg { color: var(--text); }
 form.inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
 label { display: flex; flex-direction: column; gap: 3px; font-size: 13px; font-weight: 400; color: var(--muted); }
-label.check { flex-direction: row; align-items: center; gap: 6px; color: var(--text); }
+label.check { flex-direction: row; align-items: center; gap: 6px; color: var(--text); min-height: var(--tap); }
+label.check input[type="checkbox"] { width: 20px; height: 20px; flex: none; }
 input, select, button, textarea {
   font: inherit;
   color: var(--text);
@@ -292,7 +293,7 @@ td.date { white-space: nowrap; }
   color: var(--text);
   text-decoration: none;
 }
-.cats summary::-webkit-details-marker { display: none; }
+.cats summary::-webkit-details-marker, .leaf summary::-webkit-details-marker { display: none; }
 /* szewron: SVG (Lucide) jako maska — bez glifów Unicode, bo czcionki WebView bywają ubogie */
 .cats summary .cat-name::before, .rv-list summary .cat-name::before, .leaf summary .cat-name::before {
   content: "";
@@ -722,8 +723,7 @@ a.row:hover .row-title { text-decoration: underline; }
   display: inline-flex;
   align-items: center;
 }
-.rv-items label.check, .rv-actions label.check { min-height: var(--tap); align-items: center; }
-.rv-items input[type="checkbox"], .rv-actions input[type="checkbox"] { width: 20px; height: 20px; flex: none; }
+.rv-items label.check { align-items: center; }
 
 /* M13 E3: cele dotyku ≥ 44 px na ekranie „Transakcje” */
 .cat-chip, .tx-link, .pager a, .cat-form label.check {
@@ -732,7 +732,6 @@ a.row:hover .row-title { text-decoration: underline; }
   align-items: center;
 }
 .cat-form .rv-ai button.chip { min-height: var(--tap); display: inline-flex; align-items: center; }
-.cat-form input[type="checkbox"] { width: 20px; height: 20px; flex: none; }
 .pager a { padding: 0 8px; }
 
 /* M13 E3: cele dotyku ≥ 44 px na ekranie „Reguły” */
@@ -741,7 +740,6 @@ a.row:hover .row-title { text-decoration: underline; }
   display: inline-flex;
   align-items: center;
 }
-.rule-form input[type="checkbox"] { width: 20px; height: 20px; flex: none; }
 @media (max-width: 640px) {
   .table-wrap:has(table.rules) { overflow-x: visible; }
   table.rules thead { display: none; }
@@ -762,7 +760,7 @@ a.row:hover .row-title { text-decoration: underline; }
 }
 
 /* M13 E3b: cele dotyku ≥ 44 px na Podsumowaniu i w nagłówkach miesięcy; etykiety osi wykresu pod linią siatki */
-.month-link, .fresh a, .card-link a, .warn-note a, .flex-hero p.small a {
+.month-link, .card-link a {
   min-height: var(--tap);
   display: inline-flex;
   align-items: center;
@@ -794,18 +792,22 @@ select, textarea, button { min-height: var(--tap); }
   cursor: pointer;
   list-style: none;
 }
-.leaf summary::-webkit-details-marker { display: none; }
 .leaf summary .muted { margin-left: auto; }
 .leaf form { margin: 6px 0 0 22px; }
 .leaf form.move select { flex: 1; min-width: 0; max-width: none; padding: 9px 12px; font-size: inherit; }
 .leaf form.move button { padding: 9px 12px; font-size: inherit; }
 .leaf[open] { padding-bottom: 10px; }
-/* Linki i etykiety: wiersze serii, akcje serii, powrót, linki w tekście (Budżet, Reguły, Status), „w budżecie” na Kontach */
+/* Linki samodzielne: wiersze serii, akcje serii, powrót */
 a.row { min-height: var(--tap); align-content: center; }
-.series-head a.cat-name, .series-actions a, p.back a, .recurring-line a, p.muted a, .msg a {
+.series-head a.cat-name, .series-actions a, p.back a {
   min-height: var(--tap);
   display: inline-flex;
   align-items: center;
 }
-label.check { min-height: var(--tap); }
-label.check input[type="checkbox"] { width: 20px; height: 20px; flex: none; }
+/* Linki w zdaniu: obszar dotyku 44 px przez ::after — wiersz tekstu nie rośnie */
+.fresh a, .warn-note a, .recurring-line a, p.muted a, .msg a { position: relative; }
+.fresh a::after, .warn-note a::after, .recurring-line a::after, p.muted a::after, .msg a::after {
+  content: "";
+  position: absolute;
+  inset: calc(50% - var(--tap) / 2) 0;
+}
