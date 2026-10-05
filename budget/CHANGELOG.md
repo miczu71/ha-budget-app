@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.19.1
+
+**Jeden wygląd: Monarch** (M13 etap 1c, `docs/PLAN_M13_E1b.md`).
+
+- Panel ma już tylko wygląd Monarch (jasny, jeden pomarańczowy akcent, szeryfowe nagłówki). Wygląd Copilot Money i przełącznik
+  „Wygląd” z menu ⚙ zniknęły; wygląd ekranów jest taki sam jak w 0.19.0 w Monarch.
+- Poprawka: podpis porównania w środku wykresu kołowego (np. „vs 1–5 września”) mieści się w otworze, bez zachodzenia na pierścień.
+- Wewnętrznie: reguły CSS bez warstwy nadpisań motywu, usunięta trasa `POST /theme`, krój Space Grotesk i ustawienie wyglądu
+  (stary wpis w ustawieniach add-onu jest nieszkodliwy i ignorowany). Bez zmian w logice budżetu, encjach i schemacie bazy.
+
 ## 0.19.0
 
 **Rozszerzone Podsumowanie** (M13 etap 2, `docs/PLAN_M13_E2.md`), w obu wyglądach (Copilot i Monarch).
