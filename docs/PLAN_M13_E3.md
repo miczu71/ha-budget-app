@@ -87,3 +87,13 @@ po — wszystko ≥ 44 px (chipy i `rv-accept` min. 44 px, 43 elementów), same 
 (cały wiersz jest celem). Bez przepełnienia poziomego, konsola bez błędów, 510 testów, ruff i mypy czyste.
 Uwaga: Playwright trzymał stary `app.css?v=0.19.1` (`immutable`), więc „po” zmierzyłem po `fetch(..., {cache: "reload"})`.
 Odstępstwo: odstęp `.rv-ai`/`.rv-ai-filter` 6 → 8 px dotyczy też wiersza podpowiedzi AI w Transakcjach (`.cat-form .rv-ai`).
+
+## Wynik kroku 2 (Transakcje, 2026-10-05, lokalnie, bez commita)
+
+Krok 1 scommitowany lokalnie po `simplify` (scalone reguły, `--tap` w tokenach `:root`, gap zmieniony w oryginalnych regułach).
+Zmiany kroku 2: `static/app.css` (blok „M13 E3: Transakcje”, `.cat-form` gap 6 → 8 px w oryginale), `transactions.html`
+(klasa `tx-link` na `a.badge` „cykliczna”, „to się powtarza” i „wyczyść filtry”). Pomiar 360 px: lista i otwarty formularz edycji
+kategorii bez elementów < 44 px (poza celowo ukrytym przyciskiem „Filtruj” i polem wyboru 20 px, którego `label` ma 44 px);
+bez przepełnienia poziomego, konsola czysta, stronicowanie obecne. Regresja `/review?ai=…` po scaleniu reguł: bez zmian
+(rv-accept 2, tylko pola wyboru 20 px). 1280 px: układ tabeli bez zmian. 510 testów, ruff, mypy czyste.
+Do oceny: wiersze z „to się powtarza” w kolumnie „Szczegóły” są wyższe (link 44 px), więc lista jest dłuższa.
