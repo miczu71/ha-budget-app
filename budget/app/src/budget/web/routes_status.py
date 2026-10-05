@@ -74,54 +74,54 @@ def router(panel: Panel) -> APIRouter:
             "busy": service.ai_lock.locked(),
         }
 
-    @r.get("/", response_class=HTMLResponse)
+    @r.get("/status", response_class=HTMLResponse)
     async def status(request: Request) -> HTMLResponse:
         return panel.render(request, "status.html", **status_context())
 
     @r.post("/sync")
     async def sync_now(request: Request) -> Response:
         if service.lock.locked():
-            return panel.redirect(request, "/", "Synchronizacja już trwa.", "warn")
+            return panel.redirect(request, "/status", "Synchronizacja już trwa.", "warn")
         try:
             result = await service.sync("panel", psu=psu_from_request(request))
         except ServiceError as exc:
-            return panel.redirect(request, "/", str(exc), "error")
+            return panel.redirect(request, "/status", str(exc), "error")
         level = "ok" if result.ok else "warn" if result.status == "partial" else "error"
         text = f"Synchronizacja: {result.status}, nowych {result.new}, zapytań {result.requests}"
         if result.detail:
             text += f" — {result.detail}"
-        return panel.redirect(request, "/", text, level)
+        return panel.redirect(request, "/status", text, level)
 
     @r.post("/status/reconcile-base")
     async def reconcile_base(request: Request, account_id: int = Form(...)) -> Response:
         at = ledger.set_reconcile_base(conn, account_id)
         if at is None:
-            return panel.redirect(request, "/", "Brak migawki salda dla tego konta.", "error")
+            return panel.redirect(request, "/status", "Brak migawki salda dla tego konta.", "error")
         return panel.redirect(
-            request, "/", f"Konto #{account_id}: baza kontroli salda od {at[:16]}."
+            request, "/status", f"Konto #{account_id}: baza kontroli salda od {at[:16]}."
         )
 
     @r.post("/ai/run")
     async def ai_run(request: Request) -> Response:
         if not service.settings.ai_enabled:
-            return panel.redirect(request, "/", "Podpowiedzi AI są wyłączone.", "warn")
+            return panel.redirect(request, "/status", "Podpowiedzi AI są wyłączone.", "warn")
         if service.ai_lock.locked():
-            return panel.redirect(request, "/", "Podpowiedzi AI już się liczą.", "warn")
+            return panel.redirect(request, "/status", "Podpowiedzi AI już się liczą.", "warn")
         res = await service.suggest()
         text = f"Podpowiedzi AI: wywołań {res.calls}, zapisanych {res.stored}, czeka {res.waiting}"
         if res.error:
-            return panel.redirect(request, "/", f"{text} — {res.error}", "error")
-        return panel.redirect(request, "/", text, "ok" if res.calls else "warn")
+            return panel.redirect(request, "/status", f"{text} — {res.error}", "error")
+        return panel.redirect(request, "/status", text, "ok" if res.calls else "warn")
 
     @r.post("/ai/eval")
     async def ai_eval(request: Request) -> Response:
         if service.ai_lock.locked():
-            return panel.redirect(request, "/", "Podpowiedzi AI już się liczą.", "warn")
+            return panel.redirect(request, "/status", "Podpowiedzi AI już się liczą.", "warn")
         try:
             async with service.ai_lock:
                 out = await suggest.evaluate(conn, service.settings, service.now().date())
         except AIError as exc:
-            return panel.redirect(request, "/", f"Pomiar trafności: {exc}", "error")
-        return panel.redirect(request, "/", f"Pomiar trafności: {out['n']} sprzedawców", "ok")
+            return panel.redirect(request, "/status", f"Pomiar trafności: {exc}", "error")
+        return panel.redirect(request, "/status", f"Pomiar trafności: {out['n']} sprzedawców", "ok")
 
     return r

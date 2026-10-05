@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pct %}
+{% block content %}
+<h1>Podsumowanie — {{ label }}</h1>
+
+{% if f.budget is none %}
+<section class="card flex-hero">
+  <h2>Ile możesz jeszcze wydać?</h2>
+  <p class="muted">Pula na wydatki elastyczne nie jest jeszcze ustawiona.</p>
+  <a class="button" href="{{ base }}/budget">Ustaw budżet</a>
+</section>
+{% else %}
+{% set rem = f.remaining %}
+<section class="card flex-hero">
+  <h2>Zostało na elastyczne</h2>
+  <div class="hero-amount {{ 'neg' if rem < 0 else 'pos' }}">{{ rem | money("PLN") }}</div>
+  <p class="muted">wydane {{ f.spent | money("PLN") }} z {{ f.budget | money("PLN") }}</p>
+  <div class="flex-bar {{ 'over' if f.over_pace or rem < 0 }}" role="img" aria-label="wydane {{ pct(f.used) }} budżetu, minęło {{ pct(f.elapsed) }} miesiąca">
+    <span class="fill" style="width: {{ pct([f.used, 1] | min) }}"></span>
+    <span class="mark" style="left: {{ pct(f.elapsed) }}"></span>
+  </div>
+  <dl class="kv flex-kv">
+    <dt>Na dzień do końca miesiąca</dt><dd><strong>{{ f.per_day | money("PLN") }}</strong> <span class="small muted">({{ f.days_left }} {{ "dzień" if f.days_left == 1 else "dni" }})</span></dd>
+    <dt>Tempo</dt><dd class="{{ 'neg' if f.over_pace else 'pos' }}">{% if f.over_pace %}ponad tempem o {{ (f.spent - f.expected) | money("PLN") }}{% else %}w tempie (zapas {{ (f.expected - f.spent) | money("PLN") }}){% endif %}</dd>
+  </dl>
+  <p class="small"><a href="{{ base }}/budget">Szczegóły budżetu</a></p>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Do decyzji</h2>
+  {% if inbox_items or f.uncategorized_count %}
+  <ul class="inbox">
+    {% for i in inbox_items %}
+    <li class="inbox-item {{ i.severity }}">
+      <a href="{{ base }}{{ i.link }}"><span class="inbox-title">{{ i.title }}</span><span class="inbox-count">{{ i.count }}</span></a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% if f.uncategorized_count %}
+  <p class="small warn-note"><a href="{{ base }}/review?month={{ month }}">{{ f.uncategorized_count }} {{ "wydatek" if f.uncategorized_count == 1 else "wydatków" }} bez kategorii w tym miesiącu — przejrzyj</a></p>
+  {% endif %}
+  {% else %}
+  <p class="muted">Nic nie czeka na decyzję.</p>
+  {% endif %}
+</section>
+{% endblock %}

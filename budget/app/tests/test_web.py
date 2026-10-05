@@ -93,11 +93,11 @@ async def test_ingress_prefix_and_cache(client: httpx.AsyncClient) -> None:
 
 
 async def test_all_pages_render_empty(client: httpx.AsyncClient) -> None:
-    for path in ("/", "/bank", "/import", "/accounts", "/transactions", "/healthz"):
+    for path in ("/", "/status", "/bank", "/import", "/accounts", "/transactions", "/healthz"):
         r = await client.get(path)
         assert r.status_code == 200, path
-    assert "Brak konfiguracji" not in (await client.get("/")).text  # tylko komunikat o kluczu
-    assert "klucz prywatny" in (await client.get("/")).text
+    assert "Brak konfiguracji" not in (await client.get("/status")).text  # tylko komunikat o kluczu
+    assert "klucz prywatny" in (await client.get("/status")).text
 
 
 async def test_key_upload(client: httpx.AsyncClient, service: Service, private_pem: bytes) -> None:
@@ -128,7 +128,7 @@ async def test_session_import_and_pages_with_data(
     page = (await client.get("/bank")).text
     assert "Sesja przeniesiona" in page and "Mock ASPSP" in page
     assert not re.search(r"PL\d{26}", page)  # tylko zamaskowane IBAN-y
-    status = (await client.get("/")).text
+    status = (await client.get("/status")).text
     assert "AUTHORIZED" in status
 
 
@@ -152,13 +152,13 @@ async def test_sync_from_panel_sends_psu(
     assert r.status_code == 303
     assert tx.calls.last.request.headers["Psu-Ip-Address"] == "10.1.2.3"
     assert tx.calls.last.request.headers["Psu-User-Agent"] == "HA-App"
-    page = (await client.get("/")).text
+    page = (await client.get("/status")).text
     assert "Synchronizacja: ok" in page
 
 
 async def test_sync_without_config(client: httpx.AsyncClient) -> None:
     await client.post("/sync")
-    assert "Brak konfiguracji" in (await client.get("/")).text
+    assert "Brak konfiguracji" in (await client.get("/status")).text
 
 
 async def test_csv_import_map_accounts_transactions(
@@ -215,13 +215,13 @@ async def test_status_reconcile_base_button(service: Service) -> None:
     _itbd(service.conn, card, "0.00", "2026-10-01T07:00:00+00:00")
     _itbd(service.conn, card, "50.00", "2026-10-05T07:00:00+00:00")
     async with _client(service) as client:
-        page = (await client.get("/")).text
+        page = (await client.get("/status")).text
         assert "W DRODZE" in page or "ROZBIEŻNOŚĆ" in page
         assert f'action="{INGRESS}/status/reconcile-base"' in page
         r = await client.post("/status/reconcile-base", data={"account_id": str(card)})
         assert r.status_code == 303
-        page = (await client.get("/")).text
+        page = (await client.get("/status")).text
         assert "baza kontroli salda od 2026-10-05T07:00" in page
         assert f"#{card}: OK" in page and "/status/reconcile-base" not in page
         r = await client.post("/status/reconcile-base", data={"account_id": "999"})
-        assert "Brak migawki" in (await client.get("/")).text
+        assert "Brak migawki" in (await client.get("/status")).text

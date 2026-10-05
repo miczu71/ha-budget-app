@@ -61,7 +61,7 @@ def test_inbox_items(service: Service) -> None:
     )
     found = inbox.items(conn, NOW, memo)
     kinds = [(i.kind, i.count, i.link) for i in found]
-    assert kinds[0] == ("sync_failures", 1, "/")  # błędy na górze
+    assert kinds[0] == ("sync_failures", 1, "/status")  # błędy na górze
     assert ("uncategorized", 1, "/review?month=2026-10") in kinds
     assert ("uncategorized", 1, "/review?month=2026-09") in kinds
     assert len(found) == 3

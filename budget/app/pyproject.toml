@@ -36,7 +36,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "budget.storage" = ["migrations/*.sql"]
-"budget.web" = ["templates/*.html", "static/*"]
+"budget.web" = ["templates/*.html", "static/*", "static/fonts/*"]
 "budget.categorize" = ["*.toml"]
 
 [tool.pytest.ini_options]

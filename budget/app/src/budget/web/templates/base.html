@@ -3,27 +3,39 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#000814">
   <title>Budżet Domowy</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="{{ base }}/static/app.css?v={{ version }}">
   <script src="{{ base }}/static/htmx.min.js?v={{ version }}" defer></script>
 </head>
 <body hx-boost="true">
+  {# Ikony: Lucide (ISC, https://github.com/lucide-icons/lucide) przez iconify.design, zawsze SVG #}
+  {% set more_pages = ('review', 'rules', 'rule_form', 'dictionary', 'categories', 'accounts', 'import', 'bank', 'status') %}
   <header class="top">
-    <nav>
-      <a href="{{ base }}/" class="{{ 'on' if page == 'status' }}">Status</a>
+    <nav aria-label="Główna nawigacja">
+      <a href="{{ base }}/" class="{{ 'on' if page == 'home' }}">Podsumowanie</a>
       <a href="{{ base }}/budget" class="{{ 'on' if page == 'budget' }}">Budżet</a>
       <a href="{{ base }}/spending" class="{{ 'on' if page == 'spending' }}">Wydatki</a>
       <a href="{{ base }}/recurring" class="{{ 'on' if page in ('recurring', 'series') }}">Cykliczne</a>
-      <a href="{{ base }}/review" class="{{ 'on' if page == 'review' }}">Do przejrzenia</a>
       <a href="{{ base }}/transactions" class="{{ 'on' if page == 'transactions' }}">Transakcje</a>
-      <a href="{{ base }}/rules" class="{{ 'on' if page in ('rules', 'rule_form', 'dictionary', 'categories') }}">Reguły</a>
-      <a href="{{ base }}/accounts" class="{{ 'on' if page == 'accounts' }}">Konta</a>
-      <a href="{{ base }}/import" class="{{ 'on' if page == 'import' }}">Import CSV</a>
-      <a href="{{ base }}/bank" class="{{ 'on' if page == 'bank' }}">Bank</a>
     </nav>
     {% include "_bell.html" %}
-    <span class="nav-version" title="wersja add-onu">v{{ version }}</span>
+    <details class="more{{ ' on' if page in more_pages }}">
+      <summary aria-label="Więcej: reguły, konta, import, bank, status">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0a2.34 2.34 0 0 0 3.319 1.915a2.34 2.34 0 0 1 2.33 4.033a2.34 2.34 0 0 0 0 3.831a2.34 2.34 0 0 1-2.33 4.033a2.34 2.34 0 0 0-3.319 1.915a2.34 2.34 0 0 1-4.659 0a2.34 2.34 0 0 0-3.32-1.915a2.34 2.34 0 0 1-2.33-4.033a2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></g></svg>
+      </summary>
+      <div class="more-panel">
+        <a href="{{ base }}/review" class="{{ 'on' if page == 'review' }}">Do przejrzenia</a>
+        <a href="{{ base }}/rules" class="{{ 'on' if page in ('rules', 'rule_form', 'dictionary', 'categories') }}">Reguły</a>
+        <a href="{{ base }}/accounts" class="{{ 'on' if page == 'accounts' }}">Konta</a>
+        <a href="{{ base }}/import" class="{{ 'on' if page == 'import' }}">Import CSV</a>
+        <a href="{{ base }}/bank" class="{{ 'on' if page == 'bank' }}">Bank</a>
+        <div class="sep" role="separator"></div>
+        <a href="{{ base }}/status" class="{{ 'on' if page == 'status' }}">Status</a>
+      </div>
+    </details>
   </header>
   <main>
     {% for level, text in messages %}
@@ -31,5 +43,6 @@
     {% endfor %}
     {% block content %}{% endblock %}
   </main>
+  <footer class="foot">Budżet Domowy v{{ version }}</footer>
 </body>
 </html>

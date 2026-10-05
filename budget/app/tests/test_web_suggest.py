@@ -72,7 +72,7 @@ def _answer(cid: int) -> httpx.Response:
 
 async def test_status_card_disabled(service: Service) -> None:
     async with _client(service) as c:
-        page = (await c.get("/")).text
+        page = (await c.get("/status")).text
     assert "Podpowiedzi AI" in page and "Wyłączone" in page and "Zmierz trafność" not in page
     async with _client(service) as c:
         r = await c.post("/ai/run", follow_redirects=False)
@@ -83,10 +83,10 @@ async def test_status_card_disabled(service: Service) -> None:
 async def test_run_now_and_status(ai: httpx.AsyncClient, ai_service: Service) -> None:
     leaf = sid(ai_service.conn, "restauracje")
     route = respx.post(f"{ROUTER}/chat/completions").mock(return_value=_answer(leaf))
-    page = (await ai.get("/")).text
+    page = (await ai.get("/status")).text
     assert "Podpowiedz teraz" in page and "1 sprzedawców w kolejce" in page
     assert (await ai.post("/ai/run")).status_code == 303
-    r = await ai.get("/")
+    r = await ai.get("/status")
     assert "wywołań 1, zapisanych 1, czeka 0" in r.text
     assert "1 czeka na decyzję" in r.text and "1 / 3" in r.text
     assert route.call_count == 1
@@ -97,7 +97,7 @@ async def test_run_now_and_status(ai: httpx.AsyncClient, ai_service: Service) ->
 async def test_run_error_is_shown(ai: httpx.AsyncClient) -> None:
     respx.post(f"{ROUTER}/chat/completions").mock(return_value=httpx.Response(401, text="nope"))
     await ai.post("/ai/run")
-    r = await ai.get("/")
+    r = await ai.get("/status")
     assert "HTTP 401" in r.text and "Ostatni błąd" in r.text
 
 
@@ -108,7 +108,7 @@ async def test_eval_shows_accuracy(ai: httpx.AsyncClient, ai_service: Service) -
     categorize.recategorize(conn)
     respx.post(f"{ROUTER}/chat/completions").mock(return_value=_answer(sid(conn, "spozywcze")))
     await ai.post("/ai/eval")
-    r = await ai.get("/")
+    r = await ai.get("/status")
     assert "Pomiar trafności: 1 sprzedawców" in r.text
     assert "Trafność" in r.text and "100%" in r.text
     assert engine.usage(conn, ai_service.now().date())["calls"] == 1
@@ -161,7 +161,7 @@ async def test_queue_chips_pick_and_assign(ai: httpx.AsyncClient, ai_service: Se
     )
     status = ai_service.conn.execute("SELECT status FROM suggestion").fetchone()["status"]
     assert status == "rejected"
-    assert "1 odrzuconych" in (await ai.get("/")).text
+    assert "1 odrzuconych" in (await ai.get("/status")).text
 
 
 async def test_assign_with_candidate_is_accepted(

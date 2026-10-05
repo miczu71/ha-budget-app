@@ -106,8 +106,8 @@ def operational(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> li
     titles = {
         "session_inactive": ("Zgoda bankowa nieaktywna", "/bank", "error"),
         "consent_expiring": ("Zgoda bankowa wkrótce wygasa", "/bank", "warn"),
-        "sync_failures": ("Nieudane synchronizacje", "/", "error"),
-        "manual_sync": ("Synchronizacja niepełna", "/", "warn"),
+        "sync_failures": ("Nieudane synchronizacje", "/status", "error"),
+        "manual_sync": ("Synchronizacja niepełna", "/status", "warn"),
     }
     out = []
     for alert in alerts:

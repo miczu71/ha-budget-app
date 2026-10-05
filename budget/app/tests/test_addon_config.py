@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -45,3 +46,16 @@ def test_dockerfile_pins_base_image_and_port() -> None:
     requirements = (ADDON / "requirements.txt").read_text(encoding="utf-8")
     pinned = [line for line in requirements.splitlines() if line and not line.startswith("#")]
     assert pinned and all("==" in line for line in pinned)
+
+
+def test_package_data_covers_every_static_file() -> None:
+    """Obraz robi `pip install .` i kasuje `src`: plik spoza globów zniknąłby w produkcji."""
+    pyproject = tomllib.loads((ADDON / "app" / "pyproject.toml").read_text(encoding="utf-8"))
+    globs = pyproject["tool"]["setuptools"]["package-data"]["budget.web"]
+    web = ADDON / "app" / "src" / "budget" / "web"
+    missing = [
+        str(f.relative_to(web))
+        for f in (web / "static").rglob("*")
+        if f.is_file() and not any(f.relative_to(web).match(g) for g in globs)
+    ]
+    assert not missing, missing

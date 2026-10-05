@@ -110,6 +110,7 @@ class Panel:
     def render(self, request: Request, name: str, **ctx: Any) -> HTMLResponse:
         messages = list(self.flash)
         self.flash.clear()
+        inbox_items = self.service.inbox()
         return self.templates.TemplateResponse(
             request,
             name,
@@ -117,7 +118,8 @@ class Panel:
                 "base": self.base(request),
                 "messages": messages,
                 "page": name.removesuffix(".html"),
-                "inbox_count": len(self.service.inbox()),
+                "inbox_items": inbox_items,
+                "inbox_count": len(inbox_items),
                 **ctx,
             },
         )
