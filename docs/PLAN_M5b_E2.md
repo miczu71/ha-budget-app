@@ -100,4 +100,13 @@ Domyślne reguły (bez pytania, do korekty przy akceptacji):
 
 ## Wynik
 
-—
+2026-10-05: 0.15.0 wydane i zainstalowane (462 testów, release v0.15.0). Panel dev na kopii
+księgi (19 serii potwierdzonych na potrzeby pomiaru): `/budget` ~60 ms, `/recurring` ~45 ms,
+`/transactions` ~30 ms, encje ~15 ms — pamięć podręczna `assign` niepotrzebna. Plakietkę serii
+na Transakcjach liczy się tylko dla transakcji bieżącej strony (`S.candidates(conn, ids)`).
+Playwright mobile: 0 błędów konsoli, podgląd serii ręcznej działa. Decyzje wykonawcze:
+promień 15 dni do najbliższego terminu; seria Q/Y przesuwa harmonogram wystąpieniem w innym
+miesiącu; brak płatności w minionym miesiącu nie liczy się do „jeszcze zejdzie”. Na żywo:
+update add-onu OK, log bez błędów, urządzenie MQTT `sw_version` 0.15.0, 3 nowe encje
+zarejestrowane; panel przez Ingress niesprawdzony przez Claude (proxy ha-mcp 403, brak LLAT) —
+do obejrzenia przez użytkownika na checkpoincie. Checkpoint E2 czeka; E3 (0.16.0) po „go”.
