@@ -32,7 +32,7 @@ def router(panel: Panel) -> APIRouter:
         return panel.render(
             request,
             "import.html",
-            rep=report.build(conn),
+            rep=report.build(conn, service.balance_memo.get(conn)),
             unmapped=unmapped_numbers(),
             cards=conn.execute("SELECT * FROM account WHERE kind = 'card' ORDER BY id").fetchall(),
             batches=conn.execute(

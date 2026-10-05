@@ -77,7 +77,10 @@ def accounts(conn: sqlite3.Connection) -> list[AccountSummary]:
     return out
 
 
-def build(conn: sqlite3.Connection) -> LedgerReport:
+def build(
+    conn: sqlite3.Connection, balance_checks: list[BalanceCheck] | None = None
+) -> LedgerReport:
+    """`balance_checks` — gotowe uzgodnienie sald (z pamięci panelu); bez nich liczone od nowa."""
     rep = LedgerReport(accounts=accounts(conn))
     rep.csv_rows = [
         CsvRowCount(r["acc"], r["status"], int(r["n"]))
@@ -109,7 +112,7 @@ def build(conn: sqlite3.Connection) -> LedgerReport:
         r["kind_source"]: int(r["n"])
         for r in conn.execute("SELECT kind_source, count(*) AS n FROM txn GROUP BY 1 ORDER BY 1")
     }
-    rep.balance_checks = ledger.check_balances(conn)
+    rep.balance_checks = ledger.check_balances(conn) if balance_checks is None else balance_checks
     return rep
 
 

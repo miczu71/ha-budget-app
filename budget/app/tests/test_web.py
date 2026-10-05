@@ -239,3 +239,16 @@ async def test_accounts_page_skips_balance_checks(
 
     monkeypatch.setattr(ledger, "check_balances", forbidden)
     assert (await client.get("/accounts")).status_code == 200
+
+
+async def test_import_page_reuses_balance_checks(
+    client: httpx.AsyncClient, service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Import pokazuje uzgodnienie sald z pamięci dzwonka zamiast liczyć je od nowa."""
+    service.inbox()  # rozgrzewa BalanceMemo
+
+    def forbidden(*_: object) -> NoReturn:
+        raise AssertionError("ekran Import nie powinien uzgadniać sald od nowa")
+
+    monkeypatch.setattr(ledger, "check_balances", forbidden)
+    assert (await client.get("/import")).status_code == 200
