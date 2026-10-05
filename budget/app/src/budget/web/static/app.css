@@ -7,12 +7,24 @@
   font-style: normal;
   font-display: swap;
 }
+/* separator tysięcy w kwotach to U+202F; w szeryfie ma 0,125 em (przy ciasnym trackingu znika), więc ten jeden
+   znak bierzemy z Inter (0,18 em) — tak samo jak w Copilot, gdzie robi to font zastępczy. Oba pliki muszą mieć
+   ten sam zakres font-weight, inaczej przeglądarka wybierze jeden z nich zamiast złożyć je po unicode-range */
 @font-face {
   font-family: "Serif Display";
   src: url("fonts/SourceSerif4-latin.woff2") format("woff2");
   font-weight: 200 900;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0000-202E, U+2030-10FFFF;
+}
+@font-face {
+  font-family: "Serif Display";
+  src: url("fonts/InterVariable.woff2") format("woff2");
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+202F;
 }
 @font-face {
   font-family: "Space Grotesk";
