@@ -26,7 +26,8 @@ Flex (stałe z serii zamiast samych median podkategorii).
 4. **Seria zastępuje medianę w puli** (uzupełnia decyzję 15): stałe = oczekiwane kwoty aktywnych
    serii wydatkowych w przeliczeniu na miesiąc (Q = ⅓, Y = 1/12) + mediany podkategorii „stałe”
    z transakcji spoza serii. Transakcje serii wydatkowej nie wchodzą do „wydane” elastycznych,
-   nawet gdy ich podkategoria jest elastyczna. Serie wpływów **nie zmieniają puli** (decyzja 14
+   nawet gdy ich podkategoria jest elastyczna. Seria, której ostatnia transakcja ma kategorię z grupy oszczędności,
+   przychodów albo „poza budżetem”, nie wchodzi do puli (wywiad E4 2026-10-05, zgodnie z decyzją 14). Serie wpływów **nie zmieniają puli** (decyzja 14
    bez zmian) — służą do „jeszcze wpłynie” i zmian.
 5. **Zmiany: panel + encja w HA** (alerty push w czasie rzeczywistym zostają w backlogu —
    automatyzację na encji użytkownik może zrobić sam).
