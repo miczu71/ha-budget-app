@@ -700,7 +700,8 @@ form.move.add-fixed select { max-width: 100%; flex: 1 1 200px; }
   white-space: nowrap;
 }
 .donut-sub { color: var(--text-3); font-size: 12px; }
-.donut-chg { display: flex; flex-wrap: wrap; gap: 2px 5px; justify-content: center; font-size: 12px; }
+.donut-chg { display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 12px; }
+.donut-chg .muted { font-size: 11px; text-wrap: balance; }
 .legend { list-style: none; margin: 0; padding: 0; width: 100%; }
 .legend-item a {
   display: grid;
