@@ -38,6 +38,17 @@ do rozwiniętej części (summary bez kotwicy, jak w Kategoriach).
    `pyproject.toml`, CHANGELOG, push, CI, opublikowany `v0.20.3`), backup add-onu, update przez `update.budzet_domowy_update`,
    pomiar na żywo 15 ekranów przy 390/1280 px.
 
+## Wynik kroku 0 (2026-10-05)
+- **Diagnoza 43 px potwierdzona na żywo** (Ingress, 390 px, tylko GET): „Wpływy (…)” to `.cats summary` w `ul.cats.pool` —
+  `padding: 10px 0` + `line-height: 22.5px` = 42,5 px, `min-height: 0`, nie pasuje do `details.small summary`. Reguła E3c
+  `details.small summary` działa na „wydane w poprzednich miesiącach” (44 px) — nie jest martwa, zostaje.
+- Wydatki na żywo: wszystkie `.cats summary` mają 72 px → `min-height: var(--tap)` dla `.cats summary` ich nie zmieni.
+- **Kopia księgi:** sekcje „Wpływy” i „Koszty stałe” nie renderowały się, bo kopia (sprzed kategoryzacji wpływów) nie ma żadnej
+  transakcji w podkategoriach grupy `income`. W samej kopii (scratchpad) większe uznania bez kategorii z ostatnich miesięcy
+  dostały ręcznie podkategorię przychodów → obie sekcje się renderują. Pomiar na kopii przy 390 px: jedyny element < 44 px to
+  summary „Wpływy” (42,5 px), jak na żywo; linki w zdaniu trafiają w ±20 px przez `::after`; Koszty stałe: 5 wierszy z
+  `form.move`.
+
 ## Weryfikacja
 `BUDGET_OPTIONS_PATH=/nonexistent .venv/bin/python -m pytest -q`, `ruff check`, `ruff format --check`, `mypy`; pomiar Playwright
 jak w E3c (wysokość < 44 px = 0, przepełnienie, konsola); sprzątanie: kill po PID, usunięcie kopii księgi.
