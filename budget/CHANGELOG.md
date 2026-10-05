@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.20.3
+
+**Domknięcie refaktoru UI** (M13 etap 3e, `docs/PLAN_M13_E3e.md`).
+
+- Budżet → Koszty stałe: wiersz podkategorii stałej pokazuje nazwę i medianę; kategoria główna, link do transakcji
+  i „Przenieś” rozwijają się po dotknięciu wiersza (jak w Kategoriach) — lista jest krótsza na telefonie.
+- Budżet: wiersz „Wpływy (…)” ma co najmniej 44 px (był o 1,5 px niższy).
+- Reguły: pusty stan nie radzi już przycisku „Zawsze dla …” (usuniętego w 0.11.0), tylko pole „utwórz regułę”.
+- Wewnętrznie: jedna klasa `tap` dla linków samodzielnych zamiast list selektorów per ekran; wygląd pozostałych ekranów
+  bez zmian (zrzuty przed i po identyczne). Bez zmian w logice budżetu, encjach i schemacie bazy.
+
 ## 0.20.2
 
 **Cele dotyku na pozostałych ekranach** (M13 etap 3d, `docs/PLAN_M13_E3d.md`). Po tym wydaniu wszystkie ekrany panelu mają

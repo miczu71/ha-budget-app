@@ -1,5 +1,5 @@
 name: "Budżet Domowy"
-version: "0.20.2"
+version: "0.20.3"
 slug: budget
 description: "Budżet domowy z automatycznym pobieraniem transakcji z banku (PSD2 / Enable Banking)"
 url: "https://github.com/miczu71/ha-budget-app"
