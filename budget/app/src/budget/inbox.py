@@ -19,6 +19,7 @@ from typing import Literal
 
 from budget import ledger, notifications, review, sessions, sync_service
 from budget.recurring import changes, series
+from budget.snapshot import Snapshot
 from budget.spending import add_months, month_label, month_start
 
 Severity = Literal["info", "warn", "error"]
@@ -38,6 +39,7 @@ class Item:
 @dataclass(frozen=True)
 class Context:
     now: datetime
+    snap: Snapshot
 
     @property
     def today(self) -> date:
@@ -154,7 +156,7 @@ SERIES_CHANGES = {
 
 def series_changes(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
     """Jedna karta na rodzaj zmiany serii (szczegóły i decyzje: `/recurring#changes`)."""
-    found = changes.for_db(conn, ctx.today)
+    found = changes.for_db(ctx.snap, ctx.today)
     out = []
     for kind, (item_kind, title, severity) in SERIES_CHANGES.items():
         mine = [c for c in found if c.kind == kind]
@@ -171,7 +173,7 @@ PROVIDERS: tuple[Provider, ...] = (operational, uncategorized, new_series, serie
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
 
 
-def items(conn: sqlite3.Connection, now: datetime, memo: BalanceMemo) -> list[Item]:
-    ctx = Context(now)
-    out = [item for provider in PROVIDERS for item in provider(conn, ctx, memo)]
+def items(snap: Snapshot, now: datetime, memo: BalanceMemo) -> list[Item]:
+    ctx = Context(now, snap)
+    out = [item for provider in PROVIDERS for item in provider(snap.conn, ctx, memo)]
     return sorted(out, key=lambda i: SEVERITY_ORDER[i.severity])

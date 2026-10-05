@@ -13,7 +13,6 @@ import asyncio
 import contextlib
 import json
 import logging
-import sqlite3
 from collections.abc import Callable, Coroutine, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -25,6 +24,7 @@ import aiomqtt
 from budget import __version__, flex, inbox, money, sessions, sync_service
 from budget.logging_utils import mask_iban
 from budget.recurring import schedule
+from budget.snapshot import Snapshot
 from budget.spending import month_start
 
 log = logging.getLogger(__name__)
@@ -84,12 +84,13 @@ def _balance_key(kind: str, currency: str, taken: set[str], account_id: int) -> 
 
 
 def build_entities(
-    conn: sqlite3.Connection,
+    snap: Snapshot,
     *,
     now: datetime,
     today: date,
     inbox_items: Sequence[inbox.Item] | None = None,
 ) -> list[Entity]:
+    conn = snap.conn
     entities: list[Entity] = []
     taken: set[str] = set()
     for acc in conn.execute("SELECT * FROM account ORDER BY id").fetchall():
@@ -188,8 +189,8 @@ def build_entities(
             attributes={"limit": sync_service.DAILY_LIMIT, "day": today.isoformat()},
         )
     )
-    entities += flex_entities(conn, today)
-    entities += recurring_entities(conn, today)
+    entities += flex_entities(snap, today)
+    entities += recurring_entities(snap, today)
     if inbox_items is not None:
         entities.append(inbox_entity(inbox_items))
     entities.append(
@@ -238,10 +239,10 @@ def _flex_sensor(key: str, name: str, icon: str, state: str | None, **attrs: Any
     return Entity("sensor", key, config, state=state, attributes=attrs)
 
 
-def flex_entities(conn: sqlite3.Connection, today: date) -> list[Entity]:
+def flex_entities(snap: Snapshot, today: date) -> list[Entity]:
     """Budżet Flex bieżącego miesiąca (M5a); bez puli: kwota/zostało/na dzień = unknown."""
     try:
-        fm = flex.build(conn, month_start(today), today)
+        fm = flex.build(snap, month_start(today), today)
     except Exception:  # błąd budżetu nie może zablokować sald i statusu synchronizacji
         log.exception("Encje budżetu Flex pominięte")
         return []
@@ -295,10 +296,10 @@ def flex_entities(conn: sqlite3.Connection, today: date) -> list[Entity]:
     ]
 
 
-def recurring_entities(conn: sqlite3.Connection, today: date) -> list[Entity]:
+def recurring_entities(snap: Snapshot, today: date) -> list[Entity]:
     """Płatności cykliczne bieżącego miesiąca (M5b E2): zapłacone / jeszcze zejdzie / wpłynie."""
     try:
-        mv = schedule.for_month(conn, month_start(today), today)
+        mv = schedule.for_month(snap, month_start(today), today)
     except Exception:  # błąd serii nie może zablokować sald i statusu synchronizacji
         log.exception("Encje płatności cyklicznych pominięte")
         return []

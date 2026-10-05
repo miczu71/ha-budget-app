@@ -27,6 +27,7 @@ from decimal import Decimal
 from budget import money
 from budget.recurring import series as S
 from budget.recurring.series import Candidate, Series
+from budget.snapshot import Snapshot
 from budget.spending import add_months, month_start
 
 WINDOW = 5  # dni po terminie, zanim płatność jest spóźniona
@@ -192,8 +193,8 @@ def acks_from_db(conn: sqlite3.Connection) -> dict[tuple[int, str, str], str]:
     }
 
 
-def for_month(conn: sqlite3.Connection, month: date, today: date) -> MonthView:
-    """Widok miesiąca z bazy: aktywne serie + przynależność liczona od zera."""
-    all_series = S.all_series(conn, ("active",))
-    members = S.assign(all_series, S.candidates(conn)) if all_series else {}
-    return month_view(all_series, members, month, today, acks_from_db(conn))
+def for_month(snap: Snapshot, month: date, today: date) -> MonthView:
+    """Widok miesiąca z bazy: aktywne serie + przynależność do nich."""
+    all_series = S.all_series(snap.conn, ("active",))
+    members = S.assign(all_series, snap.candidates()) if all_series else {}
+    return month_view(all_series, members, month, today, acks_from_db(snap.conn))

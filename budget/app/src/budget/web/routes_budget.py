@@ -24,7 +24,7 @@ def router(panel: Panel) -> APIRouter:
     ) -> HTMLResponse:
         today = panel.service.now().date()
         start = parse_month(month, today)
-        f = flex.build(panel.conn, start, today)
+        f = flex.build(panel.service.snapshot, start, today)
         end = add_months(start, 1).toordinal() - 1
         return panel.render(
             request,
@@ -37,7 +37,7 @@ def router(panel: Panel) -> APIRouter:
             date_to=date.fromordinal(end).isoformat(),
             fixed_open=fixed,
             groups=taxonomy.FLEX_LABELS,
-            mv=schedule.for_month(panel.conn, start, today),
+            mv=schedule.for_month(panel.service.snapshot, start, today),
         )
 
     @r.post("/budget/amount")
@@ -84,7 +84,7 @@ def router(panel: Panel) -> APIRouter:
         except TaxonomyError as exc:
             return panel.redirect(request, back, str(exc), "error")
         message = f"„{cat.name}” — grupa budżetu: {taxonomy.FLEX_LABELS[flex_group]}."
-        auto = flex.auto_budget(panel.conn, start)
+        auto = flex.auto_budget(panel.service.snapshot, start)
         if auto is not None:
             message += f" Pula automatyczna: {fmt_money(auto.amount, 'PLN')}."
         return panel.redirect(request, back, message)

@@ -20,6 +20,7 @@ from budget.eb_client import EBClient, EBError, PsuHeaders
 from budget.ha_client import HAClient
 from budget.recurring import detect
 from budget.settings import Settings, SettingsError, resolve_private_key_path
+from budget.snapshot import Snapshot
 from budget.suggest import engine as suggest
 from budget.sync_service import SyncResult
 
@@ -62,6 +63,7 @@ class Service:
         self._ai_task: asyncio.Task[None] | None = None
         self._refresh_task: asyncio.Task[None] | None = None
         self.balance_memo = inbox.BalanceMemo()
+        self.snapshot = Snapshot(conn)
         self._eb_base_url = eb_base_url or settings.eb_base_url
 
     # --- Enable Banking ---------------------------------------------------------------------
@@ -185,7 +187,7 @@ class Service:
 
     def inbox(self) -> list[inbox.Item]:
         """Karty dzwonka (panel i encja `sensor.budget_inbox`)."""
-        return inbox.items(self.conn, self.now(), self.balance_memo)
+        return inbox.items(self.snapshot, self.now(), self.balance_memo)
 
     def refresh_soon(self) -> None:
         """Odświeżenie encji w tle po zapisie w panelu (kwota, grupa, kategorie)."""
@@ -216,7 +218,7 @@ class Service:
         if self.publisher is not None:
             await self.publisher.update(
                 ha_publisher.build_entities(
-                    self.conn, now=now, today=now.date(), inbox_items=self.inbox()
+                    self.snapshot, now=now, today=now.date(), inbox_items=self.inbox()
                 )
             )
         if not self.ha.available:

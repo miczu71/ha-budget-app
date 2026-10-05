@@ -37,12 +37,12 @@ def router(panel: Panel) -> APIRouter:
         nxt = add_months(start, 1)
         ym = f"{start:%Y-%m}"
         m = spending.build(conn, start, today)
-        f = flex.build(conn, start, today)
+        f = flex.build(panel.service.snapshot, start, today)
         period = f"date_from={start.isoformat()}&date_to={(nxt - timedelta(days=1)).isoformat()}"
         upcoming: list[schedule.Due] = []
         mv = None
         if f.is_current:  # nadchodzące płatności mają sens tylko dla bieżącego miesiąca
-            mv = schedule.for_month(conn, start, today)
+            mv = schedule.for_month(panel.service.snapshot, start, today)
             upcoming = sorted(
                 (d for d in mv.rows if d.status in (schedule.EXPECTED, schedule.LATE)),
                 key=lambda d: d.sort_day,

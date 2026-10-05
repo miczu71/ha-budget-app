@@ -26,6 +26,7 @@ from budget.recurring import schedule
 from budget.recurring import series as S
 from budget.recurring.schedule import Acks, Due
 from budget.recurring.series import Candidate, Series, SeriesError
+from budget.snapshot import Snapshot
 from budget.spending import add_months, month_start
 from budget.storage.db import now_iso
 
@@ -109,12 +110,12 @@ def detect(
     return out
 
 
-def for_db(conn: sqlite3.Connection, today: date) -> list[Change]:
-    active = S.all_series(conn, ("active",))
+def for_db(snap: Snapshot, today: date) -> list[Change]:
+    active = S.all_series(snap.conn, ("active",))
     if not active:
         return []
-    members = S.assign(active, S.candidates(conn))
-    return detect(active, members, schedule.acks_from_db(conn), today)
+    members = S.assign(active, snap.candidates())
+    return detect(active, members, schedule.acks_from_db(snap.conn), today)
 
 
 def ack(conn: sqlite3.Connection, series_id: int, period: str, kind: str) -> None:

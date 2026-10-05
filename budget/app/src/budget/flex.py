@@ -35,6 +35,7 @@ from budget.categorize import taxonomy
 from budget.categorize.taxonomy import Category
 from budget.recurring import series as S
 from budget.recurring.series import Series
+from budget.snapshot import Snapshot
 from budget.spending import BASE_CURRENCY, ZERO, Sums, add_months, month_start, sums
 from budget.storage.db import now_iso
 
@@ -248,13 +249,13 @@ def _first_month(conn: sqlite3.Connection) -> date | None:
     return month_start(date.fromisoformat(row[0][:10])) if row and row[0] else None
 
 
-def pool_series(conn: sqlite3.Connection) -> Pool:
+def pool_series(snap: Snapshot) -> Pool:
     """Aktywne serie wydatkowe liczone w puli (reguła: ostatnia transakcja nie z grup poza pulą)."""
-    live = [s for s in S.all_series(conn, ("active",)) if s.direction == "out"]
+    live = [s for s in S.all_series(snap.conn, ("active",)) if s.direction == "out"]
     if not live:
         return Pool()
-    members = S.assign(live, S.candidates(conn))
-    groups = {i: c.flex_group for i, c in taxonomy.leaves(conn).items()}
+    members = S.assign(live, snap.candidates())
+    groups = {i: c.flex_group for i, c in taxonomy.leaves(snap.conn).items()}
     pool = Pool()
     for s in live:
         txns = members.get(s.id, [])
@@ -343,12 +344,13 @@ def _bonus_limit(values: list[Decimal]) -> Decimal | None:
 
 
 def auto_budget(
-    conn: sqlite3.Connection,
+    snap: Snapshot,
     month: date,
     history: list[tuple[date, Sums]] | None = None,
     pool: Pool | None = None,
 ) -> AutoBudget | None:
     """Pula z dochodu na miesiąc `month`; None — brak wpływów w poprzednim miesiącu."""
+    conn = snap.conn
     start = month_start(month)
     base = add_months(start, -1)
     window = [add_months(base, -n) for n in range(BONUS_WINDOW, 0, -1)]
@@ -368,7 +370,7 @@ def auto_budget(
     if not sources:
         return None
     if pool is None:
-        pool = pool_series(conn)
+        pool = pool_series(snap)
     if history is None:
         history = _history(conn, start, pool.skip)
     fixed_lines = _medians(conn, history, {"fixed"}, include=True)
@@ -408,10 +410,11 @@ def _drop(
     return main, float(1 - current.amount / usual)
 
 
-def build(conn: sqlite3.Connection, month: date, today: date) -> FlexMonth:
+def build(snap: Snapshot, month: date, today: date) -> FlexMonth:
+    conn = snap.conn
     start = month_start(month)
     nxt = add_months(start, 1)
-    pool = pool_series(conn)
+    pool = pool_series(snap)
     skip = pool.skip
     cur = sums(conn, start, nxt, skip)
     history = _history(conn, start, skip)
@@ -422,7 +425,7 @@ def build(conn: sqlite3.Connection, month: date, today: date) -> FlexMonth:
     manual = budget_for(conn, start)
     if manual is not None and manual[0] is None:
         manual = None  # wpis „wróć do automatycznej”
-    auto = auto_budget(conn, start, history, pool)
+    auto = auto_budget(snap, start, history, pool)
 
     out = FlexMonth(
         month=start,

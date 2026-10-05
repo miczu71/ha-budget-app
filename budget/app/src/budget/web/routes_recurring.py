@@ -86,13 +86,14 @@ def _draft(t: sqlite3.Row) -> Series:
 def router(panel: Panel) -> APIRouter:
     r = APIRouter()
     conn = panel.conn
+    snap = panel.service.snapshot
     panel.templates.env.globals["cadences"] = S.CADENCES
     panel.templates.env.globals["series_statuses"] = S.STATUSES
     panel.templates.env.globals["due_labels"] = schedule.STATUS_LABELS
 
     def views() -> list[View]:
         all_series = S.all_series(conn)
-        members = S.assign(all_series, S.candidates(conn))
+        members = S.assign(all_series, snap.candidates())
         names = accounts(conn)
         return [View(s, members.get(s.id, []), describe(_as_rule(s), names)) for s in all_series]
 
@@ -114,8 +115,8 @@ def router(panel: Panel) -> APIRouter:
             active=by_status["active"],
             ended=by_status["ended"],
             rejected=len(by_status["rejected"]),
-            mv=schedule.for_month(conn, start, today),
-            changes=changes.for_db(conn, today),
+            mv=schedule.for_month(snap, start, today),
+            changes=changes.for_db(snap, today),
             label=month_label(start),
             prev_month=add_months(start, -1),
             prev_label=month_label(add_months(start, -1)),
@@ -177,7 +178,7 @@ def router(panel: Panel) -> APIRouter:
             return panel.partial(request, "_series_preview.html", error=str(exc))
         probe = replace(s, id=-1)
         others = S.all_series(conn)
-        txns = S.candidates(conn)
+        txns = snap.candidates()
         mine = S.assign([*others, probe], txns)[-1]
         alone = S.assign([probe], txns)[-1]
         return panel.partial(
@@ -291,7 +292,7 @@ def router(panel: Panel) -> APIRouter:
                 found = next(
                     (
                         c
-                        for c in changes.for_db(conn, today)
+                        for c in changes.for_db(snap, today)
                         if (c.series.id, c.kind, c.period) == (series_id, kind, period)
                         and c.amount is not None
                     ),

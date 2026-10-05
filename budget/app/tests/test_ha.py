@@ -18,6 +18,7 @@ from budget.categorize import engine, taxonomy
 from budget.eb_models import Balance, SessionResponse
 from budget.ha_client import HAClient, HAError
 from budget.ledger import account_by_alias, ingest_balances
+from budget.snapshot import Snapshot
 from budget.storage import db
 
 from .test_categorize_engine import add, conn
@@ -130,6 +131,10 @@ async def test_notifier_dedup_and_dismiss(ha: HAClient) -> None:
 # --- encje MQTT -----------------------------------------------------------------------------
 
 
+def _entities(conn: db.sqlite3.Connection, **kw: Any) -> list[ha_publisher.Entity]:
+    return ha_publisher.build_entities(Snapshot(conn), **kw)
+
+
 def _ledger() -> db.sqlite3.Connection:
     conn = db.connect(":memory:")
     sessions.store_session(conn, SessionResponse.from_api(SESSION))
@@ -144,9 +149,7 @@ def _ledger() -> db.sqlite3.Connection:
 
 
 def test_build_entities() -> None:
-    entities = {
-        e.unique_id: e for e in ha_publisher.build_entities(_ledger(), now=NOW, today=NOW.date())
-    }
+    entities = {e.unique_id: e for e in _entities(_ledger(), now=NOW, today=NOW.date())}
     saldo = entities["budget_saldo_current_pln"]
     assert saldo.state == "1234.50"
     assert saldo.attributes["balance_itbd"] == "1200.00"
@@ -169,9 +172,7 @@ SESSION_UNTIL = datetime(2027, 3, 30, 10, 57, 35, tzinfo=UTC)
 
 def test_entities_without_session() -> None:
     conn = db.connect(":memory:")
-    entities = {
-        e.key: e for e in ha_publisher.build_entities(conn, now=NOW, today=date(2026, 10, 2))
-    }
+    entities = {e.key: e for e in _entities(conn, now=NOW, today=date(2026, 10, 2))}
     assert entities["consent_days_left"].state is None
     assert entities["sync_problem"].state == "ON"
     assert not any(k.startswith("saldo_") for k in entities)
@@ -193,7 +194,7 @@ async def test_publish_all_republishes_only_changed_config() -> None:
         host="h", port=1883, username=None, password=None, on_sync_now=noop
     )
     client = FakeClient()
-    pub._entities = ha_publisher.build_entities(_ledger(), now=NOW, today=NOW.date())
+    pub._entities = _entities(_ledger(), now=NOW, today=NOW.date())
     await pub._publish_all(client)  # type: ignore[arg-type]
     configs = [t for t, _, _ in client.sent if t.endswith("/config")]
     assert len(configs) == len(pub._entities)
@@ -210,7 +211,7 @@ async def test_publish_all_republishes_only_changed_config() -> None:
 
 def _flex(conn: db.sqlite3.Connection, today: date) -> dict[str, ha_publisher.Entity]:
     engine.recategorize(conn)
-    entities = ha_publisher.build_entities(conn, now=NOW, today=today)
+    entities = _entities(conn, now=NOW, today=today)
     return {e.key: e for e in entities if e.key.startswith("flex_")}
 
 
@@ -274,7 +275,7 @@ def test_flex_error_does_not_block_other_entities(monkeypatch: pytest.MonkeyPatc
         raise RuntimeError("x")
 
     monkeypatch.setattr(ha_publisher.flex, "build", boom)
-    keys = {e.key for e in ha_publisher.build_entities(_ledger(), now=NOW, today=NOW.date())}
+    keys = {e.key for e in _entities(_ledger(), now=NOW, today=NOW.date())}
     assert "saldo_current_pln" in keys and "sync_now" in keys
     assert not any(k.startswith("flex_") for k in keys)
 
@@ -329,7 +330,7 @@ def test_recurring_entities(conn: db.sqlite3.Connection) -> None:
             origin="manual",
             key=None,
         )
-    ents = ha_publisher.build_entities(conn, now=NOW, today=NOW.date())
+    ents = _entities(conn, now=NOW, today=NOW.date())
     e = {x.key: x for x in ents if x.key in ("fixed_paid", "fixed_planned", "income_planned")}
     assert set(e) == {"fixed_paid", "fixed_planned", "income_planned"}
     assert e["fixed_paid"].state == "43.00" and e["fixed_paid"].attributes["paid_count"] == 1

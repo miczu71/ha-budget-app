@@ -13,6 +13,7 @@ from budget.categorize import engine, taxonomy
 from budget.categorize.rules import Conditions, TextCondition
 from budget.categorize.taxonomy import TaxonomyError
 from budget.recurring import series as S
+from budget.snapshot import Snapshot
 
 from .test_categorize_engine import add, conn, sid
 
@@ -23,7 +24,7 @@ def build(
     c: sqlite3.Connection, month: str = "2026-09-01", today: str = "2026-09-10"
 ) -> flex.FlexMonth:
     engine.recategorize(c)
-    return flex.build(c, date.fromisoformat(month), date.fromisoformat(today))
+    return flex.build(Snapshot(c), date.fromisoformat(month), date.fromisoformat(today))
 
 
 def test_budget_applies_from_month_until_next_change(conn: sqlite3.Connection) -> None:

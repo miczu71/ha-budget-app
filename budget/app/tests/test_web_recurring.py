@@ -14,6 +14,7 @@ from budget import ha_publisher, inbox
 from budget.categorize.rules import Conditions, TextCondition
 from budget.recurring import series as S
 from budget.service import Service
+from budget.snapshot import Snapshot
 from budget.storage.db import now_iso
 
 from .test_categorize_engine import add
@@ -50,7 +51,7 @@ def test_inbox_items(service: Service) -> None:
     conn = service.conn
     _account(conn)
     memo = inbox.BalanceMemo()
-    assert inbox.items(conn, NOW, memo) == []
+    assert inbox.items(Snapshot(conn), NOW, memo) == []
     add(conn, "-10.00", "card", "Coś X", day="2026-10-02")
     add(conn, "-12.00", "card", "Coś Y", day="2026-09-30")
     add(conn, "-14.00", "card", "Coś Z", day="2026-08-30")  # dwa miesiące wstecz — nie
@@ -59,7 +60,7 @@ def test_inbox_items(service: Service) -> None:
         "VALUES ('schedule', ?, ?, 'error')",
         (now_iso(), now_iso()),
     )
-    found = inbox.items(conn, NOW, memo)
+    found = inbox.items(Snapshot(conn), NOW, memo)
     kinds = [(i.kind, i.count, i.link) for i in found]
     assert kinds[0] == ("sync_failures", 1, "/status")  # błędy na górze
     assert ("uncategorized", 1, "/review?month=2026-10") in kinds
@@ -78,7 +79,7 @@ def test_inbox_items(service: Service) -> None:
         origin="detected",
         key="k",
     )
-    assert any(i.kind == "series_proposed" for i in inbox.items(conn, NOW, memo))
+    assert any(i.kind == "series_proposed" for i in inbox.items(Snapshot(conn), NOW, memo))
 
 
 def test_inbox_entity() -> None:
@@ -302,7 +303,7 @@ async def test_series_changes_cards_and_decisions(
     page = (await client.get("/recurring")).text
     assert 'id="changes"' in page and "Zmiany (1)" in page and "inna kwota" in page
     assert "zapłacono 80.00 zamiast 43.00" in page and "Przyjmij nową" in page
-    cards = inbox.items(conn, service.now(), inbox.BalanceMemo())
+    cards = inbox.items(service.snapshot, service.now(), inbox.BalanceMemo())
     assert [(i.kind, i.count, i.link) for i in cards if i.kind.startswith("series_")] == [
         ("series_amount", 1, "/recurring#changes")
     ]
