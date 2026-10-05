@@ -11,7 +11,7 @@ import httpx
 import pytest
 
 from budget import ha_publisher, inbox
-from budget.categorize.rules import Conditions
+from budget.categorize.rules import Conditions, TextCondition
 from budget.recurring import series as S
 from budget.service import Service
 from budget.storage.db import now_iso
@@ -174,3 +174,44 @@ async def test_reject_proposal(client: httpx.AsyncClient, service: Service) -> N
     r = await client.get(f"/recurring/{s.id}")
     assert r.status_code == 303  # odrzuconej nie edytujemy
     assert (await client.post("/recurring/999/status", data={"action": "x"})).status_code == 303
+
+
+async def test_this_month_section(client: httpx.AsyncClient, service: Service) -> None:
+    conn = service.conn
+    _account(conn)
+    today = service.now().date()
+    add(conn, "-43.00", "transfer_out", "Abonament", "Qwertyflix Sp", day=today.isoformat())
+    S.insert(
+        conn,
+        name="Qwertyflix",
+        direction="out",
+        cadence="M",
+        conditions=Conditions(
+            text=(TextCondition("merchant", "equals", "Qwertyflix Sp"),), direction="out"
+        ),
+        expected=Decimal("43"),
+        tolerance=Decimal("5"),
+        anchor_day=today.day,
+        status="active",
+        origin="manual",
+        key=None,
+    )
+    S.insert(
+        conn,
+        name="Czynsz wymyślony",
+        direction="out",
+        cadence="M",
+        conditions=Conditions(
+            text=(TextCondition("merchant", "equals", "Nikt Taki"),), direction="out"
+        ),
+        expected=Decimal("1000"),
+        tolerance=Decimal("5"),
+        anchor_day=min(today.day + 10, 28) if today.day < 18 else 28,
+        status="active",
+        origin="manual",
+        key=None,
+    )
+    page = (await client.get("/recurring")).text
+    assert "Ten miesiąc" in page and "zapłacone" in page and "Qwertyflix" in page
+    assert "Jeszcze zejdzie" in page
+    assert "Ten miesiąc" in (await client.get("/recurring?month=2020-01")).text

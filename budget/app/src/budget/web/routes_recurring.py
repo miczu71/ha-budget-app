@@ -13,8 +13,10 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget.categorize.rules import Rule, RuleError
+from budget.recurring import schedule
 from budget.recurring import series as S
 from budget.recurring.series import Candidate, Series, SeriesError
+from budget.spending import add_months, month_label, parse_month
 from budget.web.common import Panel
 from budget.web.rule_form import (
     accounts,
@@ -56,6 +58,7 @@ def router(panel: Panel) -> APIRouter:
     conn = panel.conn
     panel.templates.env.globals["cadences"] = S.CADENCES
     panel.templates.env.globals["series_statuses"] = S.STATUSES
+    panel.templates.env.globals["due_labels"] = schedule.STATUS_LABELS
 
     def views() -> list[View]:
         all_series = S.all_series(conn)
@@ -64,7 +67,10 @@ def router(panel: Panel) -> APIRouter:
         return [View(s, members.get(s.id, []), describe(_as_rule(s), names)) for s in all_series]
 
     @r.get("/recurring", response_class=HTMLResponse)
-    async def recurring_page(request: Request) -> HTMLResponse:
+    async def recurring_page(request: Request, month: str | None = None) -> HTMLResponse:
+        today = panel.service.now().date()
+        start = parse_month(month, today)
+        nxt = add_months(start, 1)
         vs = views()
         by_status: dict[str, list[View]] = {k: [] for k in S.STATUSES}
         for v in vs:
@@ -78,6 +84,12 @@ def router(panel: Panel) -> APIRouter:
             active=by_status["active"],
             ended=by_status["ended"],
             rejected=len(by_status["rejected"]),
+            mv=schedule.for_month(conn, start, today),
+            label=month_label(start),
+            prev_month=add_months(start, -1),
+            prev_label=month_label(add_months(start, -1)),
+            next_month=nxt if nxt <= today.replace(day=1) else None,
+            next_label=month_label(nxt),
         )
 
     @r.get("/recurring/{series_id}", response_class=HTMLResponse)

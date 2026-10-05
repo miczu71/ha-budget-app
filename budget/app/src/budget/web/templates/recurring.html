@@ -4,6 +4,38 @@
 {% block content %}
 <h1>Płatności cykliczne</h1>
 
+<div class="month-nav">
+  <a class="month-link" href="{{ base }}/recurring?month={{ prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
+  <strong>{{ label }}</strong>
+  {% if next_month %}<a class="month-link" href="{{ base }}/recurring?month={{ next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
+</div>
+<section class="card" id="this-month">
+  <h2>Ten miesiąc</h2>
+  {% if mv.rows %}
+  <dl class="kv">
+    <dt>Zapłacone wydatki</dt><dd>{{ mv.out_paid | money("PLN") }}</dd>
+    <dt>Jeszcze zejdzie</dt><dd>{{ mv.out_planned | money("PLN") }}</dd>
+    <dt>Wpłynęło</dt><dd class="pos">{{ mv.in_received | money("PLN") }}</dd>
+    <dt>Jeszcze wpłynie</dt><dd class="pos">{{ mv.in_planned | money("PLN") }}</dd>
+  </dl>
+  <ul class="series-list">
+    {% for d in mv.rows %}
+    <li class="series-item">
+      <div class="series-head">
+        <a class="cat-name" href="{{ base }}/recurring/{{ d.series.id }}">{{ d.series.name }}</a>
+        <span class="cat-amount {{ 'pos' if d.series.direction == 'in' }}">{{ (d.paid_amount if d.txns else d.series.expected_amount) | money("PLN") }}</span>
+      </div>
+      <div class="small muted">
+        {% if d.due %}termin {{ d.due.isoformat() | pldate }}{% elif d.txns %}{{ d.txns[0].day.isoformat() | pldate }}{% endif %}
+        · <span class="badge {{ 'ok' if d.status in ('paid', 'extra') else ('error' if d.status in ('late', 'missing') else '') }}">{{ due_labels[d.status] }}</span>
+        · {{ "wpływ" if d.series.direction == "in" else "wydatek" }}{% if d.txns and d.status == "paid" and d.paid_amount != d.series.expected_amount %} · oczekiwano {{ d.series.expected_amount | money("PLN") }}{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="muted">Brak potwierdzonych serii z terminem w tym miesiącu.</p>{% endif %}
+</section>
+
 {% if proposed %}
 <section class="card">
   <h2>Propozycje do potwierdzenia ({{ proposed | length }})</h2>

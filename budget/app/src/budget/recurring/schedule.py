@@ -17,12 +17,14 @@ miesiącu — nie.
 from __future__ import annotations
 
 import calendar
+import sqlite3
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
 
 from budget import money
+from budget.recurring import series as S
 from budget.recurring.series import Candidate, Series
 from budget.spending import add_months, month_start
 
@@ -144,3 +146,10 @@ def month_view(
             view.rows.append(Due(s, None, EXTRA, tuple(extras)))
     view.rows.sort(key=lambda d: (d.sort_day, d.series.name))
     return view
+
+
+def for_month(conn: sqlite3.Connection, month: date, today: date) -> MonthView:
+    """Widok miesiąca z bazy: aktywne serie + przynależność liczona od zera."""
+    all_series = S.all_series(conn, ("active",))
+    members = S.assign(all_series, S.candidates(conn)) if all_series else {}
+    return month_view(all_series, members, month, today)
