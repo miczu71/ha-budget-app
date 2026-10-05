@@ -294,7 +294,7 @@ td.date { white-space: nowrap; }
 }
 .cats summary::-webkit-details-marker { display: none; }
 /* szewron: SVG (Lucide) jako maska — bez glifów Unicode, bo czcionki WebView bywają ubogie */
-.cats summary .cat-name::before, .rv-list summary .cat-name::before {
+.cats summary .cat-name::before, .rv-list summary .cat-name::before, .leaf summary .cat-name::before {
   content: "";
   display: inline-block;
   width: 16px;
@@ -307,7 +307,8 @@ td.date { white-space: nowrap; }
   transition: transform 0.15s;
 }
 .cats details[open] summary .cat-name::before,
-.rv-list details[open] summary .cat-name::before { transform: rotate(90deg); }
+.rv-list details[open] summary .cat-name::before,
+.leaf[open] summary .cat-name::before { transform: rotate(90deg); }
 .grid { margin-bottom: 14px; }
 .cat-name { font-weight: 600; }
 .cat-amount { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -499,7 +500,6 @@ label.search input {
 }
 
 /* M5a: Budżet */
-form.move.group { margin-left: 0; }
 .flex-hero h2 { color: var(--muted); font-weight: 400; font-size: 14px; margin-bottom: 2px; }
 .hero-amount {
   font: 350 clamp(40px, 12vw, 56px) / 1.1 var(--font-display);
@@ -783,3 +783,20 @@ a.row:hover .row-title { text-decoration: underline; }
 /* M13 E3d: cele dotyku ≥ 44 px dla wszystkich pól i przycisków (u źródła, zamiast selektorów per ekran) */
 input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not(.visually-hidden),
 select, textarea, button { min-height: var(--tap); }
+/* Kategorie: wiersz podkategorii rozwija edycję (nazwa, grupa, przenieś) */
+.leaf summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2px 12px;
+  min-height: var(--tap);
+  cursor: pointer;
+  list-style: none;
+}
+.leaf summary::-webkit-details-marker { display: none; }
+.leaf summary .muted { margin-left: auto; }
+.leaf form { margin: 6px 0 0 22px; }
+.leaf form.move select { flex: 1; min-width: 0; max-width: none; padding: 9px 12px; font-size: inherit; }
+.leaf form.move button { padding: 9px 12px; font-size: inherit; }
+.leaf[open] { padding-bottom: 10px; }

@@ -176,6 +176,23 @@ async def test_dictionary_and_categories(client: httpx.AsyncClient, service: Ser
     assert "Zakupy spożywcze" in (await client.get("/categories")).text
 
 
+async def test_categories_leaf_row_collapses_edit_forms(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _seed(service.conn)
+    page = (await client.get("/categories")).text
+    rows = page.split('<details class="leaf">')[1:]
+    leaves = service.conn.execute(
+        "SELECT COUNT(*) FROM category WHERE parent_id IS NOT NULL"
+    ).fetchone()[0]
+    assert len(rows) == leaves
+    row = next(r for r in rows if "Restauracje i kawiarnie</span>" in r).split("</details>")[0]
+    summary, forms = row.split("</summary>")
+    assert "elastyczne · 1 tr." in summary
+    for action in ("rename", "group", "move"):
+        assert f'action="{INGRESS}/categories/111/{action}"' in forms
+
+
 async def test_categories_add_main_move_delete(client: httpx.AsyncClient, service: Service) -> None:
     ids = _seed(service.conn)
     conn = service.conn

@@ -85,6 +85,16 @@ Usunięte dublujące selektory z E3 (`.rv-actions`/`.rv-rule`/`.rule-fields`/`.r
 w `budget.html` — wszystkie 34 zrzuty i pomiar identyczne przed i po usunięciu. Zostało (do kroków 2–3): Kategorie
 `form.move` 44 px w wierszu (krok 2), linki i `label.check` z tabeli kroku 0 (krok 3). 510 testów, ruff, mypy czyste.
 
+## Wynik kroku 2 (Kategorie, 2026-10-05)
+
+`categories.html`: wiersz podkategorii = `<details class="leaf">`, `summary` = nazwa + „grupa · N tr.”, w środku trzy formularze
+bez zmian `action`/pól. `app.css`: szewron ze wspólnej reguły Wydatków/kolejki (`.leaf summary .cat-name::before`), blok `.leaf`
+w „M13 E3d”; usunięta osierocona `form.move.group { margin-left: 0 }` (zrzut wszystkich rozwiniętych wierszy identyczny przed i po).
+Bez kotwicy po zapisie (decyzja użytkownika): po POST wiersz wraca zwinięty, komunikat jak dotąd. Na kopii: POST zmiany nazwy,
+grupy i przeniesienia → 303, baza zgodna. Pomiar: `/categories` 0 elementów < 44 px (zwinięte i rozwinięte), zmieniły się tylko
+zrzuty Kategorii; przegląd wzrokowy 360/1280 px zwinięte i rozwinięte bez uwag. Nowy test `test_categories_leaf_row_collapses_edit_forms`;
+511 testów, ruff, mypy czyste.
+
 ## Weryfikacja
 `BUDGET_OPTIONS_PATH=/nonexistent .venv/bin/python -m pytest -q`, `ruff check`, `ruff format --check`, `mypy`; pomiar Playwright jak
 w E3c (wysokość < 44 px = 0, przepełnienie, konsola); zrzuty przed/po 360 i 1280 px; cache: `fetch(app.css, {cache: "reload"})`;

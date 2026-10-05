@@ -17,10 +17,14 @@
     <ul class="leaf-list">
       {% for c in main.children %}
       <li>
-        <form class="rename" method="post" action="{{ base }}/categories/{{ c.id }}/rename">
-          <input name="name" value="{{ c.name }}" aria-label="nazwa podkategorii" maxlength="60"><button class="secondary">Zmień</button>
-        </form>
-        <div class="leaf-meta">
+        <details class="leaf">
+          <summary>
+            <span class="cat-name">{{ c.name }}</span>
+            <span class="small muted">{{ groups[c.flex_group] }} · {{ counts.get(c.id, 0) }} tr.</span>
+          </summary>
+          <form class="rename" method="post" action="{{ base }}/categories/{{ c.id }}/rename">
+            <input name="name" value="{{ c.name }}" aria-label="nazwa podkategorii" maxlength="60"><button class="secondary">Zmień</button>
+          </form>
           <form class="move group" method="post" action="{{ base }}/categories/{{ c.id }}/group">
             <select name="flex_group" aria-label="grupa budżetu: {{ c.name }}">
               {% for key, label in groups.items() %}
@@ -28,7 +32,6 @@
               {% endfor %}
             </select><button class="secondary">Ustaw</button>
           </form>
-          <span class="small muted">{{ counts.get(c.id, 0) }} tr.</span>
           <form class="move" method="post" action="{{ base }}/categories/{{ c.id }}/move">
             <select name="parent_id" aria-label="przenieś {{ c.name }} do kategorii głównej" required>
               <option value="" disabled selected>przenieś do…</option>
@@ -37,7 +40,7 @@
               {% endfor %}
             </select><button class="secondary">Przenieś</button>
           </form>
-        </div>
+        </details>
       </li>
       {% endfor %}
     </ul>
