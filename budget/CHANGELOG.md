@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.21.1
+
+**Szybsze Konta i Import** (M14 etap 1b, `docs/PLAN_M14_E1.md`).
+
+- Konta: ekran budował pełny raport księgi (m.in. uzgodnienie sald), a pokazuje tylko listę kont — teraz liczy tylko ją.
+- Import: uzgodnienie sald pochodzi z tej samej pamięci co dzwonek i Status, zamiast liczyć się od nowa przy każdym otwarciu.
+- Wygląd i wyniki bez zmian (strony przed i po identyczne co do bajtu); bez zmian w encjach i schemacie bazy.
+
 ## 0.21.0
 
 **Szybszy panel** (M14 etap 1, `docs/PLAN_M14_E1.md`).
