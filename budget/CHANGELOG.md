@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.18.1
+
+**Drugi wygląd panelu: Monarch, z przełącznikiem „Wygląd”** (M13 etap 1b, `docs/PLAN_M13_E1b.md`).
+
+- **Menu ⚙ → Wygląd:** przełączasz Copilot Money (ciemny, jak w 0.18.0, nadal domyślny) i Monarch (jasny, lniane tło,
+  białe karty, jeden pomarańczowy akcent, szeryfowe nagłówki). Wybór jest zapamiętany w add-onie i dotyczy wszystkich
+  ekranów; po przełączeniu wracasz na tę samą stronę.
+- Przełącznik jest tymczasowy: po wyborze jednego wyglądu drugi i przełącznik znikną w kolejnym wydaniu.
+- Bez zmian w logice budżetu, encjach i schemacie bazy.
+
 ## 0.18.0
 
 **Nowy wygląd panelu i strona główna „Podsumowanie”** (M13 etap 1, `docs/PLAN_M13.md`).
