@@ -55,3 +55,39 @@ w E3b (wysokość < 44 px = 0, przepełnienie, konsola) w trzech stanach `/budge
 
 ## Poza zakresem
 Pozostałe ekrany (lista z kroku 0), dzwonek/nawigacja główna (`base.html`), nowe funkcje, M5c/M6/M8.
+
+## Wynik kroku 0 (pomiar pełny, 2026-10-05, 360 px, kopia księgi z zasianą pulą 6000, bez wykluczeń, wszystkie `details` otwarte)
+
+| Ekran | Elementy < 44 px (liczba × najmniejsza wysokość) |
+|---|---|
+| `/spending` (bez puli i z pulą) | `a` w `.cats` 17 × 23 px, `a.small` w `.cats` 9 × 20 px, link „bez kategorii” 1 × 19 px |
+| `/budget` bez puli | 14 linków × 16 px, pole kwoty i przycisk 43 px |
+| `/budget` z pulą | 20 linków × 16 px, pole kwoty 43 px, `button.secondary` („Zmień”) 43 px, `summary` 20 px |
+
+Nie wystąpiły na `/budget`: `form.move`, „Dodaj do stałych”, „Wróć do automatycznej” (kopia nie ma kosztów stałych ani puli ręcznej
+z wyborem) — te formularze mierzę w kroku 2 po dosianiu, albo biorę z kodu (patrz niżej).
+Przy okazji (tylko raport, poza zakresem E3c; przepełnienia poziomego nigdzie nie ma, konsola czysta):
+
+| Ekran | Elementy < 44 px |
+|---|---|
+| `/categories` | `input` 29 + 41 × 43 px, `button` 14 + 41 + 15 × 43 px, **`form.move` w liście: `select` 82 × 26 px i `button` 82 × 26 px** |
+| `/accounts` | `input` 3 × 40, `button` 3 × 41 |
+| `/bank` | `input` 3 × 40, `button` 3 × 41 |
+| `/import` | `input` 1 × 41, `button` 1 × 41 |
+| `/status` | link 1 × 19, `button` 2 × 41 + 1 × 41 |
+| `/recurring` | `button.secondary` 1 × 41 |
+| `/dictionary`, `/inbox` | bez uwag |
+
+Wniosek: większość reszty to globalne pola i przyciski (`padding: 9px 12px` daje 40–43 px), a nie osobne klasy ekranów. Jedna
+reguła `input, select, button { min-height: var(--tap) }` załatwiłaby je naraz, ale zagęszczone formularze w listach
+(`form.move`, 82 szt. na `/categories`) wymagają osobnej decyzji projektowej — nie wchodzi do E3c.
+
+## Wynik kroków 1–2 (Wydatki, Budżet; 2026-10-05, lokalnie, bez commita)
+
+Zmiany: `static/app.css` (blok „M13 E3c”), `budget.html` (klasa `tap-form` na dwóch `form.rename`, `tx-link` na linku „Wydatkach”).
+Pomiar bez wykluczeń, 360/390/1280 px, kopia księgi z pulą 6000: `/budget`, `/spending`, `/` bez elementów < 44 px, bez
+przepełnienia, konsola czysta; `/categories` bez zmian (to samo co przed: 43 px pola i `form.move` 26 px — zgodnie z zakresem).
+Sekcji „Koszty stałe” (`.pool form.move`, `form.add-fixed`) **nie dało się wyrenderować na kopii** (brak danych o wpływach z
+poprzedniego miesiąca w grupach, więc `f.auto` jest puste); reguły sprawdzone na wiernie wstrzykniętym markupie z szablonu:
+summary/link/select/button 44 px (summary 43 w wersji uproszczonej), bez przepełnienia. Do potwierdzenia na prawdziwych danych w HA.
+510 testów, ruff, mypy czyste.
