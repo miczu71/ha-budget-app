@@ -66,6 +66,18 @@ do rozwiniętej części (summary bez kotwicy, jak w Kategoriach).
    sekcja „Zmiany” w Cyklicznych (link „Edytuj i potwierdź”) — klasa dopisana w szablonie, sprawdzenie na żywo.
 511 testów zielonych po każdym kroku.
 
+## Wynik kroku 5 — wydanie 0.20.3 (2026-10-05)
+`simplify` (4 przeglądy): `min-height` w głównej regule `.cats summary` (przy okazji link „Nieskategoryzowane” w Wydatkach
+dostał `min-height: 44px` — ma 64 px, piksele bez zmian), `.pool > li > details > :is(.flex-lines, p, form)` zamiast
+`.pool details > …` (wcięcie liścia tylko z `.leaf form`), osierocone klasy `rule-link`/`rv-links` usunięte, nieaktualne
+komentarze sekcji poprawione; 58/58 zrzutów identycznych. Pominięte (poza zakresem albo zmiana wyglądu): scalenie list
+przycisków/summary/`label.check`, globalne `summary { min-height }`, zawężenie `.cats summary` do pierwszego poziomu.
+Bump 0.20.2 → 0.20.3 (`889a598`), 511 testów, ruff, mypy czyste, CI zielone, release `v0.20.3` opublikowany, backup add-onu
+`7a357d6a` („Budżet Domowy 0.20.2”), update przez `update.budzet_domowy_update` → zainstalowane 0.20.3. Na żywo przez Ingress
+(tylko GET): 15 ekranów przy 390/1280 px — stopka v0.20.3, `app.css?v=0.20.3`, bez przepełnienia i błędów konsoli, **0 elementów
+< 44 px** (jedyne trafienia pomiaru to checkboxy 20 px w `label.check` 44 px na Kontach — projekt E3d). Budżet: „Wpływy” 44 px,
+wiersz Kosztów stałych 44 px bez kotwicy w summary, po dotknięciu „Transakcje” i „Przenieś” (44 px). Kopia księgi usunięta.
+
 ## Weryfikacja
 `BUDGET_OPTIONS_PATH=/nonexistent .venv/bin/python -m pytest -q`, `ruff check`, `ruff format --check`, `mypy`; pomiar Playwright
 jak w E3c (wysokość < 44 px = 0, przepełnienie, konsola); sprzątanie: kill po PID, usunięcie kopii księgi.
