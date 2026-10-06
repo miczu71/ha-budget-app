@@ -128,3 +128,7 @@ liczony tym samym kodem co jej ekran. Plan wskazuje źródło (`transactions` = 
 - E3a (0.35.1): karta „Czat — ostatnie pytania” na Status (log `ask_log`: pytanie, tura, plan
   w skrócie / „nie umiem” / błąd; bez kwot) — podstawa do wyboru kolejności źródeł.
 - E3b+: rejestr + pierwsze źródła, kolejność po przejrzeniu logu (`PLAN_M12_E3.md`).
+- **Wynik E3a (2026-10-06):** 0.35.1 wydane i zainstalowane (686 testów). Log na żywo: 10 pytań, 7 z odpowiedzią,
+  0 „nie umiem”, 3 błędy (wszystkie z okresu wyczerpanego limitu Gemini, sprzed 0.34.1). Pytania dotyczyły
+  wyłącznie transakcji (kategorie, sprzedawca, miesiące, dopytania) — log nie wskazuje jeszcze brakujących
+  źródeł. Wpisy sprzed 0.35.1 nie mają zapisanego „jak policzono” (na karcie „—”).
