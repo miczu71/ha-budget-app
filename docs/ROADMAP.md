@@ -26,12 +26,12 @@ jawne „go” przed następnym).
 | M4h | **Poza planem (2026-10-04):** pełne warunki reguły w miejscu — kolejka „Do przejrzenia” (dowolne pola, kilka warunków I, kwota, kierunek; reguła może złapać część grupy, reszta zostaje w kolejce), potem Transakcje i grupy krajów | ✅ 2026-10-04 (checkpoint zamknięty przez użytkownika) — etap 1 = 0.10.0 (kolejka); etap 2 = 0.11.0 (zapis domyślnie bez reguły — „utwórz regułę” na żądanie we wszystkich miejscach; Transakcje, grupy krajów) (`PLAN_review_rule_conditions.md`) |
 | M5a | **Budżet Flex: „ile mogę jeszcze wydać”** — ręczna kwota elastyczna, tempo, ekran „Budżet”, grupy edytowalne; potem encje | etap 1 = 0.7.0 wydane i zainstalowane 2026-10-02; etap 2 = 0.9.0 (encje `budget_flex_*`) wydane i zainstalowane 2026-10-04; etap 3 = 0.12.0 pula z dochodu (decyzja 14, `PLAN_M5a_income.md`) wydane i zainstalowane 2026-10-04 (z poprawką kontroli salda karty); etap 4 = 0.13.0 składniki puli + edycja kosztów stałych na ekranie Budżet (decyzja 15, `PLAN_M5a_fixed.md`) wydane i zainstalowane 2026-10-04; ✅ 2026-10-04 — checkpoint zamknięty przez użytkownika (`PLAN_M5a.md`) |
 | M5b | **Płatności cykliczne + centrum powiadomień** — wykrywane serie (wydatki i wpływy, M/Q/Y) potwierdzane przez użytkownika, „co jeszcze zejdzie / wpłynie”, zmiany serii, dzwonek w panelu, stałe w puli z serii | plan zaakceptowany 2026-10-04 (`PLAN_M5b.md`, decyzja 16): E1 0.14.0 dzwonek + detektor, E2 0.15.0 ten miesiąc, E3 0.16.0 zmiany, E4 0.17.0 pula; E1 = 0.14.0 wydane i zainstalowane 2026-10-04 (`PLAN_M5b_E1.md`), ✅ checkpoint E1 zamknięty przez użytkownika 2026-10-05; E2 = 0.15.0 wydane i zainstalowane 2026-10-05 (`PLAN_M5b_E2.md`), ✅ checkpoint E2 zamknięty przez użytkownika 2026-10-05; plan E3 zaakceptowany (`PLAN_M5b_E3.md`), E3 = 0.16.0 wydane i zainstalowane 2026-10-05, ✅ checkpoint E3 zamknięty przez użytkownika 2026-10-05; E4 = 0.17.0 wydane i zainstalowane 2026-10-05 (+ poprawka 0.17.1: wypłata w seriach wpływowych = ostatni wpływ) (`PLAN_M5b_E4.md`); ✅ M5b zamknięty przez użytkownika 2026-10-05 |
-| M5c | **Skarbonki, trendy, limity** — nieregularne z celem rocznym, wykresy miesięczne, opcjonalne limity, `savings_rate` | — |
+| M5c | **Skarbonki, trendy, limity** — nieregularne z celem rocznym, wykresy miesięczne, opcjonalne limity, `savings_rate` | scalony z M10 (2026-10-06): trendy są już w M13 E2, limity odrzucone w M5a |
 | M6 | **Podsumowania + kalendarz płatności** — tydzień/miesiąc na telefon, kalendarz ICS | wywiad 2026-10-06 (`PLAN_M6.md`): cel = korekta wydatków w trakcie miesiąca; E1 podsumowania (poniedziałek + 1. dnia, 7:00, grupa domowników) i E2 kalendarz ICS → Remote Calendar wydane razem jako 0.22.0 i zainstalowane 2026-10-06; kalendarz zweryfikowany na żywo; 0.22.1 — link w powiadomieniu `/app/<slug>` (HA 2026.9: `/hassio/ingress/` = 404); ✅ 2026-10-06 — dostarczenie i otwieranie panelu potwierdzone przez użytkownika |
-| M7 | **Kategoryzacja v2** — lokalny klasyfikator (LLM przeniesiony do M4c) | — |
+| M7 | **Kategoryzacja v2: mniej pracy z kolejką** — E1 pomiar w add-onie, E2 pamięć sprzedawcy (auto-przypisanie z ręcznych decyzji, oznaczone do zerknięcia), E3 lokalny klasyfikator dla nowych sprzedawców (warunkowo) | wywiad 2026-10-06 (`PLAN_M7.md`, decyzja 20) |
 | M8 | **Prognoza: czy starczy do wypłaty** — wolne środki (rachunek PLN − zadłużenie karty) dzień po dniu do najbliższej wypłaty, najniższy punkt, ostrzeżenie poniżej bufora | wywiad 2026-10-06 (`PLAN_M8.md`, decyzja 17); E1 = „Do wypłaty” na Podsumowaniu, 0.25.0 wydane i zainstalowane 2026-10-06 (`PLAN_M8_E1.md` § Wynik), E1b = 0.25.1 wydane i zainstalowane 2026-10-06 (wypłata wskazana na serii, przełącznik zadłużenia karty — `PLAN_M8_E1b.md`), ✅ checkpoint zamknięty przez użytkownika 2026-10-06; E2 = encje + dzwonek, 0.26.0 wydane i zainstalowane 2026-10-06 (`PLAN_M8_E2.md`); E3 = przebudowa widoku „Do wypłaty” (`PLAN_M8_E3.md`): E3a werdykt + limit dzienny + stopka z przełącznikiem = 0.27.0 wydane i zainstalowane 2026-10-06, E3b wykres osi czasu + lista chronologiczna = 0.29.0 wydane i zainstalowane 2026-10-06 (0.28.0 zajęte przez M16; `PLAN_M8_E3.md` § Wynik E3b); ✅ checkpoint E3b zamknięty przez użytkownika 2026-10-06 — M8 zamknięty |
 | M9 | **Majątek netto + kredyt** | — |
-| M10 | **Moduł oszczędności** — cele i postęp oszczędzania, stopa oszczędności w czasie (zakres do wywiadu) | — |
+| M10 | **Oszczędności i skarbonki** — cele i postęp oszczędzania, stopa oszczędności w czasie (`savings_rate`), skarbonki wydatków nieregularnych z celem rocznym (z M5c) (zakres do wywiadu) | — |
 | M11 | **Integracja z trackerem akcji** (osobny add-on autora) — wartość pakietu akcji w majątku netto, wpływy ze sprzedaży/dywidend powiązane z księgą (zakres do wywiadu) | — |
 | M12 | **Czat AI z danymi** — pytania o własne finanse w języku naturalnym w panelu (zakres danych wysyłanych do LLM do ustalenia, jak decyzja 12) | — |
 | M13 | **Całkowity refaktor UI** panelu — styl Monarch (jasny, jeden pomarańczowy akcent; wybrany 2026-10-05 spośród Copilot Money i Monarch), strona główna = podsumowanie budżetu, Status w menu ⚙ | ✅ 2026-10-06 — M13 zamknięty przez użytkownika (`PLAN_M13.md`): E1 0.18.0 fundament, nawigacja, Podsumowanie v0 ✅; E1b 0.18.1 drugi wygląd i przełącznik ✅ (`PLAN_M13_E1b.md`); E2 0.19.0 rozszerzone Podsumowanie: wykres kołowy kategorii, bilans z porównaniem, nadchodzące serie, ostatnie transakcje, wykres 12 miesięcy, przełączanie miesięcy ✅ (`PLAN_M13_E2.md`); E1c 0.19.1 jeden wygląd (Monarch), usunięty Copilot i przełącznik ✅ (wydane); E3 0.20.0 ekrany robocze (Transakcje, Do przejrzenia, Reguły): cele dotyku ≥ 44 px, wiersze na 360 px; kroki 0 pomiar, 1 Do przejrzenia, 2 Transakcje, 3 Reguły, 4 wydanie ✅ (`PLAN_M13_E3.md`, wydane 0.20.0); E3b 0.20.1 cele dotyku na Podsumowaniu, w tym słupki 12 miesięcy ≥ 24 px ✅ (`PLAN_M13_E3b.md`, wydane 0.20.1); E3c 0.20.2 cele dotyku w Wydatkach i Budżecie ✅ (`PLAN_M13_E3c.md`, wydane 0.20.1 razem z E3b); E3d 0.20.2 cele dotyku na pozostałych ekranach (reguła globalna dla pól i przycisków, rozwijany wiersz w Kategoriach, linki w zdaniu przez `::after`) — wszystkie ekrany ≥ 44 px ✅ (`PLAN_M13_E3d.md`, wydane 0.20.2; checkpoint zamknięty przez użytkownika 2026-10-05); E3e 0.20.3 domknięcie M13: pusty stan Reguł, „Wpływy” ≥ 44 px, rozwijany wiersz w Kosztach stałych, wspólna klasa linków `a.tap` — wydane 0.20.3 2026-10-05, na żywo 0 elementów < 44 px (`PLAN_M13_E3e.md`); ✅ checkpoint zamknięty przez użytkownika 2026-10-06 |
@@ -108,6 +108,12 @@ backlog (decyzja 10).
     5 płatności osobno dla karty głównej i dodatkowej, a API nie podaje numeru karty — każdą płatność
     kartą przypisuje się ręcznie do osoby (bez podpowiedzi), nieprzypisana nie liczy się nikomu,
     przypomnienia do obojga; historię przypisuje numer karty z CSV. Imiona tylko w bazie.
+20. **(2026-10-06) Kategoryzacja v2 (M7) ma zmniejszyć pracę z kolejką „Do przejrzenia”,** nie
+    podnieść pokrycie (reguły dają już ~97%). Pewne przypadki dostają kategorię od razu (osobne
+    źródło, nigdy nie nadpisuje ręcznej, reguły, słownika ani typu), ale trafiają do sekcji
+    „przypisane automatycznie” w kolejce (✓ hurtem, poprawka jednym dotknięciem). Kolejność:
+    pomiar → pamięć sprzedawcy → klasyfikator, ten ostatni tylko przy precyzji ≥ 95%. Dane nie
+    wychodzą poza add-on. Szczegóły: [`PLAN_M7.md`](PLAN_M7.md).
 
 ## Zmiany względem SPEC (zweryfikowane na danych)
 
@@ -247,7 +253,8 @@ Szczegóły: [`PLAN_M4c.md`](PLAN_M4c.md).
 edycja grupy podkategorii; etap 2 = 0.9.0: encje `flex_*`), szczegóły [`PLAN_M5a.md`](PLAN_M5a.md);
 M5b — płatności cykliczne, `fixed_paid`/`fixed_planned`; M5c — skarbonki, wykresy trendu,
 opcjonalne limity, `savings_rate`, `month_income`/`month_expenses`, `category_<slug>`.
-Poniżej zakres całego M5 sprzed podziału.
+Poniżej zakres całego M5 sprzed podziału. **(2026-10-06)** M5c scalony z M10: skarbonki i
+`savings_rate` przechodzą do M10, trendy są już w M13 E2, limity odrzucone w M5a.
 
 - Grupy kategorii: przychody, stałe, elastyczne, nieregularne („skarbonki”: cel roczny →
   miesięcznie, z przeniesieniem), oszczędności, przelewy, wyłączone/jednorazowe.
@@ -272,16 +279,24 @@ Poniżej zakres całego M5 sprzed podziału.
 
 **Akceptacja:** podsumowanie dociera na telefon; kalendarz pokazuje płatności na 60 dni.
 
-## M7 — Kategoryzacja v2 (uczenie + opcjonalnie LLM)
+## M7 — Kategoryzacja v2: mniej pracy z kolejką
 
-- Lokalny klasyfikator (czysty Python, naive Bayes na n-gramach sprzedawcy + typ + przedział
-  kwoty) uczony na poprawkach, z progiem pewności.
+**(2026-10-06, decyzja 20)** Cel zmieniony po wywiadzie: pokrycie z reguł to już ~97%, więc
+liczy się praca z kolejką, nie odsetek automatycznych. Od 0.11.0 zapis w kolejce domyślnie nie
+tworzy reguły, więc powracający sprzedawca wraca do kolejki — stąd pamięć sprzedawcy przed
+klasyfikatorem. Szczegóły: [`PLAN_M7.md`](PLAN_M7.md).
+
+- E1 — pomiar w add-onie (przycisk na Status): backtest pamięci sprzedawcy i naive Bayes na
+  ręcznych decyzjach, udział powracających sprzedawców w kolejce. Punkt decyzji.
+- E2 — pamięć sprzedawcy: źródło `learned` (zgodne ręczne decyzje dla sprzedawcy i kierunku),
+  sekcja „przypisane automatycznie” w kolejce.
+- E3 (warunkowo) — lokalny klasyfikator (czysty Python, naive Bayes na n-gramach sprzedawcy +
+  typ + przedział kwoty) dla sprzedawców widzianych pierwszy raz.
 - ~~Opcjonalny fallback `ai_task.generate_data`~~ → **przeniesione do M4c** (freellmapi,
   zakres danych wg decyzji 12).
-- Panel jakości: pokrycie, precyzja.
 
-**KPI:** **≥ 92% transakcji automatycznie**, precyzja ≥ 95% (< 5% poprawianych w 30 dni),
-kolejka do przejrzenia ≤ 15/tydzień.
+**KPI:** pozycji trafiających do kolejki tygodniowo o ≥ 50% mniej, precyzja auto-przypisań
+≥ 95% (< 5% poprawianych w sekcji „przypisane automatycznie”).
 
 ## M8 — Prognoza przepływów
 
