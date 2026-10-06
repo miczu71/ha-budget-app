@@ -114,6 +114,11 @@ backlog (decyzja 10).
     „przypisane automatycznie” w kolejce (✓ hurtem, poprawka jednym dotknięciem). Kolejność:
     pomiar → pamięć sprzedawcy → klasyfikator, ten ostatni tylko przy precyzji ≥ 95%. Dane nie
     wychodzą poza add-on. Szczegóły: [`PLAN_M7.md`](PLAN_M7.md).
+21. **(2026-10-06) Pamięć sprzedawcy bez progu 95% (M7 E2, zmienia decyzję 20):** pomiar E1/E1b pokazał,
+    że pamięć trafia w ~87% (przelewy ~90%, karta ~80%), a 95% osiąga tylko na kilku pozycjach. Pamięć
+    działa dla wszystkich typów przy jednej ręcznej decyzji (k = 1, wszystkie decyzje sprzedawcy zgodne);
+    zamiast progu trafności — każde automatyczne przypisanie trafia do sekcji „przypisane automatycznie”
+    do zerknięcia, a poprawka wyłącza pamięć dla tego sprzedawcy.
 
 ## Zmiany względem SPEC (zweryfikowane na danych)
 

@@ -101,3 +101,15 @@ i który stanowi większość jej efektu (30 z 42 pozycji dzisiejszej kolejki pr
 rzadko wracają do kolejki jako ręczne decyzje (pokrywają je słownik i reguły). Progu 95% nie osiąga żaden typ
 poza przelewami przy k = 3 (19 pozycji w historii, 9 w dzisiejszej kolejce). KPI z decyzji 20 (≥ 50% mniej
 kolejki przy ≥ 95% trafności) jest dla samej pamięci nieosiągalny — decyzja o zakresie E2 na checkpoincie.
+
+## E2 — kroki (zaakceptowane 2026-10-06, decyzja 21)
+1. `categorize/engine._classify`: źródło `learned` po `kind`, przed zwrotami (zwrot dziedziczy kategorię
+   zakupu z pamięci); pamięć = `learn.memory(…, 1)` z ręcznych decyzji w bazie dla (sprzedawca, kierunek).
+2. `set_manual`: poprawka transakcji `learned` liczy się w `kv` `learned_stats` jako potwierdzona (ta sama
+   kategoria) albo poprawiona (inna) — w kolejce i na Transakcjach.
+3. Kolejka: zwinięta sekcja „Przypisane automatycznie (N)” — grupy (sprzedawca, kierunek, kategoria);
+   ✓ przy grupie i „Potwierdź wszystkie” = `set_manual` z tą samą kategorią; inna kategoria + „Zapisz” =
+   `set_manual` z nową (pamięć sprzedawcy się wyłącza, reszta jego pozycji wraca do kolejki).
+4. Transakcje: etykieta źródła „pamięć”; Status: „Pamięć na żywo: potwierdzone X, poprawione Y”.
+5. Testy, `simplify`, dev + Playwright, wydanie 0.32.0, aktualizacja z backupem, weryfikacja na żywo.
+Cofnięcie: 0.31.1 (stara wersja przy przeliczeniu wyczyści `learned`; potwierdzenia zostają ręcznymi).
