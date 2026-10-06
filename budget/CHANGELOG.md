@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.35.0
+
+**Zapytaj — rozmowa z dopytywaniem** (M12 E2, `docs/PLAN_M12_E2.md`).
+
+- Kolejne pytania dopisują się pod poprzednimi i mogą się do nich odnosić: „a w 2025?”, „bez paliwa”,
+  „rozbij na miesiące”. Model pamięta 4 ostatnie pytania rozmowy (ich plany zapytań, bez wyników).
+- „Nowa rozmowa”, a przykłady i „Ostatnie rozmowy” zawsze zaczynają od nowa (dopytania nie trafiają
+  na tę listę).
+- Język zapytań: wykluczanie kategorii („Bez kategorii: …” w „Jak policzono”).
+- Kontekst rozmowy jest tylko w otwartej stronie (bez zapisu w bazie); odświeżenie zaczyna od nowa.
+
 ## 0.34.1
 
 **Zrozumiałe komunikaty błędów AI** (czat, podpowiedzi, Status).

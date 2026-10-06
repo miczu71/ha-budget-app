@@ -890,3 +890,5 @@ label.switch input[type="checkbox"]:checked::after { transform: translateX(16px)
 .ask-table tbody th { font-weight: 400; text-align: left; min-width: 9em; overflow-wrap: break-word; }
 .ask-how summary { padding: 12px 0; cursor: pointer; }
 .ask-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.ask-new { margin-left: auto; }
+#ask-out .msg.error { margin-bottom: 12px; }

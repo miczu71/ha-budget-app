@@ -2,7 +2,7 @@
 {% macro chips(title, items) %}
     <h2 class="small muted">{{ title }}</h2>
     <div class="ask-chips">
-      {% for e in items %}<button type="submit" name="example" value="{{ e }}" class="secondary">{{ e }}</button>{% endfor %}
+      {% for e in items %}<button type="submit" name="example" value="{{ e }}" class="secondary" hx-post="{{ base }}/ask" hx-target="#ask-out" hx-swap="innerHTML" hx-disabled-elt="this" hx-vals='{"ctx": "[]"}'>{{ e }}</button>{% endfor %}
     </div>
 {% endmacro %}
 {% block content %}
@@ -12,19 +12,21 @@
   <p>Czat potrzebuje routera AI: ustaw <code>ai_base_url</code> (i klucz) w opcjach add-onu, a <code>chat_daily_calls</code> powyżej 0.</p>
 </section>
 {% else %}
+<div id="ask-out" aria-live="polite">{% include "_ask_turn.html" %}</div>
 <section class="card ask">
-  <form class="ask-form" method="post" action="{{ base }}/ask" hx-post="{{ base }}/ask" hx-target="#ask-out" hx-swap="innerHTML" hx-disabled-elt="find button">
+  <form id="ask-form" class="ask-form" method="post" action="{{ base }}/ask" hx-post="{{ base }}/ask" hx-target="#ask-out" hx-swap="beforeend" hx-disabled-elt="find button" hx-on::after-request="if (event.detail.successful) this.querySelector('textarea').value = ''">
     <label for="ask-q">Pytanie o Wasze finanse</label>
-    <textarea id="ask-q" name="q" rows="2" maxlength="{{ question_max }}" placeholder="np. ile kosztuje nas samochód rocznie?">{{ q or "" }}</textarea>
+    <textarea id="ask-q" name="q" rows="2" maxlength="{{ question_max }}" placeholder="np. ile kosztuje nas samochód rocznie? Potem możesz dopytać: „a w 2025?”"></textarea>
     <div class="ask-actions">
       <button type="submit">Zapytaj</button>
       <span class="htmx-indicator muted small">liczę i pytam model…</span>
+      <a class="tap ask-new" href="{{ base }}/ask">Nowa rozmowa</a>
     </div>
-    <p class="small muted">Model dostaje pytanie, listę kategorii i wynik zbiorczy (sumy) — nie pojedyncze transakcje; odbiorców przelewów widzi jako [O1], [O2]… Liczby liczy add-on tak jak ekran Wydatki.</p>
-    {{ chips("Przykłady", examples) }}
-    {% if recent %}{{ chips("Ostatnie pytania", recent) }}{% endif %}
+    <p class="small muted">Możesz dopytywać („a w 2025?”, „bez paliwa”, „rozbij na miesiące”) — model pamięta {{ context_max }} ostatnie pytania tej rozmowy. Dostaje pytania, listę kategorii i wynik zbiorczy (sumy) — nie pojedyncze transakcje; odbiorców przelewów widzi jako [O1], [O2]… Liczby liczy add-on tak jak ekran Wydatki.</p>
+    {{ chips("Przykłady (nowa rozmowa)", examples) }}
+    {% if recent %}{{ chips("Ostatnie rozmowy (zaczyna od nowa)", recent) }}{% endif %}
+    {% with oob = False %}{% include "_ask_state.html" %}{% endwith %}
   </form>
 </section>
-<div id="ask-out" aria-live="polite">{% include "_ask_answer.html" %}</div>
 {% endif %}
 {% endblock %}

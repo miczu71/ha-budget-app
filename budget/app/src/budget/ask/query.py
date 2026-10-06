@@ -65,6 +65,7 @@ SCHEMA: dict[str, Any] = {
         },
         "scope": {"type": "string", "enum": list(SCOPES)},
         "categories": {"type": "array", "items": {"type": "integer"}},
+        "exclude_categories": {"type": "array", "items": {"type": "integer"}},
         "flex_groups": {"type": "array", "items": {"type": "string", "enum": list(EXPENSE_GROUPS)}},
         "text": {"type": "string"},
         "group_by": {"type": "string", "enum": list(GROUP_BY)},
@@ -76,6 +77,7 @@ SCHEMA: dict[str, Any] = {
         "periods",
         "scope",
         "categories",
+        "exclude_categories",
         "flex_groups",
         "text",
         "group_by",
@@ -116,6 +118,7 @@ class Plan:
     periods: tuple[Period, ...]
     scope: str
     categories: tuple[int, ...]  # id z planu (główne albo podkategorie)
+    exclude: tuple[int, ...]  # jak wyżej — wykluczone („bez paliwa”, M12 E2)
     flex_groups: tuple[str, ...]
     text: str
     group_by: str
@@ -147,10 +150,13 @@ def parse(raw: dict[str, Any], cats: dict[int, Category], today: date) -> Plan:
         periods.append(period)
     if not periods:
         raise PlanError("brak okresu")
-    ids = tuple(dict.fromkeys(int(i) for i in raw.get("categories") or []))
-    unknown = [i for i in ids if i not in cats]
-    if unknown:
-        raise PlanError(f"nieznane kategorie {unknown}")
+
+    def category_ids(key: str) -> tuple[int, ...]:
+        ids = tuple(dict.fromkeys(int(i) for i in raw.get(key) or []))
+        unknown = [i for i in ids if i not in cats]
+        if unknown:
+            raise PlanError(f"nieznane kategorie {unknown}")
+        return ids
 
     def pick(key: str, allowed: tuple[str, ...]) -> str:
         value = str(raw.get(key) or allowed[0])
@@ -165,7 +171,8 @@ def parse(raw: dict[str, Any], cats: dict[int, Category], today: date) -> Plan:
     return Plan(
         periods=tuple(periods),
         scope=pick("scope", SCOPES),
-        categories=ids,
+        categories=category_ids("categories"),
+        exclude=category_ids("exclude_categories"),
         flex_groups=groups,
         text=str(raw.get("text") or "").strip(),
         group_by=pick("group_by", GROUP_BY),
@@ -253,6 +260,8 @@ def describe(plan: Plan, cats: dict[int, Category], other_currency: int = 0) -> 
         out.append("Kategorie: " + ", ".join(cats[i].name for i in plan.categories))
     else:
         out.append(f"Zakres: {SCOPE_LABELS[plan.scope]}")
+    if plan.exclude:
+        out.append("Bez kategorii: " + ", ".join(cats[i].name for i in plan.exclude))
     if plan.flex_groups:
         out.append("Grupy budżetu: " + ", ".join(FLEX_LABELS[g] for g in plan.flex_groups))
     if plan.text:
@@ -271,6 +280,7 @@ def execute(
 ) -> Result:
     cats = cats if cats is not None else taxonomy.all_categories(conn)
     wanted = _expand(plan.categories, cats)
+    excluded = _expand(plan.exclude, cats)
     words = search_words(plan.text)
     current = month_start(today)
     n_periods = len(plan.periods)
@@ -294,6 +304,8 @@ def execute(
                 if leaf is None or leaf.id not in wanted:
                     continue
             elif sec != plan.scope:
+                continue
+            if leaf is not None and leaf.id in excluded:
                 continue
             if plan.flex_groups and (leaf is None or leaf.flex_group not in plan.flex_groups):
                 continue

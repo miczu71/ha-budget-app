@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import html
 import json
+import re
 from collections.abc import AsyncIterator
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -77,7 +79,7 @@ async def test_ask_htmx_partial(ai: httpx.AsyncClient) -> None:
     sent = [json.loads(c.request.content)["messages"][0]["content"] for c in route.calls]
     assert all("qwertowski" not in s.lower() for s in sent)
     page = (await ai.get("/ask")).text
-    assert "Ostatnie pytania" in page and "Komu płacimy najwięcej?" in page
+    assert "Ostatnie rozmowy" in page and "Komu płacimy najwięcej?" in page
 
 
 @respx.mock
@@ -88,3 +90,44 @@ async def test_example_wins_over_textarea(ai: httpx.AsyncClient) -> None:
     r = await ai.post("/ask", data={"q": "stare", "example": "Przykład X"}, headers=HX)
     assert "Nie umiem odpowiedzieć" in r.text and "brak sald" in r.text
     assert "Przykład X" in json.loads(route.calls[0].request.content)["messages"][0]["content"]
+
+
+@respx.mock
+async def test_follow_up_carries_context_and_example_starts_new(ai: httpx.AsyncClient) -> None:
+    later = {**PLAN, "periods": [{"from": "2025-09", "to": "2025-09"}]}
+    route = respx.post(f"{ROUTER}/chat/completions").mock(
+        side_effect=[
+            _reply(PLAN),
+            _reply({"answer": "Pierwsza."}),
+            _reply(later),
+            _reply({"answer": "Druga."}),
+            _reply(PLAN),
+            _reply({"answer": "Trzecia."}),
+        ]
+    )
+    r1 = await ai.post("/ask", data={"q": "Komu płacimy najwięcej?", "ctx": "[]"}, headers=HX)
+    assert 'id="ask-ctx"' in r1.text and 'hx-swap-oob="true"' in r1.text
+    ctx = re.search(r'id="ask-ctx" name="ctx" value="([^"]*)"', r1.text)
+    assert ctx is not None
+    r2 = await ai.post(
+        "/ask", data={"q": "a w 2025?", "ctx": html.unescape(ctx.group(1))}, headers=HX
+    )
+    assert "Druga." in r2.text and "a w 2025?" in r2.text
+    sent = [json.loads(c.request.content)["messages"][0]["content"] for c in route.calls]
+    assert "Wcześniejsze pytania" in sent[2] and "Komu płacimy najwięcej?" in sent[2]
+    r3 = await ai.post("/ask", data={"example": "Przykład X", "ctx": "[]"}, headers=HX)
+    assert "Trzecia." in r3.text
+    sent = [json.loads(c.request.content)["messages"][0]["content"] for c in route.calls]
+    assert "Wcześniejsze pytania" not in sent[4]
+    page = (await ai.get("/ask")).text
+    assert "hx-vals" in page and "Komu płacimy najwięcej?" in page
+    assert ">a w 2025?</button>" not in page  # dopytanie nie trafia do „Ostatnich rozmów”
+
+
+async def test_bad_context_is_ignored(ai: httpx.AsyncClient) -> None:
+    with respx.mock:
+        respx.post(f"{ROUTER}/chat/completions").mock(
+            side_effect=[_reply(PLAN), _reply({"answer": "Ok."})]
+        )
+        r = await ai.post("/ask", data={"q": "Komu?", "ctx": "<script>"}, headers=HX)
+    assert r.status_code == 200 and "Ok." in r.text

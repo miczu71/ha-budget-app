@@ -165,3 +165,13 @@ def test_recipients_hidden_from_llm(conn: sqlite3.Connection) -> None:
     payload = json.dumps(res.for_llm(), ensure_ascii=False)
     assert "qwertowski" not in payload.lower() and "[O1]" in payload
     assert any("qwerty" in r.llm_label.lower() for r in res.rows)  # karta: nazwa wychodzi
+
+
+def test_exclude_categories(month: sqlite3.Connection) -> None:
+    food = taxonomy.all_categories(month)[sid(month, "spozywcze")].parent_id
+    assert food is not None
+    res = run(month, exclude_categories=[food])
+    assert res.periods[0].value == Decimal("100.00")  # 180 − spożywcze netto 80
+    assert "Bez kategorii: Jedzenie" in res.filters
+    with pytest.raises(PlanError):
+        plan(month, exclude_categories=[99999])

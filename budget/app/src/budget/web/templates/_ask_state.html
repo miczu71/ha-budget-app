@@ -1,0 +1,3 @@
+{# Stan rozmowy: kontekst (ukryte pole formularza) i licznik pytań; `oob` — podmiana po odpowiedzi htmx. #}
+<input type="hidden" id="ask-ctx" name="ctx" value="{{ ctx_json or '[]' }}"{% if oob %} hx-swap-oob="true"{% endif %}>
+<p id="ask-left" class="small muted"{% if oob %} hx-swap-oob="true"{% endif %}>Pozostało pytań dziś: {{ left }}</p>

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
@@ -26,7 +28,8 @@ def router(panel: Panel) -> APIRouter:
         return engine.questions_left(conn, panel.service.settings, panel.service.now().date())
 
     def page(request: Request, **ctx: object) -> HTMLResponse:
-        recent = list(dict.fromkeys(e["q"] for e in engine.history(conn)))[:RECENT]
+        firsts = (e["q"] for e in engine.history(conn) if e.get("turn", 1) == 1)  # bez dopytań
+        recent = list(dict.fromkeys(firsts))[:RECENT]
         return panel.render(
             request,
             "ask.html",
@@ -35,6 +38,7 @@ def router(panel: Panel) -> APIRouter:
             examples=EXAMPLES,
             recent=recent,
             question_max=engine.QUESTION_MAX,
+            context_max=engine.CONTEXT_MAX,
             **ctx,
         )
 
@@ -45,15 +49,16 @@ def router(panel: Panel) -> APIRouter:
     @r.post("/ask", response_class=HTMLResponse)
     async def ask(request: Request) -> HTMLResponse:
         form = await request.form()
-        question = str(form.get("example") or form.get("q") or "")  # przykład ma pierwszeństwo
+        # przykłady wysyłają pusty `ctx` i podmieniają całą rozmowę (atrybuty htmx w `ask.html`)
+        question = str(form.get("example") or form.get("q") or "")
+        context = engine.parse_context(str(form.get("ctx") or ""))
         s = panel.service.settings
-        a = (
-            await engine.ask(conn, s, question, panel.service.now().date())
-            if engine.enabled(s)
-            else None
-        )
+        a = None
+        if engine.enabled(s):
+            a = await engine.ask(conn, s, question, panel.service.now().date(), context=context)
+        ctx_json = json.dumps(a.context, ensure_ascii=False) if a else "[]"
         if request.headers.get("hx-request"):  # formularz ma własny hx-post (bez hx-boost)
-            return panel.partial(request, "_ask_answer.html", a=a, left=left())
-        return page(request, a=a, q=question)
+            return panel.partial(request, "_ask_answer.html", a=a, left=left(), ctx_json=ctx_json)
+        return page(request, a=a, ctx_json=ctx_json)
 
     return r

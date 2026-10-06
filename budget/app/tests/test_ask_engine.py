@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import date
 from pathlib import Path
@@ -104,3 +105,39 @@ async def test_router_error(conn: sqlite3.Connection, tmp_path: Path) -> None:
 def test_restore_exact_labels() -> None:
     labels = {"[O1]": "Osoba A", "[O10]": "Osoba B"}
     assert engine.restore("[O10] i [O1], [O2]", labels) == ("Osoba B i Osoba A, [O2]")
+
+
+async def test_conversation_context(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    data(conn)
+    later = {**PLAN, "periods": [{"from": "2025-09", "to": "2025-09"}]}
+    llm = FakeLLM(PLAN, {"answer": "a"}, later, {"answer": "b"})
+    s = settings(tmp_path)
+    first = await engine.ask(conn, s, "Komu płacimy najwięcej?", TODAY, llm)
+    assert first.context == [{"q": "Komu płacimy najwięcej?", "plan": engine.compact(PLAN)}]
+    assert "text" not in first.context[0]["plan"]  # puste pola pominięte
+    second = await engine.ask(conn, s, "a w 2025?", TODAY, llm, context=first.context)
+    prompt = llm.prompts[2]
+    assert "Wcześniejsze pytania" in prompt and "Komu płacimy najwięcej?" in prompt
+    assert '"group_by":"merchant"' in prompt and prompt.rstrip().endswith("Pytanie: a w 2025?")
+    assert "Wcześniejsze pytania" not in llm.prompts[0]
+    assert [t["q"] for t in second.context] == ["Komu płacimy najwięcej?", "a w 2025?"]
+    assert [e["turn"] for e in engine.history(conn)] == [2, 1]
+
+
+async def test_context_trimmed_and_kept_on_failure(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    old = [{"q": f"pytanie {i}", "plan": PLAN} for i in range(6)]
+    llm = FakeLLM({**PLAN, "unsupported": "brak sald"})
+    a = await engine.ask(conn, settings(tmp_path), "Ile mam na koncie?", TODAY, llm, context=old)
+    assert "pytanie 1" not in llm.prompts[0] and "pytanie 5" in llm.prompts[0]
+    assert a.context == old[-engine.CONTEXT_MAX :]  # nieudane pytanie nie wchodzi do rozmowy
+
+
+def test_parse_context_rejects_bad_input() -> None:
+    assert engine.parse_context(None) == [] and engine.parse_context("{zły") == []
+    assert engine.parse_context('{"q": "x"}') == []
+    good = {"q": "x" * 900, "plan": {"scope": "expenses"}}
+    raw = json.dumps([{"q": 1, "plan": {}}, {"q": "y", "plan": "nie"}, good] + [good] * 5)
+    out = engine.parse_context(raw)
+    assert len(out) == engine.CONTEXT_MAX and len(out[0]["q"]) == engine.QUESTION_MAX

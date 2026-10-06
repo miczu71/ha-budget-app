@@ -14,7 +14,8 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
@@ -35,6 +36,8 @@ USAGE_KEY = "ask_usage"
 LOG_KEY = "ask_log"
 LOG_MAX = 100
 CALLS_PER_QUESTION = 2
+CONTEXT_MAX = 4  # tur rozmowy przekazywanych modelowi (E2)
+PLAN_JSON_MAX = 2000  # znaków planu w kontekście od klienta
 QUESTION_MAX = 500
 ANSWER_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -52,6 +55,31 @@ class Answer:
     unsupported: str = ""  # „nie umiem” — czego brakuje
     error: str = ""
     plan: dict[str, Any] | None = None  # surowy plan od LLM (do logu)
+    context: list[dict[str, Any]] = field(default_factory=list)  # tury rozmowy po tej odpowiedzi
+    turn: int = 1  # numer pytania w rozmowie (do logu)
+
+
+def compact(plan: dict[str, Any]) -> dict[str, Any]:
+    """Plan bez pustych pól — tyle wystarczy do kontekstu rozmowy (prompt i pole formularza)."""
+    return {k: v for k, v in plan.items() if v not in ("", [], None) and k != "unsupported"}
+
+
+def parse_context(raw: str | None) -> list[dict[str, Any]]:
+    """Kontekst rozmowy z ukrytego pola formularza — dane od klienta: sprawdzane, zły → pusty."""
+    try:
+        items = json.loads(raw or "[]")
+    except ValueError:
+        return []
+    if not isinstance(items, list):
+        return []
+    return [
+        {"q": t["q"][:QUESTION_MAX], "plan": t["plan"]}
+        for t in items[-CONTEXT_MAX:]
+        if isinstance(t, dict)
+        and isinstance(t.get("q"), str)
+        and isinstance(t.get("plan"), dict)
+        and len(json.dumps(t["plan"])) <= PLAN_JSON_MAX
+    ]
 
 
 def enabled(settings: Settings) -> bool:
@@ -74,6 +102,7 @@ def _log(conn: sqlite3.Connection, a: Answer) -> None:
         {
             "at": now_iso(),
             "q": a.question,
+            "turn": a.turn,
             "plan": a.plan,
             "unsupported": a.unsupported,
             "error": a.error,
@@ -94,7 +123,27 @@ def category_lines(cats: dict[int, Category]) -> list[str]:
     return lines
 
 
-def plan_prompt(question: str, categories: list[str], today: date, since: str) -> str:
+def plan_prompt(
+    question: str,
+    categories: list[str],
+    today: date,
+    since: str,
+    context: Sequence[dict[str, Any]] = (),
+) -> str:
+    plans = (json.dumps(t["plan"], ensure_ascii=False, separators=(",", ":")) for t in context)
+    earlier = (
+        [
+            "Wcześniejsze pytania w tej rozmowie (od najstarszego) i ich plany",
+            "(puste pola pominięte):",
+            *(f"- {t['q']}\n  plan: {p}" for t, p in zip(context, plans, strict=True)),
+            "Bieżące pytanie może się do nich odnosić (np. „a w 2025?”, „bez paliwa”, „rozbij na",
+            "miesiące”) — wtedy weź ostatni plan i zmień w nim tylko to, o co prosi bieżące",
+            "pytanie.",
+            "",
+        ]
+        if context
+        else []
+    )
     return "\n".join(
         [
             "Tłumaczysz pytanie o domowy budżet na plan zapytania do bazy transakcji.",
@@ -110,6 +159,8 @@ def plan_prompt(question: str, categories: list[str], today: date, since: str) -
             "  excluded (poza budżetem, np. jednorazowe). Pomijane, gdy podasz categories.",
             "- categories: id kategorii głównych albo podkategorii z listy niżej; główna obejmuje",
             "  wszystkie swoje podkategorie. Pusta lista = cały zakres (scope).",
+            "- exclude_categories: id kategorii (głównych albo podkategorii) do pominięcia, np.",
+            "  „bez paliwa”; pusta lista = bez wykluczeń.",
             "- flex_groups: fixed (stałe), flexible (elastyczne), non_monthly (nieregularne) —",
             "  tylko wydatki; pusta lista = wszystkie.",
             "- text: fragment nazwy sprzedawcy, odbiorcy albo opisu (np. „orlen”), gdy pytanie",
@@ -128,6 +179,7 @@ def plan_prompt(question: str, categories: list[str], today: date, since: str) -
             "Kategorie (id: kategoria główna, wcięte: podkategorie z grupą budżetu):",
             *categories,
             "",
+            *earlier,
             f"Pytanie: {question}",
         ]
     )
@@ -164,7 +216,11 @@ def restore(text: str, labels: dict[str, str]) -> str:
 
 
 async def _run(
-    conn: sqlite3.Connection, settings: Settings, a: Answer, today: date, call: suggest.Call
+    conn: sqlite3.Connection,
+    settings: Settings,
+    a: Answer,
+    today: date,
+    call: suggest.Call,
 ) -> None:
     cats = taxonomy.all_categories(conn)
     first = flex.first_month(conn)
@@ -175,7 +231,7 @@ async def _run(
         today,
         call,
         key=USAGE_KEY,
-        prompt=plan_prompt(a.question, category_lines(cats), today, since),
+        prompt=plan_prompt(a.question, category_lines(cats), today, since, a.context),
         schema=query.SCHEMA,
         schema_name="zapytanie",
     )
@@ -188,6 +244,7 @@ async def _run(
         a.unsupported = f"Nie udało się ułożyć zapytania ({exc})."
         return
     a.result = query.execute(conn, plan, today, cats)
+    a.context = [*a.context, {"q": a.question, "plan": compact(a.plan)}][-CONTEXT_MAX:]
     raw = await suggest.metered_call(
         conn,
         settings,
@@ -207,8 +264,13 @@ async def ask(
     question: str,
     today: date,
     call: suggest.Call = client.complete,
+    context: Sequence[dict[str, Any]] = (),
 ) -> Answer:
-    a = Answer(question.strip()[:QUESTION_MAX])
+    """`context` — wcześniejsze tury rozmowy (`parse_context`); `Answer.context` — po tej turze
+    (bez zmian, gdy pytanie się nie udało, żeby można było je powtórzyć)."""
+    a = Answer(
+        question.strip()[:QUESTION_MAX], context=list(context)[-CONTEXT_MAX:], turn=len(context) + 1
+    )
     if not a.question:
         a.error = "Wpisz pytanie."
         return a
