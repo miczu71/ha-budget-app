@@ -57,7 +57,17 @@
     <input name="name" value="{{ h.name }}" maxlength="40" aria-label="imię" required>
     <button type="submit" class="secondary">Zmień imię</button>
   </form>
+  {% if csv_numbers %}
+  <form class="rename" method="post" action="{{ base }}/card/holders/{{ h.id }}/csv">
+    <select name="number" aria-label="numer karty z eksportu CSV — {{ h.name }}">
+      <option value="">— numer karty z CSV —</option>
+      {% for n in csv_numbers %}<option value="{{ n.number }}" {{ "selected" if h.csv_number == n.number }}>…{{ n.number[-4:] }} ({{ n.n }} wierszy)</option>{% endfor %}
+    </select>
+    <button type="submit" class="secondary">Zapisz</button>
+  </form>
+  {% endif %}
   {% endfor %}
+  {% if csv_numbers %}<p class="small muted">Numer karty z eksportu CSV przypisze osobom płatności z historii (i z kolejnych importów oraz synchronizacji). Ręczne przypisania zostają.</p>{% endif %}
   <form class="rename" method="post" action="{{ base }}/card/holders">
     <input name="name" maxlength="40" placeholder="imię" aria-label="nowa osoba" required>
     <button type="submit">Dodaj osobę</button>

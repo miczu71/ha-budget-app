@@ -28,7 +28,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-from budget import csv_import, money
+from budget import card, csv_import, money
 from budget.categorize import engine as categorize
 from budget.csv_import import CsvRow
 from budget.eb_ingest import ApiTxn, fingerprint
@@ -441,10 +441,11 @@ def ingest_csv(
 
 
 def rebuild_derived(conn: sqlite3.Connection) -> None:
-    """Wszystko, co wynika z księgi: powiązania CSV (L0/L1), L2/L3, kategorie (M4a)."""
+    """Wszystko, co wynika z księgi: powiązania CSV (L0/L1), L2/L3, kategorie, osoby kart."""
     relink_csv(conn)
     rebuild_links(conn)
     categorize.recategorize(conn)
+    card.backfill_from_csv(conn)  # osoby płatności kartą z numeru karty w CSV (M15 E3)
 
 
 # --- L0/L1: powiązanie wierszy CSV z księgą ----------------------------------------------------

@@ -3,6 +3,8 @@
 Cennik: opłaty nie ma, „jeśli w poprzednim miesiącu zapłacisz min. 5 razy kartą”; BLIK się nie
 liczy, a każda karta (główna, dodatkowa) liczona jest osobno. API nie podaje numeru karty, więc
 płatność przypisuje użytkownik do osoby (E2, `card_holder`); nieprzypisana nie liczy się nikomu.
+Historię przypisuje eksport CSV z Millenetu (E3): numer karty → osoba. Eksport ma blok całego konta
+karty pod jednym numerem i blok płatności jednej karty pod drugim — wygrywa najwęższy blok.
 Bez osób w bazie licznik jest wspólny dla konta karty (E1).
 API ma tylko datę księgowania (zakup zwykle 2 dni wcześniej), a cennik nie mówi, którą datę
 bank bierze — liczba to mniejsza z dwóch: po dacie księgowania i po dacie księgowania − 2 dni.
@@ -131,6 +133,58 @@ def assign(conn: sqlite3.Connection, txn_id: int, holder_id: int) -> None:
     if not conn.execute("SELECT 1 FROM card_holder WHERE id = ?", (holder_id,)).fetchone():
         raise CardError("Nie ma takiej osoby.")
     conn.execute("UPDATE txn SET card_holder_id = ? WHERE id = ?", (holder_id, txn_id))
+
+
+CARD_NUMBERS = "SELECT value FROM account_alias WHERE source = 'csv_number' AND account_id = ?"
+
+
+def csv_numbers(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """Numery kart z eksportu CSV powiązane z kontem karty, z liczbą wierszy (rosnąco)."""
+    account = card_account(conn)
+    if account is None:
+        return []
+    return conn.execute(
+        f"SELECT number, count(*) AS n FROM csv_row WHERE number IN ({CARD_NUMBERS}) "
+        "GROUP BY number ORDER BY n, number",
+        (account,),
+    ).fetchall()
+
+
+def set_csv_number(conn: sqlite3.Connection, holder_id: int, number: str | None) -> None:
+    if number is not None and number not in {r["number"] for r in csv_numbers(conn)}:
+        raise CardError("Nie ma takiego numeru w imporcie CSV.")
+    try:
+        cur = conn.execute(
+            "UPDATE card_holder SET csv_number = ? WHERE id = ?", (number, holder_id)
+        )
+    except sqlite3.IntegrityError as exc:
+        raise CardError("Ten numer karty ma już inna osoba.") from exc
+    if not cur.rowcount:
+        raise CardError("Nie ma takiej osoby.")
+
+
+def backfill_from_csv(conn: sqlite3.Connection) -> int | None:
+    """Osoba dla płatności bez osoby z numeru karty w CSV; liczba przypisanych.
+
+    None, dopóki nie każdy numer karty z CSV ma osobę — sam numer bloku całego konta przypisałby
+    jednej osobie także płatności drugiej karty. Najwęższy blok pierwszy, a ręczne i wcześniejsze
+    przypisania zostają (`card_holder_id IS NULL`). Wołane w `ledger.rebuild_derived`.
+    """
+    account = card_account(conn)
+    numbers = csv_numbers(conn)
+    by_number = {h["csv_number"]: h["id"] for h in holders(conn)}
+    if account is None or not numbers or any(r["number"] not in by_number for r in numbers):
+        return None
+    return sum(
+        conn.execute(
+            "UPDATE txn AS t SET card_holder_id = ? WHERE t.card_holder_id IS NULL "
+            f"AND {PAYMENT_WHERE} AND t.id IN (SELECT coalesce(r.txn_id, b.txn_id) FROM csv_row r "
+            "LEFT JOIN csv_row b ON r.txn_id IS NULL AND b.row_key = r.row_key "
+            f"AND b.txn_id IS NOT NULL AND b.number IN ({CARD_NUMBERS}) WHERE r.number = ?)",
+            (by_number[r["number"]], account, account, r["number"]),
+        ).rowcount
+        for r in numbers
+    )
 
 
 def payments(conn: sqlite3.Connection, month: date) -> list[sqlite3.Row]:

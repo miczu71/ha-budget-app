@@ -171,3 +171,78 @@ async def test_card_screen(service: Service, monkeypatch: pytest.MonkeyPatch) ->
     assert 'Osoba 1</span><span class="stat-value">1 / 5' in page
     assert "Przypisz płatności" in home and "Osoba 2" in home
     assert 'title="osoba, która zapłaciła kartą">Osoba 1</span>' in txns
+
+
+# --- E3: historia z CSV -------------------------------------------------------------------
+
+FULL, ONE = "1111222233330001", "1111222233330002"  # blok całego konta i blok jednej karty
+
+
+def csv_rows(c: sqlite3.Connection, txns: list[int], one: list[int]) -> None:
+    """Eksport jak z Millenetu: wszystko pod FULL (z txn_id), część pod ONE (duplikaty)."""
+    for number in (FULL, ONE):
+        c.execute(
+            "INSERT INTO account_alias (source, value, account_id) VALUES ('csv_number', ?, 2)",
+            (number,),
+        )
+    batch = c.execute(
+        "INSERT INTO import_batch (source, fetched_at, created_at) VALUES ('csv', ?, ?)",
+        (now_iso(), now_iso()),
+    ).lastrowid
+
+    def row(number: str, t: int, txn_id: int | None, status: str) -> None:
+        c.execute(
+            "INSERT INTO csv_row (number, row_key, tx_date, settle_date, kind_raw, kind, "
+            "amount, currency, description, occurrence, seq, batch_id, txn_id, status) "
+            "VALUES (?, ?, '2026-10-05', '2026-10-05', '', 'card', '-10.00', 'PLN', 'X', 0, "
+            "?, ?, ?, ?)",
+            (number, f"k{t}", t, batch, txn_id, status),
+        )
+
+    for t in txns:
+        row(FULL, t, t, "inserted")
+        if t in one:
+            row(ONE, t, None, "duplicate")
+
+
+def test_backfill_narrowest_block_wins(conn: sqlite3.Connection, two: tuple[int, int]) -> None:
+    buy(conn, "2026-10-05", 4)
+    p = ids(conn)
+    csv_rows(conn, p, one=p[:3])
+    card.set_csv_number(conn, two[1], FULL)
+    assert card.backfill_from_csv(conn) is None  # nie każdy numer ma osobę — nic
+    card.assign(conn, p[0], two[1])  # ręczne przypisanie zostaje
+    card.set_csv_number(conn, two[0], ONE)
+    assert card.backfill_from_csv(conn) == 3
+    got = dict(conn.execute("SELECT id, card_holder_id FROM txn WHERE kind = 'card'").fetchall())
+    assert [got[t] for t in p] == [two[1], two[0], two[0], two[1]]
+
+
+def test_csv_number_validation(conn: sqlite3.Connection, two: tuple[int, int]) -> None:
+    buy(conn, "2026-10-05")
+    csv_rows(conn, ids(conn), one=[])
+    with pytest.raises(card.CardError):
+        card.set_csv_number(conn, two[0], "9999")
+    card.set_csv_number(conn, two[0], FULL)
+    with pytest.raises(card.CardError):
+        card.set_csv_number(conn, two[1], FULL)
+    card.set_csv_number(conn, two[0], None)
+
+
+async def test_card_screen_csv_mapping(service: Service) -> None:
+    c = service.conn
+    c.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (2, 'card', 'PLN', ?)",
+        (now_iso(),),
+    )
+    buy(c, "2026-10-05", 2)
+    a, b = card.add_holder(c, "Osoba 1"), card.add_holder(c, "Osoba 2")
+    p = ids(c)
+    csv_rows(c, p, one=p[:1])
+    async with _client(service) as client:
+        page = (await client.get("/card")).text
+        assert "…0002 (1 wierszy)" in page and "…0001 (2 wierszy)" in page
+        await client.post(f"/card/holders/{b}/csv", data={"number": FULL})
+        await client.post(f"/card/holders/{a}/csv", data={"number": ONE})
+        page = (await client.get("/card")).text
+    assert "przypisano płatności: 2" in page

@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import card
+from budget import card, ledger
 from budget.spending import add_months, month_label, parse_month
 from budget.web.common import Panel
 
@@ -31,6 +31,7 @@ def router(panel: Panel) -> APIRouter:
             prev=f"{add_months(start, -1):%Y-%m}",
             next=f"{nxt:%Y-%m}" if nxt <= today else None,
             threshold=card.THRESHOLD,
+            csv_numbers=card.csv_numbers(conn),
             error=error,
         )
 
@@ -63,5 +64,19 @@ def router(panel: Panel) -> APIRouter:
         except card.CardError as exc:
             return panel.redirect(request, "/card", str(exc), "error")
         return panel.redirect(request, "/card", "Zapisano.")
+
+    @r.post("/card/holders/{holder_id}/csv")
+    async def set_csv_number(request: Request, holder_id: int, number: str = Form("")) -> Response:
+        try:
+            with ledger.transaction(conn):
+                card.set_csv_number(conn, holder_id, number or None)
+                done = card.backfill_from_csv(conn)
+        except card.CardError as exc:
+            return panel.redirect(request, "/card", str(exc), "error")
+        if done is None:
+            msg = "Zapisano. Historia CSV przypisze się, gdy każdy numer karty będzie miał osobę."
+        else:
+            msg = f"Zapisano. Z historii CSV przypisano płatności: {done}."
+        return panel.redirect(request, "/card", msg)
 
     return r
