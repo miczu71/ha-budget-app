@@ -124,3 +124,12 @@ Cofnięcie: 0.31.1 (stara wersja przy przeliczeniu wyczyści `learned`; potwierd
   Poprawka w sekcji wyłącza pamięć dla sprzedawcy.
 - Karta „Kategoryzacja — pomiar” (E1) liczy kolejkę już po pamięci — kolumna „kolejka dziś” spada do ~0;
   trafność na żywo pokazuje wiersz „Pamięć sprzedawcy na żywo” (licznik pozycji, nie decyzji).
+
+## Wynik E2 (0.32.0, 2026-10-06)
+Wydane i zainstalowane 2026-10-06 (655 testów; backup add-onu „Budżet Domowy 0.31.1” przed aktualizacją —
+punkt cofnięcia). Migracja 012 przeszła przy starcie; przeliczenie kategorii zmieniło **43 transakcje** —
+tyle przejęła pamięć sprzedawcy (pomiar E1 przewidywał 42 przy k = 1). Kolejka: **109 → 66 pozycji**
+(−39%); w sekcji „Przypisane automatycznie” 13 wydatków (9 grup) i 29 wpływów. Pokrycie wydatków 100%.
+Ingress (390 px): wersja 0.32.0 w zasobach, `no-store`, brak błędów w konsoli i w logu add-onu.
+Na checkpoint: przejrzenie sekcji przez użytkownika — licznik „Pamięć sprzedawcy na żywo” da trafność
+na żywo; KPI z decyzji 20 (≥ 50% mniej kolejki) — 39% od razu, reszta zależy od kolejnych decyzji.
