@@ -27,3 +27,14 @@ miesiące”). Plan zaakceptowany 2026-10-06; całość M12: [`PLAN_M12.md`](PLA
 
 ## Cofnięcie
 Instalacja 0.34.1 (bez zmian schematu).
+
+## Wynik (2026-10-06)
+- 0.35.0 wydane i zainstalowane (release v0.35.0, backup add-onu przy aktualizacji); 685 testów, CI zielone.
+- Na żywo (Ingress, `qwen/qwen3.8-27b`): „Ile wydaliśmy na jedzenie w tym roku?” → „a w 2025?” → „bez
+  restauracji” — model poprawnie zmienił tylko okres, potem dodał wykluczenie podkategorii; 2–3 s na turę,
+  kontekst 3 tury, 0 błędów konsoli, brak przewijania w poziomie.
+- Simplify: stan rozmowy w jednym partialu z flagą `oob` (`_ask_state.html`), zwięzłe plany w kontekście
+  (bez pustych pól), jedno miejsce przycinania, przykłady zaczynają nową rozmowę własnymi atrybutami
+  htmx (bez `HX-Reswap` w trasie), dopytania poza „Ostatnimi rozmowami”. Pominięte: kontekst po stronie
+  serwera z logu (zmiana projektu; dziś plan z formularza jest walidowany i ograniczony rozmiarem).
+- **Czeka checkpoint E2** (dopytania użytkownika), potem decyzja: E3 albo zamknięcie M12.
