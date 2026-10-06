@@ -77,7 +77,46 @@ Wywiad 2026-10-06 (dopisany do roadmapy w trakcie wywiadu M8). Kolejność: **M1
   nie wymienia `<head>`; naprawił to dopiero reset pamięci podręcznej frontendu.
 - Pierwsze możliwe przypomnienie: 26.10 o 7:00 (gdy w październiku < 5 płatności).
 
-## E2 — limit i okres bezodsetkowy (zarys, osobny wywiad)
+## E2 — osoby i ręczne przypisanie płatności (0.24.0)
+
+Wywiad 2026-10-06 (decyzja 19, zmienia decyzję 2). Bank liczy warunek osobno dla każdej karty,
+a API nie podaje numeru karty — więc każdą płatność kartą przypisuje się ręcznie do osoby, a system
+liczy 5 płatności dla każdej.
+
+### Cel i ograniczenia
+
+1. **Przypisanie w pełni ręczne** — bez podpowiedzi i automatycznych reguł.
+2. **Nieprzypisana płatność nie liczy się nikomu**; od razu karta w dzwonku „do przypisania”.
+3. **Powiadomienia do obojga** (`summary_notify_service`): 5 dni i dzień przed końcem miesiąca —
+   stan każdej osoby i liczba nieprzypisanych; wysyłane, gdy komuś brakuje albo coś czeka.
+4. **Imiona tylko w bazie** (ekran „Karta”), nigdy w repo — w kodzie, testach i docs „Osoba 1/2”.
+5. Bez osób w bazie zachowanie jak w 0.23.0 (licznik wspólny).
+6. **Sukces:** liczniki per osoba zgadzają się z bankowością; przypomnienie mówi, kto ile musi
+   jeszcze zapłacić.
+
+### Zakres
+
+- Migracja `011_card_holder.sql`: tabela `card_holder (id, name UNIQUE, csv_number UNIQUE,
+  created_at)`, kolumna `txn.card_holder_id`.
+- `card.py`: osoby (dodaj, zmień imię), przypisanie tylko płatności kartą, `month_status` z liczbą
+  per osoba (ta sama ostrożna reguła dat) i liczbą nieprzypisanych, lista do przypisania.
+- Ekran „Karta” `/card` (menu ⚙, link z kafelka): liczniki per osoba, lista „Do przypisania”
+  z przyciskami osób (htmx, ≥ 44 px), przypisane w miesiącu ze zmianą osoby, sekcja „Osoby”.
+- Podsumowanie: kafelek z wierszem na osobę i liczbą do przypisania. Transakcje: plakietka osoby.
+- Dzwonek: „do przypisania” (warn w ostatnich 5 dniach) i „brakuje K” per osoba w ostatnich 5 dniach.
+- Encja `sensor.budget_card_purchases_month` bez zmiany `entity_id`: nowe atrybuty `holders`,
+  `unassigned`.
+
+## E3 — historia z CSV (0.24.1)
+
+- Przy każdej osobie wybór numeru karty z eksportu CSV → `card_holder.csv_number`.
+- Płatności bez osoby dostają osobę, której numer ma wiersz `csv_row` powiązany z transakcją —
+  bezpośrednio (`txn_id`) albo przez `row_key` wiersza z bloku „całe konto” (blok jednej karty jest
+  oznaczony `duplicate`; na kopii księgi dopasowanie 76/76). Ręczne przypisania wygrywają.
+- Po zapisie mapowania i po każdym imporcie CSV. Kontrola: miesiąc z opłatą 2,99 PLN ma dla karty
+  dodatkowej < 5 płatności.
+
+## E4 — limit i okres bezodsetkowy (zarys, osobny wywiad)
 
 - Limit wpisany ręcznie; ITAV + ITBD obok do porównania.
 - Dzień zamknięcia cyklu i termin spłaty w ustawieniach.
