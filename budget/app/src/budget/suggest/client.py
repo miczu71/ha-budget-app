@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import re
 from typing import Any
 
 import httpx
@@ -19,10 +21,46 @@ MIN_MAX_TOKENS = 1500
 RETRY_STATUSES = frozenset({429, 502, 503})
 RETRY_DELAYS = (2.0, 6.0)
 TIMEOUT = 90.0
+_RESET = re.compile(r"reset\D{0,12}(\d+\s*[hm])", re.IGNORECASE)
+
+log = logging.getLogger(__name__)
 
 
 class AIError(Exception):
-    """Wywołanie nieudane — komunikat bez klucza, do logu i panelu."""
+    """Wywołanie nieudane — zdanie dla użytkownika panelu (bez klucza); surowa odpowiedź routera
+    idzie do logu add-onu."""
+
+
+def http_error(status: int, text: str, model: str) -> AIError:
+    """Opisowy komunikat zamiast surowego „HTTP 429 — {json}” routera."""
+    log.warning("router AI: HTTP %s (model %s): %s", status, model, text[:300])
+    if status == 429:
+        reset = _RESET.search(text)
+        if reset is None:
+            return AIError(
+                f"Limit zapytań modelu AI „{model}” chwilowo wyczerpany — spróbuj za kilka minut "
+                "albo wybierz inny model w opcji ai_model."
+            )
+        return AIError(
+            f"Limit modelu AI „{model}” jest wyczerpany (darmowy dostawca nie przyjmuje więcej "
+            f"zapytań). Odnowi się za ok. {reset.group(1).replace(' ', '')} — możesz też wybrać "
+            "inny model w opcji ai_model."
+        )
+    if status in (401, 403):
+        return AIError("Router AI odrzucił klucz — sprawdź opcję ai_api_key.")
+    if status == 404:
+        return AIError(f"Router AI nie zna modelu „{model}” — sprawdź opcję ai_model.")
+    if status == 400:
+        return AIError(
+            f"Model „{model}” odrzucił zapytanie — może nie obsługiwać odpowiedzi według schematu "
+            "JSON. Wybierz inny model w opcji ai_model."
+        )
+    if status >= 500:
+        return AIError(
+            f"Dostawca modelu AI „{model}” chwilowo nie odpowiada (HTTP {status}). "
+            "Spróbuj za kilka minut."
+        )
+    return AIError(f"Router AI zwrócił błąd HTTP {status} dla modelu „{model}”.")
 
 
 async def _post(
@@ -34,14 +72,17 @@ async def _post(
             resp = await client.post(url, headers=headers, json=body)
         except httpx.HTTPError as exc:
             if delay is None:
-                raise AIError(f"brak połączenia z routerem AI ({type(exc).__name__})") from exc
+                raise AIError(
+                    "Brak połączenia z routerem AI — sprawdź, czy działa i czy opcja ai_base_url "
+                    f"jest poprawna ({type(exc).__name__})."
+                ) from exc
         else:
             if resp.status_code == 200:
                 return resp
             if resp.status_code not in RETRY_STATUSES or delay is None:
-                raise AIError(f"router AI: HTTP {resp.status_code} — {resp.text[:200]}")
+                raise http_error(resp.status_code, resp.text, str(body.get("model")))
         await asyncio.sleep(delay)
-    raise AIError("router AI: wyczerpane ponowienia")  # pragma: no cover
+    raise AIError("Router AI nie odpowiedział po kilku próbach.")  # pragma: no cover
 
 
 async def complete(
@@ -75,8 +116,15 @@ async def complete(
         data = resp.json()
         result = json.loads(data["choices"][0]["message"]["content"])
     except (KeyError, IndexError, TypeError, ValueError) as exc:
-        raise AIError(f"router AI: nieczytelna odpowiedź ({exc})") from exc
+        log.warning("router AI: nieczytelna odpowiedź modelu %s: %s", model, exc)
+        raise AIError(
+            f"Model „{model}” zwrócił odpowiedź, której nie da się odczytać — spróbuj ponownie "
+            "albo wybierz inny model w opcji ai_model."
+        ) from exc
     if not isinstance(result, dict):
-        raise AIError("router AI: odpowiedź nie jest obiektem JSON")
+        raise AIError(
+            f"Model „{model}” zwrócił odpowiedź w złym formacie — spróbuj ponownie albo wybierz "
+            "inny model w opcji ai_model."
+        )
     tokens = int((data.get("usage") or {}).get("total_tokens") or 0)
     return result, tokens

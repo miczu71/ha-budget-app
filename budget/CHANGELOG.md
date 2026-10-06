@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.34.1
+
+**Zrozumiałe komunikaty błędów AI** (czat, podpowiedzi, Status).
+
+- Zamiast surowej odpowiedzi routera (np. „HTTP 429 — {json}”) panel pokazuje zdanie: wyczerpany limit
+  modelu z czasem odnowienia, chwilowy limit, zły klucz, nieznany model, model bez obsługi schematu
+  JSON, awaria dostawcy, brak połączenia z routerem, nieczytelna odpowiedź modelu. Każdy komunikat
+  podpowiada, co zrobić (np. inny model w opcji `ai_model`). Surowa odpowiedź trafia do logu add-onu.
+
 ## 0.34.0
 
 **Zapytaj — czat z danymi** (M12 E1, decyzja 23, `docs/PLAN_M12.md`).

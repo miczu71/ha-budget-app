@@ -98,7 +98,7 @@ async def test_run_error_is_shown(ai: httpx.AsyncClient) -> None:
     respx.post(f"{ROUTER}/chat/completions").mock(return_value=httpx.Response(401, text="nope"))
     await ai.post("/ai/run")
     r = await ai.get("/status")
-    assert "HTTP 401" in r.text and "Ostatni błąd" in r.text
+    assert "odrzucił klucz" in r.text and "Ostatni błąd" in r.text and "nope" not in r.text
 
 
 @respx.mock

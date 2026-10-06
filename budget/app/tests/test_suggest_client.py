@@ -68,19 +68,44 @@ async def test_retries_on_502_then_succeeds() -> None:
 @respx.mock
 async def test_errors() -> None:
     respx.post(f"{URL}/chat/completions").mock(return_value=httpx.Response(401, text="nope"))
-    with pytest.raises(AIError, match="HTTP 401"):
+    with pytest.raises(AIError, match="odrzucił klucz"):
         await _call()
     respx.post(f"{URL}/chat/completions").mock(return_value=httpx.Response(503))
-    with pytest.raises(AIError, match="HTTP 503"):
+    with pytest.raises(AIError, match=r"„model-x” chwilowo nie odpowiada \(HTTP 503\)"):
+        await _call()
+    respx.post(f"{URL}/chat/completions").mock(return_value=httpx.Response(404))
+    with pytest.raises(AIError, match="nie zna modelu „model-x”"):
+        await _call()
+    respx.post(f"{URL}/chat/completions").mock(return_value=httpx.Response(400))
+    with pytest.raises(AIError, match="schematu JSON"):
         await _call()
     respx.post(f"{URL}/chat/completions").mock(
         return_value=httpx.Response(200, json={"choices": [{"message": {"content": "nie json"}}]})
     )
-    with pytest.raises(AIError, match="nieczytelna"):
+    with pytest.raises(AIError, match="nie da się odczytać"):
         await _call()
     respx.post(f"{URL}/chat/completions").mock(return_value=_ok([1, 2]))
-    with pytest.raises(AIError, match="obiektem"):
+    with pytest.raises(AIError, match="złym formacie"):
         await _call()
     respx.post(f"{URL}/chat/completions").mock(side_effect=httpx.ConnectError("x"))
-    with pytest.raises(AIError, match="brak połączenia"):
+    with pytest.raises(AIError, match="Brak połączenia z routerem AI"):
+        await _call()
+
+
+@respx.mock
+async def test_rate_limit_message_has_reset_time_not_raw_json() -> None:
+    raw = (
+        '{"error":{"message":"All models exhausted: 1 route checked (1 rate-limited or on '
+        'cooldown). Add more API keys or wait for rate limits to reset. Soonest reset ~11h.",'
+        '"type":"rate_limit_error"}}'
+    )
+    route = respx.post(f"{URL}/chat/completions").mock(return_value=httpx.Response(429, text=raw))
+    with pytest.raises(AIError) as err:
+        await _call()
+    msg = str(err.value)
+    assert "Limit modelu AI „model-x” jest wyczerpany" in msg and "za ok. 11h" in msg
+    assert "{" not in msg and "rate_limit_error" not in msg
+    assert route.call_count == 3  # 429 nadal ponawiane (krótkie limity minutowe)
+    route.mock(return_value=httpx.Response(429, text="Too Many Requests"))
+    with pytest.raises(AIError, match="chwilowo wyczerpany"):
         await _call()
