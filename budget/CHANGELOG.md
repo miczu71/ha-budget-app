@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.30.0
+
+**Karta kredytowa: ile spłacić i do kiedy** (M15 E4, `docs/PLAN_M15.md` § E4).
+
+- Ekran Karta: sekcja „Spłata” — kwota z zamkniętego cyklu (miesiąc kalendarzowy) do spłaty do 20. dnia
+  następnego miesiąca, liczba dni i stan (do spłaty / spłacone / po terminie). Kwota = zadłużenie z banku
+  minus zakupy zaksięgowane w bieżącym cyklu; liczona ostrożnie, może wyjść nieco wyższa niż w banku.
+- Sekcja „Limit”: limit wpisany ręcznie (bank go nie podaje), pasek wykorzystania, zadłużenie i „dostępne”
+  według banku do porównania.
+- Przypomnienie na telefon 15. i 19. o 7:00 (tylko gdy coś zostało do spłaty), pozycja w dzwonku od 1. dnia
+  (ostrzeżenie od 15. i po terminie), linia „Do spłaty” na kafelku karty.
+- Nowa encja `sensor.budget_card_due` (stan = zostało do spłaty; atrybuty: termin, dni, po terminie,
+  zadłużenie, limit, wykorzystanie).
+- Kwoty w powiadomieniach i w panelu formatuje jedna funkcja. Bez zmian w schemacie bazy.
+
 ## 0.29.0
 
 **„Do wypłaty”: wykres osi czasu i jedna lista zdarzeń** (M8 E3b, `docs/PLAN_M8_E3.md`).
