@@ -108,7 +108,12 @@ robiony przy aktualizacji; klucze `ask_*` w `kv` starsza wersja ignoruje.
   księgi raty kredytu miały w nim cały opis (każda rata osobnym wierszem); sprawdzić na produkcji.
 - Simplify pominął świadomie: jedno zapytanie dla dwóch okresów, liczenie poza pętlą zdarzeń
   (`to_thread`), wspólne fikstury AI w testach, wspólny formatter kategorii do promptów.
-- **Czeka checkpoint:** 10–15 prawdziwych pytań użytkownika, cel ≥ 80% poprawnych.
+- ~~Czeka checkpoint~~ 10–15 prawdziwych pytań użytkownika, cel ≥ 80% poprawnych.
+- 0.34.1 (2026-10-06): opisowe komunikaty błędów AI. Przyczyna pierwszego błędu 429: `gemini-3.1-flash-lite`
+  ma w routerze jedną trasę z limitem 20 zapytań na dobę, dzieloną z innymi klientami. Szybki test 8 kandydatów
+  (te same prompty, kategorie domyślne): `qwen/qwen3.8-27b` 5/5 (~0,4 s), `@cf/openai/gpt-oss-120b` 5/5,
+  `openai/gpt-oss-120b` 4/5, reszta 0–1/5 → `ai_model` = `qwen/qwen3.8-27b` (ustawione przez użytkownika).
+- ✅ Checkpoint E1 zamknięty przez użytkownika 2026-10-06 („działa ok”).
 
 ## E2 — rozmowa z kontekstem (0.35.0)
 Zakres do potwierdzenia na checkpoincie E1: rozmowa = lista tur (pytanie, plan, wynik zredagowany) w
