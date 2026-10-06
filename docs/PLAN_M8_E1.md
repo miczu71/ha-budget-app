@@ -101,3 +101,19 @@ Karta: **ITBD** = bieżące zadłużenie, bo ITAV karty jest opóźnione (FINDIN
 - Wypłata = seria wpływowa o największej kwocie (zob. wyżej). Uwaga na checkpoint: przy dwóch
   pensjach (dwie serie przychodów) horyzont kończy się na późniejszej, a wcześniejsza wchodzi
   do salda jako „Wpływy przed wypłatą”.
+
+## Wynik (2026-10-06)
+
+- **0.25.0 wydane** (release `v0.25.0`, nie draft; CI zielone) i zainstalowane z backupem add-onu;
+  `update.budzet_domowy_update` = 0.25.0, znacznik `v0.25.0` w panelu.
+- 590 testów (pytest), ruff i mypy czyste. Zmiany ze skilla `simplify`: ponowne użycie `FlexMonth`
+  i widoku miesiąca z trasy (bez drugiego `flex.build` i `for_month` na `/`), wspólne
+  `ledger.latest_balances`, reguła „poniżej bufora” w `Forecast`.
+- Na żywo (390 px, Ingress): sekcja „Do wypłaty”, wiersz zadłużenia karty z godziną odczytu, wykres,
+  0 błędów konsoli, 0 elementów < 44 px, brak poziomego przewijania. Rachunek ręczny
+  (saldo − karta − serie − reszta Flex + wpływy) zgodny z „Na dzień …” co do grosza.
+- Czas `GET /` po rozgrzaniu 445–494 ms (próg < 600 ms); pierwsze żądanie po restarcie ~1,1 s.
+- Do oceny na checkpoincie: (1) prognoza rezerwuje całą resztę puli Flex (równo na dni), więc jest
+  ostrożna — przy wydawaniu poniżej tempa dno wyjdzie wyżej; (2) wypłata = seria przychodów
+  o największej kwocie, mniejsza pensja przed nią wchodzi do salda; (3) zadłużenie karty jest
+  odejmowane w całości od razu, także to, co bank pobierze dopiero w terminie spłaty.
