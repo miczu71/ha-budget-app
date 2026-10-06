@@ -8,6 +8,11 @@ karty pod jednym numerem i blok płatności jednej karty pod drugim — wygrywa 
 Bez osób w bazie licznik jest wspólny dla konta karty (E1).
 API ma tylko datę księgowania (zakup zwykle 2 dni wcześniej), a cennik nie mówi, którą datę
 bank bierze — liczba to mniejsza z dwóch: po dacie księgowania i po dacie księgowania − 2 dni.
+
+Spłata (E4): cykl = miesiąc kalendarzowy, termin spłaty `DUE_DAY` następnego miesiąca. Kwoty
+wyciągu API nie podaje, więc zostało do spłaty = ITBD (zadłużenie teraz) − obciążenia karty
+zaksięgowane w bieżącym cyklu; obciążenia z pierwszych `BOOKING_LAG` dni cyklu liczą się do
+wyciągu. Błąd zawsze w górę (także autoryzacje w ITBD spoza księgi).
 """
 
 from __future__ import annotations
@@ -15,14 +20,19 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 from datetime import date, timedelta
+from decimal import Decimal
 
+from budget import money
 from budget.kinds import Kind
 from budget.spending import add_months, month_start
-from budget.storage.db import now_iso
+from budget.storage.db import kv_get, kv_set, now_iso
 
 THRESHOLD = 5
 BOOKING_LAG = timedelta(days=2)
 REMIND_DAYS = (5, 1)  # przypomnienie na telefon tyle dni przed ostatnim dniem miesiąca
+DUE_DAY = 20  # termin spłaty: dzień miesiąca po zamknięciu cyklu
+DUE_REMIND_DAYS = (5, 1)  # przypomnienie o spłacie tyle dni przed terminem
+LIMIT_KEY = "card_limit"  # kv: limit karty (tekst kwoty); bez niego sekcja limitu ukryta
 PAYMENT_WHERE = (
     f"t.account_id = ? AND t.kind = '{Kind.CARD.value}' AND t.status = 'BOOK' "
     "AND t.amount LIKE '-%'"
@@ -199,6 +209,83 @@ def payments(conn: sqlite3.Connection, month: date) -> list[sqlite3.Row]:
         "AND t.booking_date >= ? AND t.booking_date < ? ORDER BY t.booking_date DESC, t.id DESC",
         (account, start.isoformat(), add_months(start, 1).isoformat()),
     ).fetchall()
+
+
+@dataclass(frozen=True)
+class CardDue:
+    left: Decimal  # zostało do spłaty z zamkniętego cyklu (≥ 0)
+    due: date
+    debt: Decimal  # ITBD: zadłużenie teraz
+    available: Decimal | None  # ITAV (opóźnione — tylko do porównania)
+    limit: Decimal | None
+    today: date
+
+    @property
+    def days_left(self) -> int:
+        return (self.due - self.today).days
+
+    @property
+    def overdue(self) -> bool:
+        return bool(self.left) and self.days_left < 0
+
+    @property
+    def utilization(self) -> float | None:
+        return float(self.debt / self.limit) if self.limit else None
+
+
+def get_limit(conn: sqlite3.Connection) -> Decimal | None:
+    value = kv_get(conn, LIMIT_KEY)
+    return Decimal(value) if value else None
+
+
+def set_limit(conn: sqlite3.Connection, text: str) -> None:
+    """Limit z pola formularza; pusty tekst usuwa limit."""
+    try:
+        value = money.parse(text)
+    except money.AmountError as exc:
+        raise CardError("Podaj limit jako kwotę, np. 5000.") from exc
+    if value is not None and value <= 0:
+        raise CardError("Limit musi być większy od zera.")
+    kv_set(conn, LIMIT_KEY, None if value is None else money.fmt(value))
+
+
+def due_remind_today(today: date) -> bool:
+    return DUE_DAY - today.day in DUE_REMIND_DAYS
+
+
+def due_status(conn: sqlite3.Connection, today: date) -> CardDue | None:
+    """Spłata cyklu zamkniętego z końcem poprzedniego miesiąca; None bez karty lub bez ITBD."""
+    account = card_account(conn)
+    if account is None:
+        return None
+    snaps = {
+        r["balance_type"]: Decimal(r["amount"])
+        for r in conn.execute(
+            "SELECT balance_type, amount FROM balance_snapshot WHERE account_id = ? AND "
+            "fetched_at = (SELECT max(fetched_at) FROM balance_snapshot WHERE account_id = ?)",
+            (account, account),
+        )
+    }
+    if "ITBD" not in snaps:
+        return None
+    start = month_start(today)
+    new = money.total(
+        r[0]
+        for r in conn.execute(
+            "SELECT amount FROM txn WHERE account_id = ? AND status = 'BOOK' "
+            "AND amount LIKE '-%' AND booking_date >= ?",
+            (account, (start + BOOKING_LAG).isoformat()),
+        )
+    )
+    debt = max(snaps["ITBD"], money.ZERO)
+    return CardDue(
+        left=max(debt + new, money.ZERO),  # `new` ujemne
+        due=start.replace(day=DUE_DAY),
+        debt=debt,
+        available=snaps.get("ITAV"),
+        limit=get_limit(conn),
+        today=today,
+    )
 
 
 def month_status(conn: sqlite3.Connection, today: date) -> CardMonth | None:

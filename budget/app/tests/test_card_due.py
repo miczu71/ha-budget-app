@@ -1,0 +1,89 @@
+"""Spłata karty kredytowej (M15 E4): zostało do spłaty z zamkniętego cyklu, termin, limit."""
+
+from __future__ import annotations
+
+import sqlite3
+from datetime import date
+from decimal import Decimal
+
+import pytest
+
+from budget import card
+
+from .test_card import CARD, buy
+from .test_categorize_engine import conn
+from .test_forecast import snapshot
+
+__all__ = ["conn"]
+
+
+def debt(c: sqlite3.Connection, itbd: str, itav: str | None = None) -> None:
+    at = "2026-10-12T10:00:00+00:00"
+    snapshot(c, CARD, "ITBD", itbd, at)
+    if itav is not None:
+        snapshot(c, CARD, "ITAV", itav, at)
+
+
+def test_none_without_card_balance(conn: sqlite3.Connection) -> None:
+    assert card.due_status(conn, date(2026, 10, 12)) is None
+
+
+def test_new_cycle_debits_are_not_due(conn: sqlite3.Connection) -> None:
+    buy(conn, "2026-09-20", amount="-300.00")  # poprzedni cykl — w ITBD i w wyciągu
+    buy(conn, "2026-10-05", amount="-40.00")
+    buy(conn, "2026-10-08", kind="fee", amount="-2.99")
+    debt(conn, "342.99", "9657.01")
+    cd = card.due_status(conn, date(2026, 10, 12))
+    assert cd is not None
+    assert cd.left == Decimal("300.00") and cd.due == date(2026, 10, 20) and cd.days_left == 8
+    assert cd.debt == Decimal("342.99") and cd.available == Decimal("9657.01")
+    assert not cd.overdue and cd.limit is None and cd.utilization is None
+
+
+def test_repayment_after_close_counts_by_itself(conn: sqlite3.Connection) -> None:
+    buy(conn, "2026-10-05", amount="-40.00")
+    buy(conn, "2026-10-06", kind="card_repayment", amount="250.00")
+    debt(conn, "90.00")  # wyciąg 300 − spłata 250 + 40 nowych
+    cd = card.due_status(conn, date(2026, 10, 12))
+    assert cd is not None and cd.left == Decimal("50.00")
+
+
+def test_cycle_boundary_counts_toward_statement(conn: sqlite3.Connection) -> None:
+    buy(conn, "2026-10-02", amount="-60.00")  # zakup z 30.09, zaksięgowany 2.10
+    buy(conn, "2026-10-03", amount="-10.00")
+    debt(conn, "370.00")
+    cd = card.due_status(conn, date(2026, 10, 12))
+    assert cd is not None and cd.left == Decimal("360.00")
+
+
+def test_paid_off_and_overdue(conn: sqlite3.Connection) -> None:
+    buy(conn, "2026-10-05", amount="-40.00")
+    debt(conn, "40.00")
+    paid = card.due_status(conn, date(2026, 10, 25))
+    assert paid is not None and paid.left == 0 and not paid.overdue
+    snapshot(conn, CARD, "ITBD", "100.00", "2026-10-25T10:00:00+00:00")  # liczy się najnowsza
+    late = card.due_status(conn, date(2026, 10, 25))
+    assert late is not None and late.left == Decimal("60.00") and late.overdue
+
+
+def test_authorization_only_in_itbd_raises_amount(conn: sqlite3.Connection) -> None:
+    debt(conn, "125.00")  # zakup z wczoraj jeszcze bez księgowania
+    cd = card.due_status(conn, date(2026, 10, 12))
+    assert cd is not None and cd.left == Decimal("125.00")
+
+
+def test_limit(conn: sqlite3.Connection) -> None:
+    debt(conn, "2500.00")
+    card.set_limit(conn, "10 000,00")
+    cd = card.due_status(conn, date(2026, 10, 12))
+    assert cd is not None and cd.limit == Decimal("10000.00") and cd.utilization == 0.25
+    card.set_limit(conn, "")
+    assert card.get_limit(conn) is None
+    for bad in ("abc", "0", "-5"):
+        with pytest.raises(card.CardError):
+            card.set_limit(conn, bad)
+
+
+@pytest.mark.parametrize(("day", "expected"), [(14, False), (15, True), (19, True), (20, False)])
+def test_due_remind_days(day: int, expected: bool) -> None:
+    assert card.due_remind_today(date(2026, 10, day)) is expected
