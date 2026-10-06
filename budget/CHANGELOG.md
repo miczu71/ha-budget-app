@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.27.0
+
+**„Do wypłaty”: werdykt i dzienny limit** (M8 E3a, `docs/PLAN_M8_E3.md`).
+
+- Na górze jedna odpowiedź: „Starczy · zapas …” albo „Zabraknie …” (przy buforze: „Poniżej bufora o …”)
+  z dniem najniższego punktu.
+- Dzienny limit wydatków z puli Flex, przy którym saldo nie spadnie poniżej zera (bufora), obok obecnego
+  tempa; gdy same płatności cykliczne przekraczają wolne środki, widać to wprost.
+- Rozbicie jako pasek czterech liczb (wolne dziś, serie, Flex, wpływy) i wynik na dzień wypłaty; listy serii
+  i wpływów nadal rozwijane.
+- Salda, data migawki i przełącznik „Odejmij zadłużenie karty” w stopce karty; przełącznik zapisuje się sam,
+  bez przycisku „Zastosuj”.
+- Bez zmian w schemacie bazy, encjach i dzwonku.
+
 ## 0.26.0
 
 **Prognoza „Do wypłaty”: encje i ostrzeżenie w dzwonku** (M8 E2, `docs/PLAN_M8_E2.md`).
