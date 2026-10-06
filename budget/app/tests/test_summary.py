@@ -144,7 +144,7 @@ def _with_target(service: Service, ha: FakeHA) -> Service:
         **{**service.settings.model_dump(), "summary_notify_service": "notify.rodzina"}
     )
     service.ha = ha  # type: ignore[assignment]
-    service.notifier.panel_url = "/hassio/ingress/x_budget"
+    service.notifier.panel_url = "/app/x_budget"
     return service
 
 
@@ -159,7 +159,7 @@ async def test_send_due_summaries_marks_sent(
     assert len(ha.sent) == 1
     target, title, _, data = ha.sent[0]
     assert target == "notify.rodzina" and title.startswith("Budżet — tydzień")
-    assert data == {"clickAction": "/hassio/ingress/x_budget", "url": "/hassio/ingress/x_budget"}
+    assert data == {"clickAction": "/app/x_budget", "url": "/app/x_budget"}
 
 
 async def test_no_target_no_send(service: Service, monkeypatch: pytest.MonkeyPatch) -> None:

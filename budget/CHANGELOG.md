@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.22.1
+
+- Poprawka: dotknięcie podsumowania na telefonie i link w powiadomieniu w HA otwierają panel Budżetu.
+  Od HA 2026.9 adres `/hassio/ingress/<slug>` zwraca 404 — teraz `/app/<slug>`.
+
 ## 0.22.0
 
 **Podsumowania na telefon i kalendarz płatności** (M6, `docs/PLAN_M6.md`).
