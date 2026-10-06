@@ -352,11 +352,12 @@ def forecast_entities(fc: forecast_mod.Forecast | None) -> list[Entity]:
 
 
 def card_entities(snap: Snapshot, today: date) -> list[Entity]:
-    """Płatności kartą kredytową w bieżącym miesiącu (M15); stan łącznie, osoby w `holders`."""
+    """Płatności kartą kredytową w bieżącym miesiącu (M15; stan łącznie, osoby w `holders`)
+    i spłata zamkniętego cyklu (E4; bez migawki salda karty nie ma encji)."""
     cm = card.month_status(snap.conn, today)
     if cm is None:
         return []
-    return [
+    out = [
         Entity(
             "sensor",
             "card_purchases_month",
@@ -375,6 +376,24 @@ def card_entities(snap: Snapshot, today: date) -> list[Entity]:
             },
         )
     ]
+    cd = card.due_status(snap.conn, today)
+    if cd is not None:
+        out.append(
+            _flex_sensor(
+                "card_due",
+                "Karta kredytowa — do spłaty",
+                "mdi:credit-card-clock-outline",
+                _amount(cd.left),
+                due_date=cd.due.isoformat(),
+                days_left=cd.days_left,
+                overdue=cd.overdue,
+                debt=_amount(cd.debt),
+                available=_amount(cd.available),
+                limit=_amount(cd.limit),
+                utilization=None if cd.utilization is None else round(cd.utilization * 100, 1),
+            )
+        )
+    return out
 
 
 def recurring_entities(snap: Snapshot, today: date) -> list[Entity]:

@@ -8,7 +8,7 @@ from decimal import Decimal
 
 import pytest
 
-from budget import card, inbox, summary
+from budget import card, ha_publisher, inbox, summary
 from budget.snapshot import Snapshot
 
 from .test_card import CARD, WAW, buy
@@ -124,3 +124,23 @@ def test_inbox_severity(conn: sqlite3.Connection) -> None:
     assert due_items(conn, 15)[0].severity == "warn"
     (late,) = due_items(conn, 21)
     assert late.severity == "warn" and "po terminie" in late.title
+
+
+def test_entity(conn: sqlite3.Connection) -> None:
+    assert [e.key for e in ha_publisher.card_entities(Snapshot(conn), date(2026, 10, 12))] == [
+        "card_purchases_month"
+    ]
+    debt(conn, "2500.00", "7500.00")
+    card.set_limit(conn, "10000")
+    _, e = ha_publisher.card_entities(Snapshot(conn), date(2026, 10, 12))
+    assert e.key == "card_due" and e.state == "2500.00"
+    assert e.config["unit_of_measurement"] == "PLN"
+    assert e.attributes == {
+        "due_date": "2026-10-20",
+        "days_left": 8,
+        "overdue": False,
+        "debt": "2500.00",
+        "available": "7500.00",
+        "limit": "10000.00",
+        "utilization": 25.0,
+    }
