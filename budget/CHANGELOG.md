@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.32.0
+
+**Pamięć sprzedawcy: mniej pracy z kolejką** (M7 E2, `docs/PLAN_M7.md`).
+
+- Transakcja bez reguły i bez wpisu słownika dostaje kategorię z Twoich wcześniejszych ręcznych decyzji
+  u tego samego sprzedawcy (ten sam kierunek), jeśli wszystkie były zgodne. Nigdy nie nadpisuje kategorii
+  ręcznej, reguły, słownika ani typu; od razu liczy się w budżecie i wydatkach.
+- Do przejrzenia: nowa zwinięta sekcja „Przypisane automatycznie (N)” — ptaszek przy grupie albo
+  „Potwierdź wszystkie” zatwierdza kategorię; inna kategoria (rozwiń grupę) wyłącza pamięć dla tego
+  sprzedawcy, a jego pozostałe pozycje wracają do kolejki. Pozycje odznaczone przy zapisie grupy przejmuje
+  pamięć — potwierdzenie zapisu mówi ile.
+- Transakcje: etykieta źródła „pamięć”. Status: „Pamięć sprzedawcy na żywo: potwierdzone / poprawione”.
+- Migracja bazy 012 (źródło `learned`). **Powrót do 0.31.x tylko przez przywrócenie backupu add-onu.**
+
 ## 0.31.1
 
 **Pomiar kategoryzacji: trafność pamięci według typu transakcji** (M7 E1b, `docs/PLAN_M7.md`).
