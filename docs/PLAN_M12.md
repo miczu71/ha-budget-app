@@ -97,6 +97,19 @@ w E2, co z log „nie umiem” trafia do E3.
 Bez migracji schematu — wystarczy zainstalować poprzednią wersję albo przywrócić backup add-onu
 robiony przy aktualizacji; klucze `ask_*` w `kv` starsza wersja ignoruje.
 
+## Wynik E1 (2026-10-06)
+- 0.34.0 wydane i zainstalowane (release v0.34.0, backup add-onu przy aktualizacji); 678 testów, CI zielone.
+- Na żywo (Ingress, 390 px): pytanie „Ile wydaliśmy na jedzenie w tym roku?” → plan: kategoria główna
+  Jedzenie, styczeń–październik 2026; odpowiedź po ~13 s; suma i liczba transakcji **zgodne co do grosza**
+  z sumą 10 miesięcy z ekranu „Wydatki”. 0 błędów konsoli, brak przewijania w poziomie, cele dotyku ≥ 44 px.
+- Zmiany w trakcie: log w `kv` zamiast migracji 013; etykiety `[O1]` zamiast „Odbiorca N”; licznik wywołań
+  wspólny z podpowiedziami (`suggest.metered_call`, osobny klucz) — nieudane wywołanie też liczy się do limitu.
+- Do sprawdzenia na checkpoincie: podział „po sprzedawcy” zależy od pola `merchant` — na starej kopii
+  księgi raty kredytu miały w nim cały opis (każda rata osobnym wierszem); sprawdzić na produkcji.
+- Simplify pominął świadomie: jedno zapytanie dla dwóch okresów, liczenie poza pętlą zdarzeń
+  (`to_thread`), wspólne fikstury AI w testach, wspólny formatter kategorii do promptów.
+- **Czeka checkpoint:** 10–15 prawdziwych pytań użytkownika, cel ≥ 80% poprawnych.
+
 ## E2 — rozmowa z kontekstem (0.35.0)
 Zakres do potwierdzenia na checkpoincie E1: rozmowa = lista tur (pytanie, plan, wynik zredagowany) w
 bazie; krok 1 dostaje poprzednie pytania i plany (bez wyników), krok 3 — bieżący wynik; „nowa rozmowa”;
