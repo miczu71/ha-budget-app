@@ -876,3 +876,17 @@ label.switch input[type="checkbox"]:checked::after { transform: translateX(16px)
 .limit-bar .fill { background: var(--text); }
 .limit-strip { margin-bottom: 8px; }
 .card-limit form.rename { margin-top: 8px; }
+
+/* Zapytaj (M12) */
+.ask-form label { display: block; font-weight: 600; margin-bottom: 6px; }
+.ask-form textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.ask-actions { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+.ask-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.ask-chips button { text-align: left; white-space: normal; }
+.ask-q { margin: 0 0 4px; }
+.ask-text { font-size: 17px; line-height: 1.45; }
+.ask-table td { text-align: right; white-space: nowrap; }
+.ask-table tfoot th { text-align: left; }
+.ask-table tbody th { font-weight: 400; text-align: left; min-width: 9em; overflow-wrap: break-word; }
+.ask-how summary { padding: 12px 0; cursor: pointer; }
+.ask-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }

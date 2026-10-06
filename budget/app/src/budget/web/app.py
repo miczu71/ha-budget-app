@@ -23,6 +23,7 @@ from budget import __version__
 from budget.service import Service
 from budget.web import (
     routes_accounts,
+    routes_ask,
     routes_bank,
     routes_budget,
     routes_calendar,
@@ -91,6 +92,7 @@ def create_app(service: Service, *, dev: bool = False) -> FastAPI:
         routes_bank,
         routes_calendar,
         routes_card,
+        routes_ask,
     ):
         app.include_router(module.router(panel))
 

@@ -15,7 +15,8 @@ ponowienia 429/502/503) i redakcję danych (`suggest/redact.py`) — M12 z nich 
 3. Do LLM wychodzą: pytanie, lista kategorii (nazwy + grupy), opis języka zapytań, poprzednie plany
    zapytań rozmowy (E2) oraz **wyniki zbiorcze** (sumy, liczby, średnie). Nie wychodzą pojedyncze
    transakcje. Nazwy sprzedawców z płatności kartą/BLIK mogą wyjść (jak decyzja 12); odbiorcy przelewów
-   → etykiety „Odbiorca N”, podmieniane na prawdziwe nazwy lokalnie w tabeli pod odpowiedzią.
+   → etykiety `[O1]`, `[O2]`… (zmiana w trakcie E1: „Odbiorca N” model odmienia, nawias przetrwa),
+   podmieniane na prawdziwe nazwy lokalnie — w tabeli i w zdaniu odpowiedzi.
 4. Liczby muszą zgadzać się z panelem: zapytanie liczy ten sam zbiór transakcji co „Wydatki”
    (`spending._rows`: zaksięgowane, bez przelewów własnych, konta w budżecie, PLN; kwoty ze znakiem netto,
    więc zwroty pomniejszają kategorię).
@@ -67,8 +68,9 @@ do `/transactions`. Wyrażenie kwot jak w „Wydatkach” (wydatki dodatnie w ta
 - Limit: nowa opcja `chat_daily_calls` (domyślnie 40, `int(0,500)`) w `config.yaml` + `Settings`;
   licznik w `kv` jak `suggest.engine.usage`, pod osobnym kluczem; po wyczerpaniu komunikat w panelu.
 - Bez `ai_base_url` zakładka pokazuje „skonfiguruj router AI w opcjach”.
-- Log lokalny `ask_log` (migracja 013): czas, pytanie, plan JSON, `unsupported`, tokeny — do E3
-  i checkpointu; bez wyników kwotowych. Czyszczenie wpisów starszych niż 180 dni przy zapisie.
+- Log lokalny w `kv` (`ask_log`, ostatnie 100 pytań): czas, pytanie, surowy plan od LLM, `unsupported`,
+  błąd — do E3 i checkpointu; bez wyników kwotowych. **Zmiana w trakcie E1:** zamiast migracji 013 —
+  `db.migrate` starszej wersji odmawia startu na nowszej bazie, a `kv` nie zmienia schematu.
 
 ### Panel
 - `web/routes_ask.py` + `templates/ask.html`: zakładka „Zapytaj” w pasku (po „Karta”), pole pytania
@@ -92,8 +94,8 @@ Na żywo przez Ingress: użytkownik podaje 10–15 pytań, ja zestawiam odpowied
 w E2, co z log „nie umiem” trafia do E3.
 
 ### Cofnięcie
-Wersja poprzednia z backupu add-onu robionego przy aktualizacji; migracja 013 tylko dodaje tabelę
-(addytywna, starsza wersja ją ignoruje).
+Bez migracji schematu — wystarczy zainstalować poprzednią wersję albo przywrócić backup add-onu
+robiony przy aktualizacji; klucze `ask_*` w `kv` starsza wersja ignoruje.
 
 ## E2 — rozmowa z kontekstem (0.35.0)
 Zakres do potwierdzenia na checkpoincie E1: rozmowa = lista tur (pytanie, plan, wynik zredagowany) w

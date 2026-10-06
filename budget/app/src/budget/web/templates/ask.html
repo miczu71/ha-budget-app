@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% macro chips(title, items) %}
+    <h2 class="small muted">{{ title }}</h2>
+    <div class="ask-chips">
+      {% for e in items %}<button type="submit" name="example" value="{{ e }}" class="secondary">{{ e }}</button>{% endfor %}
+    </div>
+{% endmacro %}
+{% block content %}
+<h1>Zapytaj</h1>
+{% if not ai_on %}
+<section class="card">
+  <p>Czat potrzebuje routera AI: ustaw <code>ai_base_url</code> (i klucz) w opcjach add-onu, a <code>chat_daily_calls</code> powyżej 0.</p>
+</section>
+{% else %}
+<section class="card ask">
+  <form class="ask-form" method="post" action="{{ base }}/ask" hx-post="{{ base }}/ask" hx-target="#ask-out" hx-swap="innerHTML" hx-disabled-elt="find button">
+    <label for="ask-q">Pytanie o Wasze finanse</label>
+    <textarea id="ask-q" name="q" rows="2" maxlength="{{ question_max }}" placeholder="np. ile kosztuje nas samochód rocznie?">{{ q or "" }}</textarea>
+    <div class="ask-actions">
+      <button type="submit">Zapytaj</button>
+      <span class="htmx-indicator muted small">liczę i pytam model…</span>
+    </div>
+    <p class="small muted">Model dostaje pytanie, listę kategorii i wynik zbiorczy (sumy) — nie pojedyncze transakcje; odbiorców przelewów widzi jako [O1], [O2]… Liczby liczy add-on tak jak ekran Wydatki.</p>
+    {{ chips("Przykłady", examples) }}
+    {% if recent %}{{ chips("Ostatnie pytania", recent) }}{% endif %}
+  </form>
+</section>
+<div id="ask-out" aria-live="polite">{% include "_ask_answer.html" %}</div>
+{% endif %}
+{% endblock %}

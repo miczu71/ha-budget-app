@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.34.0
+
+**Zapytaj — czat z danymi** (M12 E1, decyzja 23, `docs/PLAN_M12.md`).
+
+- Nowa zakładka „Zapytaj”: pytanie po polsku (np. „ile wydaliśmy na jedzenie w tym roku?”,
+  „który miesiąc był najdroższy?”, porównanie dwóch okresów) → zdanie odpowiedzi, tabela z liczbami,
+  „Jak policzono” i link do pasujących transakcji. Przykłady i ostatnie pytania do dotknięcia.
+- Liczby liczy add-on tym samym zbiorem co „Wydatki” (bez przelewów własnych, zwroty netto); model
+  tylko tłumaczy pytanie na zapytanie i opisuje wynik.
+- Do modelu wychodzą pytanie, lista kategorii i wynik zbiorczy — bez pojedynczych transakcji;
+  odbiorcy przelewów jako [O1], [O2]…, prawdziwe nazwy wstawiane lokalnie.
+- Nowa opcja `chat_daily_calls` (domyślnie 40; pytanie = 2 wywołania), osobno od podpowiedzi
+  kategorii. Pytania spoza zakresu dostają „nie umiem” zamiast zgadywanej liczby.
+
 ## 0.33.0
 
 **Pula budżetu tylko z wynagrodzenia i świadczeń** (decyzja 22, `docs/ROADMAP.md`).

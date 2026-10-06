@@ -1,0 +1,33 @@
+{% macro val(v, metric) %}{% if metric == "count" %}{{ v | int }}{% else %}{{ v | money("PLN") }}{% endif %}{% endmacro %}
+{% if a %}
+{% if a.error %}
+<div class="msg error" role="alert">{{ a.error }}</div>
+{% elif a.unsupported %}
+<section class="card ask-answer">
+  <p class="ask-q muted small">{{ a.question }}</p>
+  <p>Nie umiem odpowiedzieć na to pytanie: {{ a.unsupported }}</p>
+</section>
+{% else %}
+{% set res = a.result %}{% set m = res.plan.metric %}
+<section class="card ask-answer">
+  <p class="ask-q muted small">{{ a.question }}</p>
+  <p class="ask-text">{{ a.text or "Model nie opisał wyniku — liczby są niżej." }}</p>
+  <div class="table-wrap"><table class="ask-table">
+    <thead><tr><th scope="col"></th>{% for p in res.periods %}<th scope="col">{{ p.period.label }}{% if p.partial %} <span class="small muted">(niepełny)</span>{% endif %}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for row in res.rows %}
+      <tr><th scope="row">{{ row.label }}</th>{% for v in row.values %}<td class="num">{{ val(v, m) }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr><th scope="row">Razem</th>{% for p in res.periods %}<td class="num"><strong>{{ val(p.value, m) }}</strong> <span class="small muted">({{ p.count }} tr.)</span></td>{% endfor %}</tr></tfoot>
+  </table></div>
+  {% if res.rows and res.plan.group_by not in ("month", "none") and res.rows | length == res.plan.limit %}<p class="small muted">Pokazane pierwsze {{ res.plan.limit }} pozycji; „Razem” obejmuje wszystkie.</p>{% endif %}
+  <details class="ask-how">
+    <summary>Jak policzono</summary>
+    <ul class="small">{% for f in res.filters %}<li>{{ f }}</li>{% endfor %}</ul>
+  </details>
+  <p class="ask-links">{% for p in res.periods %}<a class="tap" href="{{ base }}/transactions?{{ p.link | urlencode }}">Pokaż transakcje{% if res.periods | length > 1 %}: {{ p.period.label }}{% endif %}</a>{% endfor %}</p>
+</section>
+{% endif %}
+{% endif %}
+{% if left is defined %}<p class="small muted">Pozostało pytań dziś: {{ left }}</p>{% endif %}

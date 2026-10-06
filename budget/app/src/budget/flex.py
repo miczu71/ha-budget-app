@@ -241,7 +241,7 @@ def set_budget(conn: sqlite3.Connection, month: date, amount: Decimal | None) ->
 # --- wyliczenie -------------------------------------------------------------------------------
 
 
-def _first_month(conn: sqlite3.Connection) -> date | None:
+def first_month(conn: sqlite3.Connection) -> date | None:
     row = conn.execute(
         "SELECT min(coalesce(t.tx_date, t.booking_date)) FROM txn t "
         "JOIN account a ON a.id = t.account_id "
@@ -273,7 +273,7 @@ def _history(
     conn: sqlite3.Connection, start: date, skip: set[int] | None = None
 ) -> list[tuple[date, Sums]]:
     """Pełne miesiące przed `start` (najwyżej `HISTORY_MONTHS`), od pierwszej transakcji."""
-    first = _first_month(conn)
+    first = first_month(conn)
     if first is None:
         return []
     out = []

@@ -265,29 +265,61 @@ def parse(result: dict[str, Any], batch: list[Group], leaves: dict[int, Category
 # --- licznik wywołań ----------------------------------------------------------------------
 
 
-def usage(conn: sqlite3.Connection, today: date) -> dict[str, Any]:
-    """Wywołania i tokeny dziś + ostatni błąd/sukces (stan w `kv`)."""
-    u = kv_get(conn, USAGE_KEY) or {}
+def usage(conn: sqlite3.Connection, today: date, key: str = USAGE_KEY) -> dict[str, Any]:
+    """Wywołania i tokeny dziś + ostatni błąd/sukces (stan w `kv`; `key` — czat M12 ma własny)."""
+    u = kv_get(conn, key) or {}
     if u.get("day") != today.isoformat():
         u = {**u, "day": today.isoformat(), "calls": 0, "tokens": 0}
     return u
 
 
 def _record(
-    conn: sqlite3.Connection, today: date, tokens: int = 0, error: str | None = None
+    conn: sqlite3.Connection,
+    today: date,
+    tokens: int = 0,
+    error: str | None = None,
+    key: str = USAGE_KEY,
 ) -> None:
-    u = usage(conn, today)
+    u = usage(conn, today, key)
     u["calls"] = int(u.get("calls", 0)) + 1
     u["tokens"] = int(u.get("tokens", 0)) + tokens
     if error:
         u["last_error"], u["last_error_at"] = error, now_iso()
     else:
         u["last_ok_at"] = now_iso()
-    kv_set(conn, USAGE_KEY, u)
+    kv_set(conn, key, u)
 
 
 def calls_left(conn: sqlite3.Connection, settings: Settings, today: date) -> int:
     return max(settings.ai_daily_calls - int(usage(conn, today).get("calls", 0)), 0)
+
+
+async def metered_call(
+    conn: sqlite3.Connection,
+    settings: Settings,
+    today: date,
+    call: Call,
+    *,
+    key: str = USAGE_KEY,
+    prompt: str,
+    schema: dict[str, Any],
+    schema_name: str,
+) -> dict[str, Any]:
+    """Jedno wywołanie routera z zapisem w liczniku `key` (także nieudane — liczą się do limitu)."""
+    try:
+        result, tokens = await call(
+            base_url=settings.ai_base_url,
+            api_key=settings.ai_api_key,
+            model=settings.ai_model,
+            prompt=prompt,
+            schema=schema,
+            schema_name=schema_name,
+        )
+    except AIError as exc:
+        _record(conn, today, error=str(exc), key=key)
+        raise
+    _record(conn, today, tokens, key=key)
+    return result
 
 
 async def _ask(
@@ -300,19 +332,9 @@ async def _ask(
 ) -> list[Answer]:
     items = [{"i": i, **describe(g.merchant, g.direction, g.txns)} for i, g in enumerate(batch)]
     prompt = build_prompt(category_lines(conn), shots, items)
-    try:
-        result, tokens = await call(
-            base_url=settings.ai_base_url,
-            api_key=settings.ai_api_key,
-            model=settings.ai_model,
-            prompt=prompt,
-            schema=SCHEMA,
-            schema_name=SCHEMA_NAME,
-        )
-    except AIError as exc:
-        _record(conn, today, error=str(exc))
-        raise
-    _record(conn, today, tokens)
+    result = await metered_call(
+        conn, settings, today, call, prompt=prompt, schema=SCHEMA, schema_name=SCHEMA_NAME
+    )
     return parse(result, batch, taxonomy.leaves(conn))
 
 

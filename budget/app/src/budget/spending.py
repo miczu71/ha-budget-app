@@ -176,7 +176,26 @@ class Sums:
     other_currency: int = 0
 
 
-def _rows(conn: sqlite3.Connection, start: date | None, end: date | None) -> list[sqlite3.Row]:
+DETAILS = (
+    ", t.kind, t.merchant, t.counterparty_name, t.description, "
+    "coalesce(t.tx_date, t.booking_date) AS day"
+)
+
+
+def section(leaf: Category | None, amount: Decimal) -> str:
+    """Sekcja ekranu: grupa podkategorii (przychody / oszczędności / poza budżetem / reszta =
+    wydatki); bez kategorii — znak kwoty."""
+    if leaf is None:
+        return "expenses" if amount < 0 else "income"
+    if leaf.flex_group in ("income", "savings", "excluded"):
+        return leaf.flex_group
+    return "expenses"
+
+
+def _rows(
+    conn: sqlite3.Connection, start: date | None, end: date | None, details: bool = False
+) -> list[sqlite3.Row]:
+    """Transakcje liczone w budżecie; `details` dokłada pola opisowe (`DETAILS`, czat M12)."""
     where = [
         "t.status = 'BOOK'",
         "t.transfer_group IS NULL",
@@ -190,7 +209,7 @@ def _rows(conn: sqlite3.Connection, start: date | None, end: date | None) -> lis
         where.append("coalesce(t.tx_date, t.booking_date) < ?")
         params.append(end.isoformat())
     return conn.execute(
-        "SELECT t.id, t.amount, t.currency, t.category_id FROM txn t "
+        f"SELECT t.id, t.amount, t.currency, t.category_id{DETAILS if details else ''} FROM txn t "
         f"JOIN account a ON a.id = t.account_id WHERE {' AND '.join(where)}",
         params,
     ).fetchall()

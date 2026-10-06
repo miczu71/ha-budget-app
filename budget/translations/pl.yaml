@@ -50,5 +50,8 @@ configuration:
   ai_daily_calls:
     name: Podpowiedzi AI — limit wywołań na dobę
     description: Jedno wywołanie obejmuje do 40 sprzedawców. 0 = bez wywołań.
+  chat_daily_calls:
+    name: Czat AI — limit wywołań na dobę
+    description: Jedno pytanie w zakładce „Zapytaj” to 2 wywołania. 0 = czat wyłączony.
   log_level:
     name: Poziom logów

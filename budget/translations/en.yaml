@@ -50,5 +50,8 @@ configuration:
   ai_daily_calls:
     name: AI suggestions — daily call limit
     description: One call covers up to 40 merchants. 0 = no calls.
+  chat_daily_calls:
+    name: AI chat — daily call limit
+    description: One question in the Ask tab takes 2 calls. 0 = chat disabled.
   log_level:
     name: Log level
