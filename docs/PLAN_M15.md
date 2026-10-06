@@ -12,38 +12,59 @@ Wywiad 2026-10-06 (dopisany do roadmapy w trakcie wywiadu M8). Kolejność: **M1
 
 ## E1 — licznik zakupów (0.23.0)
 
+### Warunek banku (cennik kart kredytowych, Tabela 2)
+
+- Karta główna Impresja: 0 PLN, „jeśli w poprzednim miesiącu zapłacisz min. 5 razy kartą”,
+  inaczej 7,99 PLN; karta dodatkowa: ten sam warunek, inaczej 2,99 PLN.
+- „Do warunków zwolnienia z opłaty miesięcznej nie uwzględniamy płatności BLIK.”
+- Cennik nie mówi, czy liczy się data zakupu, czy księgowania.
+- **Bank liczy każdą kartę osobno** — potwierdzone na danych: miesiąc, w którym jedna karta miała
+  < 5 zakupów, skończył się opłatą 2,99 PLN (stawka karty dodatkowej) i równoległą „OPŁATĄ
+  MIESIĘCZNĄ” 0,00 PLN dla drugiej karty. Bank księguje obie pozycje co miesiąc (~17.–18.).
+
+### Sonda na kopii księgi (2026-10-06)
+
+- Rozpoznanie zakupu po `kind` jest rzetelne: heurystyka API dla karty zgodna z typem z CSV
+  w 105/105 transakcji. Wypłat gotówki kartą w historii brak (heurystyka by ich nie odróżniła).
+- API karty podaje **tylko datę księgowania** (brak `value_date`); księgowanie zwykle 2 dni po
+  zakupie (94/105), czasem 0–4, pojedyncze walutowe 10–25 dni.
+- **API nie podaje numeru karty** — podziału na kartę główną i dodatkową nie da się liczyć na
+  bieżąco (eksport CSV go ma, ale E1 opiera się wyłącznie na API — decyzja użytkownika).
+
 ### Cel i ograniczenia
 
-1. **Cel:** karta jest bezpłatna przy co najmniej 5 zakupach w miesiącu; add-on pilnuje, żeby
-   warunek był spełniony, zanim miesiąc się skończy.
+1. **Cel:** nie płacić opłaty miesięcznej za kartę; add-on ostrzega, zanim miesiąc się skończy,
+   i mówi po fakcie, gdy bank opłatę pobrał.
 2. **Okres:** miesiąc kalendarzowy.
-3. **Co się liczy:** każde obciążenie karty będące zakupem bezgotówkowym. Nie liczą się: spłaty,
-   wypłaty gotówki, opłaty, odsetki. Zwroty nie odejmują. Karta dodatkowa się liczy (i tak jej
-   nie odróżniamy — decyzja 2).
-4. **Automatycznie:** licznik w panelu i encja zawsze aktualne; jeśli 5 dni przed końcem miesiąca
-   zakupów jest mniej niż 5 — jedno powiadomienie przez `summary_notify_service` (jak M6) + wpis
-   w dzwonku; drugie przypomnienie dzień przed końcem, jeśli nadal brakuje. Każde wysyłane raz
-   (znacznik w `kv`, nadrabianie po restarcie tego samego dnia).
-5. **Sukces:** licznik zgadza się z listą zakupów karty w bankowości; przy braku zakupów
-   powiadomienie dociera na telefony we właściwym dniu.
+3. **Licznik wspólny dla konta karty:** zakupy = obciążenia o typie `card` (BLIK wyłączony —
+   na karcie i tak nierozpoznawalny), bez spłat, opłat, odsetek; zwroty nie odejmują. Gdy razem
+   < 5, obie karty na pewno nie spełniają warunku — ostrzeżenie zawsze trafne; przy ≥ 5 panel
+   dopisuje, że bank liczy każdą kartę osobno.
+4. **Data — ostrożnie:** warunek „spełniony” tylko gdy ≥ 5 zarówno po dacie księgowania, jak
+   i po dacie księgowania − 2 dni (zgodne z obiema interpretacjami banku).
+5. **Automatycznie:** 5 dni i dzień przed końcem miesiąca, gdy < 5 — powiadomienie przez
+   `summary_notify_service` + wpis w dzwonku (każde raz, znacznik w `kv`). **Wykrywanie opłat:**
+   nowa „OPŁATA MIESIĘCZNA” na koncie karty z kwotą ≠ 0 → powiadomienie + wpis w dzwonku
+   z kwotą (7,99 = karta główna, 2,99 = dodatkowa według cennika).
+6. **Sukces:** licznik zgadza się z listą zakupów w bankowości; najbliższa pobrana opłata
+   zostaje zgłoszona.
 
-### Założenia do sprawdzenia
+### Kroki (0.23.0)
 
-- API podaje tylko datę księgowania i datę waluty — licznik liczy po **dacie waluty** (bliższej
-  dacie zakupu). Zakup z ostatnich dni może dotrzeć do API z opóźnieniem (ITBD wyprzedza API),
-  więc panel pokazuje dopisek o zapasie w końcówce miesiąca.
-- Rozpoznanie „zakupu”: `kind` transakcji na koncie karty (spłata = przelew z M2, opłaty/odsetki
-  i gotówka po typie/opisie). Sprawdzić na kopii księgi przed kodem: lista miesięcy z liczbą
-  zakupów vs historia w bankowości (użytkownik).
-
-### Zakres
-
-- Moduł licznika (miesiąc → liczba zakupów, lista, próg 5 jako stała).
-- Panel: kafelek na Podsumowaniu („Karta: N/5 zakupów w tym miesiącu”).
-- Encja `sensor.budget_card_purchases_month` (atrybuty: próg, brakuje, miesiąc).
-- Terminy powiadomień w pętli obok podsumowań M6; wpis w dzwonku i `sensor.budget_inbox`.
-
-Dokładne kroki (pliki, migracja, testy, wydanie) — do akceptacji przed startem E1.
+1. `budget/card.py`: `THRESHOLD = 5`, `month_status(conn, month, today)` → liczba zakupów (obie
+   reguły dat), brakuje, dni do końca; `fees_since(conn, after_id)` → niezerowe opłaty miesięczne.
+2. `summary.py` → `due()`: wiadomości `card-5`, `card-1` i `card-fee-<txn id>`; wysyłka istniejącą
+   ścieżką M6 (`mark_sent`, `kv`, nadrabianie po restarcie); brak serwisu → nic.
+3. `inbox.py`: pozycje „Karta: brakuje K zakupów” (ostatnie 5 dni) i „Bank pobrał opłatę za kartę”
+   (do zamknięcia w dzwonku).
+4. `ha_publisher.py`: `sensor.budget_card_purchases_month` (stan = liczba po ostrożnej regule;
+   atrybuty: próg, brakuje, miesiąc, ostatnia opłata).
+5. Panel: kafelek na Podsumowaniu (N/5, „spełnione” / „brakuje K, zostało D dni”, dopisek
+   o osobnym liczeniu kart i ~2-dniowym opóźnieniu księgowania), link do Transakcji karty.
+6. Testy `tests/test_card.py`; ruff, mypy, pytest; `simplify`; skaner pre-commit.
+7. Weryfikacja UI na kopii księgi (`devserve.py`, Playwright 390/1280, konsola).
+8. Wydanie skillem `release`; backup add-onu i aktualizacja w HA (restart add-onu) — tylko po
+   „go” użytkownika na checkpoincie po kroku 7. Cofnięcie: revert + 0.23.1 albo backup add-onu.
 
 ## E2 — limit i okres bezodsetkowy (zarys, osobny wywiad)
 
