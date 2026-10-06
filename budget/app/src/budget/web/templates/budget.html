@@ -23,7 +23,7 @@
     <input name="amount" inputmode="decimal" value="{{ '%d' | format(f.suggested) if f.suggested }}" placeholder="np. 2500" aria-label="miesięczny budżet elastyczny" required><button>Ustaw od tego miesiąca</button>
   </form>
   <p class="small muted">Wydane elastyczne w tym miesiącu: {{ f.spent | money("PLN") }}{% if f.uncategorized_count %} (w tym {{ f.uncategorized_count }} bez kategorii){% endif %}.</p>
-  <p class="small muted">Bez ręcznej kwoty pula liczy się sama z wpływów poprzedniego miesiąca (kategorie z grupy przychody) minus zwykłe koszty stałe — w {{ month_label(f.prev_month) }} nie ma takich wpływów.</p>
+  <p class="small muted">Bez ręcznej kwoty pula liczy się sama z wpływów poprzedniego miesiąca (Wynagrodzenie i Świadczenia) minus zwykłe koszty stałe — w {{ month_label(f.prev_month) }} nie ma takich wpływów.</p>
 </section>
 {% else %}
 {% include "_flex_hero.html" %}
@@ -74,7 +74,7 @@
           <li><span>{{ s.name }}</span><span class="cat-amount">{{ s.amount | money("PLN") }}</span>{% if s.bonus %}<span class="small muted">w tym premia poza pulą {{ s.bonus | money("PLN") }}</span>{% endif %}</li>
           {% endfor %}
         </ul>
-        <p class="small muted">Kategorie z grupy przychody; wpływy bez kategorii nie zasilają puli.</p>
+        <p class="small muted">Wynagrodzenie i Świadczenia; inne wpływy i wpływy bez kategorii nie zasilają puli.</p>
       </details></li>
       {% for s in a.sources if s.bonus %}
       <li class="pool-row"><span>premia poza pulą — {{ s.name }}</span><span class="cat-amount neg">−{{ s.bonus | money("PLN") }}</span></li>

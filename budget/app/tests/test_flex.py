@@ -248,6 +248,17 @@ def test_auto_pool_edge_cases(conn: sqlite3.Connection) -> None:
     assert f.auto is not None and f.auto.amount == 0 and f.budget == 0  # nie poniżej zera
 
 
+def test_only_salary_and_benefits_feed_pool(conn: sqlite3.Connection) -> None:
+    pay(conn, "9000.00", "2026-08")
+    t = add(conn, "800.00", "transfer_in", "Swiadczenie", "URZAD Y", day="2026-08-21")
+    engine.set_manual(conn, t, sid(conn, "swiadczenia"))
+    t = add(conn, "128.40", "transfer_in", "Zwrot", "OSOBA X", day="2026-08-10")
+    engine.set_manual(conn, t, sid(conn, "inne-wplywy"))  # jednorazowy — poza pulą
+    a = build(conn).auto
+    assert a is not None and a.income == Decimal("9800.00")
+    assert [s.name for s in a.sources] == ["Firma X", "Urzad Y"]
+
+
 def test_manual_amount_overrides_and_back_to_auto(conn: sqlite3.Connection) -> None:
     for m in months("2026-06", 4):
         pay(conn, "9000.00", m)

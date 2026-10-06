@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.33.0
+
+**Pula budżetu tylko z wynagrodzenia i świadczeń** (decyzja 22, `docs/ROADMAP.md`).
+
+- Automatyczna pula Flex liczy wpływy poprzedniego miesiąca tylko z podkategorii „Wynagrodzenie”
+  i „Świadczenia”. Jednorazowe wpływy w „Inne wpływy” (zwroty, przelewy od znajomych) nie podnoszą
+  już puli; w „Wydatkach” nadal są liczone jako przychód.
+- Budżet: opis źródeł puli w sekcji „Kwota budżetu” zaktualizowany.
+
 ## 0.32.0
 
 **Pamięć sprzedawcy: mniej pracy z kolejką** (M7 E2, `docs/PLAN_M7.md`).

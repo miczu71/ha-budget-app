@@ -89,8 +89,9 @@ podkategorii) można usunąć.
 Ekran **Budżet** odpowiada na jedno pytanie: ile zostało w tym miesiącu na **wydatki
 elastyczne** (codzienne: jedzenie, paliwo, zakupy, wyjścia).
 
-- **Pula automatyczna (z dochodu):** wpływy z poprzedniego miesiąca z podkategorii grupy
-  „przychody” (tylko skategoryzowane) minus koszty stałe (suma median podkategorii stałych
+- **Pula automatyczna (z dochodu):** wpływy z poprzedniego miesiąca z podkategorii
+  „Wynagrodzenie” i „Świadczenia” (tylko skategoryzowane; „Inne wpływy”, np. zwroty i przelewy
+  od znajomych, nie zasilają puli) minus koszty stałe (suma median podkategorii stałych
   z 6 pełnych miesięcy). Pensja
   przychodzi pod koniec miesiąca, więc żyjesz z wypłaty poprzedniego miesiąca — pula jest znana
   od 1. dnia. Niższa wypłata (np. po przekroczeniu progu podatkowego) obniża pulę od następnego

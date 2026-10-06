@@ -11,8 +11,9 @@ Zasady (`docs/PLAN_M5a.md`, decyzja 13 w `docs/ROADMAP.md`):
 - mediany i podpowiedź kwoty z `HISTORY_MONTHS` pełnych miesięcy przed miesiącem ekranu, tylko
   od miesiąca pierwszej transakcji w księdze (miesiące bez wydatków w kategorii liczą się jako 0);
 - bez ręcznej kwoty pula jest automatyczna (etap 3, decyzja 14, `docs/PLAN_M5a_income.md`):
-  wpływy z grupy `income` z poprzedniego miesiąca − stałe; nadwyżka nietypowo wysokiego
-  wpływu ze źródła (premia) zostaje poza pulą;
+  wpływy z podkategorii `POOL_INCOME` (wynagrodzenie, świadczenia) z poprzedniego miesiąca
+  − stałe; „Inne wpływy” (jednorazowe) nie zasilają puli (decyzja 22); nadwyżka nietypowo
+  wysokiego wpływu ze źródła (premia) zostaje poza pulą;
 - stałe = suma median podkategorii z grupy `fixed` (etap 4, decyzja 15,
   `docs/PLAN_M5a_fixed.md`) — składniki sumują się do kwoty w puli;
 - serie cykliczne (M5b E4, decyzja 4, `docs/PLAN_M5b_E4.md`): aktywna seria wydatkowa wchodzi
@@ -47,6 +48,7 @@ BONUS_RATIO = Decimal("1.5")  # premia: wpływ > 1,5 × 3. kwartyl miesięcznych
 BONUS_TYPICAL_MONTHS = 3  # do puli idzie mediana z ostatnich miesięcy źródła
 DROP_RATIO = Decimal("0.15")  # dopisek o progu: główne źródło niższe o > 15%
 OUTSIDE_POOL = {"savings", "income", "excluded"}  # grupy ostatniej transakcji: seria poza pulą
+POOL_INCOME = {"wynagrodzenie", "swiadczenia"}  # podkategorie przychodów zasilające pulę
 
 
 class FlexError(ValueError):
@@ -314,8 +316,12 @@ def _medians(
 def _income_by_source(
     conn: sqlite3.Connection, start: date, end: date
 ) -> dict[str, dict[date, Decimal]]:
-    """Wpływy z podkategorii grupy `income` per źródło i miesiąc (filtry jak w `spending`)."""
-    income = {i for i, c in taxonomy.leaves(conn).items() if c.flex_group == "income"}
+    """Wpływy z podkategorii `POOL_INCOME` per źródło i miesiąc (filtry jak w `spending`)."""
+    income = {
+        i
+        for i, c in taxonomy.leaves(conn).items()
+        if c.flex_group == "income" and c.slug in POOL_INCOME
+    }
     rows = conn.execute(
         "SELECT coalesce(t.tx_date, t.booking_date) AS day, t.amount, t.category_id, "
         "coalesce(nullif(t.merchant, ''), nullif(t.counterparty_name, ''), "

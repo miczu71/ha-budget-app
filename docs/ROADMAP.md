@@ -80,7 +80,8 @@ backlog (decyzja 10).
     wpływy z grupy przychody z poprzedniego miesiąca − mediana stałych (6 mies.); oszczędności
     nie są odejmowane. Pula idzie za faktyczną wypłatą (spadek po progu podatkowym obniża ją od
     następnego miesiąca) — bez średniej dochodu. Nadwyżka nietypowo wysokiego wpływu (premia)
-    zostaje poza pulą. Ręcznie wpisana kwota nadpisuje automatyczną. Szczegóły:
+    zostaje poza pulą. Ręcznie wpisana kwota nadpisuje automatyczną (źródła wpływów zawężone
+    decyzją 22). Szczegóły:
     [`PLAN_M5a_income.md`](PLAN_M5a_income.md).
 15. **(2026-10-04) Koszty stałe w puli = suma median podkategorii (M5a etap 4, zmienia sposób
     liczenia stałych z decyzji 14):** zamiast mediany miesięcznej sumy — składniki sumują się do
@@ -119,6 +120,10 @@ backlog (decyzja 10).
     działa dla wszystkich typów przy jednej ręcznej decyzji (k = 1, wszystkie decyzje sprzedawcy zgodne);
     zamiast progu trafności — każde automatyczne przypisanie trafia do sekcji „przypisane automatycznie”
     do zerknięcia, a poprawka wyłącza pamięć dla tego sprzedawcy.
+22. **(2026-10-06) Pulę Flex zasilają tylko „Wynagrodzenie” i „Świadczenia” (zmienia decyzję 14):**
+    jednorazowe wpływy (zwroty, przelewy od znajomych) w „Inne wpływy” nie podnoszą puli następnego
+    miesiąca; w raporcie „Wydatki” nadal są przychodem. Wybór po kategorii, nie po regularności
+    źródła — nowy pracodawca liczy się od pierwszej wypłaty.
 
 ## Zmiany względem SPEC (zweryfikowane na danych)
 
