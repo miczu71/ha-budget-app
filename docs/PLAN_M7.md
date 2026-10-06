@@ -83,3 +83,21 @@ Wnioski: (1) pamięć z k = 1–2 trafia w ~85–87%, poniżej progu 95% z decyz
 zaniża pokrycie względem dzisiejszej kolejki, bo przed 0.11.0 zapis w kolejce tworzył reguły (sprzedawca
 z regułą nie wraca jako ręczna decyzja). Do decyzji na checkpoincie: próg k i czy najpierw rozbić trafność
 pamięci według typu transakcji (karta/BLIK vs przelewy), żeby ograniczyć pamięć do typów, gdzie trafia ≥ 95%.
+
+## Wynik E1b (0.31.1, 2026-10-06)
+Wydane i zainstalowane 2026-10-06 (648 testów). Trafność pamięci według typu transakcji (backtest, pozycje):
+
+| typ | k | przypisane | trafne | kolejka dziś |
+|---|---|---|---|---|
+| Karta i BLIK w kraju | 1 | 14 / 141 (10%) | 79% | 12 |
+| | 2 | 2 / 141 | 50% | 2 |
+| Karta za granicą | 1 | 5 / 64 (8%) | 80% | 0 |
+| Przelewy | 1 | 41 / 107 (38%) | 90% | 30 |
+| | 2 | 25 / 107 (23%) | 88% | 26 |
+| | 3 | 19 / 107 (18%) | 100% | 9 |
+
+Hipoteza z E1 („pamięć mylą przelewy do osób”) **odrzucona**: przelewy to typ, w którym pamięć działa najlepiej
+i który stanowi większość jej efektu (30 z 42 pozycji dzisiejszej kolejki przy k = 1). Płatności kartą
+rzadko wracają do kolejki jako ręczne decyzje (pokrywają je słownik i reguły). Progu 95% nie osiąga żaden typ
+poza przelewami przy k = 3 (19 pozycji w historii, 9 w dzisiejszej kolejce). KPI z decyzji 20 (≥ 50% mniej
+kolejki przy ≥ 95% trafności) jest dla samej pamięci nieosiągalny — decyzja o zakresie E2 na checkpoincie.
