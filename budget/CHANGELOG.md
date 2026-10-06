@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.31.0
+
+**Kategoryzacja: pomiar przed automatycznym przypisywaniem** (M7 E1, `docs/PLAN_M7.md`).
+
+- Status: karta „Kategoryzacja — pomiar” z przyciskiem „Zmierz”. Na Twojej historii, miesiąc po miesiącu,
+  sprawdza, ile pozycji z kolejki dałoby się przypisać z wcześniejszych ręcznych decyzji u tego samego
+  sprzedawcy (1, 2 albo 3 zgodne decyzje) i jak trafnie, oraz jak radziłby sobie lokalny klasyfikator dla
+  sprzedawców widzianych pierwszy raz. Pokazuje też, jaka część dzisiejszej kolejki to sprzedawcy, o których
+  już decydowano. Nic nie zmienia w kategoriach; dane nie opuszczają add-onu.
+- `sensor.budget_card_due`: atrybut `available` → `available_bank` (Home Assistant pomija atrybut
+  o nazwie `available` w encjach MQTT).
+
 ## 0.30.0
 
 **Karta kredytowa: ile spłacić i do kiedy** (M15 E4, `docs/PLAN_M15.md` § E4).

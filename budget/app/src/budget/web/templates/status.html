@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% macro pct(a, b) %}{{ "%.0f" | format(100 * a / b) if b else "—" }}{% endmacro %}
+{% macro pp(a, b) %}{{ pct(a, b) }}{{ "%" if b }}{% endmacro %}
 {% block content %}
 <h1>Status</h1>
 
@@ -167,13 +168,13 @@
   {% if learn %}
   {% set q = learn.queue %}
   <h3>Kolejka dziś <span class="small muted">({{ learn.at | ts }}, {{ learn.months }} miesięcy historii)</span></h3>
-  <p>{{ q.txns }} pozycji w {{ q.groups }} grupach; u sprzedawców z wcześniejszą ręczną decyzją: {{ q.known_txns }} pozycji ({{ pct(q.known_txns, q.txns) }}%) w {{ q.known_groups }} grupach.</p>
+  <p>{{ q.txns }} pozycji w {{ q.groups }} grupach; u sprzedawców z wcześniejszą ręczną decyzją: {{ q.known_txns }} pozycji ({{ pp(q.known_txns, q.txns) }}) w {{ q.known_groups }} grupach.</p>
   <h3>Pamięć sprzedawcy <span class="small muted">(zgodne ręczne decyzje z wcześniejszych miesięcy)</span></h3>
   <div class="table-wrap"><table class="ai-eval">
     <thead><tr><th>min. decyzji</th><th>przypisane</th><th>trafne</th><th>decyzje zdjęte</th><th>kolejka dziś</th></tr></thead>
     <tbody>
       {% for row in learn.memory %}
-      <tr><td>{{ row.k }}</td><td>{{ row.txns_fired }} / {{ row.txns }} ({{ pct(row.txns_fired, row.txns) }}%)</td><td>{{ pct(row.txns_correct, row.txns_fired) }}%</td><td>{{ row.decisions_fired }} / {{ row.decisions }} ({{ pct(row.decisions_fired, row.decisions) }}%)</td><td>{{ row.queue_txns }}</td></tr>
+      <tr><td>{{ row.k }}</td><td>{{ row.txns_fired }} / {{ row.txns }} ({{ pp(row.txns_fired, row.txns) }})</td><td>{{ pp(row.txns_correct, row.txns_fired) }}</td><td>{{ row.decisions_fired }} / {{ row.decisions }} ({{ pp(row.decisions_fired, row.decisions) }})</td><td>{{ row.queue_txns }}</td></tr>
       {% endfor %}
     </tbody>
   </table></div>
@@ -182,7 +183,7 @@
     <thead><tr><th>pewność ≥</th><th>przypisane</th><th>trafne</th></tr></thead>
     <tbody>
       {% for row in learn.nb.rows %}
-      <tr><td>{{ "%.2f" | format(row.threshold) }}</td><td>{{ row.shown }} ({{ pct(row.shown, learn.nb.n) }}%)</td><td>{{ pct(row.correct, row.shown) }}%</td></tr>
+      <tr><td>{{ "%.2f" | format(row.threshold) }}</td><td>{{ row.shown }} ({{ pp(row.shown, learn.nb.n) }})</td><td>{{ pp(row.correct, row.shown) }}</td></tr>
       {% endfor %}
     </tbody>
   </table></div>
