@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.25.0
+
+**Prognoza „czy starczy do wypłaty”** (M8 E1, `docs/PLAN_M8.md`, `docs/PLAN_M8_E1.md`).
+
+- Podsumowanie (bieżący miesiąc): sekcja „Do wypłaty” — najniższe wolne środki przed wypłatą z datą,
+  rozbicie (saldo rachunku PLN − zadłużenie karty = wolne środki dziś − serie do wypłaty − reszta
+  puli Flex + wpływy przed wypłatą = kwota na dzień wypłaty) i wykres dzień po dniu.
+- Wypłata = najbliższy termin serii przychodów o największej kwocie; bez takiej serii — koniec miesiąca.
+  Zadłużenie karty jest zawsze osobnym wierszem, także przy 0 zł. Saldo starsze niż doba ma dopisek.
+- Nowa opcja `forecast_buffer` (zł): najniższy punkt poniżej bufora jest zaznaczony na czerwono.
+- Bez zmian w schemacie bazy i encjach (encje i dzwonek — E2).
+
 ## 0.24.3
 
 - „Karta” jest główną zakładką, zaraz po „Wydatkach” (wcześniej w menu ⚙).
