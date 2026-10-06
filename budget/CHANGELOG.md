@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.24.1
+
+**Historia płatności kartą przypisana z eksportu CSV** (M15 E3, `docs/PLAN_M15.md`).
+
+- Karta → Osoby z kartą: przy każdej osobie wybór numeru karty z eksportu Millenetu. Gdy każdy numer
+  karty ma osobę, płatności z historii dostają osobę same — także po kolejnych importach CSV
+  i synchronizacjach. Ręczne przypisania zostają.
+- Eksport zawiera blok całego konta karty pod jednym numerem i blok płatności jednej karty pod drugim —
+  płatność dostaje osobę z najwęższego bloku, w którym występuje.
+- Bez zmian w schemacie bazy i encjach.
+
 ## 0.24.0
 
 **Płatności kartą przypisane do osób** (M15 E2, `docs/PLAN_M15.md`).
