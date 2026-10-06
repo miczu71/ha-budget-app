@@ -12,6 +12,7 @@ from budget.categorize import engine
 from budget.recurring import schedule as sch
 from budget.snapshot import Snapshot
 from budget.spending import month_start
+from budget.storage import db
 
 from .test_categorize_engine import add, conn
 from .test_flex import serie
@@ -104,13 +105,19 @@ def at(day: int, hour: int = 12) -> datetime:
 
 
 def build(
-    c: sqlite3.Connection, today: date = TODAY, buffer: str = "0"
+    c: sqlite3.Connection,
+    today: date = TODAY,
+    buffer: str = "0",
+    payday_id: int | None = None,
+    card_debt_included: bool = True,
 ) -> forecast.Forecast | None:
     engine.recategorize(c)
     snap = Snapshot(c)
     f = flex.build(snap, month_start(today), today)
     mv = sch.for_month(snap, month_start(today), today)
-    return forecast.build(snap, today, at(today.day), f, mv, Decimal(buffer))
+    return forecast.build(
+        snap, today, at(today.day), f, mv, Decimal(buffer), payday_id, card_debt_included
+    )
 
 
 def test_build_needs_an_account_balance(conn: sqlite3.Connection) -> None:
@@ -185,3 +192,57 @@ def test_build_looks_into_next_month_when_payday_has_passed(conn: sqlite3.Connec
         date(2026, 10, 7),
         date(2026, 11, 7),
     ]  # spóźniony + listopad
+
+
+# --- wypłata wskazana przez użytkownika i przełącznik karty (E1b) ------------------------
+
+
+def test_chosen_series_wins_over_bigger_amount() -> None:
+    p = forecast.project(
+        free_now=Decimal(1000),
+        today=TODAY,
+        dues=[
+            due(1, date(2026, 10, 10), "9000", "in"),  # większa, ale to nie moja wypłata
+            due(2, date(2026, 10, 24), "7000", "in"),
+        ],
+        per_day=Decimal(0),
+        payday_id=2,
+    )
+    assert p.payday == date(2026, 10, 24) and p.payday_series == "Seria 2"
+    assert [d.series.id for d in p.inflows] == [1]  # mniejsza/wcześniejsza wchodzi do salda
+    assert p.at_payday == Decimal("10000.00")
+
+
+def test_build_chosen_payday_moves_to_next_month_and_ignores_stale_choice(
+    conn: sqlite3.Connection,
+) -> None:
+    snapshot(conn, 1, "ITAV", "5000.00", "2026-10-30T10:00:00+02:00")
+    mine = serie(conn, "pensja", "9000.00", direction="in")  # termin 7.
+    other = serie(conn, "premia", "20000.00", direction="in")  # większa kwota
+    engine.recategorize(conn)
+    today = date(2026, 10, 30)
+    fc = build(conn, today=today, payday_id=mine)
+    assert fc is not None and fc.payday == date(2026, 11, 7) and fc.payday_series == "Seria pensja"
+    assert fc.inflows == []  # „premia” też wpływa 7.11 — w dniu wypłaty, więc po niej
+    assert build(conn, today=today, payday_id=other) is not None
+    gone = build(
+        conn, today=today, payday_id=9999
+    )  # nieistniejąca seria → reguła największej kwoty
+    assert gone is not None and gone.payday_series == "Seria premia"
+
+
+def test_build_without_card_debt(conn: sqlite3.Connection) -> None:
+    snapshot(conn, 1, "ITAV", "1000.00", "2026-10-03T10:00:00+02:00")
+    snapshot(conn, 2, "ITBD", "400.00", "2026-10-03T10:00:00+02:00")
+    with_debt, without = build(conn), build(conn, card_debt_included=False)
+    assert with_debt is not None and without is not None
+    assert with_debt.free_now == Decimal("600.00") and with_debt.card_debt_included
+    assert without.free_now == Decimal("1000.00") and not without.card_debt_included
+    assert without.balances is not None and without.balances.card_debt == Decimal("400.00")
+
+
+def test_settings_read_from_kv(conn: sqlite3.Connection) -> None:
+    assert forecast.payday_series_id(conn) is None and forecast.include_card_debt(conn)
+    db.kv_set(conn, forecast.PAYDAY_KEY, 7)
+    db.kv_set(conn, forecast.CARD_DEBT_KEY, False)
+    assert forecast.payday_series_id(conn) == 7 and not forecast.include_card_debt(conn)

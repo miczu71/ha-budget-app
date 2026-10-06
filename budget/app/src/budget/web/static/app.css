@@ -832,3 +832,4 @@ a.row { min-height: var(--tap); align-content: center; }
 .fc-line .fc-path { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .fc-line .fc-low { fill: var(--accent); stroke: var(--surface-1); stroke-width: 2; }
 .fc-line .fc-end { fill: var(--text); }
+.fc-opts { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 8px 0 12px; }

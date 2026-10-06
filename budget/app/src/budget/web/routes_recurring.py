@@ -16,13 +16,14 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 from starlette.datastructures import FormData
 
-from budget import money
+from budget import forecast, money
 from budget.categorize.rules import Conditions, Rule, RuleError, TextCondition
 from budget.ledger import transaction
 from budget.recurring import changes, schedule
 from budget.recurring import series as S
 from budget.recurring.series import Candidate, Series, SeriesError
 from budget.spending import add_months, month_label, parse_month
+from budget.storage import db
 from budget.web.common import Panel
 from budget.web.routes_transactions import txn_row
 from budget.web.rule_form import (
@@ -224,6 +225,7 @@ def router(panel: Panel) -> APIRouter:
             "series.html",
             v=v,
             members=list(reversed(v.members))[:MEMBERS_MAX],
+            is_payday=forecast.payday_series_id(conn) == series_id,
             **conditions_context(conn, _as_rule(v.s)),
         )
 
@@ -256,6 +258,26 @@ def router(panel: Panel) -> APIRouter:
             return panel.redirect(request, back, str(exc), "error")
         verb = "potwierdzona" if form.get("confirm") is not None else "zapisana"
         return panel.redirect(request, "/recurring", f"Seria „{s.name}” {verb}.")
+
+    @r.post("/recurring/{series_id}/payday")
+    async def set_payday(request: Request, series_id: int, on: str = Form("")) -> Response:
+        back = f"/recurring/{series_id}"
+        try:
+            s = S.get(conn, series_id)
+        except SeriesError as exc:
+            return panel.redirect(request, "/recurring", str(exc), "error")
+        if on == "1":
+            if s.direction != "in" or s.status != "active":
+                return panel.redirect(
+                    request, back, "Wypłatą może być tylko aktywna seria wpływów.", "error"
+                )
+            db.kv_set(conn, forecast.PAYDAY_KEY, series_id)
+            message = f"„{s.name}” to Twoja wypłata — prognoza liczy do jej terminu."
+        else:
+            if forecast.payday_series_id(conn) == series_id:
+                db.kv_set(conn, forecast.PAYDAY_KEY, None)
+            message = "Prognoza liczy do wypłaty o największej kwocie."
+        return panel.redirect(request, back, message)
 
     @r.post("/recurring/{series_id}/status")
     async def set_status(request: Request, series_id: int, action: str = Form("")) -> Response:

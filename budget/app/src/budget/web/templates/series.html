@@ -6,6 +6,12 @@
 
 {% set form_action = "/recurring/" ~ s.id ~ "/save" %}{% set new = False %}
 {% include "_series_form.html" %}
+{% if s.direction == "in" and s.status == "active" %}
+<form method="post" action="{{ base }}/recurring/{{ s.id }}/payday" class="series-detect" hx-boost="false">
+  <label class="check"><input type="checkbox" name="on" value="1" {{ "checked" if is_payday }}> To moja wypłata (dzień resetu prognozy „Do wypłaty”)</label>
+  <button class="secondary">Zapisz</button>
+</form>
+{% endif %}
 {% if s.status in ("active", "ended") %}
 <form method="post" action="{{ base }}/recurring/{{ s.id }}/status" class="series-detect">
   {% if s.status == "active" %}<input type="hidden" name="action" value="end"><button class="secondary">Zakończ serię</button> <span class="small muted">np. umowa wypowiedziana — transakcje zostają przypisane, seria przestaje być oczekiwana</span>

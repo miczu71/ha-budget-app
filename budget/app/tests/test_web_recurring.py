@@ -10,7 +10,7 @@ from decimal import Decimal
 import httpx
 import pytest
 
-from budget import ha_publisher, inbox
+from budget import forecast, ha_publisher, inbox
 from budget.categorize.rules import Conditions, TextCondition
 from budget.recurring import series as S
 from budget.service import Service
@@ -330,3 +330,43 @@ async def test_series_changes_cards_and_decisions(
     assert r.status_code == 303
     assert S.get(conn, sid).expected_amount == Decimal("80.00")
     assert "Zmiany (" not in (await client.get("/recurring")).text
+
+
+async def test_mark_series_as_my_payday(client: httpx.AsyncClient, service: Service) -> None:
+    conn = service.conn
+    _account(conn)
+
+    def new(name: str, direction: str, status: str = "active") -> int:
+        return S.insert(
+            conn,
+            name=name,
+            direction=direction,
+            cadence="M",
+            conditions=Conditions(
+                text=(TextCondition("merchant", "equals", name),), direction=direction
+            ),
+            expected=Decimal("100"),
+            tolerance=Decimal("5"),
+            anchor_day=24,
+            status=status,
+            origin="manual",
+            key=None,
+        )
+
+    pay, out, ended = new("Pensja", "in"), new("Czynsz", "out"), new("Stara", "in", "ended")
+    assert "To moja wypłata" in (await client.get(f"/recurring/{pay}")).text
+    assert "To moja wypłata" not in (await client.get(f"/recurring/{out}")).text
+    await client.post(f"/recurring/{pay}/payday", data={"on": "1"})
+    assert forecast.payday_series_id(conn) == pay
+    assert (
+        "checked" in (await client.get(f"/recurring/{pay}")).text.split("To moja wypłata")[0][-60:]
+    )
+    for bad in (out, ended):  # tylko aktywna seria wpływów
+        await client.post(f"/recurring/{bad}/payday", data={"on": "1"})
+        assert forecast.payday_series_id(conn) == pay
+    await client.post(
+        f"/recurring/{out}/payday", data={}
+    )  # odznaczenie cudzej serii nic nie zmienia
+    assert forecast.payday_series_id(conn) == pay
+    await client.post(f"/recurring/{pay}/payday", data={})
+    assert forecast.payday_series_id(conn) is None

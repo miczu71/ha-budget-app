@@ -23,10 +23,13 @@ from budget import card, flex, ledger, money
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
 from budget.spending import add_months
+from budget.storage import db
 
 ZERO = Decimal(0)
 EXTRA_MONTHS = 2  # ile następnych miesięcy sprawdzamy, gdy bieżący nie ma już wypłaty
 STALE_AFTER = timedelta(hours=24)
+PAYDAY_KEY = "payday_series_id"  # kv: seria przychodów będąca wypłatą użytkownika (dzień resetu)
+CARD_DEBT_KEY = "forecast_card_debt"  # kv: czy odejmować zadłużenie karty (domyślnie tak)
 
 
 @dataclass
@@ -66,10 +69,20 @@ class Forecast(Projection):
     flex_per_day: Decimal = ZERO
     stale: bool = False
     buffer: Decimal = ZERO
+    card_debt_included: bool = True
 
     @property
     def below_buffer(self) -> bool:
         return self.low < self.buffer
+
+
+def payday_series_id(conn: sqlite3.Connection) -> int | None:
+    value = db.kv_get(conn, PAYDAY_KEY)
+    return value if isinstance(value, int) else None
+
+
+def include_card_debt(conn: sqlite3.Connection) -> bool:
+    return db.kv_get(conn, CARD_DEBT_KEY) is not False
 
 
 def read_balances(conn: sqlite3.Connection) -> Balances | None:
@@ -125,16 +138,21 @@ def project(
     today: date,
     dues: Sequence[schedule.Due],
     per_day: Decimal,
+    payday_id: int | None = None,
 ) -> Projection:
-    """Saldo dzień po dniu od dziś do dnia wypłaty (czysta logika)."""
+    """Saldo dzień po dniu od dziś do dnia wypłaty (czysta logika). Wypłata to termin serii
+    `payday_id`, a gdy jej nie ma — seria wpływowa o największej kwocie."""
     live = [
         (max(d.due, today), d)
         for d in dues
         if d.due is not None and d.status in (schedule.EXPECTED, schedule.LATE)
     ]
     paydays = [(day, d) for day, d in live if _is_payday_candidate(d, today)]
+    own = [p for p in paydays if p[1].series.id == payday_id]
     first = min(
-        paydays, key=lambda p: (-p[1].series.expected_amount, p[0], p[1].series.name), default=None
+        own or paydays,
+        key=lambda p: (-p[1].series.expected_amount, p[0], p[1].series.name),
+        default=None,
     )
     end = first[0] if first else card.last_day(today)
     result = Projection(first[0] if first else None, first[1].series.name if first else None, end)
@@ -162,12 +180,14 @@ def project(
     return result
 
 
-def _dues(snap: Snapshot, today: date, mv: schedule.MonthView) -> list[schedule.Due]:
+def _dues(
+    snap: Snapshot, today: date, mv: schedule.MonthView, payday_id: int | None
+) -> list[schedule.Due]:
     """Terminy bieżącego miesiąca (już policzone dla Podsumowania) i, dopóki nie ma wypłaty,
     kolejnych miesięcy."""
     rows, month = list(mv.rows), mv.month
     for _ in range(EXTRA_MONTHS):
-        if any(_is_payday_candidate(d, today) for d in rows):
+        if any(_is_payday_candidate(d, today) and payday_id in (None, d.series.id) for d in rows):
             break
         month = add_months(month, 1)
         rows += schedule.for_month(snap, month, today).rows
@@ -181,15 +201,25 @@ def build(
     f: flex.FlexMonth,
     mv: schedule.MonthView,
     buffer: Decimal = ZERO,
+    payday_id: int | None = None,
+    card_debt_included: bool = True,
 ) -> Forecast | None:
     """Prognoza z bazy dla bieżącego miesiąca (`f`, `mv` — już policzone przez Podsumowanie);
     None, gdy rachunek PLN nie ma jeszcze żadnej migawki salda."""
     balances = read_balances(snap.conn)
     if balances is None:
         return None
-    free_now = balances.account - balances.card_debt
+    if not any(d.series.id == payday_id and d.series.direction == "in" for d in mv.rows):
+        payday_id = None  # seria zakończona, usunięta albo nie przychodowa
+    free_now = balances.account - (balances.card_debt if card_debt_included else ZERO)
     per_day = flex_per_day(f)
-    p = project(free_now=free_now, today=today, dues=_dues(snap, today, mv), per_day=per_day)
+    p = project(
+        free_now=free_now,
+        today=today,
+        dues=_dues(snap, today, mv, payday_id),
+        per_day=per_day,
+        payday_id=payday_id,
+    )
     return Forecast(
         **vars(p),
         balances=balances,
@@ -197,4 +227,5 @@ def build(
         flex_per_day=per_day,
         stale=now - datetime.fromisoformat(balances.fetched_at) > STALE_AFTER,
         buffer=buffer,
+        card_debt_included=card_debt_included,
     )

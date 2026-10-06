@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.25.1
+
+**Prognoza „Do wypłaty”: wypłata wskazana przez Ciebie** (M8 E1b, `docs/PLAN_M8_E1b.md`).
+
+- Na ekranie aktywnej serii przychodów przełącznik „To moja wypłata (dzień resetu prognozy)”.
+  Prognoza liczy do terminu tej serii, a po jej dniu — do terminu w następnym miesiącu. Bez
+  wskazania działa dotychczasowa reguła (seria o największej kwocie).
+- W sekcji „Do wypłaty” checkbox „Odejmij zadłużenie karty” (domyślnie włączony, pamiętany).
+  Wyłączony: wiersz karty zostaje widoczny z dopiskiem „nie odjęte”, a wolne środki nie są pomniejszone.
+- Bez zmian w schemacie bazy (ustawienia w tabeli `kv`).
+
 ## 0.25.0
 
 **Prognoza „czy starczy do wypłaty”** (M8 E1, `docs/PLAN_M8.md`, `docs/PLAN_M8_E1.md`).

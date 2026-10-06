@@ -6,12 +6,13 @@ import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Form, Request
+from fastapi.responses import HTMLResponse, Response
 
 from budget import card, flex, forecast, sessions, spending, sync_service
 from budget.recurring import schedule
 from budget.spending import MONTHS, MONTHS_GEN, add_months, month_label, parse_month
+from budget.storage import db
 from budget.web import charts
 from budget.web.common import Panel
 
@@ -54,7 +55,16 @@ def router(panel: Panel) -> APIRouter:
         fc, buffer = None, Decimal(panel.service.settings.forecast_buffer)
         if mv is not None:  # prognoza (tylko bieżący miesiąc) nie może zablokować strony głównej
             try:
-                fc = forecast.build(panel.service.snapshot, today, now, f, mv, buffer)
+                fc = forecast.build(
+                    panel.service.snapshot,
+                    today,
+                    now,
+                    f,
+                    mv,
+                    buffer,
+                    forecast.payday_series_id(conn),
+                    forecast.include_card_debt(conn),
+                )
             except Exception:
                 log.exception("Prognoza do wypłaty nieudana")
         sync_at = sync_service.last_success(conn)
@@ -89,6 +99,17 @@ def router(panel: Panel) -> APIRouter:
             cm=card.month_status(conn, today) if f.is_current else None,
             fc=fc,
             chart=charts.forecast_line(fc.days, buffer) if fc else None,
+        )
+
+    @r.post("/forecast/card-debt")
+    async def card_debt(request: Request, include: str = Form("")) -> Response:
+        db.kv_set(panel.conn, forecast.CARD_DEBT_KEY, include == "1")
+        return panel.redirect(
+            request,
+            "/",
+            "Zadłużenie karty jest odejmowane w prognozie."
+            if include == "1"
+            else "Zadłużenie karty nie jest odejmowane w prognozie.",
         )
 
     return r

@@ -270,3 +270,18 @@ async def test_forecast_failure_does_not_break_home(
     monkeypatch.setattr(forecast, "build", boom)
     resp = await client.get("/")
     assert resp.status_code == 200 and "Zadłużenie karty" not in resp.text
+
+
+async def test_card_debt_checkbox_is_remembered(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    page = (await client.get("/")).text
+    assert 'name="include" value="1" checked' in page and "nie odjęte" not in page
+    resp = await client.post("/forecast/card-debt", data={})  # odznaczony checkbox nic nie wysyła
+    assert resp.status_code == 303 and not forecast.include_card_debt(service.conn)
+    page = (await client.get("/")).text
+    assert "nie odjęte" in page and 'value="1" checked' not in page.split("fc-opts")[1][:200]
+    assert fmt_money("9136.98", "PLN") in page  # wolne środki bez odjęcia karty
+    await client.post("/forecast/card-debt", data={"include": "1"})
+    assert forecast.include_card_debt(service.conn)
