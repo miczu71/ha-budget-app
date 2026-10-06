@@ -88,6 +88,11 @@ async def test_queue_share_and_evaluate(conn: sqlite3.Connection) -> None:
     add(conn, "-13.00", "card", "QWERTY 1 XYZ POL 2026-09-02", day="2026-09-02")
     add(conn, "-14.00", "card", "LKJHG 9 XYZ POL 2026-09-03", day="2026-09-03")
     engine.recategorize(conn)
+    # kolejka jak przed pamięcią sprzedawcy (M7 E2) — pomiar liczy, co pamięć by zdjęła
+    conn.execute(
+        "UPDATE txn SET category_id = NULL, category_source = NULL "
+        "WHERE category_source = 'learned'"
+    )
     out = await learn.evaluate(conn)
     q = out["queue"]
     assert (q["txns"], q["groups"], q["known_txns"], q["known_groups"]) == (3, 2, 2, 1)

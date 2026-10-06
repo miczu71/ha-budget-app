@@ -113,3 +113,14 @@ kolejki przy ≥ 95% trafności) jest dla samej pamięci nieosiągalny — decyz
 4. Transakcje: etykieta źródła „pamięć”; Status: „Pamięć na żywo: potwierdzone X, poprawione Y”.
 5. Testy, `simplify`, dev + Playwright, wydanie 0.32.0, aktualizacja z backupem, weryfikacja na żywo.
 Cofnięcie: 0.31.1 (stara wersja przy przeliczeniu wyczyści `learned`; potwierdzenia zostają ręcznymi).
+
+### E2 — ustalenia z implementacji (2026-10-06)
+- **Migracja 012:** `txn.category_source` ma CHECK z listą źródeł (003), więc `learned` wymaga zamiany kolumny
+  (nowa z rozszerzonym CHECK → kopia → `DROP COLUMN` → `RENAME`; bez przebudowy `txn`, której dotyczą
+  ON DELETE CASCADE). Migracja nieaddytywna — **cofnięcie = przywrócenie backupu add-onu sprzed
+  aktualizacji** (0.31.1 nie wstanie na schemacie 12), a nie samo 0.31.1 jak w krokach wyżej.
+- **Odznaczone pozycje przy zapisie grupy:** przejmuje je pamięć (ta sama kategoria, sekcja „Przypisane
+  automatycznie”, podmieniana po zapisie); potwierdzenie zapisu mówi, ile pozycji przypisała pamięć.
+  Poprawka w sekcji wyłącza pamięć dla sprzedawcy.
+- Karta „Kategoryzacja — pomiar” (E1) liczy kolejkę już po pamięci — kolumna „kolejka dziś” spada do ~0;
+  trafność na żywo pokazuje wiersz „Pamięć sprzedawcy na żywo” (licznik pozycji, nie decyzji).

@@ -1,0 +1,37 @@
+{# Sekcja „Przypisane automatycznie” (M7 E2): learned, direction, month, open, saved (komunikat po zapisie);
+   oob — po zapisie podmienia też dzwonek i pokrycie (poprawka oddaje pozycje do kolejki);
+   learned_oob — sekcja podmieniana po zapisie grupy kolejki (pamięć mogła przejąć resztę pozycji) #}
+{% set mval = month.strftime("%Y-%m") if month else "" %}
+{% set n = learned | sum(attribute="count") %}
+<section id="rv-learned" class="card"{% if not learned and not saved %} hidden{% endif %}{% if learned_oob %} hx-swap-oob="true"{% endif %}>
+  <details class="rv-learned" {{ "open" if open }}>
+    <summary><h2>Przypisane automatycznie ({{ n }})</h2></summary>
+    {% if saved %}<p class="small"><span class="badge ok">zapisano</span> {{ saved }}</p>{% endif %}
+    {% if learned %}
+    <p class="small muted">Kategoria z Twoich wcześniejszych decyzji u tego samego sprzedawcy — już liczona w budżecie. Przycisk z ptaszkiem potwierdza; inna kategoria (rozwiń grupę) wyłącza pamięć dla sprzedawcy, a jego pozostałe pozycje wracają do kolejki.</p>
+    <form hx-post="{{ base }}/review/learned" hx-target="#rv-learned" hx-swap="outerHTML" hx-disabled-elt="find button">
+      <input type="hidden" name="direction" value="{{ direction }}"><input type="hidden" name="month" value="{{ mval }}"><input type="hidden" name="all" value="1">
+      <button type="submit" class="secondary">Potwierdź wszystkie ({{ n }})</button>
+    </form>
+    <ul class="rv-list">
+      {% for g in learned %}
+      {% set vals = {"merchant": g.key.merchant, "currency": g.key.currency, "cat": g.key.category_id, "direction": direction, "month": mval} %}
+      <li class="rv-group">
+        <details hx-get="{{ base }}/review/learned/edit?{{ vals | urlencode }}" hx-trigger="toggle once" hx-target="find .rv-body" hx-swap="innerHTML">
+          <summary>
+            <span class="cat-name">{{ g.label }}</span>
+            <span class="cat-amount">{{ g.total | money(g.key.currency) }}</span>
+            <span class="cat-meta small muted">{{ g.count }} tr. · <button type="button" class="rv-accept" hx-post="{{ base }}/review/learned" hx-vals='{{ vals | tojson }}' hx-target="#rv-learned" hx-swap="outerHTML" hx-disabled-elt="this" aria-label="potwierdź: {{ g.category }}">{{ g.category }}</button></span>
+          </summary>
+          <div class="rv-body"><p class="muted small">wczytywanie…</p></div>
+        </details>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </details>
+</section>
+{% if oob %}
+{% with page = "review" %}{% include "_bell.html" %}{% endwith %}
+{% include "_review_coverage.html" %}
+{% endif %}

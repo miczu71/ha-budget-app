@@ -6,6 +6,8 @@ Kategoria transakcji = pierwsze pasujące źródło:
 3. `rule` — reguły użytkownika wg priorytetu,
 4. `dictionary` — wbudowany słownik sieci,
 5. `kind` — domyślna kategoria typu (gotówka, opłata, rata kredytu),
+6. `learned` — pamięć sprzedawcy (M7 E2): ręczne decyzje u tego samego (sprzedawca, kierunek), gdy
+   wszystkie są zgodne (`learn.memory`, k = 1); poprawka na inną kategorię wyłącza pamięć,
 w przeciwnym razie brak kategorii. Przelewy wewnętrzne (`transfer_group`) kategorii nie mają.
 
 Przeliczenie idzie po każdym imporcie i synchronizacji oraz po zmianie reguł; podgląd reguły
@@ -15,16 +17,18 @@ liczy to samo w pamięci i porównuje z zapisanym stanem.
 from __future__ import annotations
 
 import sqlite3
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from functools import lru_cache
 
-from budget.categorize import merchants, taxonomy
+from budget import review
+from budget.categorize import learn, merchants, taxonomy
 from budget.categorize.merchants import Dictionary
 from budget.categorize.rules import Facts, Rule, _norm, all_rules
 from budget.kinds import Kind
+from budget.storage.db import kv_get, kv_set
 
 KIND_DEFAULTS = {
     Kind.CASH.value: "wyplaty-gotowki",
@@ -33,6 +37,7 @@ KIND_DEFAULTS = {
 }
 PREVIEW_SAMPLES = 10
 PREVIEW_ID = -1  # id reguły w podglądzie, zanim trafi do bazy
+LEARNED_STATS_KEY = "learned_stats"  # {"confirmed": n, "corrected": n} — `set_manual`
 
 
 @dataclass(frozen=True)
@@ -175,10 +180,19 @@ def _classify(
     txns: Sequence[_Txn], rules: Sequence[Rule], slugs: dict[str, int]
 ) -> dict[int, Assignment]:
     index = _RuleIndex(rules)
-    result: dict[int, Assignment] = {}
+    found: dict[int, tuple[Rule | None, str, learn.Key]] = {}
+    decided: dict[learn.Key, list[int]] = defaultdict(list)
     for t in txns:
         rule = index.first(t.facts)
         merchant = (rule.rename if rule and rule.rename else None) or t.facts.merchant
+        key: learn.Key = (merchant, review.direction(t.amount))
+        found[t.id] = (rule, merchant, key)
+        if t.is_manual and t.current.category_id is not None and merchant:
+            decided[key].append(t.current.category_id)
+    memory = {key: learn.memory(cats, 1) for key, cats in decided.items()}  # pamięć sprzedawcy
+    result: dict[int, Assignment] = {}
+    for t in txns:
+        rule, merchant, key = found[t.id]
         if t.is_manual:
             result[t.id] = Assignment(t.current.category_id, "manual", None, merchant)
         elif t.transfer:
@@ -189,6 +203,8 @@ def _classify(
             result[t.id] = Assignment(slugs[t.entry.slug], "dictionary", None, merchant)
         elif (slug := KIND_DEFAULTS.get(t.facts.kind)) and slug in slugs:
             result[t.id] = Assignment(slugs[slug], "kind", None, merchant)
+        elif (learned := memory.get(key)) is not None:
+            result[t.id] = Assignment(learned, "learned", None, merchant)
         else:
             result[t.id] = Assignment(None, None, None, merchant)
     for t in txns:  # zwroty po zakupach: dziedziczą końcową kategorię zakupu
@@ -318,8 +334,13 @@ def preview(
 def set_manual(conn: sqlite3.Connection, txn_id: int, category_id: int | None) -> None:
     """Ręczna kategoria transakcji; `None` przywraca kategorię automatyczną.
 
+    Decyzja o pozycji z pamięci sprzedawcy liczy się w `LEARNED_STATS_KEY` jako potwierdzona (ta
+    sama kategoria) albo poprawiona (inna) — trafność pamięci na żywo na ekranie Status.
+
     Po zmianie trzeba wywołać `recategorize` (zwroty dziedziczą kategorię zakupu)."""
-    row = conn.execute("SELECT transfer_group FROM txn WHERE id = ?", (txn_id,)).fetchone()
+    row = conn.execute(
+        "SELECT transfer_group, category_id, category_source FROM txn WHERE id = ?", (txn_id,)
+    ).fetchone()
     if row is None:
         raise taxonomy.TaxonomyError("Nie ma takiej transakcji.")
     if category_id is None:
@@ -332,10 +353,20 @@ def set_manual(conn: sqlite3.Connection, txn_id: int, category_id: int | None) -
         raise taxonomy.TaxonomyError("Przelew między własnymi kontami nie ma kategorii.")
     if category_id not in taxonomy.leaves(conn):
         raise taxonomy.TaxonomyError("Wybierz podkategorię.")
+    if row["category_source"] == "learned":
+        stats = learned_stats(conn)
+        stats["confirmed" if row["category_id"] == category_id else "corrected"] += 1
+        kv_set(conn, LEARNED_STATS_KEY, stats)
     conn.execute(
         "UPDATE txn SET category_id = ?, category_source = 'manual', rule_id = NULL WHERE id = ?",
         (category_id, txn_id),
     )
+
+
+def learned_stats(conn: sqlite3.Connection) -> dict[str, int]:
+    """Decyzje o pozycjach z pamięci sprzedawcy: {"confirmed": n, "corrected": n}."""
+    stats: dict[str, int] = kv_get(conn, LEARNED_STATS_KEY) or {"confirmed": 0, "corrected": 0}
+    return stats
 
 
 def dictionary_hits(conn: sqlite3.Connection, dictionary: Dictionary | None = None) -> Counter[int]:

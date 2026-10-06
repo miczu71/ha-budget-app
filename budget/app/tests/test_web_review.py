@@ -117,14 +117,13 @@ async def test_assign_only_selected_is_manual(client: httpx.AsyncClient, service
     p = await client.post("/review/preview", data=form)
     assert "Kategoria ręczna" in p.text and "zostaną w kolejce" in p.text
     r = await client.post("/review/assign", data=form)
-    assert "zapisano" in r.text and 'id="m1r"' in r.text  # reszta grupy otwarta
     assert rules.all_rules(conn) == []
     assert cat(conn, ids["q1"])[:2] == ("prezenty", "manual")
-    assert cat(conn, ids["q2"])[0] is None
-    # domyślnie (bez „utwórz regułę”) — kategoria ręczna, bez reguły
-    form = {**_group("merchant", "Qwerty"), "category_id": str(leaf), "txn": [str(ids["q2"])]}
-    await client.post("/review/assign", data=form)
-    assert rules.all_rules(conn) == [] and cat(conn, ids["q2"])[1] == "manual"
+    # odznaczona pozycja: przejmuje ją pamięć sprzedawcy (M7 E2), do poprawy w sekcji wyżej
+    assert cat(conn, ids["q2"])[:2] == ("prezenty", "learned")
+    assert "zapisano" in r.text and 'id="m1r"' not in r.text
+    assert "Pozostałe 1 tr. przypisała pamięć" in r.text
+    assert 'id="rv-learned"' in r.text and "Przypisane automatycznie (1)" in r.text
 
 
 async def test_assign_direction_keeps_income_separate(
@@ -256,7 +255,8 @@ async def test_month_view_only_selected(client: httpx.AsyncClient, service: Serv
     }
     r = await client.post("/review/assign", data=form)
     assert "zapisano" in r.text and "reguła" not in r.text
-    assert cat(conn, ids["q1"])[1] == "manual" and cat(conn, aug)[0] is None
+    assert cat(conn, ids["q1"])[1] == "manual"
+    assert cat(conn, aug)[:2] == ("restauracje", "learned")  # pamięć sprzedawcy (M7 E2)
     assert "w kolejce w tym miesiącu: 4" in r.text  # wrzesień: 3 wydatki + 1 wpływ
     assert 'id="nav-bell"' in r.text and 'hx-swap-oob="true"' in r.text
 
@@ -534,10 +534,10 @@ async def test_default_save_is_manual_without_rule(
     assert "zapisano" in r.text and "reguła" not in r.text
     assert rules.all_rules(conn) == []
     assert cat(conn, ids["q1"])[:2] == ("restauracje", "manual")
-    # przyszła transakcja tego sprzedawcy wraca do kolejki
+    # przyszła transakcja tego sprzedawcy: bez reguły, ale z pamięci sprzedawcy (M7 E2)
     new = add(conn, "-25.00", "card", "QWERTY 12 XYZ POL 2026-09-20", day="2026-09-20")
     engine.recategorize(conn)
-    assert cat(conn, new)[0] is None
+    assert cat(conn, new)[:2] == ("restauracje", "learned")
 
 
 async def test_rule_mode_ignores_item_checkboxes(
@@ -617,3 +617,69 @@ async def test_rule_in_unnamed_group_by_account(
     r = await client.post("/review/assign", data=form)
     assert "zapisano" in r.text and "reguła" in r.text
     assert cat(conn, nn)[:2] == ("oszczednosci-przelewy", "rule")
+
+
+def _learned_seed(conn: sqlite3.Connection) -> dict[str, int]:
+    """Qwerty: ręczna decyzja w sierpniu → q1, q2 z pamięci sprzedawcy (M7 E2)."""
+    ids = _seed(conn)
+    ids["aug"] = add(conn, "-11.00", "card", "QWERTY 12 XYZ POL 2026-08-20", day="2026-08-20")
+    engine.set_manual(conn, ids["aug"], sid(conn, "restauracje"))
+    engine.recategorize(conn)
+    return ids
+
+
+def _learned(cid: int, **extra: str) -> dict[str, str]:
+    return {"merchant": "Qwerty", "currency": "PLN", "cat": str(cid), "direction": "out", **extra}
+
+
+async def test_learned_section_and_confirm(client: httpx.AsyncClient, service: Service) -> None:
+    ids = _learned_seed(service.conn)
+    conn = service.conn
+    leaf = sid(conn, "restauracje")
+    assert cat(conn, ids["q1"])[:2] == ("restauracje", "learned")
+    page = (await client.get("/review")).text
+    assert "Przypisane automatycznie (2)" in page and "Potwierdź wszystkie (2)" in page
+    assert page.index("Przypisane automatycznie") < page.index("Sprzedawcy i odbiorcy")
+    assert "Przypisane automatycznie (0)" in (await client.get("/review?direction=in")).text
+    body = (await client.get("/review/learned/edit", params=_learned(leaf))).text
+    assert "QWERTY 12 XYZ POL 2026-09-01" in body and f'value="{leaf}" selected' in body
+    r = await client.post("/review/learned", data=_learned(leaf))
+    assert "zapisano" in r.text and "Qwerty: 2 tr. → Restauracje" in r.text
+    assert cat(conn, ids["q1"])[:2] == ("restauracje", "manual")
+    assert "Przypisane automatycznie (0)" in r.text
+    status = (await client.get("/status")).text
+    assert "potwierdzone <strong>2</strong>, poprawione <strong>0</strong>" in status
+
+
+async def test_learned_correction_disables_memory(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    ids = _learned_seed(service.conn)
+    conn = service.conn
+    other = sid(conn, "prezenty")
+    form = _learned(sid(conn, "restauracje"), category_id=str(other), month="2026-09")
+    aug2 = add(conn, "-12.00", "card", "QWERTY 12 XYZ POL 2026-08-25", day="2026-08-25")
+    engine.recategorize(conn)
+    r = await client.post("/review/learned", data=form)
+    assert "Pamięć dla tego sprzedawcy wyłączona" in r.text
+    assert 'id="rv-coverage"' in r.text and 'id="nav-bell"' in r.text  # OOB
+    assert cat(conn, ids["q1"])[:2] == ("prezenty", "manual")
+    assert cat(conn, aug2)[:2] == (None, None)  # spoza miesiąca: wraca do kolejki
+    status = (await client.get("/status")).text
+    assert "potwierdzone <strong>0</strong>, poprawione <strong>2</strong>" in status
+
+
+async def test_learned_confirm_all_and_label(client: httpx.AsyncClient, service: Service) -> None:
+    ids = _learned_seed(service.conn)
+    conn = service.conn
+    r = await client.post("/review/learned", data={"direction": "out", "all": "1"})
+    assert "Potwierdzone: 2 tr. w 1 gr." in r.text
+    assert cat(conn, ids["q2"])[:2] == ("restauracje", "manual")
+    r = await client.post("/review/learned", data=_learned(sid(conn, "restauracje")))
+    assert "Nic do zapisania" in r.text
+    gone = await client.get("/review/learned/edit", params=_learned(sid(conn, "restauracje")))
+    assert "już przejrzana" in gone.text
+    add(conn, "-9.00", "card", "QWERTY 12 XYZ POL 2026-09-21", day="2026-09-21")
+    engine.recategorize(conn)
+    txns = (await client.get("/transactions?q=qwerty")).text
+    assert ">pamięć<" in txns

@@ -68,3 +68,28 @@ def test_temp_files_in_memory(tmp_path: Path) -> None:
     """AppArmor add-onu nie pozwala pisać do /var/tmp, gdzie SQLite trzyma pliki tymczasowe."""
     conn = db.connect(tmp_path / "ledger.db")
     assert conn.execute("PRAGMA temp_store").fetchone()[0] == 2  # MEMORY
+
+
+def test_learned_source_migration_keeps_sources(monkeypatch: pytest.MonkeyPatch) -> None:
+    conn = sqlite3.connect(":memory:", isolation_level=None)
+    every = db.migrations()
+    monkeypatch.setattr(db, "migrations", lambda: every[:11])
+    db.migrate(conn)
+    conn.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (1, 'card', 'PLN', 'x')"
+    )
+    for i, source in enumerate(("manual", "rule", None)):
+        conn.execute(
+            "INSERT INTO txn (account_id, status, booking_date, amount, currency, description, "
+            "kind, kind_source, fingerprint, source, first_seen_at, updated_at, category_id, "
+            "category_source) VALUES (1, 'BOOK', '2026-09-01', '-1.00', 'PLN', '', 'card', "
+            "'csv', ?, 'eb', 'x', 'x', 10, ?)",
+            (f"fp{i}", source),
+        )
+    monkeypatch.setattr(db, "migrations", lambda: every)
+    assert db.migrate(conn) == len(every)
+    rows = conn.execute("SELECT category_id, category_source FROM txn ORDER BY id").fetchall()
+    assert rows == [(10, "manual"), (10, "rule"), (10, None)]
+    conn.execute("UPDATE txn SET category_source = 'learned' WHERE id = 3")
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("UPDATE txn SET category_source = 'other' WHERE id = 3")

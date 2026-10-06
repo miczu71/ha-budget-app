@@ -55,7 +55,7 @@ def test_what_counts_as_spent(conn: sqlite3.Connection) -> None:
     add(conn, "-40.00", "card", "SKLEP ABC XYZ", day="2026-09-04")  # bez kategorii
     add(conn, "15.00", "transfer_in", "Zwrot", "OSOBA X", day="2026-09-04")  # wpływ bez kat.
     fixed = add(conn, "-300.00", "transfer_out", "Prad", "DOSTAWCA", day="2026-09-06")
-    once = add(conn, "-500.00", "card", "SKLEP RTV", day="2026-09-07")
+    once = add(conn, "-500.00", "card", "ELEKTRO RTV", day="2026-09-07")
     sav = add(conn, "-1000.00", "transfer_out", "Lokata", "JA SAM", day="2026-09-08")
     add(conn, "5000.00", "transfer_in", "Pensja", "FIRMA X", day="2026-09-09")
     add(conn, "-700.00", "card_repayment", "", None, day="2026-09-09", transfer_group="t1")

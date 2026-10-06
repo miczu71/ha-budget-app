@@ -297,7 +297,8 @@ td.date { white-space: nowrap; }
 }
 .cats summary::-webkit-details-marker, .leaf summary::-webkit-details-marker { display: none; }
 /* szewron: SVG (Lucide) jako maska — bez glifów Unicode, bo czcionki WebView bywają ubogie */
-.cats summary .cat-name::before, .rv-list summary .cat-name::before, .leaf summary .cat-name::before {
+.cats summary .cat-name::before, .rv-list summary .cat-name::before, .leaf summary .cat-name::before,
+.rv-learned > summary h2::before {
   content: "";
   display: inline-block;
   width: 16px;
@@ -311,7 +312,8 @@ td.date { white-space: nowrap; }
 }
 .cats details[open] > summary .cat-name::before,
 .rv-list details[open] summary .cat-name::before,
-.leaf[open] summary .cat-name::before { transform: rotate(90deg); }
+.leaf[open] summary .cat-name::before,
+.rv-learned[open] > summary h2::before { transform: rotate(90deg); }
 .grid { margin-bottom: 14px; }
 .cat-name { font-weight: 600; }
 .cat-amount { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -471,6 +473,10 @@ button.link {
 .rv-items .rv-desc { overflow-wrap: anywhere; font-size: 14px; }
 .rv-items .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rv-done { padding: 10px 0; }
+.rv-learned > summary { cursor: pointer; list-style: none; }
+.rv-learned > summary::-webkit-details-marker { display: none; }
+.rv-learned > summary h2 { margin: 0; }
+.rv-learned[open] > summary { margin-bottom: 8px; }
 
 @media (max-width: 640px) {
   .rv-body { padding-left: 0; }

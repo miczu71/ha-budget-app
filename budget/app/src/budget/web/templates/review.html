@@ -55,6 +55,8 @@
 {% if ai %}<p class="small muted">Grupy, które mają „{{ ai_name }}” wśród propozycji AI. Przycisk z ptaszkiem zapisuje regułę „{{ ai_name }}” dla całej grupy od razu; rozwinięcie grupy — inna kategoria, tekst reguły albo tylko część pozycji.</p>{% endif %}
 {% endif %}
 
+{% with open = False, saved = None, oob = False %}{% include "_review_learned.html" %}{% endwith %}
+
 {% if q.countries %}
 <section class="card">
   <h2>Zagranica</h2>

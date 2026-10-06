@@ -160,6 +160,8 @@
 
 <section class="card" id="learn">
   <h2>Kategoryzacja — pomiar</h2>
+  {% set ls = learned_stats %}{% set decided = ls.confirmed + ls.corrected %}
+  <p>Pamięć sprzedawcy na żywo: potwierdzone <strong>{{ ls.confirmed }}</strong>, poprawione <strong>{{ ls.corrected }}</strong>{% if decided %} (trafne {{ pp(ls.confirmed, decided) }}){% endif %} <span class="small muted">— decyzje w sekcji „Przypisane automatycznie” i na Transakcjach</span></p>
   <p class="small muted">Ile pracy z kolejką zdjęłoby automatyczne przypisanie: sprawdza na Twojej historii, miesiąc po miesiącu, co dałoby się przewidzieć z decyzji z wcześniejszych miesięcy. Nic nie zmienia w kategoriach.</p>
   <form method="post" action="{{ base }}/learn/eval" hx-boost="true" hx-disabled-elt="find button">
     <button type="submit" class="secondary">Zmierz</button>

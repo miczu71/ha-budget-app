@@ -1,9 +1,11 @@
-{# Odpowiedź zapisu: potwierdzenie, ewentualnie reszta grupy, dzwonek i pokrycie (OOB) #}
+{# Odpowiedź zapisu: potwierdzenie, ewentualnie reszta grupy, dzwonek, pokrycie i sekcja pamięci (OOB) #}
 <li id="{{ gid }}" class="rv-done">
   <span class="badge ok">zapisano</span>
   {{ g.label }}: {{ count }} tr. → <strong>{{ category }}</strong>{% if rule %} · reguła, zaktualizowane w księdze: {{ changed }} · <a href="{{ base }}/rules">reguły »</a>{% endif %}
+  {% if learned_took %}<br><span class="small">Pozostałe {{ learned_took }} tr. przypisała pamięć sprzedawcy — są w sekcji „Przypisane automatycznie”, tam je poprawisz.</span>{% endif %}
   {% if caught %}<br><span class="small">Reguła złapała też w innych grupach: {{ caught.total() }} tr. ({{ caught | length }}) — <a href="">odśwież listę</a></span>{% endif %}
 </li>
 {% if rest %}{% with g = rest, gid = gid ~ "r", open = True, error = None %}{% include "_review_li.html" %}{% endwith %}{% endif %}
 {% with oob = True, page = "review" %}{% include "_bell.html" %}{% endwith %}
 {% with oob = True %}{% include "_review_coverage.html" %}{% endwith %}
+{% with learned_oob = True, open = learned_took > 0, saved = None, oob = False %}{% include "_review_learned.html" %}{% endwith %}

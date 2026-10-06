@@ -12,6 +12,10 @@ Grupy:
 - **sprzedawca** — reszta, po (`txn.merchant`, kierunek, waluta); reguła z kolejki dostaje
   warunek kierunku, więc wydatek i wpływ od tej samej osoby to osobne decyzje.
 
+Osobno sekcja **przypisane automatycznie** (`learned`): pozycje z kategorią z pamięci sprzedawcy
+(M7 E2) — już liczone w budżecie, ale do zerknięcia; potwierdzenie albo poprawka to kategoria
+ręczna.
+
 Widok miesiąca (link z ekranu „Wydatki”) pokazuje tylko pozycje z danego miesiąca (data
 transakcji, jak na „Wydatkach”); to, czy sprzedawca zagraniczny jest stały, liczy się zawsze na
 całej historii, więc grupy nie zmieniają rodzaju zależnie od oglądanego miesiąca.
@@ -26,6 +30,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Literal
 
+from budget.categorize import taxonomy
 from budget.countries import card_origin
 
 GroupKind = Literal["merchant", "country"]
@@ -40,6 +45,7 @@ REGULAR_MONTHS = 3
 # `budget.categorize.learn`; czekające na kategorię — też `budget.suggest`
 QUEUE_SCOPE = "t.status = 'BOOK' AND t.transfer_group IS NULL AND a.include_in_budget = 1"
 PENDING_WHERE = f"{QUEUE_SCOPE} AND t.category_id IS NULL"
+LEARNED_WHERE = f"{QUEUE_SCOPE} AND t.category_source = 'learned'"
 
 
 @dataclass(frozen=True)
@@ -110,11 +116,42 @@ class Queue:
     pending: int  # wszystkie pozycje kolejki (oba kierunki; w widoku miesiąca — z miesiąca)
 
 
-def _items(conn: sqlite3.Connection) -> Iterable[tuple[sqlite3.Row, Item]]:
+@dataclass(frozen=True)
+class LearnedKey:
+    merchant: str
+    direction: Direction
+    currency: str
+    category_id: int
+
+
+@dataclass
+class Learned:
+    """Grupa „przypisane automatycznie”: (sprzedawca, kierunek, waluta, kategoria z pamięci)."""
+
+    key: LearnedKey
+    category: str  # nazwa podkategorii
+    items: list[Item] = field(default_factory=list)
+
+    @property
+    def label(self) -> str:
+        return self.key.merchant or NO_NAME
+
+    @property
+    def count(self) -> int:
+        return len(self.items)
+
+    @property
+    def total(self) -> Decimal:
+        return sum((abs(i.amount) for i in self.items), Decimal(0))
+
+
+def _items(
+    conn: sqlite3.Connection, where: str = PENDING_WHERE
+) -> Iterable[tuple[sqlite3.Row, Item]]:
     rows = conn.execute(
         "SELECT t.id, coalesce(t.tx_date, t.booking_date) AS day, t.amount, t.currency, "
-        "t.merchant, t.description, t.account_id, t.kind, t.orig_currency "
-        f"FROM txn t JOIN account a ON a.id = t.account_id WHERE {PENDING_WHERE} "
+        "t.merchant, t.description, t.account_id, t.kind, t.orig_currency, t.category_id "
+        f"FROM txn t JOIN account a ON a.id = t.account_id WHERE {where} "
         "ORDER BY day DESC, t.id DESC"
     )
     for r in rows:
@@ -199,6 +236,27 @@ def group(conn: sqlite3.Connection, key: GroupKey, month: date | None = None) ->
     """Bieżący stan jednej grupy (w widoku miesiąca: jej pozycje z miesiąca); `None`, gdy nic
     z niej nie zostało w kolejce."""
     return next((g for g in all_groups(conn, month) if g.key == key), None)
+
+
+def learned(conn: sqlite3.Connection, way: Direction, month: date | None = None) -> list[Learned]:
+    """Pozycje z pamięci sprzedawcy w kierunku `way` (w widoku miesiąca — z miesiąca), największe
+    grupy najpierw."""
+    prefix = month.strftime("%Y-%m") if month else ""
+    names = taxonomy.all_categories(conn)
+    groups: dict[LearnedKey, Learned] = {}
+    for r, item in _items(conn, LEARNED_WHERE):
+        if direction(item.amount) != way or not item.day.startswith(prefix):
+            continue
+        key = LearnedKey(item.merchant, way, item.currency, int(r["category_id"]))
+        groups.setdefault(key, Learned(key, names[key.category_id].name)).items.append(item)
+    return sorted(groups.values(), key=lambda g: (-g.total, g.key.merchant))
+
+
+def learned_group(
+    conn: sqlite3.Connection, key: LearnedKey, month: date | None = None
+) -> Learned | None:
+    """Bieżący stan jednej grupy „przypisane automatycznie”; `None`, gdy już przejrzana."""
+    return next((g for g in learned(conn, key.direction, month) if g.key == key), None)
 
 
 def pending_count(conn: sqlite3.Connection) -> int:

@@ -17,6 +17,11 @@ mają tę podkategorię wśród swoich propozycji (dowolnej z 3); w takim widoku
 „✓ <podkategoria>” — kategoria ręczna dla całej grupy jednym dotknięciem (wybór kategorii to
 filtr).
 
+Sekcja „Przypisane automatycznie” (M7 E2): pozycje z pamięci sprzedawcy w grupach (sprzedawca,
+kierunek, waluta, kategoria). ✓ przy grupie i „Potwierdź wszystkie” zapisują tę samą kategorię jako
+ręczną (pamięć się umacnia); inna kategoria z rozwiniętej grupy też jest ręczna — decyzje sprzedawcy
+przestają być zgodne, więc pamięć dla niego się wyłącza, a reszta jego pozycji wraca do kolejki.
+
 Widok miesiąca (`month=RRRR-MM`, link z „Wydatków”) zawęża listę i zaznaczanie do pozycji
 z miesiąca; reguła zapisana z takiego widoku nadal działa we wszystkich miesiącach (podgląd mówi,
 ile pozycji spoza miesiąca dostanie kategorię).
@@ -39,7 +44,7 @@ from budget import ledger, review, spending
 from budget.categorize import engine, rules, taxonomy
 from budget.categorize.rules import Conditions, Facts, Rule, RuleError, TextCondition
 from budget.categorize.taxonomy import Category, TaxonomyError
-from budget.review import Direction, Group, GroupKey, GroupKind, Item, Sort
+from budget.review import Direction, Group, GroupKey, GroupKind, Item, LearnedKey, Sort
 from budget.spending import add_months, month_label, parse_month
 from budget.suggest import engine as suggest
 from budget.web.common import Panel
@@ -68,6 +73,23 @@ def group_key(kind: Any, value: Any, direction: Any, currency: Any) -> GroupKey 
 def key_from_form(form: FormData) -> GroupKey | None:
     return group_key(
         form.get("kind"), form.get("value"), form.get("direction"), form.get("currency")
+    )
+
+
+def learned_key(form: Any) -> LearnedKey | None:
+    """Grupa sekcji „przypisane automatycznie” z parametrów (`cat` — kategoria z pamięci)."""
+    direction = form.get("direction")
+    try:
+        cat = int(str(form.get("cat") or ""))
+    except ValueError:
+        return None
+    if direction not in review.DIRECTIONS:
+        return None
+    return LearnedKey(
+        str(form.get("merchant") or ""),
+        cast(Direction, direction),
+        str(form.get("currency") or ""),
+        cat,
     )
 
 
@@ -263,6 +285,7 @@ def router(panel: Panel) -> APIRouter:
             request,
             "review.html",
             q=review.queue(conn, d, s, limit, m, only if ai else None),
+            learned=review.learned(conn, d, m),
             ai_on=ai_on,
             ai=ai,
             ai_filters=ai_filters(review.all_groups(conn, m), d, cands) if cands else [],
@@ -338,6 +361,68 @@ def router(panel: Panel) -> APIRouter:
             pick=cid,
             pv=cid is not None,
             tree=taxonomy.tree(conn),
+        )
+
+    @r.get("/review/learned/edit", response_class=HTMLResponse)
+    async def learned_edit(request: Request, month: str = "") -> HTMLResponse:
+        key = learned_key(request.query_params)
+        m = month_of(month, today())
+        g = review.learned_group(conn, key, m) if key else None
+        if g is None:
+            return HTMLResponse('<p class="muted">Ta grupa jest już przejrzana — odśwież.</p>')
+        return panel.partial(
+            request, "_review_learned_edit.html", g=g, month=m, tree=taxonomy.tree(conn)
+        )
+
+    @r.post("/review/learned", response_class=HTMLResponse)
+    async def learned_save(request: Request) -> HTMLResponse:
+        """✓ grupy, „Potwierdź wszystkie” (`all`) albo inna kategoria (`category_id`)."""
+        form = await request.form()
+        way = form.get("direction")
+        d: Direction = way if way in review.DIRECTIONS else "out"
+        m = month_of(form.get("month"), today())
+        if form.get("all"):
+            groups = review.learned(conn, d, m)
+        else:
+            key = learned_key(form)
+            one = review.learned_group(conn, key, m) if key else None
+            groups = [one] if one else []
+        new = category(form)
+        count = 0
+        with ledger.transaction(conn):
+            for g in groups:
+                cid = new or g.key.category_id
+                for i in g.items:
+                    engine.set_manual(conn, i.id, cid)
+                suggest.decide(conn, g.key.merchant, g.key.direction, cid)
+                count += len(g.items)
+            engine.recategorize(conn)
+        if not groups:
+            saved = "Nic do zapisania — lista się zmieniła."
+        elif form.get("all"):
+            saved = f"Potwierdzone: {count} tr. w {len(groups)} gr."
+        else:
+            g = groups[0]
+            if new is None or new == g.key.category_id:
+                saved = f"{g.label}: {count} tr. → {g.category}"
+            else:
+                name = taxonomy.all_categories(conn)[new].name
+                saved = (
+                    f"{g.label}: {count} tr. → {name}. Pamięć dla tego "
+                    "sprzedawcy wyłączona — jego pozostałe pozycje wróciły do kolejki."
+                )
+        return panel.partial(
+            request,
+            "_review_learned.html",
+            learned=review.learned(conn, d, m),
+            direction=d,
+            month=m,
+            open=True,
+            saved=saved,
+            oob=True,
+            inbox_count=len(panel.service.inbox()),
+            queued=queued(m),
+            cov=coverage(m),
         )
 
     @r.post("/review/ai-run")
@@ -423,11 +508,16 @@ def router(panel: Panel) -> APIRouter:
             return fail(str(exc))
         name = taxonomy.all_categories(conn)[cid].name
         rest = review.group(conn, g.key, m)
+        learned = review.learned(conn, g.key.direction, m)
+        took = {i.id for lg in learned for i in lg.items} & {i.id for i in g.items}
         return panel.partial(
             request,
             "_review_saved.html",
             g=g,
             rest=rest,
+            learned=learned,
+            learned_took=len(took),
+            direction=g.key.direction,
             gid=gid,
             rule=use_rule,
             category=name,

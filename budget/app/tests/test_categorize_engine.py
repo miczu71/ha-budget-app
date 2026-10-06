@@ -390,3 +390,41 @@ def test_clean_conditions_without_category(conn: sqlite3.Connection) -> None:
         rules.clean_conditions(conn, Conditions(text=()))
     with pytest.raises(RuleError, match="Wybierz podkategorię"):
         rules.validate(conn, Rule(None, 0, cond))
+
+
+def test_learned_from_consistent_manual_decisions(conn: sqlite3.Connection) -> None:
+    first = add(conn, "-30.00", "card", "SKLEP ABC XYZ POL 2026-09-01")
+    second = add(conn, "-45.00", "card", "SKLEP ABC XYZ POL 2026-09-05")
+    income = add(conn, "45.00", "card_refund", "SKLEP ABC XYZ POL 2026-09-06")
+    lidl = add(conn, "-50.00", "card", "LIDL UL. X XYZ POL 2026-09-10")
+    engine.set_manual(conn, first, sid(conn, "ubrania"))
+    engine.set_manual(conn, lidl, sid(conn, "prezenty"))
+    lidl2 = add(conn, "-20.00", "card", "LIDL UL. X XYZ POL 2026-09-12")
+    engine.recategorize(conn)
+    assert cat(conn, second) == ("ubrania", "learned", "Sklep")
+    assert cat(conn, income)[:2] == (None, None)  # inny kierunek — osobna pamięć
+    assert cat(conn, lidl2)[:2] == ("spozywcze", "dictionary")  # pamięć tylko wypełnia luki
+    other = add(conn, "-10.00", "card", "SKLEP ABC XYZ POL 2026-09-08")
+    engine.set_manual(conn, other, sid(conn, "prezenty"))  # niezgodne decyzje — bez pamięci
+    engine.recategorize(conn)
+    assert cat(conn, second)[:2] == (None, None)
+
+
+def test_refund_inherits_learned_purchase_category(conn: sqlite3.Connection) -> None:
+    buy = add(conn, "-100.00", "card", "SKLEP ABC XYZ POL 2026-09-01")
+    old = add(conn, "-30.00", "card", "SKLEP ABC XYZ POL 2026-08-01")
+    back = add(conn, "40.00", "card_refund", "SKLEP ABC XYZ POL 2026-09-05", refund_of=buy)
+    engine.set_manual(conn, old, sid(conn, "ubrania"))
+    engine.recategorize(conn)
+    assert cat(conn, buy) == ("ubrania", "learned", "Sklep")
+    assert cat(conn, back)[:2] == ("ubrania", "refund")
+
+
+def test_set_manual_counts_learned_decisions(conn: sqlite3.Connection) -> None:
+    ids = [add(conn, f"-{n}.00", "card", "SKLEP ABC XYZ POL 2026-09-01") for n in (10, 20, 30)]
+    engine.set_manual(conn, ids[0], sid(conn, "ubrania"))
+    engine.recategorize(conn)
+    engine.set_manual(conn, ids[1], sid(conn, "ubrania"))
+    engine.set_manual(conn, ids[2], sid(conn, "prezenty"))
+    engine.set_manual(conn, ids[0], sid(conn, "prezenty"))  # ręczna, nie z pamięci
+    assert db.kv_get(conn, engine.LEARNED_STATS_KEY) == {"confirmed": 1, "corrected": 1}

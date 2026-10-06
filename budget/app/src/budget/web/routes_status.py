@@ -9,7 +9,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget import ledger, report, sessions, summary, sync_service
-from budget.categorize import learn
+from budget.categorize import engine, learn
 from budget.eb_client import PsuHeaders
 from budget.service import ServiceError
 from budget.storage import db
@@ -66,6 +66,7 @@ def router(panel: Panel) -> APIRouter:
             "ai": ai_context(),
             "summaries": summaries_context(),
             "learn": db.kv_get(conn, learn.EVAL_KEY),
+            "learned_stats": engine.learned_stats(conn),
         }
 
     def summaries_context() -> dict[str, Any]:

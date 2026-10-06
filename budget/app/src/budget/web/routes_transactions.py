@@ -52,6 +52,7 @@ SOURCE_LABELS = {
     "dictionary": "słownik",
     "kind": "typ",
     "refund": "zwrot",
+    "learned": "pamięć",
 }
 
 
