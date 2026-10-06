@@ -147,7 +147,7 @@ def router(panel: Panel) -> APIRouter:
             series_of=belongs,
             repeatable={c.id for c in page_txns},
             total=total,
-            page=page,
+            page_no=page,  # `page` = nazwa ekranu w base.html (aktywna zakładka)
             pages=max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1),
             filtered=any((account_id, date_from, date_to, kind, category, direction, q)),
             accounts=conn.execute("SELECT * FROM account ORDER BY id").fetchall(),

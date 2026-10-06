@@ -263,3 +263,8 @@ async def test_stale_page_gets_full_reload(client: httpx.AsyncClient) -> None:
         assert r.headers["HX-Refresh"] == "true" and r.text == ""
     ok = {"HX-Request": "true", "X-Panel-Version": __version__}
     assert "HX-Refresh" not in (await client.get("/transactions", headers=ok)).headers
+
+
+async def test_transactions_tab_is_active(client: httpx.AsyncClient) -> None:
+    page = (await client.get("/transactions")).text
+    assert f'href="{INGRESS}/transactions" class="on">Transakcje' in page

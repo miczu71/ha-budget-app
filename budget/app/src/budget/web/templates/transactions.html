@@ -76,9 +76,9 @@
   {% if pages > 1 %}
   {% set qs = "account=" ~ (f.account or "") ~ "&date_from=" ~ f.date_from ~ "&date_to=" ~ f.date_to ~ "&kind=" ~ f.kind ~ "&category=" ~ f.category ~ "&direction=" ~ f.direction ~ "&q=" ~ (f.q | urlencode) %}
   <div class="pager">
-    {% if page > 1 %}<a class="tap" href="{{ base }}/transactions?{{ qs }}&page={{ page - 1 }}">← nowsze</a>{% else %}<span></span>{% endif %}
-    <span class="muted small">strona {{ page }} z {{ pages }}</span>
-    {% if page < pages %}<a class="tap" href="{{ base }}/transactions?{{ qs }}&page={{ page + 1 }}">starsze →</a>{% else %}<span></span>{% endif %}
+    {% if page_no > 1 %}<a class="tap" href="{{ base }}/transactions?{{ qs }}&page={{ page_no - 1 }}">← nowsze</a>{% else %}<span></span>{% endif %}
+    <span class="muted small">strona {{ page_no }} z {{ pages }}</span>
+    {% if page_no < pages %}<a class="tap" href="{{ base }}/transactions?{{ qs }}&page={{ page_no + 1 }}">starsze →</a>{% else %}<span></span>{% endif %}
   </div>
   {% endif %}
 </section>
