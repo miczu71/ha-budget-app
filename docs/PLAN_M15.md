@@ -136,9 +136,50 @@ liczy 5 płatności dla każdej.
 - 0.24.2 (v0.24.2): `PRAGMA temp_store = MEMORY` w `db.connect`; 568 testów. Na produkcji oba numery
   ustawione, **101 płatności przypisanych**, 0 nieprzypisanych w historii; log bez błędów.
 
-## E4 — limit i okres bezodsetkowy (zarys, osobny wywiad)
+## E4 — ile spłacić i do kiedy (0.30.0)
 
-- Limit wpisany ręcznie; ITAV + ITBD obok do porównania.
-- Dzień zamknięcia cyklu i termin spłaty w ustawieniach.
-- Kwota do spłaty z zamkniętego cyklu (żeby nie płacić odsetek) i dni do terminu; wykorzystanie
-  limitu. Kanał przypomnienia o terminie — do wywiadu.
+Wywiad 2026-10-06 (po zamknięciu M8).
+
+### Cel i ograniczenia
+
+1. **Cel:** wiedzieć, ile spłacić z zamkniętego cyklu i do kiedy, żeby nie płacić odsetek.
+2. **Warunki karty (od użytkownika, zgodne z ofertą):** cykl = miesiąc kalendarzowy, termin
+   spłaty 20. dnia następnego miesiąca (do 51 dni bez odsetek), spłata minimalna 5%. Limit
+   wpisany ręcznie na ekranie Karta (w bazie, nie w repo); dane potwierdzają limit
+   (ITBD + ITAV ≈ limit).
+3. **Automatycznie:** przypomnienie 5 dni i dzień przed terminem (15. i 19., 7:00) przez
+   `summary_notify_service` + dzwonek — tylko gdy kwota z cyklu nie jest spłacona. Ścieżka E1
+   (`summary.due()`, `mark_sent`, nadrabianie po restarcie).
+4. **Sukces:** 20.10 kwota w panelu równa „kwocie do spłaty” w aplikacji banku albo nieco wyższa
+   (świadomie ostrożna); przypomnienie przychodzi tylko, gdy coś zostało.
+
+### Model
+
+Spłaty są ręczne i nieregularne („wcześniejsza spłata z rachunku”), a API daje tylko `ITBD`
+(zadłużenie teraz) i datę księgowania. Zamiast odtwarzać wyciąg:
+
+- **Zostało do spłaty** = max(0, `ITBD` − obciążenia karty zaksięgowane w bieżącym cyklu).
+  `ITBD` = wyciąg − spłaty i zwroty po zamknięciu + nowe obciążenia, więc spłaty odejmują się same.
+- **Ostrożnie na granicy cyklu:** obciążenia z pierwszych `BOOKING_LAG` = 2 dni cyklu liczą się
+  do wyciągu (zakup z końca miesiąca księgowany 1.–2.); `ITBD` obejmuje też autoryzacje spoza
+  księgi. Oba błędy zawyżają kwotę, nigdy jej nie zaniżają.
+- **Stany:** 1.–20. „do spłaty X do 20.” z liczbą dni; po 20. z resztą > 0 „po terminie”; 0 →
+  „spłacone”.
+- **Limit:** wykorzystanie = `ITBD` / limit, `ITAV` obok do porównania; bez limitu sekcja ukryta.
+- M8 bez zmian — prognoza już odejmuje całe zadłużenie karty; zdarzenie „spłata 20.” liczyłoby
+  je drugi raz.
+
+### Kroki (0.30.0)
+
+1. `card.py`: `DUE_DAY = 20`, limit w `kv`, `due_status(conn, today)` → kwota, termin, dni,
+   po terminie, zadłużenie, dostępne, limit; `due_remind_today(today)` (15. i 19.).
+2. `summary.py`: rodzaj `card_due`, wiadomość z kwotą i terminem, gałąź w `due()`.
+3. `inbox.py`: pozycja „Karta: do spłaty” (warn od 15. i po terminie), link `/card`.
+4. `ha_publisher.py`: `sensor.budget_card_due` (stan = zostało; atrybuty termin, dni, po terminie,
+   zadłużenie, limit, wykorzystanie).
+5. Panel: na ekranie Karta sekcje „Spłata” i „Limit” (pole kwoty, pasek wykorzystania);
+   linia „do spłaty” na kafelku karty na Podsumowaniu.
+6. Testy, ruff, mypy, `simplify`, skaner pre-commit.
+7. Weryfikacja UI na kopii księgi (Playwright 390/1280, konsola).
+8. Checkpoint → „go” → wydanie skillem `release`, backup add-onu, aktualizacja w HA, limit
+   ustawiony przez panel. Cofnięcie: revert + 0.30.1 albo backup add-onu.
