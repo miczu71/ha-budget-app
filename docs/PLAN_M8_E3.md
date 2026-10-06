@@ -49,7 +49,7 @@ Copy:
    skill `release` (0.27.0, opublikowany); instalacja z backupem; zrzut na produkcji.
    Cofnięcie: `git revert` + wydanie 0.27.1 albo backup add-onu (bez migracji bazy).
 
-## E3b — wykres osi czasu i chronologiczna lista (0.28.0)
+## E3b — wykres osi czasu i chronologiczna lista (0.29.0; 0.28.0 zajęte przez M16)
 1. `charts.forecast_line`: wyższy wykres, strefa poniżej zera, znaczniki (wpływy + 3 największe wydatki), etykieta
    najniższego punktu, etykieta „wypłata” na osi X.
 2. `_charts.html`: strefa, znaczniki z `<title>`, etykiety; nowe unikalne klasy (`fc-zone`, `fc-mark`, `fc-mark-in`).
