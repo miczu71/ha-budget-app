@@ -85,6 +85,7 @@
     {% else %}
     <p class="small pos">Warunek bezpłatnej karty spełniony.</p>
     {% endif %}
+    {% if cd and cd.left %}<p class="small {{ 'warn-text' if cd.soon }}">{% if cd.overdue %}Spłata po terminie ({{ cd.due.strftime('%d.%m') }}): {{ cd.left | money("PLN") }}{% else %}Do spłaty {{ cd.left | money("PLN") }} do {{ cd.due.strftime('%d.%m') }}{% endif %}.</p>{% endif %}
     <p class="small muted">BLIK się nie liczy. Bank liczy kartę główną i dodatkową osobno{% if not cm.shared %}; nieprzypisana płatność nie liczy się nikomu{% else %}, a tu widać ich sumę{% endif %}; zakup pojawia się w banku ok. 2 dni później.</p>
     <p class="small card-link"><a class="tap" href="{{ base }}/card">{{ "Przypisz płatności »" if cm.unassigned else "Karta »" }}</a></p>
   </section>

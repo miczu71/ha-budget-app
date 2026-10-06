@@ -23,6 +23,7 @@ def router(panel: Panel) -> APIRouter:
             request,
             "card.html",
             cm=card.month_status(conn, start),
+            cd=card.due_status(conn, today),
             holders=card.holders(conn),
             todo=[t for t in rows if t["card_holder_id"] is None],
             done=[t for t in rows if t["card_holder_id"] is not None],
@@ -48,6 +49,16 @@ def router(panel: Panel) -> APIRouter:
         except card.CardError as exc:  # komunikat w podmienianym #card-main (htmx)
             return page(request, month or None, str(exc))
         return page(request, month or None)
+
+    @r.post("/card/limit")
+    async def set_limit(request: Request, limit: str = Form("")) -> Response:
+        try:
+            card.set_limit(conn, limit)
+        except card.CardError as exc:
+            return panel.redirect(request, "/card", str(exc), "error")
+        return panel.redirect(
+            request, "/card", "Zapisano limit." if limit.strip() else "Usunięto limit."
+        )
 
     @r.post("/card/holders")
     async def add_holder(request: Request, name: str = Form("")) -> Response:

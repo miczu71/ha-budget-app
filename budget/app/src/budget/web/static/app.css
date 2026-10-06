@@ -862,3 +862,11 @@ label.switch input[type="checkbox"]::after { content: ""; position: absolute; to
 label.switch input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
 label.switch input[type="checkbox"]:checked::after { transform: translateX(16px); background: var(--on-accent); }
 @media (prefers-reduced-motion: reduce) { label.switch input[type="checkbox"]::after { transition: none; } }
+
+/* M15 E4: spłata i limit karty (werdykt jak „Do wypłaty”) */
+.due-verdict .hero-amount { color: var(--text); }
+.due-verdict.soon .hero-amount { color: var(--warn); }
+.limit-bar { margin-top: 4px; overflow: hidden; }
+.limit-bar .fill { background: var(--text); }
+.limit-strip { margin-bottom: 8px; }
+.card-limit form.rename { margin-top: 8px; }

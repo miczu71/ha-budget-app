@@ -9,13 +9,16 @@ from decimal import Decimal
 import pytest
 
 from budget import card, ha_publisher, inbox, summary
+from budget.service import Service
 from budget.snapshot import Snapshot
+from budget.storage.db import now_iso
 
 from .test_card import CARD, WAW, buy
 from .test_categorize_engine import conn
 from .test_forecast import snapshot
+from .test_web import _client, service
 
-__all__ = ["conn"]
+__all__ = ["conn", "service"]
 
 
 def debt(c: sqlite3.Connection, itbd: str, itav: str | None = None) -> None:
@@ -85,11 +88,6 @@ def test_limit(conn: sqlite3.Connection) -> None:
             card.set_limit(conn, bad)
 
 
-@pytest.mark.parametrize(("day", "expected"), [(14, False), (15, True), (19, True), (20, False)])
-def test_due_remind_days(day: int, expected: bool) -> None:
-    assert card.due_remind_today(date(2026, 10, day)) is expected
-
-
 def due_msgs(c: sqlite3.Connection, day: int) -> list[summary.Message]:
     now = datetime(2026, 10, day, 7, 30, tzinfo=WAW)
     return [m for m in summary.due(Snapshot(c), now) if m.kind == summary.CARD_DUE]
@@ -105,7 +103,7 @@ def test_reminder_on_15th_and_19th_once(conn: sqlite3.Connection) -> None:
     assert due_msgs(conn, 14) == []
     (msg,) = due_msgs(conn, 15)
     assert msg.title == "Karta kredytowa — spłata do 20.10"
-    assert "1\xa0234,50\xa0zł" in msg.text and "wrzesień" in msg.text and "za 5 dni" in msg.text
+    assert "1\u202f234,50\xa0zł" in msg.text and "wrzesień" in msg.text and "za 5 dni" in msg.text
     summary.mark_sent(conn, msg)
     assert due_msgs(conn, 15) == []
     (msg,) = due_msgs(conn, 19)
@@ -144,3 +142,26 @@ def test_entity(conn: sqlite3.Connection) -> None:
         "limit": "10000.00",
         "utilization": 25.0,
     }
+
+
+async def test_card_screen_and_limit(service: Service, monkeypatch: pytest.MonkeyPatch) -> None:
+    c = service.conn
+    c.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (2, 'card', 'PLN', ?)",
+        (now_iso(),),
+    )
+    monkeypatch.setattr(service, "now", lambda: datetime(2026, 10, 16, 12, 0, tzinfo=WAW))
+    async with _client(service) as client:
+        bare = (await client.get("/card")).text
+        debt(c, "300.00", "700.00")
+        page = (await client.get("/card")).text
+        bad = await client.post("/card/limit", data={"limit": "abc"})
+        await client.post("/card/limit", data={"limit": "1000"})
+        limited = (await client.get("/card")).text
+        home = (await client.get("/")).text
+    assert "Spłata" not in bare
+    assert "Spłata — do 20.10" in page and "za 4 dni" in page and "due-verdict soon" in page
+    assert "wpisz go" in page and "Wykorzystanie" not in page
+    assert bad.status_code in (302, 303) and card.get_limit(c) == Decimal("1000.00")
+    assert "Wykorzystanie" in limited and "30%" in limited and "width: 30%" in limited
+    assert "Do spłaty" in home and "do 20.10" in home and "warn-text" in home

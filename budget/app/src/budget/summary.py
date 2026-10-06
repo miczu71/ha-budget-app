@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-from budget import card, flex, review
+from budget import card, flex, money, review
 from budget.categorize import taxonomy
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
@@ -60,11 +60,6 @@ def zl(amount: Decimal) -> str:
     whole = int(abs(amount).quantize(Decimal(1), ROUND_HALF_UP))
     sign = "−" if amount < 0 and whole else ""
     return f"{sign}{whole:,}".replace(",", " ") + " zł"
-
-
-def zl_gr(amount: Decimal) -> str:
-    """`1234.5` → `1 234,50 zł` — kwota do przelewu, bez zaokrąglania (spacje jak w `zl`)."""
-    return f"{amount:,.2f}".replace(",", "\xa0").replace(".", ",") + "\xa0zł"
 
 
 def _short(d: date) -> str:
@@ -211,7 +206,7 @@ def due_reminder(cd: card.CardDue) -> Message:
         CARD_DUE,
         f"{cd.due:%Y-%m}-{cd.days_left}",
         f"Karta kredytowa — spłata do {_short(cd.due)}",
-        f"Zostało {zl_gr(cd.left)} z cyklu: {cycle}; termin {when(cd.days_left)}. "
+        f"Zostało {money.pl(cd.left, 'PLN')} z cyklu: {cycle}; termin {when(cd.days_left)}. "
         "Po terminie bank nalicza odsetki.",
     )
 
@@ -236,8 +231,8 @@ def due(snap: Snapshot, now: datetime) -> list[Message]:
         msg = card_reminder(cm, today)
         if sent.get(CARD) != msg.period:
             out.append(msg)
-    cd = card.due_status(snap.conn, today) if card.due_remind_today(today) else None
-    if cd and cd.left:
+    cd = card.due_status(snap.conn, today)
+    if cd and cd.left and cd.days_left in card.DUE_REMIND_DAYS:
         msg = due_reminder(cd)
         if sent.get(CARD_DUE) != msg.period:
             out.append(msg)

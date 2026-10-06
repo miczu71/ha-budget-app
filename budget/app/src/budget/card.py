@@ -229,6 +229,11 @@ class CardDue:
         return bool(self.left) and self.days_left < 0
 
     @property
+    def soon(self) -> bool:
+        """Ostrzeżenie: od pierwszego przypomnienia przed terminem i po terminie."""
+        return bool(self.left) and self.days_left <= max(DUE_REMIND_DAYS)
+
+    @property
     def utilization(self) -> float | None:
         return float(self.debt / self.limit) if self.limit else None
 
@@ -249,23 +254,14 @@ def set_limit(conn: sqlite3.Connection, text: str) -> None:
     kv_set(conn, LIMIT_KEY, None if value is None else money.fmt(value))
 
 
-def due_remind_today(today: date) -> bool:
-    return DUE_DAY - today.day in DUE_REMIND_DAYS
-
-
 def due_status(conn: sqlite3.Connection, today: date) -> CardDue | None:
     """Spłata cyklu zamkniętego z końcem poprzedniego miesiąca; None bez karty lub bez ITBD."""
     account = card_account(conn)
     if account is None:
         return None
-    snaps = {
-        r["balance_type"]: Decimal(r["amount"])
-        for r in conn.execute(
-            "SELECT balance_type, amount FROM balance_snapshot WHERE account_id = ? AND "
-            "fetched_at = (SELECT max(fetched_at) FROM balance_snapshot WHERE account_id = ?)",
-            (account, account),
-        )
-    }
+    from budget import ledger  # ledger importuje card
+
+    snaps = {k: Decimal(r["amount"]) for k, r in ledger.latest_balances(conn, account).items()}
     if "ITBD" not in snaps:
         return None
     start = month_start(today)

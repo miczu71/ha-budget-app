@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from decimal import Decimal, InvalidOperation
+from typing import Any
 
 CENT = Decimal("0.01")
 ZERO = Decimal("0.00")
@@ -49,3 +50,20 @@ def fmt(value: Decimal) -> str:
 
 def total(values: Iterable[str | Decimal]) -> Decimal:
     return sum((v if isinstance(v, Decimal) else Decimal(v) for v in values), ZERO)
+
+
+def pl(value: Any, currency: str | None = None) -> str:
+    """`-1234.5` → `−1 234,50 zł` (polski zapis, twarde spacje)."""
+    try:
+        amount = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return "—"
+    sign = "−" if amount < 0 else ""
+    whole, _, frac = f"{abs(amount):.2f}".partition(".")
+    groups: list[str] = []
+    while whole:
+        groups.insert(0, whole[-3:])
+        whole = whole[:-3]
+    symbol = {"PLN": "zł", "EUR": "€", None: ""}.get(currency, currency or "")
+    # grupy cyfr: wąska twarda spacja (U+202F), przed walutą: twarda spacja (U+00A0)
+    return f"{sign}{'\u202f'.join(groups)},{frac}\xa0{symbol}".rstrip()

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import pct %}
 {% macro pay_row(t) %}
 <li>
   <div class="row"><span class="row-date">{{ t.booking_date[8:10] }}.{{ t.booking_date[5:7] }}</span><span class="row-title">{{ t.merchant or t.description or "—" }}</span><span class="row-amount num">{{ t.amount | money(t.currency) }}</span></div>
@@ -22,6 +23,35 @@
 {% if cm is none %}
 <section class="card"><p class="muted">Nie ma konta karty kredytowej.</p></section>
 {% else %}
+{% if cd %}{% set state = 'bad' if cd.overdue else ('ok' if not cd.left else ('soon' if cd.soon else '')) %}
+<section class="card card-due">
+  <h2>Spłata — do {{ cd.due.strftime('%d.%m') }}{% if cd.left and not cd.overdue %} <span class="fc-when">{{ cd.days_left | when }}</span>{% endif %}</h2>
+  <div class="fc-verdict due-verdict {{ state }}">
+    <div class="hero-amount">{% if not cd.left %}Spłacone{% else %}{{ cd.left | money("PLN") }}{% endif %}</div>
+    <p class="muted">{% if cd.overdue %}Termin minął {{ cd.due.strftime('%d.%m') }} — tyle zostało z zamkniętego cyklu; spłać, żeby ograniczyć odsetki.{% elif cd.left %}Tyle zostało do spłaty z zamkniętego cyklu, żeby nie zapłacić odsetek.{% else %}Zamknięty cykl jest spłacony — do {{ cd.due.strftime('%d.%m') }} nic więcej nie trzeba.{% endif %}</p>
+  </div>
+  <p class="small muted">Liczone ostrożnie: zadłużenie z banku minus zakupy zaksięgowane w tym cyklu (bez pierwszych 2 dni) — może wyjść nieco więcej niż w aplikacji banku, nigdy mniej.</p>
+</section>
+<section class="card card-limit">
+  <h2>Limit</h2>
+  {% if cd.limit %}
+  <div class="flex-bar limit-bar" role="img" aria-label="wykorzystanie limitu {{ pct(cd.utilization) }}"><span class="fill" style="width: {{ pct([cd.utilization, 1] | min) }}"></span></div>
+  <dl class="fc-strip limit-strip">
+    <div><dt>Zadłużenie</dt><dd>{{ cd.debt | money("PLN") }}</dd></div>
+    <div><dt>Limit</dt><dd>{{ cd.limit | money("PLN") }}</dd></div>
+    <div><dt>Wykorzystanie</dt><dd>{{ pct(cd.utilization) }}</dd></div>
+    {% if cd.available is not none %}<div><dt>Dostępne wg banku</dt><dd>{{ cd.available | money("PLN") }}</dd></div>{% endif %}
+  </dl>
+  {% if cd.available is not none %}<p class="small muted">„Dostępne” bank aktualizuje z opóźnieniem — limit minus zadłużenie bywa dokładniejsze.</p>{% endif %}
+  {% else %}
+  <p class="muted">Bank nie podaje limitu karty — wpisz go, a zobaczysz, ile limitu jest wykorzystane.</p>
+  {% endif %}
+  <form class="rename" method="post" action="{{ base }}/card/limit">
+    <input name="limit" inputmode="decimal" value="{{ cd.limit | int if cd.limit else '' }}" placeholder="limit, np. 5000" aria-label="limit karty w zł">
+    <button type="submit" class="{{ 'secondary' if cd.limit }}">Zapisz limit</button>
+  </form>
+</section>
+{% endif %}
 <section class="card">
   <h2>Płatności kartą</h2>
   <div class="stats">

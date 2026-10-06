@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Literal
 
-from budget import card, ledger, notifications, review, sessions, summary, sync_service
+from budget import card, ledger, money, notifications, review, sessions, summary, sync_service
 from budget.forecast import Forecast
 from budget.recurring import changes, series
 from budget.snapshot import Snapshot
@@ -218,14 +218,13 @@ def card_due(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[
     else:
         title = "Karta kredytowa: do spłaty"
         detail = f"Termin {cd.due:%d.%m} — {summary.when(cd.days_left)}."
-    warn = cd.overdue or cd.days_left <= max(card.DUE_REMIND_DAYS)
     return [
         Item(
             "card_due",
-            f"{title} {summary.zl_gr(cd.left)}",
+            f"{title} {money.pl(cd.left, 'PLN')}",
             1,
             "/card",
-            "warn" if warn else "info",
+            "warn" if cd.soon else "info",
             detail + " Kwota liczona ostrożnie — może być nieco wyższa niż w banku.",
         )
     ]

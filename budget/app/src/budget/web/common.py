@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +10,7 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from budget import __version__
+from budget import __version__, money, summary
 from budget.categorize.rules import OPS as RULE_OPS
 from budget.logging_utils import mask_iban
 from budget.service import Service
@@ -44,23 +43,6 @@ ACCOUNT_KINDS = {
 }
 
 
-def fmt_money(value: Any, currency: str | None = None) -> str:
-    """`-1234.5` → `−1 234,50 zł` (polski zapis, twarde spacje)."""
-    try:
-        amount = Decimal(str(value))
-    except (InvalidOperation, ValueError):
-        return "—"
-    sign = "−" if amount < 0 else ""
-    whole, _, frac = f"{abs(amount):.2f}".partition(".")
-    groups: list[str] = []
-    while whole:
-        groups.insert(0, whole[-3:])
-        whole = whole[:-3]
-    symbol = {"PLN": "zł", "EUR": "€", None: ""}.get(currency, currency or "")
-    # grupy cyfr: wąska twarda spacja (U+202F), przed walutą: twarda spacja (U+00A0)
-    return f"{sign}{'\u202f'.join(groups)},{frac}\xa0{symbol}".rstrip()
-
-
 def fmt_ts(value: str | None, tz: Any) -> str:
     if not value:
         return "—"
@@ -77,6 +59,9 @@ def fmt_date(value: str | None) -> str:
         return value
 
 
+fmt_money = money.pl
+
+
 class Panel:
     """Stan i pomocnicze funkcje ekranów; jeden użytkownik, więc komunikat „flash” to lista."""
 
@@ -89,6 +74,7 @@ class Panel:
         t.env.filters["ts"] = lambda v: fmt_ts(v, service.tz)
         t.env.filters["iban"] = mask_iban
         t.env.filters["pldate"] = fmt_date
+        t.env.filters["when"] = summary.when
         t.env.globals["version"] = __version__
         t.env.globals["kind_labels"] = KIND_LABELS
         t.env.globals["rule_ops"] = RULE_OPS

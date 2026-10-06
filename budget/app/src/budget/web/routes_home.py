@@ -123,6 +123,7 @@ def router(panel: Panel) -> APIRouter:
             stale=bool(sync_at and now - datetime.fromisoformat(sync_at) > STALE_AFTER),
             consent_days=record.days_left(now) if record and record.active else None,
             cm=card.month_status(conn, today) if f.is_current else None,
+            cd=card.due_status(conn, today) if f.is_current else None,
             fc=fc,
             chart=charts.forecast_line(fc.days, buffer, fc.events, fc.payday) if fc else None,
             timeline=forecast_timeline(fc) if fc else [],
