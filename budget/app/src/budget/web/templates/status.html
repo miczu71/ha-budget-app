@@ -178,6 +178,17 @@
       {% endfor %}
     </tbody>
   </table></div>
+  {% if learn.by_type %}
+  <h3>Pamięć według typu transakcji</h3>
+  <div class="table-wrap"><table class="ai-eval">
+    <thead><tr><th>typ</th><th>min. decyzji</th><th>przypisane</th><th>trafne</th><th>kolejka dziś</th></tr></thead>
+    <tbody>
+      {% for row in learn.by_type %}
+      <tr><td>{{ row.label if loop.changed(row.group) }}</td><td>{{ row.k }}</td><td>{{ row.txns_fired }} / {{ row.txns }} ({{ pp(row.txns_fired, row.txns) }})</td><td>{{ pp(row.txns_correct, row.txns_fired) }}</td><td>{{ row.queue_txns }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
   <h3>Klasyfikator dla nowych sprzedawców <span class="small muted">({{ learn.nb.n }} pozycji od sprzedawców widzianych pierwszy raz)</span></h3>
   <div class="table-wrap"><table class="ai-eval">
     <thead><tr><th>pewność ≥</th><th>przypisane</th><th>trafne</th></tr></thead>

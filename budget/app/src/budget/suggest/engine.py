@@ -27,12 +27,13 @@ from typing import Any
 from budget import ledger
 from budget.categorize import taxonomy
 from budget.categorize.taxonomy import Category
+from budget.kinds import CARD_KINDS
 from budget.review import PENDING_WHERE
 from budget.settings import Settings
 from budget.storage.db import kv_get, kv_set, now_iso
 from budget.suggest import client
 from budget.suggest.client import AIError
-from budget.suggest.redact import CARD_KINDS, Txn, describe
+from budget.suggest.redact import Txn, describe
 
 log = logging.getLogger(__name__)
 

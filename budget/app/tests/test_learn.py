@@ -61,6 +61,27 @@ def test_naive_bayes_scores_only_new_merchants(conn: sqlite3.Connection) -> None
     assert first["threshold"] == 0.8 and first["shown"] == first["correct"] == 1
 
 
+def test_backtest_by_transaction_type(conn: sqlite3.Connection) -> None:
+    def decide(tid: int, slug: str) -> None:
+        engine.recategorize(conn)
+        engine.set_manual(conn, tid, sid(conn, slug))
+
+    for day, gift in (("2026-07-02", "prezenty"), ("2026-08-02", "restauracje")):
+        manual(conn, "QWERTY 1", day, "restauracje")
+        abroad = add(conn, "-80.00", "card", f"ZXCVB 1 XYZ CHE {day}", day=day)
+        decide(abroad, "podroze-inne")
+        person = add(conn, "-500.00", "transfer_out", "Prezent", "JXN QWERTOWSKI", day=day)
+        decide(person, gift)
+    rows = {
+        (r["group"], r["k"]): (r["txns_fired"], r["txns_correct"])
+        for r in learn.backtest(learn._rows(conn))["by_type"]
+    }
+    assert rows["domestic", 1] == (1, 1)
+    assert rows["abroad", 1] == (1, 1)
+    assert rows["transfers", 1] == (1, 0)  # pamięć z lipca myli się w sierpniu
+    assert ("other", 1) not in rows  # typ bez decyzji pominięty
+
+
 async def test_queue_share_and_evaluate(conn: sqlite3.Connection) -> None:
     manual(conn, "QWERTY 1", "2026-08-05", "restauracje")
     add(conn, "-12.00", "card", "QWERTY 1 XYZ POL 2026-09-01", day="2026-09-01")
@@ -71,6 +92,9 @@ async def test_queue_share_and_evaluate(conn: sqlite3.Connection) -> None:
     q = out["queue"]
     assert (q["txns"], q["groups"], q["known_txns"], q["known_groups"]) == (3, 2, 2, 1)
     assert [m["queue_txns"] for m in out["memory"]] == [2, 0, 0]
+    assert [(t["group"], t["queue_txns"]) for t in out["by_type"] if t["k"] == 1] == [
+        ("domestic", 2)
+    ]
     assert out["months"] == 2
     assert db.kv_get(conn, learn.EVAL_KEY)["queue"] == q
 

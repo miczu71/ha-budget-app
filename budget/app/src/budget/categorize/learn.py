@@ -28,27 +28,39 @@ from typing import Any
 
 from budget import review
 from budget.categorize import merchants
+from budget.countries import card_origin
+from budget.kinds import CARD_KINDS, TRANSFER_KINDS
 from budget.storage.db import kv_set, now_iso
 
 EVAL_KEY = "learn_eval"
 KS = (1, 2, 3)
 THRESHOLDS = (0.8, 0.9, 0.95, 0.99)
 LEARN_FROM = ("manual", "rule")
-_MEMORY_FIELDS = (
-    "txns",
-    "txns_fired",
-    "txns_correct",
-    "decisions",
-    "decisions_fired",
-    "decisions_correct",
-)
+_TXN_FIELDS = ("txns", "txns_fired", "txns_correct")
+_DECISION_FIELDS = ("decisions", "decisions_fired", "decisions_correct")
 
 Key = tuple[str, str]  # (sprzedawca, kierunek)
+
+# Typy transakcji do rozbicia trafności pamięci (E1b): gdzie pamięć jest pewna, a gdzie nie
+TYPE_LABELS = {
+    "domestic": "Karta i BLIK w kraju",
+    "abroad": "Karta za granicą",
+    "transfers": "Przelewy",
+    "other": "Inne",
+}
+
+
+def type_group(kind: str, description: str | None, orig_currency: str | None) -> str:
+    if kind in CARD_KINDS:
+        return "abroad" if card_origin(kind, description, orig_currency) else "domestic"
+    return "transfers" if kind in TRANSFER_KINDS else "other"
 
 
 @dataclass(frozen=True)
 class _Row:
+    id: int
     month: str
+    group: str  # klucz `TYPE_LABELS`
     key: Key
     category_id: int | None
     source: str | None
@@ -72,21 +84,24 @@ def _features(merchant: str, kind: str, way: str, amount: Decimal) -> tuple[str,
 def _rows(conn: sqlite3.Connection) -> list[_Row]:
     rows = conn.execute(
         "SELECT coalesce(t.tx_date, t.booking_date) AS day, t.id, t.merchant, t.kind, t.amount, "
-        "t.category_id, t.category_source FROM txn t JOIN account a ON a.id = t.account_id "
+        "t.description, t.orig_currency, t.category_id, t.category_source "
+        "FROM txn t JOIN account a ON a.id = t.account_id "
         f"WHERE {review.QUEUE_SCOPE} ORDER BY day, t.id"
     )
     out = []
     for r in rows:
-        amount, merchant = Decimal(r["amount"]), str(r["merchant"] or "")
+        amount, merchant, kind = Decimal(r["amount"]), str(r["merchant"] or ""), str(r["kind"])
         way, source = review.direction(amount), r["category_source"]
         learnable = source in LEARN_FROM and r["category_id"] is not None
         out.append(
             _Row(
+                id=int(r["id"]),
                 month=str(r["day"] or "")[:7],
+                group=type_group(kind, r["description"], r["orig_currency"]),
                 key=(merchant, way),
                 category_id=r["category_id"],
                 source=source,
-                features=_features(merchant, str(r["kind"]), way, amount) if learnable else (),
+                features=_features(merchant, kind, way, amount) if learnable else (),
             )
         )
     return out
@@ -135,7 +150,8 @@ def _months(rows: Iterable[_Row]) -> Iterable[list[_Row]]:
 def backtest(rows: Sequence[_Row]) -> dict[str, Any]:
     """Miesiąc po miesiącu: przewidywanie tylko z decyzji z wcześniejszych miesięcy."""
     history: dict[Key, list[int]] = defaultdict(list)
-    mem = {k: Counter(dict.fromkeys(_MEMORY_FIELDS, 0)) for k in KS}
+    dec = {k: Counter(dict.fromkeys(_DECISION_FIELDS, 0)) for k in KS}
+    by_type = {(g, k): Counter(dict.fromkeys(_TXN_FIELDS, 0)) for g in TYPE_LABELS for k in KS}
     nb, seen = _NaiveBayes(), set[Key]()
     nb_n, nb_rows = 0, {t: Counter({"shown": 0, "correct": 0}) for t in THRESHOLDS}
     for month in _months(rows):
@@ -145,16 +161,18 @@ def backtest(rows: Sequence[_Row]) -> dict[str, Any]:
                 decisions[r.key].append((r, cat))
         for key, decided in decisions.items():
             cats = [cat for _, cat in decided]
+            per_type = Counter(r.group for r, _ in decided)
             for k in KS:
-                guess = memory(history[key], k)
-                c = mem[k]
-                c["txns"] += len(cats)
-                c["decisions"] += 1
-                if guess is not None:
-                    c["txns_fired"] += len(cats)
-                    c["txns_correct"] += sum(cat == guess for cat in cats)
-                    c["decisions_fired"] += 1
-                    c["decisions_correct"] += all(cat == guess for cat in cats)
+                dec[k]["decisions"] += 1
+                for g, n in per_type.items():
+                    by_type[g, k]["txns"] += n
+                if (guess := memory(history[key], k)) is None:
+                    continue
+                dec[k]["decisions_fired"] += 1
+                dec[k]["decisions_correct"] += all(cat == guess for cat in cats)
+                for r, cat in decided:
+                    by_type[r.group, k]["txns_fired"] += 1
+                    by_type[r.group, k]["txns_correct"] += cat == guess
             if key not in seen:
                 for r, cat in decided:
                     nb_n += 1
@@ -171,29 +189,50 @@ def backtest(rows: Sequence[_Row]) -> dict[str, Any]:
                 nb.add(r.features, r.category_id)
                 seen.add(r.key)
     return {
-        "memory": [{"k": k, **mem[k]} for k in KS],
+        "memory": [
+            {
+                "k": k,
+                **dec[k],
+                **{f: sum(by_type[g, k][f] for g in TYPE_LABELS) for f in _TXN_FIELDS},
+            }
+            for k in KS
+        ],
+        "by_type": [
+            {"group": g, "label": TYPE_LABELS[g], "k": k, **c}
+            for (g, k), c in by_type.items()
+            if c["txns"]
+        ],
         "nb": {"n": nb_n, "rows": [{"threshold": t, **c} for t, c in nb_rows.items()]},
     }
 
 
 def queue_share(conn: sqlite3.Connection, rows: Sequence[_Row]) -> dict[str, Any]:
     """Dzisiejsza kolejka (grupy jak na ekranie): ile ma już ręczne decyzje i co pamięć by
-    przypisała (`fired`: k → pozycje)."""
+    przypisała (`fired`: (typ, k) → pozycje)."""
     history: dict[Key, list[int]] = defaultdict(list)
     for r in rows:
         if (cat := r.decided) is not None:
             history[r.key].append(cat)
+    group_of = {r.id: r.group for r in rows if r.category_id is None}
+    known_txns = known_groups = 0
+    fired: Counter[tuple[str, int]] = Counter()
     groups = review.all_groups(conn)
-    keys = [[(i.merchant, review.direction(i.amount)) for i in g.items] for g in groups]
+    for g in groups:
+        known = 0
+        for i in g.items:
+            past = history.get((i.merchant, review.direction(i.amount)), [])
+            known += bool(past)
+            for k in KS:
+                if memory(past, k) is not None:
+                    fired[group_of[i.id], k] += 1
+        known_txns += known
+        known_groups += bool(known)
     return {
-        "txns": sum(len(g) for g in keys),
+        "txns": sum(g.count for g in groups),
         "groups": len(groups),
-        "known_txns": sum(1 for g in keys for key in g if history.get(key)),
-        "known_groups": sum(1 for g in keys if any(history.get(key) for key in g)),
-        "fired": {
-            k: sum(1 for g in keys for key in g if memory(history.get(key, []), k) is not None)
-            for k in KS
-        },
+        "known_txns": known_txns,
+        "known_groups": known_groups,
+        "fired": fired,
     }
 
 
@@ -204,7 +243,9 @@ async def evaluate(conn: sqlite3.Connection) -> dict[str, Any]:
     queue = queue_share(conn, rows)
     fired = queue.pop("fired")
     for row in measured["memory"]:
-        row["queue_txns"] = fired[row["k"]]
+        row["queue_txns"] = sum(fired[g, row["k"]] for g in TYPE_LABELS)
+    for row in measured["by_type"]:
+        row["queue_txns"] = fired[row["group"], row["k"]]
     result = {"at": now_iso(), "months": len({r.month for r in rows}), **measured, "queue": queue}
     kv_set(conn, EVAL_KEY, result)
     return result

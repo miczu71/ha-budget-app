@@ -17,12 +17,9 @@ from decimal import Decimal
 from typing import Any
 
 from budget.countries import card_origin
-from budget.kinds import Kind
+from budget.kinds import CARD_KINDS, Kind
 from budget.normalize import fold
 
-CARD_KINDS = frozenset(
-    {Kind.CARD.value, Kind.CARD_REFUND.value, Kind.BLIK.value, Kind.BLIK_REFUND.value}
-)
 KIND_LABELS = {
     Kind.CARD.value: "płatność kartą",
     Kind.CARD_REFUND.value: "zwrot na kartę",

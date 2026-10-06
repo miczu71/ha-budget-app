@@ -33,6 +33,16 @@ class Kind(StrEnum):
 
 REFUND_KINDS = frozenset({Kind.CARD_REFUND, Kind.BLIK_REFUND})
 PURCHASE_KINDS = frozenset({Kind.CARD, Kind.BLIK})
+CARD_KINDS = PURCHASE_KINDS | REFUND_KINDS  # płatności kartą i BLIK ze zwrotami
+TRANSFER_KINDS = frozenset(
+    {
+        Kind.TRANSFER_IN,
+        Kind.TRANSFER_OUT,
+        Kind.PHONE_TRANSFER,
+        Kind.STANDING_ORDER,
+        Kind.DIRECT_DEBIT,
+    }
+)
 
 # „Rodzaj transakcji” z CSV (po `fold`) → typ
 CSV_KINDS: dict[str, Kind] = {
