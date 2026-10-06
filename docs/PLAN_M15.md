@@ -66,6 +66,17 @@ Wywiad 2026-10-06 (dopisany do roadmapy w trakcie wywiadu M8). Kolejność: **M1
 8. Wydanie skillem `release`; backup add-onu i aktualizacja w HA (restart add-onu) — tylko po
    „go” użytkownika na checkpoincie po kroku 7. Cofnięcie: revert + 0.23.1 albo backup add-onu.
 
+### Wynik E1
+
+- 2026-10-06: 0.23.0 wydane (v0.23.0, CI zielone) i zainstalowane z backupem add-onu (`1916b7bb`);
+  554 testy. Na żywo: `sensor.budget_card_purchases_month` = 1 (brakuje 4, październik), kafelek
+  na Podsumowaniu (390 i 1280 px), konsola bez błędów. Wykrywanie opłat pominięte — użytkownik
+  wybrał „zwykły licznik”.
+- W tym samym wydaniu: przeładowanie stron sprzed aktualizacji (`X-Panel-Version` → `HX-Refresh`).
+  Powód: WebView aplikacji HA trzymał CSS z 0.19 (stary wygląd Copilot na 0.22.1) — `hx-boost`
+  nie wymienia `<head>`; naprawił to dopiero reset pamięci podręcznej frontendu.
+- Pierwsze możliwe przypomnienie: 26.10 o 7:00 (gdy w październiku < 5 płatności).
+
 ## E2 — limit i okres bezodsetkowy (zarys, osobny wywiad)
 
 - Limit wpisany ręcznie; ITAV + ITBD obok do porównania.
