@@ -62,3 +62,9 @@ def test_wal_files_inherit_private_mode(tmp_path: Path) -> None:
     conn.execute("INSERT INTO t VALUES (1)")
     wal = tmp_path / "ledger.db-wal"
     assert wal.exists() and wal.stat().st_mode & 0o777 == 0o600
+
+
+def test_temp_files_in_memory(tmp_path: Path) -> None:
+    """AppArmor add-onu nie pozwala pisać do /var/tmp, gdzie SQLite trzyma pliki tymczasowe."""
+    conn = db.connect(tmp_path / "ledger.db")
+    assert conn.execute("PRAGMA temp_store").fetchone()[0] == 2  # MEMORY

@@ -93,6 +93,10 @@ def connect(path: Path | str) -> sqlite3.Connection:
     # Wyszukiwanie w SQL tak samo jak reguły: bez ogonków i wielkości liter (budget.normalize)
     conn.create_function("fold", 1, fold, deterministic=True)
     conn.execute("PRAGMA foreign_keys = ON")
+    # Pliki tymczasowe SQLite (np. UPDATE z podzapytaniem) w pamięci: bez SQLITE_TMPDIR SQLite
+    # wybiera /var/tmp, a profil AppArmor add-onu pozwala pisać tylko do /data, /config i /tmp
+    # („unable to open database file” na produkcji w 0.24.1).
+    conn.execute("PRAGMA temp_store = MEMORY")
     if str(path) != ":memory:":
         conn.execute("PRAGMA journal_mode = WAL")
     migrate(conn)
