@@ -4,7 +4,9 @@
   proxy Supervisora (172.30.32.2) są odrzucane (poza trybem dev). Wyjątek: `/calendar.ics`
   także z HA Core (sieć hosta → brama sieci hassio 172.30.32.1) dla Remote Calendar.
 - Mobile WebView (aplikacja HA) agresywnie cache'uje: HTML i odpowiedzi `no-store`, statyki
-  z `?v=<wersja>` i `immutable`, wersja widoczna w nawigacji.
+  z `?v=<wersja>` i `immutable`, wersja widoczna w nawigacji. `hx-boost` podmienia tylko treść,
+  więc strona otwarta przed aktualizacją zostałaby ze starym CSS — żądanie GET htmx ze starszą
+  wersją (`X-Panel-Version`, brak = sprzed 0.23.0) dostaje `HX-Refresh` — pełne przeładowanie.
 - Wszystkie endpointy są `async` — działają w pętli usługi (jedno połączenie SQLite).
 """
 
@@ -43,6 +45,7 @@ log = logging.getLogger(__name__)
 INGRESS_PROXY = "172.30.32.2"
 HA_CORE = "172.30.32.1"
 CALENDAR_PATH = "/calendar.ics"
+PANEL_VERSION = "x-panel-version"
 
 
 def create_app(service: Service, *, dev: bool = False) -> FastAPI:
@@ -60,6 +63,9 @@ def create_app(service: Service, *, dev: bool = False) -> FastAPI:
             if request.url.path == CALENDAR_PATH:
                 log.warning("Kalendarz: odrzucone żądanie z %s", peer)
             return Response("Dostęp tylko przez panel Home Assistant (Ingress).", 403)
+        sent = request.headers.get(PANEL_VERSION)
+        if request.method == "GET" and request.headers.get("hx-request") and sent != __version__:
+            return Response(headers={"HX-Refresh": "true", "Cache-Control": "no-store"})
         response = await call_next(request)
         if request.method == "POST" and response.status_code < 400:
             panel.service.refresh_soon()  # encje Flex po zapisie kwoty, grupy, kategorii

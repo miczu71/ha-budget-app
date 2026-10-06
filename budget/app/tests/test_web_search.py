@@ -9,6 +9,7 @@ from decimal import Decimal
 import httpx
 import pytest
 
+from budget import __version__
 from budget.categorize import engine, rules
 from budget.categorize.rules import Conditions, Rule, TextCondition
 from budget.service import Service
@@ -20,7 +21,7 @@ from .test_web import INGRESS, _client
 __all__ = ["service"]
 from .test_web import service
 
-HX = {"HX-Request": "true"}
+HX = {"HX-Request": "true", "X-Panel-Version": __version__}
 
 
 def _seed(conn: sqlite3.Connection) -> dict[str, int]:

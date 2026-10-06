@@ -252,3 +252,14 @@ async def test_import_page_reuses_balance_checks(
 
     monkeypatch.setattr(ledger, "check_balances", forbidden)
     assert (await client.get("/import")).status_code == 200
+
+
+async def test_stale_page_gets_full_reload(client: httpx.AsyncClient) -> None:
+    """Strona sprzed aktualizacji (inna albo brak `X-Panel-Version`) przeładowuje się w całości."""
+    page = (await client.get("/")).text
+    assert f'"X-Panel-Version": "{__version__}"' in page
+    for headers in ({"HX-Request": "true"}, {"HX-Request": "true", "X-Panel-Version": "0.0.1"}):
+        r = await client.get("/transactions", headers=headers)
+        assert r.headers["HX-Refresh"] == "true" and r.text == ""
+    ok = {"HX-Request": "true", "X-Panel-Version": __version__}
+    assert "HX-Refresh" not in (await client.get("/transactions", headers=ok)).headers

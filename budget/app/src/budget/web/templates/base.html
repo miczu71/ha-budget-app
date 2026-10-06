@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="{{ base }}/static/app.css?v={{ version }}">
   <script src="{{ base }}/static/htmx.min.js?v={{ version }}" defer></script>
 </head>
-<body hx-boost="true">
+<body hx-boost="true" hx-headers='{"X-Panel-Version": "{{ version }}"}'>
   {# Ikony: Lucide (ISC, https://github.com/lucide-icons/lucide) przez iconify.design, zawsze SVG #}
   {% set more_pages = ('review', 'rules', 'rule_form', 'dictionary', 'categories', 'accounts', 'import', 'bank', 'status') %}
   <header class="top">
