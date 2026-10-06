@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.26.0
+
+**Prognoza „Do wypłaty”: encje i ostrzeżenie w dzwonku** (M8 E2, `docs/PLAN_M8_E2.md`).
+
+- Dzwonek: karta „Prognoza: zabraknie do wypłaty” (albo „…poniżej bufora”), gdy najniższe wolne
+  środki przed wypłatą są poniżej `forecast_buffer` (domyślnie 0); wlicza się też w `sensor.budget_inbox`.
+- Encje w HA: `sensor.budget_forecast_free_now`, `_card_debt`, `_lowest`, `_at_payday` oraz
+  `binary_sensor.budget_forecast_shortfall` (problem). Powiadomienie zrób automatyzacją na tej encji.
+- Prognoza jest liczona raz na zmianę bazy (dzwonek liczy się na każdej stronie).
+- Bez zmian w schemacie bazy.
+
 ## 0.25.1
 
 **Prognoza „Do wypłaty”: wypłata wskazana przez Ciebie** (M8 E1b, `docs/PLAN_M8_E1b.md`).

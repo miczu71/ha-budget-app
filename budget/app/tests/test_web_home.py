@@ -285,3 +285,18 @@ async def test_card_debt_checkbox_is_remembered(
     assert fmt_money("9136.98", "PLN") in page  # wolne środki bez odjęcia karty
     await client.post("/forecast/card-debt", data={"include": "1"})
     assert forecast.include_card_debt(service.conn)
+
+
+async def test_bell_and_service_report_forecast_shortfall(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    assert service.forecast() is not None
+    assert "forecast_low" not in [i.kind for i in service.inbox()]
+    service.settings = service.settings.model_copy(update={"forecast_buffer": 1_000_000})
+    assert "forecast_low" in [i.kind for i in service.inbox()]
+    assert "Prognoza: wolne środki poniżej bufora" in (await client.get("/inbox")).text
+
+
+async def test_service_forecast_is_none_without_balances(service: Service) -> None:
+    assert service.forecast() is None and service.inbox() == []

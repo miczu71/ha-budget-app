@@ -11,10 +11,12 @@ import asyncio
 import logging
 import sqlite3
 from datetime import datetime, time, timedelta
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 import httpx
 
+from budget import forecast as forecast_mod
 from budget import ha_publisher, inbox, notifications, sessions, summary, sync_service
 from budget.eb_client import EBClient, EBError, PsuHeaders
 from budget.ha_client import HAClient, HAError
@@ -63,6 +65,7 @@ class Service:
         self._ai_task: asyncio.Task[None] | None = None
         self._refresh_task: asyncio.Task[None] | None = None
         self.balance_memo = inbox.BalanceMemo()
+        self.forecast_memo = forecast_mod.ForecastMemo()
         self.snapshot = Snapshot(conn)
         self._eb_base_url = eb_base_url or settings.eb_base_url
 
@@ -234,7 +237,18 @@ class Service:
 
     def inbox(self) -> list[inbox.Item]:
         """Karty dzwonka (panel i encja `sensor.budget_inbox`)."""
-        return inbox.items(self.snapshot, self.now(), self.balance_memo)
+        return inbox.items(self.snapshot, self.now(), self.balance_memo, self.forecast())
+
+    def forecast(self) -> forecast_mod.Forecast | None:
+        """Prognoza do wypłaty dla dzwonka i encji; błąd prognozy nie blokuje reszty."""
+        now = self.now()
+        try:
+            return self.forecast_memo.get(
+                self.snapshot, now.date(), now, Decimal(self.settings.forecast_buffer)
+            )
+        except Exception:
+            log.exception("Prognoza do wypłaty nieudana")
+            return None
 
     def refresh_soon(self) -> None:
         """Odświeżenie encji w tle po zapisie w panelu (kwota, grupa, kategorie)."""
@@ -265,7 +279,11 @@ class Service:
         if self.publisher is not None:
             await self.publisher.update(
                 ha_publisher.build_entities(
-                    self.snapshot, now=now, today=now.date(), inbox_items=self.inbox()
+                    self.snapshot,
+                    now=now,
+                    today=now.date(),
+                    inbox_items=self.inbox(),
+                    forecast=self.forecast(),
                 )
             )
         if not self.ha.available:

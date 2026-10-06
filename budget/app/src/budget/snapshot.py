@@ -20,12 +20,12 @@ class Snapshot:
         self._key: tuple[int, int] | None = None
         self._candidates: tuple[series.Candidate, ...] = ()
 
-    def _signature(self) -> tuple[int, int]:
+    def signature(self) -> tuple[int, int]:
         return (self.conn.total_changes, self.conn.execute("PRAGMA data_version").fetchone()[0])
 
     def candidates(self) -> tuple[series.Candidate, ...]:
         """Jak `series.candidates(conn)`, ale liczone raz do pierwszego zapisu."""
-        key = self._signature()
+        key = self.signature()
         if key == self._key:
             return self._candidates
         found = tuple(series.candidates(self.conn))

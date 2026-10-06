@@ -22,7 +22,7 @@ from decimal import Decimal
 from budget import card, flex, ledger, money
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
-from budget.spending import add_months
+from budget.spending import add_months, month_start
 from budget.storage import db
 
 ZERO = Decimal(0)
@@ -192,6 +192,41 @@ def _dues(
         month = add_months(month, 1)
         rows += schedule.for_month(snap, month, today).rows
     return rows
+
+
+def for_today(
+    snap: Snapshot, today: date, now: datetime, buffer: Decimal = ZERO
+) -> Forecast | None:
+    """Prognoza z ustawieniami zapisanymi w `kv` (wypłata, zadłużenie karty) — dla dzwonka i encji;
+    Podsumowanie woła `build` z już policzonymi `f` i `mv`."""
+    first = month_start(today)
+    return build(
+        snap,
+        today,
+        now,
+        flex.build(snap, first, today),
+        schedule.for_month(snap, first, today),
+        buffer,
+        payday_series_id(snap.conn),
+        include_card_debt(snap.conn),
+    )
+
+
+class ForecastMemo:
+    """Ostatnia prognoza z sygnaturą bazy, dnia i bufora — dzwonek liczy się na każdej stronie,
+    a prognoza (flex + terminy serii) zmienia się dopiero po zapisie w bazie."""
+
+    def __init__(self) -> None:
+        self._key: tuple[object, ...] | None = None
+        self._value: Forecast | None = None
+
+    def get(self, snap: Snapshot, today: date, now: datetime, buffer: Decimal) -> Forecast | None:
+        key = (snap.signature(), today, buffer)
+        if key != self._key or snap.conn.in_transaction:
+            self._value = for_today(snap, today, now, buffer)
+            if not snap.conn.in_transaction:
+                self._key = key
+        return self._value
 
 
 def build(

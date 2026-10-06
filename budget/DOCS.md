@@ -302,6 +302,12 @@ termin serii wpływowej o największej kwocie; bez takiej serii horyzont kończy
 Pokazane są kwota w dniu wypłaty (przed jej wpłynięciem) i najniższy punkt z datą. Rachunek EUR
 jest tylko informacją. Opcja `forecast_buffer` (zł) zaznacza najniższy punkt poniżej bufora.
 
+Wypłatę (dzień resetu) wskazujesz przełącznikiem „To moja wypłata” na ekranie serii przychodów;
+checkbox „Odejmij zadłużenie karty” w sekcji „Do wypłaty” jest pamiętany. Gdy najniższy punkt jest
+poniżej bufora, w dzwonku pojawia się wpis, a w HA zapala się `binary_sensor.budget_forecast_shortfall`
+(add-on sam nic nie wysyła — powiadomienie zrób automatyzacją na tej encji). Encje:
+`sensor.budget_forecast_free_now`, `_card_debt`, `_lowest`, `_at_payday` (szczegóły w atrybutach).
+
 ## Odnowienie zgody
 
 Zgoda PSD2 jest ważna maksymalnie 180 dni. Przed wygaśnięciem: **Bank → Odnów zgodę** —

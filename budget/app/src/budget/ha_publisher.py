@@ -22,6 +22,7 @@ from typing import Any
 import aiomqtt
 
 from budget import __version__, card, flex, inbox, ledger, money, sessions, sync_service
+from budget import forecast as forecast_mod
 from budget.logging_utils import mask_iban
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
@@ -89,6 +90,7 @@ def build_entities(
     now: datetime,
     today: date,
     inbox_items: Sequence[inbox.Item] | None = None,
+    forecast: forecast_mod.Forecast | None = None,
 ) -> list[Entity]:
     conn = snap.conn
     entities: list[Entity] = []
@@ -185,6 +187,7 @@ def build_entities(
     entities += flex_entities(snap, today)
     entities += recurring_entities(snap, today)
     entities += card_entities(snap, today)
+    entities += forecast_entities(forecast)
     if inbox_items is not None:
         entities.append(inbox_entity(inbox_items))
     entities.append(
@@ -286,6 +289,64 @@ def flex_entities(snap: Snapshot, today: date) -> list[Entity]:
             "mdi:calendar-today",
             _amount(fm.per_day),
             days_left=fm.days_left,
+        ),
+    ]
+
+
+def forecast_entities(fc: forecast_mod.Forecast | None) -> list[Entity]:
+    """Prognoza „czy starczy do wypłaty” (M8 E2); bez sald rachunku nie ma encji."""
+    if fc is None or fc.balances is None or fc.low_day is None:
+        return []
+    horizon = fc.horizon_end.isoformat()
+    return [
+        _flex_sensor(
+            "forecast_free_now",
+            "Wolne środki dziś",
+            "mdi:cash-fast",
+            _amount(fc.free_now),
+            account_balance=_amount(fc.balances.account),
+            card_debt=_amount(fc.balances.card_debt),
+            card_debt_included=fc.card_debt_included,
+            balances_at=fc.balances.fetched_at,
+        ),
+        _flex_sensor(
+            "forecast_card_debt",
+            "Zadłużenie karty kredytowej",
+            "mdi:credit-card-clock",
+            _amount(fc.balances.card_debt),
+            included_in_forecast=fc.card_debt_included,
+        ),
+        _flex_sensor(
+            "forecast_lowest",
+            "Najniższe wolne środki przed wypłatą",
+            "mdi:arrow-collapse-down",
+            _amount(fc.low),
+            date=fc.low_day.isoformat(),
+            buffer=_amount(fc.buffer),
+            horizon_end=horizon,
+        ),
+        _flex_sensor(
+            "forecast_at_payday",
+            "Wolne środki na dzień wypłaty",
+            "mdi:calendar-check",
+            _amount(fc.at_payday),
+            payday=fc.payday.isoformat() if fc.payday else None,
+            payday_series=fc.payday_series,
+            horizon_end=horizon,
+            series_out=_amount(fc.series_out),
+            flex_rest=_amount(fc.flex_total),
+            inflows_before=_amount(fc.inflows_total),
+        ),
+        Entity(
+            "binary_sensor",
+            "forecast_shortfall",
+            {"name": "Zabraknie do wypłaty", "device_class": "problem"},
+            state="ON" if fc.below_buffer else "OFF",
+            attributes={
+                "lowest": _amount(fc.low),
+                "date": fc.low_day.isoformat(),
+                "buffer": _amount(fc.buffer),
+            },
         ),
     ]
 

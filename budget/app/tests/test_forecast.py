@@ -7,7 +7,9 @@ from datetime import date, datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
-from budget import flex, forecast
+import pytest
+
+from budget import flex, forecast, ha_publisher, inbox
 from budget.categorize import engine
 from budget.recurring import schedule as sch
 from budget.snapshot import Snapshot
@@ -246,3 +248,91 @@ def test_settings_read_from_kv(conn: sqlite3.Connection) -> None:
     db.kv_set(conn, forecast.PAYDAY_KEY, 7)
     db.kv_set(conn, forecast.CARD_DEBT_KEY, False)
     assert forecast.payday_series_id(conn) == 7 and not forecast.include_card_debt(conn)
+
+
+# --- encje, dzwonek i memo (E2) -------------------------------------------------------------
+
+
+def seeded(c: sqlite3.Connection, account: str = "5000.00", debt: str = "400.00") -> None:
+    snapshot(c, 1, "ITAV", account, "2026-10-03T10:00:00+02:00")
+    snapshot(c, 2, "ITBD", debt, "2026-10-03T10:00:00+02:00")
+
+
+def test_forecast_entities(conn: sqlite3.Connection) -> None:
+    seeded(conn)
+    serie(conn, "pensja", "9000.00", direction="in")  # termin 7.
+    fc = build(conn, buffer="6000")
+    assert fc is not None
+    ents = {e.key: e for e in ha_publisher.forecast_entities(fc)}
+    assert set(ents) == {
+        "forecast_free_now",
+        "forecast_card_debt",
+        "forecast_lowest",
+        "forecast_at_payday",
+        "forecast_shortfall",
+    }
+    assert ents["forecast_free_now"].state == "4600.00"
+    assert ents["forecast_card_debt"].state == "400.00"
+    assert (
+        ents["forecast_lowest"].state == "4600.00"
+        and ents["forecast_lowest"].attributes["date"] == TODAY.isoformat()
+    )
+    assert ents["forecast_at_payday"].attributes["payday"] == "2026-10-07"
+    assert ents["forecast_shortfall"].state == "ON"  # 4600 < bufor 6000
+    assert ents["forecast_shortfall"].component == "binary_sensor"
+    calm = build(conn, buffer="100")
+    assert calm is not None
+    assert {e.key: e for e in ha_publisher.forecast_entities(calm)}[
+        "forecast_shortfall"
+    ].state == "OFF"
+
+
+def test_forecast_entities_card_debt_not_subtracted(conn: sqlite3.Connection) -> None:
+    seeded(conn)
+    fc = build(conn, card_debt_included=False)
+    assert fc is not None
+    ents = {e.key: e for e in ha_publisher.forecast_entities(fc)}
+    assert ents["forecast_free_now"].state == "5000.00"
+    assert ents["forecast_free_now"].attributes["card_debt_included"] is False
+    assert ents["forecast_card_debt"].state == "400.00"  # zadłużenie nadal widoczne
+    assert ha_publisher.forecast_entities(None) == []
+
+
+def test_inbox_card_when_below_buffer(conn: sqlite3.Connection) -> None:
+    seeded(conn)
+    snap = Snapshot(conn)
+
+    def kinds(fc: forecast.Forecast | None) -> list[str]:
+        return [i.kind for i in inbox.items(snap, at(3), inbox.BalanceMemo(), fc)]
+
+    assert "forecast_low" not in kinds(build(conn, buffer="100"))
+    assert "forecast_low" not in kinds(None)
+    below = build(conn, buffer="9000")
+    assert "forecast_low" in kinds(below)
+    item = next(
+        i for i in inbox.items(snap, at(3), inbox.BalanceMemo(), below) if i.kind == "forecast_low"
+    )
+    assert item.severity == "warn" and "bufor" in item.detail and "03.10" in item.detail
+    assert build(conn, buffer="0") is not None and "forecast_low" not in kinds(build(conn))
+
+
+def test_memo_computes_once_per_database_state(
+    conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seeded(conn)
+    snap, calls = Snapshot(conn), []
+    real = forecast.for_today
+
+    def counting(*args: object, **kwargs: object) -> forecast.Forecast | None:
+        calls.append(1)
+        return real(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(forecast, "for_today", counting)
+    memo = forecast.ForecastMemo()
+    first = memo.get(snap, TODAY, at(3), Decimal(0))
+    assert memo.get(snap, TODAY, at(3), Decimal(0)) is first and len(calls) == 1
+    memo.get(snap, TODAY, at(3), Decimal(500))  # inny bufor
+    assert len(calls) == 2
+    conn.execute("UPDATE balance_snapshot SET amount = '4000.00' WHERE account_id = 1")
+    refreshed = memo.get(snap, TODAY, at(3), Decimal(500))  # zmiana bazy
+    assert len(calls) == 3 and refreshed is not None and refreshed.free_now == Decimal("3600.00")

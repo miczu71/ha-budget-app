@@ -17,7 +17,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Literal
 
-from budget import card, ledger, notifications, review, sessions, sync_service
+from budget import card, ledger, notifications, review, sessions, summary, sync_service
+from budget.forecast import Forecast
 from budget.recurring import changes, series
 from budget.snapshot import Snapshot
 from budget.spending import add_months, month_label, month_start
@@ -40,6 +41,7 @@ class Item:
 class Context:
     now: datetime
     snap: Snapshot
+    forecast: Forecast | None = None
 
     @property
     def today(self) -> date:
@@ -206,6 +208,20 @@ def card_payments(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> 
     return out
 
 
+def forecast_low(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Najniższe wolne środki przed wypłatą poniżej bufora (`forecast_buffer`, domyślnie 0)."""
+    fc = ctx.forecast
+    if fc is None or fc.low_day is None or not fc.below_buffer:
+        return []
+    title = (
+        "Prognoza: wolne środki poniżej bufora" if fc.buffer else "Prognoza: zabraknie do wypłaty"
+    )
+    detail = f"Najniższy punkt {fc.low_day:%d.%m}: {summary.zl(fc.low)}"
+    if fc.buffer:
+        detail += f" (bufor {summary.zl(fc.buffer)})"
+    return [Item("forecast_low", title, 1, "/", "warn", detail)]
+
+
 Provider = Callable[[sqlite3.Connection, Context, BalanceMemo], list[Item]]
 PROVIDERS: tuple[Provider, ...] = (
     operational,
@@ -213,11 +229,14 @@ PROVIDERS: tuple[Provider, ...] = (
     new_series,
     series_changes,
     card_payments,
+    forecast_low,
 )
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
 
 
-def items(snap: Snapshot, now: datetime, memo: BalanceMemo) -> list[Item]:
-    ctx = Context(now, snap)
+def items(
+    snap: Snapshot, now: datetime, memo: BalanceMemo, forecast: Forecast | None = None
+) -> list[Item]:
+    ctx = Context(now, snap, forecast)
     out = [item for provider in PROVIDERS for item in provider(snap.conn, ctx, memo)]
     return sorted(out, key=lambda i: SEVERITY_ORDER[i.severity])
