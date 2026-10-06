@@ -568,6 +568,14 @@ form.move.add-fixed select { max-width: 100%; flex: 1 1 200px; }
 .home-grid { display: grid; gap: 16px; grid-template-columns: 1fr; margin-bottom: 16px; }
 .home-grid .card { margin-bottom: 0; }
 .card-link { margin: 12px 0 0; }
+.layout-list { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 8px; }
+.layout-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--surface-2); border-radius: 8px; }
+.layout-row.off .layout-name { color: var(--muted); text-decoration: line-through; }
+.layout-name { flex: 1; min-width: 0; }
+.layout-row form { margin: 0; }
+.layout-btn { width: 44px; height: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.layout-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.layout-foot form { margin: 0; }
 @media (min-width: 760px) {
   .home-grid { grid-template-columns: 1fr 1fr; align-items: start; }
   .home-grid .span2 { grid-column: 1 / -1; }

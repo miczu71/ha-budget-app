@@ -26,8 +26,13 @@
 {% with details=True %}{% include "_flex_hero.html" %}{% endwith %}
 {% endif %}
 
+{% if edit %}
+{% include "_home_layout.html" %}
+{% else %}
 <div class="home-grid">
-  {% if fc %}{% include "_forecast.html" %}{% endif %}
+  {% for t in layout if not t.hidden %}
+  {% if t.key == "forecast" %}{% if fc %}{% include "_forecast.html" %}{% endif %}
+  {% elif t.key == "spending" %}
   <section class="card span2">
     <h2>Gdzie poszły pieniądze</h2>
     {% if slices %}
@@ -41,7 +46,7 @@
     {% endif %}
     <p class="small card-link"><a class="tap" href="{{ base }}/spending?month={{ ym }}">Wszystkie kategorie i podkategorie »</a></p>
   </section>
-
+  {% elif t.key == "inbox" %}
   <section class="card">
     <h2>Do decyzji</h2>
     {% if inbox_items %}
@@ -56,7 +61,7 @@
     <p class="muted">Nic nie czeka na decyzję.</p>
     {% endif %}
   </section>
-
+  {% elif t.key == "balance" %}
   <section class="card">
     <h2>Bilans miesiąca</h2>
     <div class="stats">
@@ -66,8 +71,7 @@
     </div>
     <p class="small muted">{{ compare }}{% if m.prev_partial %} (ten sam okres){% endif %}</p>
   </section>
-
-  {% if cm %}
+  {% elif t.key == "card" %}{% if cm %}
   <section class="card">
     <h2>Karta kredytowa</h2>
     <div class="stats">
@@ -85,8 +89,7 @@
     <p class="small card-link"><a class="tap" href="{{ base }}/card">{{ "Przypisz płatności »" if cm.unassigned else "Karta »" }}</a></p>
   </section>
   {% endif %}
-
-  {% if has_upcoming %}
+  {% elif t.key == "upcoming" %}{% if has_upcoming %}
   <section class="card">
     <h2>Co jeszcze zejdzie</h2>
     <p class="small muted">jeszcze zejdzie <strong>{{ mv.out_planned | money("PLN") }}</strong>{% if mv.in_planned %} · jeszcze wpłynie <strong class="pos">{{ mv.in_planned | money("PLN") }}</strong>{% endif %}</p>
@@ -103,7 +106,7 @@
     <p class="small card-link"><a class="tap" href="{{ base }}/recurring">Cykliczne »</a></p>
   </section>
   {% endif %}
-
+  {% elif t.key == "recent" %}
   <section class="card">
     <h2>Ostatnie transakcje</h2>
     {% if recent %}
@@ -117,7 +120,7 @@
     {% endif %}
     <p class="small card-link"><a class="tap" href="{{ base }}/transactions?{{ period }}">Wszystkie transakcje »</a></p>
   </section>
-
+  {% elif t.key == "months" %}
   <section class="card">
     <h2>Ostatnie 12 miesięcy</h2>
     {% if bars.has_data %}
@@ -127,5 +130,9 @@
     <p class="muted">Za mało danych na wykres.</p>
     {% endif %}
   </section>
+  {% endif %}
+  {% endfor %}
 </div>
+<p class="small card-link"><a class="tap" href="{{ base }}/?month={{ ym }}&edit=1">Edytuj układ »</a></p>
+{% endif %}
 {% endblock %}

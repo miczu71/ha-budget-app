@@ -6,10 +6,10 @@ import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import card, flex, forecast, sessions, spending, sync_service
+from budget import card, flex, forecast, home_layout, sessions, spending, sync_service
 from budget.recurring import schedule
 from budget.spending import MONTHS, MONTHS_GEN, add_months, month_label, parse_month
 from budget.storage import db
@@ -35,7 +35,7 @@ def router(panel: Panel) -> APIRouter:
     r = APIRouter()
 
     @r.get("/", response_class=HTMLResponse)
-    async def home(request: Request, month: str | None = None) -> HTMLResponse:
+    async def home(request: Request, month: str | None = None, edit: str = "") -> HTMLResponse:
         conn, now = panel.conn, panel.service.now()
         today = now.date()
         start = parse_month(month, today)
@@ -72,6 +72,8 @@ def router(panel: Panel) -> APIRouter:
         return panel.render(
             request,
             "home.html",
+            layout=home_layout.load(conn),
+            edit=edit == "1",
             f=f,
             m=m,
             ym=ym,
@@ -100,6 +102,32 @@ def router(panel: Panel) -> APIRouter:
             fc=fc,
             chart=charts.forecast_line(fc.days, buffer) if fc else None,
         )
+
+    def layout_response(request: Request) -> Response:
+        if request.headers.get("hx-request"):
+            return panel.partial(request, "_home_layout.html", layout=home_layout.load(panel.conn))
+        return panel.redirect(request, "/?edit=1")
+
+    @r.post("/layout/move")
+    async def layout_move(
+        request: Request, key: str = Form(...), delta: int = Form(...)
+    ) -> Response:
+        if key not in home_layout.TILES or delta not in (-1, 1):
+            raise HTTPException(400)
+        home_layout.move(panel.conn, key, delta)
+        return layout_response(request)
+
+    @r.post("/layout/toggle")
+    async def layout_toggle(request: Request, key: str = Form(...)) -> Response:
+        if key not in home_layout.TILES:
+            raise HTTPException(400)
+        home_layout.toggle(panel.conn, key)
+        return layout_response(request)
+
+    @r.post("/layout/reset")
+    async def layout_reset(request: Request) -> Response:
+        home_layout.reset(panel.conn)
+        return layout_response(request)
 
     @r.post("/forecast/card-debt")
     async def card_debt(request: Request, include: str = Form("")) -> Response:

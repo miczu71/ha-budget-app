@@ -341,3 +341,48 @@ async def test_bell_and_service_report_forecast_shortfall(
 
 async def test_service_forecast_is_none_without_balances(service: Service) -> None:
     assert service.forecast() is None and service.inbox() == []
+
+
+def _order(page: str, *titles: str) -> list[str]:
+    return sorted(titles, key=page.index)
+
+
+async def test_layout_order_and_hidden_tiles_apply_to_home(client: httpx.AsyncClient) -> None:
+    page = (await client.get("/")).text
+    assert _order(page, "Ostatnie transakcje", "Bilans miesiąca") == [
+        "Bilans miesiąca",
+        "Ostatnie transakcje",
+    ]
+    for _ in range(3):  # z pozycji 6 przed „Bilans” (3)
+        await client.post("/layout/move", data={"key": "recent", "delta": "-1"})
+    await client.post("/layout/toggle", data={"key": "inbox"})
+    page = (await client.get("/")).text
+    assert _order(page, "Ostatnie transakcje", "Bilans miesiąca") == [
+        "Ostatnie transakcje",
+        "Bilans miesiąca",
+    ]
+    assert "Nic nie czeka na decyzję" not in page and "Edytuj układ" in page
+
+
+async def test_layout_edit_mode_lists_tiles_and_posts_redirect_without_htmx(
+    client: httpx.AsyncClient,
+) -> None:
+    page = (await client.get("/?edit=1")).text
+    assert 'id="layout"' in page and "Przywróć domyślny" in page and "home-grid" not in page
+    r = await client.post("/layout/toggle", data={"key": "card"})
+    assert r.status_code == 303 and r.headers["location"] == f"{INGRESS}/?edit=1"
+    assert "(ukryty)" in (await client.get("/?edit=1")).text
+
+
+async def test_layout_htmx_returns_partial_and_reset_restores(client: httpx.AsyncClient) -> None:
+    r = await client.post("/layout/toggle", data={"key": "months"}, headers={"hx-request": "true"})
+    assert r.status_code == 200 and r.text.lstrip().startswith("<section") and "(ukryty)" in r.text
+    r = await client.post("/layout/reset", headers={"hx-request": "true"})
+    assert "(ukryty)" not in r.text
+
+
+async def test_layout_rejects_unknown_key_and_bad_delta(client: httpx.AsyncClient) -> None:
+    assert (await client.post("/layout/toggle", data={"key": "nope"})).status_code == 400
+    assert (
+        await client.post("/layout/move", data={"key": "recent", "delta": "5"})
+    ).status_code == 400
