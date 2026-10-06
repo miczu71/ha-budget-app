@@ -124,6 +124,18 @@ liczy 5 płatności dla każdej.
 - Po zapisie mapowania i po każdym imporcie CSV. Kontrola: miesiąc z opłatą 2,99 PLN ma dla karty
   dodatkowej < 5 płatności.
 
+### Wynik E3
+
+- Ustalenie przy mapowaniu: numer karty dodatkowej to w eksporcie blok **całego konta karty**, a numer
+  karty głównej — blok jej własnych płatności; reguła „najwęższy blok” daje to samo co opłaty banku
+  (miesiąc z opłatą 2,99 PLN: karta dodatkowa 1 płatność w ostrożnym liczeniu).
+- 0.24.1 (v0.24.1) zainstalowane; zapis drugiego numeru na produkcji → 500 „unable to open database
+  file”: UPDATE potrzebuje pliku tymczasowego SQLite, bez `SQLITE_TMPDIR` SQLite wybiera `/var/tmp`
+  (przechodzi test `access()`), a AppArmor add-onu pozwala pisać tylko do `/data`, `/config`, `/tmp`.
+  Potwierdzone lokalnie podglądem otwartych plików (`etilqs_…`); transakcja wycofała się bez szkód.
+- 0.24.2 (v0.24.2): `PRAGMA temp_store = MEMORY` w `db.connect`; 568 testów. Na produkcji oba numery
+  ustawione, **101 płatności przypisanych**, 0 nieprzypisanych w historii; log bez błędów.
+
 ## E4 — limit i okres bezodsetkowy (zarys, osobny wywiad)
 
 - Limit wpisany ręcznie; ITAV + ITBD obok do porównania.
