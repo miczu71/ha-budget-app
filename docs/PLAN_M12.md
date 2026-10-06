@@ -120,6 +120,11 @@ Zakres do potwierdzenia na checkpoincie E1: rozmowa = lista tur (pytanie, plan, 
 bazie; krok 1 dostaje poprzednie pytania i plany (bez wyników), krok 3 — bieżący wynik; „nowa rozmowa”;
 historia ostatnich rozmów w zakładce. Szczegóły w `PLAN_M12_E2.md` po checkpoincie E1.
 
-## E3 — rozszerzenia języka (warunkowo)
-Tylko na podstawie `ask_log` (`unsupported` i błędne plany), np. konto, typ transakcji, zakres kwot,
-przychody vs wydatki w jednym wyniku, średnia na transakcję.
+## E3 — źródła danych dla czatu (decyzja 24)
+Uzgodnione 2026-10-06: zamiast dopisywać pojedyncze pola do języka zapytań — **rejestr źródeł**.
+Każda funkcja panelu z własnymi danymi (Do wypłaty, Karta, Budżet/pula Flex, Cykliczne, później
+M9–M11) dostaje źródło: nazwa, jedno zdanie opisu dla modelu, funkcja zwracająca wynik zbiorczy
+liczony tym samym kodem co jej ekran. Plan wskazuje źródło (`transactions` = dzisiejszy język).
+- E3a (0.35.1): karta „Czat — ostatnie pytania” na Status (log `ask_log`: pytanie, tura, plan
+  w skrócie / „nie umiem” / błąd; bez kwot) — podstawa do wyboru kolejności źródeł.
+- E3b+: rejestr + pierwsze źródła, kolejność po przejrzeniu logu (`PLAN_M12_E3.md`).
