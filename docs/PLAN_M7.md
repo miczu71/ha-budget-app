@@ -133,3 +133,5 @@ tyle przejęła pamięć sprzedawcy (pomiar E1 przewidywał 42 przy k = 1). Kole
 Ingress (390 px): wersja 0.32.0 w zasobach, `no-store`, brak błędów w konsoli i w logu add-onu.
 Na checkpoint: przejrzenie sekcji przez użytkownika — licznik „Pamięć sprzedawcy na żywo” da trafność
 na żywo; KPI z decyzji 20 (≥ 50% mniej kolejki) — 39% od razu, reszta zależy od kolejnych decyzji.
+- ✅ Checkpoint E2 zamknięty przez użytkownika 2026-10-06 — **M7 zamknięty** (E3 nie robiony: naive Bayes
+  25–30% w pomiarze E1). Trafność pamięci na żywo — licznik na Status.
