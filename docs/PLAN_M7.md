@@ -60,3 +60,26 @@ Tylko jeśli E1 pokaże precyzję ≥ 95% przy sensownym pokryciu; źródło `mo
 - `uv run pytest` w `budget/app` (pełny zestaw) przed każdym wydaniem.
 - Na żywo: wersja w panelu, „Zmierz” daje tabelę, brak błędów w konsoli i w logu add-onu; encja
   `sensor.budget_card_due` z atrybutem `available_bank`.
+
+## Wynik E1 (0.31.0, 2026-10-06)
+Wydane i zainstalowane 2026-10-06 (backup add-onu przed aktualizacją, 647 testów). Pomiar na produkcji przez
+Ingress, 23 miesiące historii:
+
+- **Kolejka dziś:** 109 pozycji w 56 grupach; **53% pozycji (20 grup) to sprzedawcy z wcześniejszą ręczną
+  decyzją** — hipoteza „kolejka to w dużej części powracający sprzedawcy” potwierdzona.
+- **Pamięć sprzedawcy (backtest, 312 ręcznych pozycji / 287 decyzji):**
+
+  | min. decyzji | przypisane | trafne | kolejka dziś |
+  |---|---|---|---|
+  | 1 | 19% | 87% | 42 z 109 (39%) |
+  | 2 | 9% | 85% | 28 (26%) |
+  | 3 | 6% | 100% (19 pozycji) | 9 (8%) |
+
+- **Naive Bayes dla nowych sprzedawców (240 pozycji):** trafność 25–30% przy każdym progu (0,8–0,99) —
+  daleko od 95%. **E3 odpada** w tej postaci.
+
+Wnioski: (1) pamięć z k = 1–2 trafia w ~85–87%, poniżej progu 95% z decyzji 20; (2) różnica między 53%
+„znanych” a 39% przypisanych przy k = 1 to sprzedawcy z niespójną historią (różne kategorie); (3) backtest
+zaniża pokrycie względem dzisiejszej kolejki, bo przed 0.11.0 zapis w kolejce tworzył reguły (sprzedawca
+z regułą nie wraca jako ręczna decyzja). Do decyzji na checkpoincie: próg k i czy najpierw rozbić trafność
+pamięci według typu transakcji (karta/BLIK vs przelewy), żeby ograniczyć pamięć do typów, gdzie trafia ≥ 95%.
