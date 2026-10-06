@@ -63,5 +63,7 @@ między etapami.
 - Opcje ustawione: `summary_notify_service` (grupa domowników), `calendar_entity`; po restarcie
   start czysty, nic nie wysłane (wtorek). Status na żywo: podgląd obu wiadomości z danymi
   produkcji, 0 błędów konsoli, przyciski 44 px.
-- Niezweryfikowane: dostarczenie na telefony — pierwsza wiadomość w poniedziałek o 7:00 (bez
-  testowej wysyłki w nocy); wtedy sprawdzić też, czy dotknięcie otwiera panel.
+- 2026-10-06 rano: użytkownik wysłał obie wiadomości „Wyślij teraz” — dotarły, ale dotknięcie nie
+  otwierało panelu: HA 2026.9 nie ma już trasy `/hassio/ingress/<slug>` (404). 0.22.1: link
+  `/app/<slug>` (działa też bez panelu w pasku bocznym); po wydaniu testowa wysyłka — dotknięcie
+  otwiera panel (potwierdzone przez użytkownika). ✅ M6 zamknięty.
