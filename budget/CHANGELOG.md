@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.23.0
+
+**Licznik płatności kartą kredytową** (M15 E1, `docs/PLAN_M15.md`).
+
+- Karta jest bezpłatna przy co najmniej 5 płatnościach kartą w miesiącu (BLIK się nie liczy, bank
+  liczy kartę główną i dodatkową osobno). API nie podaje numeru karty ani daty zakupu, więc licznik
+  jest wspólny dla konta karty i ostrożny: mniejsza z liczb po dacie księgowania i po dacie
+  księgowania − 2 dni.
+- Kafelek „Karta kredytowa” na Podsumowaniu, encja `sensor.budget_card_purchases_month`
+  (atrybuty `threshold`, `missing`, `month`).
+- 5 dni i dzień przed końcem miesiąca, gdy brakuje płatności: powiadomienie przez
+  `summary_notify_service` (o 7:00, raz) i karta w dzwonku przez ostatnie 5 dni.
+- Poprawka: strona panelu otwarta w aplikacji HA przed aktualizacją przeładowuje się w całości przy
+  pierwszym kliknięciu (wcześniej mogła zostać ze starym wyglądem do czasu resetu pamięci podręcznej).
+- Bez zmian w schemacie bazy.
+
 ## 0.22.1
 
 - Poprawka: dotknięcie podsumowania na telefonie i link w powiadomieniu w HA otwierają panel Budżetu.
