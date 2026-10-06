@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.28.0
+
+**Układ strony głównej** (M16, `docs/PLAN_M16.md`).
+
+- „Edytuj układ” na dole Podsumowania: lista ośmiu kafelków z przyciskami wyżej/niżej i pokaż/ukryj;
+  każda zmiana zapisuje się od razu, a „Przywróć domyślny” cofa układ.
+- Układ jest wspólny dla wszystkich urządzeń (zapis w bazie add-onu). Nawigacja miesiąca i kafelek
+  „Ile możesz jeszcze wydać” zostają zawsze na górze.
+- Kafelki bez danych (np. „Do wypłaty”, karta) nadal pojawiają się tylko wtedy, gdy mają co pokazać.
+- Bez zmian w schemacie bazy, encjach i dzwonku.
+
 ## 0.27.0
 
 **„Do wypłaty”: werdykt i dzienny limit** (M8 E3a, `docs/PLAN_M8_E3.md`).
