@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from budget import flex, sessions, spending, sync_service
+from budget import card, flex, sessions, spending, sync_service
 from budget.recurring import schedule
 from budget.spending import MONTHS, MONTHS_GEN, add_months, month_label, parse_month
 from budget.web import charts
@@ -76,6 +76,7 @@ def router(panel: Panel) -> APIRouter:
             sync_at=sync_at,
             stale=bool(sync_at and now - datetime.fromisoformat(sync_at) > STALE_AFTER),
             consent_days=record.days_left(now) if record and record.active else None,
+            cm=card.month_status(conn, today) if f.is_current else None,
         )
 
     return r

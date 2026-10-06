@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Literal
 
-from budget import ledger, notifications, review, sessions, sync_service
+from budget import card, ledger, notifications, review, sessions, sync_service
 from budget.recurring import changes, series
 from budget.snapshot import Snapshot
 from budget.spending import add_months, month_label, month_start
@@ -168,8 +168,35 @@ def series_changes(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) ->
     return out
 
 
+def card_payments(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Ostatnie dni miesiąca, a płatności kartą kredytową mniej niż próg zwolnienia z opłaty."""
+    if not card.in_remind_window(ctx.today):
+        return []
+    cm = card.month_status(conn, ctx.today)
+    if not cm or not cm.missing:
+        return []
+    period = f"date_from={cm.month.isoformat()}&date_to={cm.last_day.isoformat()}"
+    return [
+        Item(
+            "card_payments",
+            f"Karta kredytowa: brakuje {cm.missing} płatności",
+            cm.missing,
+            f"/transactions?account={cm.account_id}&{period}",
+            "warn",
+            f"Do {cm.last_day:%d.%m} potrzeba {cm.threshold} płatności kartą, inaczej bank "
+            "pobierze opłatę. BLIK się nie liczy.",
+        )
+    ]
+
+
 Provider = Callable[[sqlite3.Connection, Context, BalanceMemo], list[Item]]
-PROVIDERS: tuple[Provider, ...] = (operational, uncategorized, new_series, series_changes)
+PROVIDERS: tuple[Provider, ...] = (
+    operational,
+    uncategorized,
+    new_series,
+    series_changes,
+    card_payments,
+)
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
 
 

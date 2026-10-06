@@ -66,6 +66,22 @@
     <p class="small muted">{{ compare }}{% if m.prev_partial %} (ten sam okres){% endif %}</p>
   </section>
 
+  {% if cm %}
+  <section class="card">
+    <h2>Karta kredytowa</h2>
+    <div class="stats">
+      <div class="stat"><span class="stat-label">Płatności kartą w tym miesiącu</span><span class="stat-value">{{ cm.count }} / {{ cm.threshold }}</span></div>
+    </div>
+    {% if cm.missing %}
+    <p class="small warn-text">Brakuje {{ cm.missing }} do {{ cm.last_day.strftime('%d.%m') }} — inaczej bank pobierze opłatę za kartę.</p>
+    {% else %}
+    <p class="small pos">Warunek bezpłatnej karty spełniony.</p>
+    {% endif %}
+    <p class="small muted">BLIK się nie liczy. Bank liczy kartę główną i dodatkową osobno, a tu widać ich sumę; zakup pojawia się w banku ok. 2 dni później.</p>
+    <p class="small card-link"><a class="tap" href="{{ base }}/transactions?account={{ cm.account_id }}&{{ period }}">Transakcje karty »</a></p>
+  </section>
+  {% endif %}
+
   {% if has_upcoming %}
   <section class="card">
     <h2>Co jeszcze zejdzie</h2>
@@ -98,7 +114,7 @@
     <p class="small card-link"><a class="tap" href="{{ base }}/transactions?{{ period }}">Wszystkie transakcje »</a></p>
   </section>
 
-  <section class="card{{ ' span2' if has_upcoming }}">
+  <section class="card">
     <h2>Ostatnie 12 miesięcy</h2>
     {% if bars.has_data %}
     {{ month_chart(bars) }}

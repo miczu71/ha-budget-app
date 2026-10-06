@@ -7,6 +7,7 @@ Kwoty w pełnych złotych — to wiadomość na telefon, nie wyciąg.
 
 Wysyłka o `SEND_AT`; podsumowanie, które nie wyszło (add-on nie działał), wychodzi po starcie
 tego samego dnia. Wysłane okresy w `kv` (`SENT_KEY`) — bez dubli po restarcie.
+Tą samą drogą idzie przypomnienie o płatnościach kartą kredytową (M15, `card.REMIND_DAYS`).
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-from budget import flex, review
+from budget import card, flex, review
 from budget.categorize import taxonomy
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
@@ -26,7 +27,7 @@ from budget.storage.db import kv_get, kv_set
 
 SEND_AT = time(7, 0)
 SENT_KEY = "summary_sent"
-WEEKLY, MONTHLY = "weekly", "monthly"
+WEEKLY, MONTHLY, CARD = "weekly", "monthly", "card"
 UPCOMING_DAYS = 7
 TOP = 3
 MONTH_NAMES = (
@@ -47,8 +48,8 @@ MONTH_NAMES = (
 
 @dataclass(frozen=True)
 class Message:
-    kind: str  # WEEKLY | MONTHLY
-    period: str  # znacznik wysłanego okresu: dzień poniedziałku albo RRRR-MM
+    kind: str  # WEEKLY | MONTHLY | CARD
+    period: str  # znacznik wysłanego okresu: dzień poniedziałku, RRRR-MM albo RRRR-MM-<dni>
     title: str
     text: str
 
@@ -160,6 +161,17 @@ def monthly(snap: Snapshot, today: date) -> Message:
     return Message(MONTHLY, f"{month:%Y-%m}", f"Budżet — {name}", "\n".join(lines))
 
 
+def card_reminder(cm: card.CardMonth, today: date) -> Message:
+    """Przypomnienie o płatnościach kartą kredytową (M15 E1)."""
+    lines = [
+        f"Brakuje {cm.missing} z {cm.threshold} płatności kartą — miesiąc kończy się "
+        f"{_short(cm.last_day)}, bez nich bank pobierze opłatę za kartę.",
+        "BLIK się nie liczy; bank liczy kartę główną i dodatkową osobno.",
+    ]
+    period = f"{cm.month:%Y-%m}-{card.days_to_end(today)}"
+    return Message(CARD, period, f"Karta kredytowa — {cm.count}/{cm.threshold}", "\n".join(lines))
+
+
 def build(snap: Snapshot, kind: str, today: date) -> Message:
     return weekly(snap, today) if kind == WEEKLY else monthly(snap, today)
 
@@ -175,6 +187,11 @@ def due(snap: Snapshot, now: datetime) -> list[Message]:
         out.append(monthly(snap, today))
     if today.weekday() == 0 and sent.get(WEEKLY) != today.isoformat():
         out.append(weekly(snap, today))
+    cm = card.month_status(snap.conn, today) if card.remind_today(today) else None
+    if cm and cm.missing:
+        msg = card_reminder(cm, today)
+        if sent.get(CARD) != msg.period:
+            out.append(msg)
     return out
 
 

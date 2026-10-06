@@ -21,7 +21,7 @@ from typing import Any
 
 import aiomqtt
 
-from budget import __version__, flex, inbox, money, sessions, sync_service
+from budget import __version__, card, flex, inbox, money, sessions, sync_service
 from budget.logging_utils import mask_iban
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
@@ -191,6 +191,7 @@ def build_entities(
     )
     entities += flex_entities(snap, today)
     entities += recurring_entities(snap, today)
+    entities += card_entities(snap, today)
     if inbox_items is not None:
         entities.append(inbox_entity(inbox_items))
     entities.append(
@@ -293,6 +294,26 @@ def flex_entities(snap: Snapshot, today: date) -> list[Entity]:
             _amount(fm.per_day),
             days_left=fm.days_left,
         ),
+    ]
+
+
+def card_entities(snap: Snapshot, today: date) -> list[Entity]:
+    """Płatności kartą kredytową w bieżącym miesiącu (M15 E1); próg zwolnienia z opłaty."""
+    cm = card.month_status(snap.conn, today)
+    if cm is None:
+        return []
+    return [
+        Entity(
+            "sensor",
+            "card_purchases_month",
+            {"name": "Płatności kartą kredytową w miesiącu", "icon": "mdi:credit-card-check"},
+            state=str(cm.count),
+            attributes={
+                "threshold": cm.threshold,
+                "missing": cm.missing,
+                "month": cm.month.strftime("%Y-%m"),
+            },
+        )
     ]
 
 

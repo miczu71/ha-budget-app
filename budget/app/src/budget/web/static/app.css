@@ -571,6 +571,7 @@ form.move.add-fixed select { max-width: 100%; flex: 1 1 200px; }
 @media (min-width: 760px) {
   .home-grid { grid-template-columns: 1fr 1fr; align-items: start; }
   .home-grid .span2 { grid-column: 1 / -1; }
+  .home-grid > .card:last-child:nth-child(even) { grid-column: 1 / -1; }  /* wykres bez dziury obok */
 }
 .donut-wrap { display: grid; gap: 16px; align-items: center; justify-items: center; }
 .donut { position: relative; width: min(100%, 230px); container-type: inline-size; }
