@@ -138,7 +138,7 @@ def test_entity(conn: sqlite3.Connection) -> None:
         "days_left": 8,
         "overdue": False,
         "debt": "2500.00",
-        "available": "7500.00",
+        "available_bank": "7500.00",
         "limit": "10000.00",
         "utilization": 25.0,
     }

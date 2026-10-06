@@ -9,6 +9,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget import ledger, report, sessions, summary, sync_service
+from budget.categorize import learn
 from budget.eb_client import PsuHeaders
 from budget.service import ServiceError
 from budget.storage import db
@@ -64,6 +65,7 @@ def router(panel: Panel) -> APIRouter:
             "busy": service.lock.locked(),
             "ai": ai_context(),
             "summaries": summaries_context(),
+            "learn": db.kv_get(conn, learn.EVAL_KEY),
         }
 
     def summaries_context() -> dict[str, Any]:
@@ -141,6 +143,13 @@ def router(panel: Panel) -> APIRouter:
         if res.error:
             return panel.redirect(request, "/status", f"{text} — {res.error}", "error")
         return panel.redirect(request, "/status", text, "ok" if res.calls else "warn")
+
+    @r.post("/learn/eval")
+    async def learn_eval(request: Request) -> Response:
+        out = await learn.evaluate(conn)
+        return panel.redirect(
+            request, "/status", f"Pomiar kategoryzacji: {out['months']} miesięcy historii", "ok"
+        )
 
     @r.post("/ai/eval")
     async def ai_eval(request: Request) -> Response:

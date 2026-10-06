@@ -157,6 +157,39 @@
   {% endif %}
 </section>
 
+<section class="card" id="learn">
+  <h2>Kategoryzacja — pomiar</h2>
+  <p class="small muted">Ile pracy z kolejką zdjęłoby automatyczne przypisanie: sprawdza na Twojej historii, miesiąc po miesiącu, co dałoby się przewidzieć z decyzji z wcześniejszych miesięcy. Nic nie zmienia w kategoriach.</p>
+  <form method="post" action="{{ base }}/learn/eval" hx-boost="true" hx-disabled-elt="find button">
+    <button type="submit" class="secondary">Zmierz</button>
+    <span class="htmx-indicator muted small">liczę…</span>
+  </form>
+  {% if learn %}
+  {% set q = learn.queue %}
+  <h3>Kolejka dziś <span class="small muted">({{ learn.at | ts }}, {{ learn.months }} miesięcy historii)</span></h3>
+  <p>{{ q.txns }} pozycji w {{ q.groups }} grupach; u sprzedawców z wcześniejszą ręczną decyzją: {{ q.known_txns }} pozycji ({{ pct(q.known_txns, q.txns) }}%) w {{ q.known_groups }} grupach.</p>
+  <h3>Pamięć sprzedawcy <span class="small muted">(zgodne ręczne decyzje z wcześniejszych miesięcy)</span></h3>
+  <div class="table-wrap"><table class="ai-eval">
+    <thead><tr><th>min. decyzji</th><th>przypisane</th><th>trafne</th><th>decyzje zdjęte</th><th>kolejka dziś</th></tr></thead>
+    <tbody>
+      {% for row in learn.memory %}
+      <tr><td>{{ row.k }}</td><td>{{ row.txns_fired }} / {{ row.txns }} ({{ pct(row.txns_fired, row.txns) }}%)</td><td>{{ pct(row.txns_correct, row.txns_fired) }}%</td><td>{{ row.decisions_fired }} / {{ row.decisions }} ({{ pct(row.decisions_fired, row.decisions) }}%)</td><td>{{ row.queue_txns }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <h3>Klasyfikator dla nowych sprzedawców <span class="small muted">({{ learn.nb.n }} pozycji od sprzedawców widzianych pierwszy raz)</span></h3>
+  <div class="table-wrap"><table class="ai-eval">
+    <thead><tr><th>pewność ≥</th><th>przypisane</th><th>trafne</th></tr></thead>
+    <tbody>
+      {% for row in learn.nb.rows %}
+      <tr><td>{{ "%.2f" | format(row.threshold) }}</td><td>{{ row.shown }} ({{ pct(row.shown, learn.nb.n) }}%)</td><td>{{ pct(row.correct, row.shown) }}%</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="small muted">„Decyzje” = sprzedawca w danym miesiącu (zapis w kolejce obejmuje całą grupę). Data transakcji zastępuje datę decyzji, której baza nie przechowuje.</p>
+  {% endif %}
+</section>
+
 <section class="card">
   <h2>Ostatnie przebiegi</h2>
   <div class="table-wrap"><table>

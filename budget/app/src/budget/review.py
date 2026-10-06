@@ -36,11 +36,10 @@ SORTS: tuple[Sort, ...] = ("amount", "count")
 NO_NAME = "(bez nazwy)"
 REGULAR_MONTHS = 3
 
-# Transakcje czekające na kategorię (alias `t` dla txn, `a` dla account) — też `budget.suggest`
-PENDING_WHERE = (
-    "t.status = 'BOOK' AND t.transfer_group IS NULL AND t.category_id IS NULL "
-    "AND a.include_in_budget = 1"
-)
+# Transakcje, które mogą trafić do kolejki (alias `t` dla txn, `a` dla account) — też
+# `budget.categorize.learn`; czekające na kategorię — też `budget.suggest`
+QUEUE_SCOPE = "t.status = 'BOOK' AND t.transfer_group IS NULL AND a.include_in_budget = 1"
+PENDING_WHERE = f"{QUEUE_SCOPE} AND t.category_id IS NULL"
 
 
 @dataclass(frozen=True)
@@ -133,7 +132,7 @@ def _items(conn: sqlite3.Connection) -> Iterable[tuple[sqlite3.Row, Item]]:
         )
 
 
-def _direction(amount: Decimal) -> Direction:
+def direction(amount: Decimal) -> Direction:
     return "out" if amount < 0 else "in"
 
 
@@ -154,12 +153,12 @@ def all_groups(conn: sqlite3.Connection, month: date | None = None) -> list[Grou
     for item, origin in rows:
         if not item.day.startswith(prefix):
             continue
-        direction = _direction(item.amount)
+        way = direction(item.amount)
         if origin is not None and item.merchant not in regular:
-            key = GroupKey("country", origin.key, direction, item.currency)
+            key = GroupKey("country", origin.key, way, item.currency)
             label = origin.label
         else:
-            key = GroupKey("merchant", item.merchant, direction, item.currency)
+            key = GroupKey("merchant", item.merchant, way, item.currency)
             label = item.merchant or NO_NAME
         groups.setdefault(key, Group(key, label)).items.append(item)
     return list(groups.values())

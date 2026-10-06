@@ -388,7 +388,7 @@ def card_entities(snap: Snapshot, today: date) -> list[Entity]:
                 days_left=cd.days_left,
                 overdue=cd.overdue,
                 debt=_amount(cd.debt),
-                available=_amount(cd.available),
+                available_bank=_amount(cd.available),
                 limit=_amount(cd.limit),
                 utilization=None if cd.utilization is None else round(cd.utilization * 100, 1),
             )
