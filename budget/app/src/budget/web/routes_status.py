@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from typing import Any
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget import ledger, report, sessions, summary, sync_service
+from budget.ask import engine as ask
 from budget.categorize import engine, learn
 from budget.eb_client import PsuHeaders
 from budget.service import ServiceError
@@ -41,6 +43,7 @@ def router(panel: Panel) -> APIRouter:
     def status_context() -> dict[str, Any]:
         today = service.now().date()
         record = sessions.current(conn)
+        chat_log = ask.log_rows(conn)
         names = {r["id"]: r for r in conn.execute("SELECT * FROM account")}
         requests = [
             {**dict(r), "account": names.get(r["account_id"])}
@@ -67,6 +70,8 @@ def router(panel: Panel) -> APIRouter:
             "summaries": summaries_context(),
             "learn": db.kv_get(conn, learn.EVAL_KEY),
             "learned_stats": engine.learned_stats(conn),
+            "chat_log": chat_log,
+            "chat_counts": Counter(e["outcome"] for e in chat_log),
         }
 
     def summaries_context() -> dict[str, Any]:

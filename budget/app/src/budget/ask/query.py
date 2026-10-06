@@ -269,7 +269,6 @@ def describe(plan: Plan, cats: dict[int, Category], other_currency: int = 0) -> 
     if plan.group_by != "none":
         out.append(f"Podział: {GROUP_BY_LABELS[plan.group_by]}")
     out.append(f"Miara: {METRIC_LABELS[plan.metric]}")
-    out.append("Bez przelewów między własnymi kontami; zwroty pomniejszają kategorię")
     if other_currency:
         out.append(f"Pominięte transakcje w innej walucie: {other_currency}")
     return out

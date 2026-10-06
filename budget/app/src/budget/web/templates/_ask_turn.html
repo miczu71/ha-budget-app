@@ -24,7 +24,7 @@
   {% if res.rows and res.plan.group_by not in ("month", "none") and res.rows | length == res.plan.limit %}<p class="small muted">Pokazane pierwsze {{ res.plan.limit }} pozycji; „Razem” obejmuje wszystkie.</p>{% endif %}
   <details class="ask-how">
     <summary>Jak policzono</summary>
-    <ul class="small">{% for f in res.filters %}<li>{{ f }}</li>{% endfor %}</ul>
+    <ul class="small">{% for f in res.filters %}<li>{{ f }}</li>{% endfor %}<li>Bez przelewów między własnymi kontami; zwroty pomniejszają kategorię</li></ul>
   </details>
   <p class="ask-links">{% for p in res.periods %}<a class="tap" href="{{ base }}/transactions?{{ p.link | urlencode }}">Pokaż transakcje{% if res.periods | length > 1 %}: {{ p.period.label }}{% endif %}</a>{% endfor %}</p>
 </section>

@@ -892,3 +892,5 @@ label.switch input[type="checkbox"]:checked::after { transform: translateX(16px)
 .ask-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .ask-new { margin-left: auto; }
 #ask-out .msg.error { margin-bottom: 12px; }
+.chat-log li { padding: 8px 0; }
+.chat-log li p { margin: 2px 0 0; overflow-wrap: anywhere; }

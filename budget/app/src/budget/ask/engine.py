@@ -96,6 +96,21 @@ def history(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     return list(reversed(kv_get(conn, LOG_KEY) or []))
 
 
+def log_rows(conn: sqlite3.Connection, limit: int = 30) -> list[dict[str, Any]]:
+    """Ostatnie wpisy logu do karty na Status (E3a), bez kwot: „jak policzono” zapisane przy
+    pytaniu, „nie umiem” albo błąd."""
+    rows = []
+    for e in history(conn)[:limit]:
+        if e.get("error"):
+            outcome, detail = "error", f"błąd: {e['error']}"
+        elif e.get("unsupported"):
+            outcome, detail = "unsupported", f"nie umiem: {e['unsupported']}"
+        else:
+            outcome, detail = "ok", " · ".join(e.get("how") or ["—"])
+        rows.append({**e, "turn": e.get("turn", 1), "outcome": outcome, "detail": detail})
+    return rows
+
+
 def _log(conn: sqlite3.Connection, a: Answer) -> None:
     entries = (kv_get(conn, LOG_KEY) or [])[-(LOG_MAX - 1) :]
     entries.append(
@@ -103,6 +118,7 @@ def _log(conn: sqlite3.Connection, a: Answer) -> None:
             "at": now_iso(),
             "q": a.question,
             "turn": a.turn,
+            "how": a.result.filters if a.result else None,
             "plan": a.plan,
             "unsupported": a.unsupported,
             "error": a.error,

@@ -131,3 +131,25 @@ async def test_bad_context_is_ignored(ai: httpx.AsyncClient) -> None:
         )
         r = await ai.post("/ask", data={"q": "Komu?", "ctx": "<script>"}, headers=HX)
     assert r.status_code == 200 and "Ok." in r.text
+
+
+@respx.mock
+async def test_status_shows_chat_log(ai: httpx.AsyncClient) -> None:
+    page = (await ai.get("/status")).text
+    assert "Czat — ostatnie pytania" in page and "Jeszcze nikt nie pytał" in page
+    respx.post(f"{ROUTER}/chat/completions").mock(
+        side_effect=[
+            _reply(PLAN),
+            _reply({"answer": "Ok."}),
+            _reply({**PLAN, "unsupported": "brak sald kont"}),
+            httpx.Response(401, text="nope"),
+        ]
+    )
+    await ai.post("/ask", data={"q": "Komu płacimy najwięcej?"}, headers=HX)
+    await ai.post("/ask", data={"q": "Ile mam na koncie?"}, headers=HX)
+    await ai.post("/ask", data={"q": "Trzecie?"}, headers=HX)
+    page = (await ai.get("/status")).text
+    assert "3 ostatnich: 1 z odpowiedzią, 1 „nie umiem”, 1 błędów" in page
+    assert "Podział: sprzedawcy i odbiorcy" in page and "Bez przelewów" not in page
+    assert "nie umiem: brak sald kont" in page and "błąd: Router AI odrzucił klucz" in page
+    assert "200,00" not in page  # bez kwot z wyników

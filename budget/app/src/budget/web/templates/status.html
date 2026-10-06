@@ -158,6 +158,25 @@
   {% endif %}
 </section>
 
+<section class="card" id="chat-log">
+  <h2>Czat — ostatnie pytania</h2>
+  {% if not chat_log %}
+  <p class="muted">Jeszcze nikt nie pytał w zakładce „Zapytaj”.</p>
+  {% else %}
+  {% set c = chat_counts %}
+  <p class="small muted">{{ chat_log | length }} ostatnich: {{ c.ok }} z odpowiedzią, {{ c.unsupported }} „nie umiem”, {{ c.error }} błędów. Log bez kwot — do wyboru, czego czat ma się jeszcze nauczyć.</p>
+  <ul class="rows chat-log">
+    {% for e in chat_log %}
+    <li>
+      <span class="small muted">{{ e.at | ts }}{% if e.turn > 1 %} · tura {{ e.turn }}{% endif %}</span>
+      <div>{{ e.q }}</div>
+      <p class="small {{ 'muted' if e.outcome == 'ok' else 'neg' }}">{{ e.detail }}</p>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
 <section class="card" id="learn">
   <h2>Kategoryzacja — pomiar</h2>
   {% set ls = learned_stats %}{% set decided = ls.confirmed + ls.corrected %}

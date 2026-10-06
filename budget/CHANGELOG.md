@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.35.1
+
+**Status: log pytań czatu** (M12 E3a, `docs/PLAN_M12.md` § E3).
+
+- Nowa karta „Czat — ostatnie pytania”: 30 ostatnich pytań z zakładki „Zapytaj” z numerem tury
+  i wynikiem w skrócie — jak policzono, „nie umiem: …” albo błąd; na górze podsumowanie. Bez kwot.
+  Podstawa do wyboru, czego czat ma się nauczyć w kolejnych wersjach (źródła danych, decyzja 24).
+
 ## 0.35.0
 
 **Zapytaj — rozmowa z dopytywaniem** (M12 E2, `docs/PLAN_M12_E2.md`).
