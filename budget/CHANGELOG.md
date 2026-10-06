@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.31.1
+
+**Pomiar kategoryzacji: trafność pamięci według typu transakcji** (M7 E1b, `docs/PLAN_M7.md`).
+
+- Status → „Kategoryzacja — pomiar”: nowa tabela „Pamięć według typu transakcji” — karta i BLIK w kraju,
+  karta za granicą, przelewy, inne; dla każdego typu: ile pozycji pamięć by przypisała, jak trafnie i ile
+  z dzisiejszej kolejki. Na tej podstawie automatyczne przypisywanie (następny etap) obejmie tylko typy,
+  w których pamięć jest pewna. Nic nie zmienia w kategoriach.
+
 ## 0.31.0
 
 **Kategoryzacja: pomiar przed automatycznym przypisywaniem** (M7 E1, `docs/PLAN_M7.md`).
