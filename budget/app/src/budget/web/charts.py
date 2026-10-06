@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
+from budget.forecast import Event
 from budget.spending import MainLine, MonthTotals
 
 PALETTE = 8  # liczba kolorów kategorii w tokenach `--chart-1…8`
@@ -206,22 +207,40 @@ def month_bars(rows: Sequence[MonthTotals], selected: date) -> BarChart:
 # --- prognoza do wypłaty (M8) -----------------------------------------------------------------
 
 
+FC_WIDTH, FC_HEIGHT = 360, 200
+FC_TOP_OUTFLOWS = 3  # tyle największych wydatków dostaje znacznik; wpływy mają go wszystkie
+
+
+@dataclass(frozen=True)
+class Mark:
+    x: float
+    y: float
+    kind: str  # "in" | "out"
+    day: date
+    name: str
+    amount: Decimal  # ze znakiem
+
+
 @dataclass(frozen=True)
 class LineChart:
     points: str  # atrybut `points` linii łamanej
     low_x: float
     low_y: float
+    low_day: date
+    low_anchor: str  # `text-anchor` etykiety dna: start | middle | end
     end_x: float
     end_y: float
     zero_y: float | None  # kreska zera, gdy mieści się w skali
+    zone_y: float | None  # początek strefy poniżej zera; None, gdy saldo nie schodzi poniżej
     buffer_y: float | None  # kreska bufora, gdy bufor > 0 i mieści się w skali
     ticks: list[Tick]
     x_labels: list[tuple[float, str]]
-    width: int = WIDTH
-    height: int = HEIGHT
+    marks: list[Mark] = field(default_factory=list)
+    width: int = FC_WIDTH
+    height: int = FC_HEIGHT
     plot_left: float = LEFT
-    plot_right: float = WIDTH - RIGHT
-    baseline: float = HEIGHT - BOTTOM
+    plot_right: float = FC_WIDTH - RIGHT
+    baseline: float = FC_HEIGHT - BOTTOM
 
 
 def _signed_compact(value: float) -> str:
@@ -230,15 +249,21 @@ def _signed_compact(value: float) -> str:
     return ("−" if value < 0 else "") + text.replace(".", ",")
 
 
-def forecast_line(days: Sequence[tuple[date, Decimal]], buffer: Decimal = ZERO) -> LineChart:
+def forecast_line(
+    days: Sequence[tuple[date, Decimal]],
+    buffer: Decimal = ZERO,
+    events: Sequence[Event] = (),
+    payday: date | None = None,
+) -> LineChart:
     """Saldo dzień po dniu jako linia w skali od najniższej do najwyższej wartości (z zapasem 8%,
-    żeby płaska linia też miała wysokość); zero i bufor to kreski, jeśli mieszczą się w skali."""
+    żeby płaska linia też miała wysokość); zero i bufor to kreski, jeśli mieszczą się w skali,
+    a strefa poniżej zera jest wypełniona. Znaczniki stoją na saldzie z końca dnia zdarzenia."""
     values = [float(v) for _, v in days]
     lo, hi = min(values), max(values)
     pad = ((hi - lo) or max(abs(hi), 1.0)) * 0.08
     lo, hi = lo - pad, hi + pad
-    plot_h = HEIGHT - TOP - BOTTOM
-    plot_w = WIDTH - RIGHT - LEFT
+    plot_h = FC_HEIGHT - TOP - BOTTOM
+    plot_w = FC_WIDTH - RIGHT - LEFT
     last = max(len(values) - 1, 1)
 
     def x_at(i: int) -> float:
@@ -247,16 +272,46 @@ def forecast_line(days: Sequence[tuple[date, Decimal]], buffer: Decimal = ZERO) 
     def y_at(value: float) -> float:
         return TOP + (hi - value) / (hi - lo) * plot_h
 
+    index = {day: i for i, (day, _) in enumerate(days)}
+    big_outflows = sorted((e for e in events if e.amount < 0), key=lambda e: e.amount)[
+        :FC_TOP_OUTFLOWS
+    ]
+    marks = [
+        Mark(
+            x_at(index[e.day]),
+            y_at(values[index[e.day]]),
+            "in" if e.amount > 0 else "out",
+            e.day,
+            e.due.series.name,
+            e.amount,
+        )
+        for e in events
+        if e.day in index and (e.amount > 0 or e in big_outflows)
+    ]
     low_i = min(range(len(values)), key=lambda i: (values[i], i))
-    labels = [(x_at(0), "dziś"), (x_at(len(values) - 1), f"{days[-1][0]:%d.%m}")]
+    low_x = x_at(low_i)
+    zero_y = y_at(0.0) if lo <= 0.0 <= hi else None
+    end = days[-1][0]
+    labels = [
+        (x_at(0), "dziś"),
+        (x_at(len(values) - 1), f"wypłata {end:%d.%m}" if payday else f"{end:%d.%m}"),
+    ]
     return LineChart(
         points=" ".join(f"{x_at(i):.1f},{y_at(v):.1f}" for i, v in enumerate(values)),
-        low_x=x_at(low_i),
+        low_x=low_x,
         low_y=y_at(values[low_i]),
+        low_day=days[low_i][0],
+        low_anchor="start"
+        if low_x < FC_WIDTH * 0.33
+        else "end"
+        if low_x > FC_WIDTH * 0.67
+        else "middle",
         end_x=x_at(len(values) - 1),
         end_y=y_at(values[-1]),
-        zero_y=y_at(0.0) if lo <= 0.0 <= hi else None,
+        zero_y=zero_y,
+        zone_y=zero_y if zero_y is not None else TOP if hi < 0.0 else None,
         buffer_y=y_at(float(buffer)) if buffer > 0 and lo <= float(buffer) <= hi else None,
         ticks=[Tick(_signed_compact(v), y_at(v)) for v in (min(values), max(values))],
         x_labels=labels,
+        marks=marks,
     )

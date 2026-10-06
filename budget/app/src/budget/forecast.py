@@ -40,6 +40,13 @@ class Balances:
     fetched_at: str  # najstarsza z migawek użytych do wyniku
 
 
+@dataclass(frozen=True)
+class Event:
+    day: date  # dzień w prognozie: termin serii, a spóźnione liczą się dziś
+    due: schedule.Due
+    amount: Decimal  # ze znakiem: wydatek ujemny, wpływ dodatni
+
+
 @dataclass
 class Projection:
     payday: date | None
@@ -47,6 +54,7 @@ class Projection:
     horizon_end: date
     outflows: list[schedule.Due] = field(default_factory=list)
     inflows: list[schedule.Due] = field(default_factory=list)
+    events: list[Event] = field(default_factory=list)  # wydatki i wpływy chronologicznie
     flex_total: Decimal = ZERO
     days: list[tuple[date, Decimal]] = field(default_factory=list)  # saldo na koniec dnia
     at_payday: Decimal = ZERO
@@ -185,11 +193,14 @@ def project(
     )
     inflows = sorted((p for p in paydays if p[0] < end), key=lambda p: p[0])
     result.outflows, result.inflows = [d for _, d in out], [d for _, d in inflows]
+    result.events = sorted(
+        [Event(day, d, -d.series.expected_amount) for day, d in out]
+        + [Event(day, d, d.series.expected_amount) for day, d in inflows],
+        key=lambda e: (e.day, e.amount > 0, e.due.series.name),
+    )
     delta: defaultdict[date, Decimal] = defaultdict(Decimal)
-    for day, d in out:
-        delta[day] -= d.series.expected_amount
-    for day, d in inflows:
-        delta[day] += d.series.expected_amount
+    for e in result.events:
+        delta[e.day] += e.amount
     balance, day = free_now, today
     while day <= end:
         if day > today:

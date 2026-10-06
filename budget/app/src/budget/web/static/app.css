@@ -836,8 +836,19 @@ a.row { min-height: var(--tap); align-content: center; }
 .fc-result { margin: 8px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
 .fc-result .small { font-weight: 400; }
 @media (min-width: 720px) { .fc-strip { grid-template-columns: repeat(4, 1fr); } }
-.fc-more summary { min-height: var(--tap); display: inline-flex; align-items: center; cursor: pointer; color: var(--text-2); font-size: 13px; }
-.fc-more .rows { margin: 0 0 8px; }
+.fc-rest summary { min-height: var(--tap); display: inline-flex; align-items: center; cursor: pointer; color: var(--text-2); font-size: 13px; }
+.fc-line { max-width: 640px; margin-top: 12px; }
+@media (min-width: 720px) { .fc-line .axis { font-size: 7px; } }  /* viewBox rośnie ×1,8: tekst zostaje ~12 px */
+.fc-line .fc-zone { fill: var(--neg); opacity: 0.08; }
+.fc-line .fc-mark circle { stroke: var(--surface-1); stroke-width: 2; }
+.fc-line .fc-mark-in circle { fill: var(--pos); }
+.fc-line .fc-mark-out circle { fill: var(--neg); }
+.fc-line .fc-low-label { fill: var(--text); font-weight: 600; }
+.fc-list { margin-top: 4px; }
+.fc-list .row-amount { display: flex; flex-direction: column; align-items: flex-end; }
+.fc-list .row-bal { font-weight: 400; }
+.fc-low-row { background: var(--surface-2); margin: 0 -12px; padding: 0 12px; border-radius: 8px; }
+.fc-low-tag { color: var(--neg); }
 .fc-line .zero { stroke: var(--neg); stroke-dasharray: none; opacity: 0.5; }
 .fc-line .buffer { stroke: var(--warn); stroke-dasharray: 4 3; }
 .fc-line .fc-path { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }

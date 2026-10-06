@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.29.0
+
+**„Do wypłaty”: wykres osi czasu i jedna lista zdarzeń** (M8 E3b, `docs/PLAN_M8_E3.md`).
+
+- Wykres prognozy jest większy, ma strefę poniżej zera, znaczniki wpływów i trzech największych wydatków
+  (dotknięcie pokazuje nazwę i kwotę), etykietę „najniżej dd.mm” i oś „dziś” – „wypłata dd.mm”.
+- Dwie rozwijane listy (serie, wpływy) zastąpiła jedna lista chronologiczna z saldem po każdym dniu;
+  wiersz najniższego punktu jest wyróżniony, a wiersze prowadzą do serii. Powyżej 8 pozycji reszta jest zwinięta
+  (rozwinięta od razu, gdy kryje dno).
+- Bez zmian w schemacie bazy, encjach i dzwonku.
+
 ## 0.28.0
 
 **Układ strony głównej** (M16, `docs/PLAN_M16.md`).

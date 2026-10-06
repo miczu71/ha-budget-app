@@ -6,6 +6,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
+from budget import forecast
 from budget.categorize.rules import Conditions
 from budget.recurring import schedule as sch
 from budget.recurring.series import Candidate, Series
@@ -36,6 +37,14 @@ def make(
         created_at="2026-01-01T00:00:00",
         decided_at=None,
     )
+
+
+def make_event(sid: int, day: int, amount: str, status: str = sch.EXPECTED) -> forecast.Event:
+    """Zdarzenie prognozy w październiku 2026; znak kwoty wyznacza kierunek serii."""
+    value = Decimal(amount)
+    d = date(2026, 10, day)
+    series = make(sid, amount=str(abs(value)), direction="in" if value > 0 else "out")
+    return forecast.Event(d, sch.Due(series, d, status), value)
 
 
 def tx(tid: int, day: date, amount: str = "-100.00") -> Candidate:

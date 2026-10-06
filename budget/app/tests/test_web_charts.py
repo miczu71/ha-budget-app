@@ -11,6 +11,8 @@ from budget.categorize.taxonomy import Category
 from budget.spending import MainLine, MonthTotals
 from budget.web import charts
 
+from .test_recurring_schedule import make_event
+
 PERIOD = "date_from=2026-09-01&date_to=2026-09-30"
 KW = {"period": PERIOD, "other_href": "/spending?month=2026-09", "review_href": "/review"}
 
@@ -142,3 +144,46 @@ def test_forecast_line_buffer_only_when_in_scale_and_flat_series() -> None:
     flat = line(["1000", "1000", "1000"])
     assert flat.zero_y is None and len(flat.points.split()) == 3
     assert len(line(["50"]).points.split()) == 1  # ostatni dzień miesiąca: jeden punkt
+
+
+def test_forecast_line_zone_covers_below_zero_only() -> None:
+    mixed = line(["500", "100", "-200", "300"])
+    assert mixed.zone_y == mixed.zero_y
+    assert line(["500", "100", "300"]).zone_y is None
+    assert line(["-500", "-100"]).zone_y == charts.TOP  # całe saldo poniżej zera
+
+
+def test_forecast_line_marks_all_inflows_and_three_largest_outflows() -> None:
+    days = [
+        (date(2026, 10, 3 + i), Decimal(v))
+        for i, v in enumerate(["900", "800", "850", "300", "250", "240"])
+    ]
+    events = [
+        make_event(1, 4, "-100"),
+        make_event(2, 5, "50"),
+        make_event(3, 6, "-550"),
+        make_event(4, 7, "-50"),
+        make_event(5, 7, "-10"),
+        make_event(6, 8, "-250"),
+    ]
+    c = charts.forecast_line(days, Decimal(0), events)
+    assert [(m.kind, m.name) for m in c.marks] == [
+        ("out", "Seria 1"),
+        ("in", "Seria 2"),
+        ("out", "Seria 3"),
+        ("out", "Seria 6"),
+    ]  # dwa najmniejsze wydatki bez znacznika
+    ys = [float(p.split(",")[1]) for p in c.points.split()]
+    assert [m.y for m in c.marks] == pytest.approx([ys[1], ys[2], ys[3], ys[5]], abs=0.1)
+
+
+def test_forecast_line_low_label_and_payday_label() -> None:
+    c = line(["500", "100", "-200", "300"])
+    assert c.low_day == date(2026, 10, 5) and c.low_anchor == "middle"
+    assert line(["-200", "100", "300", "400"]).low_anchor == "start"
+    assert line(["500", "400", "300", "-200"]).low_anchor == "end"
+    days = [(date(2026, 10, 3 + i), Decimal(v)) for i, v in enumerate(["500", "100"])]
+    assert (
+        charts.forecast_line(days, Decimal(0), (), date(2026, 10, 4)).x_labels[-1][1]
+        == "wypłata 04.10"
+    )

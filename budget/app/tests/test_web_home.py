@@ -13,12 +13,14 @@ import pytest
 
 from budget import forecast, spending
 from budget.categorize.rules import Conditions, TextCondition
+from budget.recurring import schedule as sch
 from budget.recurring import series as S
 from budget.service import Service
 from budget.storage.db import now_iso
 from budget.web.common import fmt_money
-from budget.web.routes_home import compare_label
+from budget.web.routes_home import compare_label, forecast_timeline
 
+from .test_recurring_schedule import make_event
 from .test_web import INGRESS, _client
 from .test_web_categorize import DAY, _seed
 
@@ -289,6 +291,122 @@ async def test_forecast_verdict_when_short(
         assert text in page
     assert "Starczy" not in page
     assert ("Wydawaj do" in page) is (safe is not None and Decimal(safe) > 0)
+
+
+def _days(*balances: str) -> list[tuple[date, Decimal]]:
+    return [(date(2026, 10, 4 + i), Decimal(b)) for i, b in enumerate(balances)]
+
+
+def test_forecast_timeline_shows_balance_once_per_day_and_marks_the_low_day() -> None:
+    fc = forecast.Forecast(
+        payday=None,
+        payday_series=None,
+        horizon_end=date(2026, 10, 6),
+        days=_days("900", "780", "1080"),
+        events=[make_event(7, 5, "-100"), make_event(8, 5, "-20"), make_event(9, 6, "300")],
+        low=Decimal(780),
+        low_day=date(2026, 10, 5),
+    )
+    rows = forecast_timeline(fc)
+    assert [(r.event.due.series.id if r.event else None, r.balance, r.low) for r in rows] == [
+        (7, None, False),
+        (8, Decimal(780), True),
+        (9, Decimal(1080), False),
+    ]
+
+
+def test_forecast_timeline_adds_a_row_when_flex_alone_makes_the_low() -> None:
+    fc = forecast.Forecast(
+        payday=None,
+        payday_series=None,
+        horizon_end=date(2026, 10, 6),
+        days=_days("900", "700", "650"),
+        events=[make_event(7, 4, "-100"), make_event(9, 6, "300")],
+        low=Decimal(650),
+        low_day=date(2026, 10, 6),
+    )
+    rows = forecast_timeline(fc)
+    assert [(r.day.day, r.event is None, r.low) for r in rows] == [
+        (4, False, False),
+        (6, False, True),  # zdarzenie w dniu dna: bez dodatkowego wiersza
+    ]
+    fc = dataclasses.replace(
+        fc,
+        days=_days("900", "700", "650", "600", "950"),
+        events=[make_event(7, 4, "-100"), make_event(9, 8, "300")],
+        low_day=date(2026, 10, 5),
+    )
+    assert [(r.day.day, r.event is None, r.low) for r in forecast_timeline(fc)] == [
+        (4, False, False),
+        (5, True, True),
+        (8, False, False),
+    ]
+
+
+async def _page_with(
+    client: httpx.AsyncClient,
+    service: Service,
+    monkeypatch: pytest.MonkeyPatch,
+    **changes: object,
+) -> str:
+    _balances(service.conn)
+    real = forecast.build
+
+    def patched(*args: object, **kwargs: object) -> forecast.Forecast | None:
+        fc = real(*args, **kwargs)  # type: ignore[arg-type]
+        assert fc is not None
+        return dataclasses.replace(fc, **changes)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(forecast, "build", patched)
+    return (await client.get("/")).text
+
+
+async def test_forecast_shows_one_chronological_list_with_links_and_low_row(
+    client: httpx.AsyncClient, service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    page = await _page_with(
+        client,
+        service,
+        monkeypatch,
+        days=_days("900", "780", "1080"),
+        events=[
+            make_event(7, 5, "-100", sch.LATE),
+            make_event(8, 5, "-20"),
+            make_event(9, 6, "300"),
+        ],
+        low=Decimal(780),
+        low_day=date(2026, 10, 5),
+    )
+    assert 'class="fc-more"' not in page and "serie do wypłaty" not in page
+    assert page.count('class="rows fc-list"') == 1 and "fc-rest" not in page
+    assert f'href="{INGRESS}/recurring/7"' in page and f'href="{INGRESS}/recurring/9"' in page
+    assert page.count('class="fc-low-row"') == 1 and "spóźniona" in page
+    assert page.count('class="row-bal') == 2  # raz na dzień ze zdarzeniami
+    assert 'class="fc-zone"' not in page and page.count("fc-mark-") >= 3
+
+
+@pytest.mark.parametrize(
+    ("low_day", "fold"),
+    [(5, '<details class="fc-rest">'), (9, '<details class="fc-rest" open>')],
+)
+async def test_forecast_list_folds_rows_past_eight_and_opens_for_the_low_row(
+    client: httpx.AsyncClient,
+    service: Service,
+    monkeypatch: pytest.MonkeyPatch,
+    low_day: int,
+    fold: str,
+) -> None:
+    events = [make_event(i, 4 + i // 2, "-10") for i in range(1, 11)]
+    page = await _page_with(
+        client,
+        service,
+        monkeypatch,
+        days=_days(*["900"] * 8),
+        events=events,
+        low_day=date(2026, 10, low_day),
+    )
+    assert page.count('class="rows fc-list"') == 2 and "pozostałe (2)" in page
+    assert fold in page  # dno poza zwiniętą częścią: zwinięte; w niej: otwarte
 
 
 async def test_forecast_hidden_without_balances_and_in_past_months(

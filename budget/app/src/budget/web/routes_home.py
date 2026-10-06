@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Form, HTTPException, Request
@@ -19,6 +20,29 @@ from budget.web.common import Panel
 log = logging.getLogger(__name__)
 
 STALE_AFTER = timedelta(hours=30)  # synchronizacje są 3×/dobę, więc dłuższa przerwa to sygnał
+
+
+@dataclass(frozen=True)
+class TimelineRow:
+    day: date
+    event: forecast.Event | None  # None: dno wyznaczył sam Flex, bez zdarzenia w tym dniu
+    balance: Decimal | None  # saldo na koniec dnia, tylko w ostatnim wierszu dnia
+    low: bool
+
+
+def forecast_timeline(fc: forecast.Forecast) -> list[TimelineRow]:
+    """Zdarzenia prognozy chronologicznie, z saldem po dniu i wyróżnionym dnem."""
+    balances = dict(fc.days)
+    rows: list[TimelineRow] = []
+    for i, e in enumerate(fc.events):
+        last = i + 1 == len(fc.events) or fc.events[i + 1].day != e.day
+        rows.append(
+            TimelineRow(e.day, e, balances[e.day] if last else None, last and e.day == fc.low_day)
+        )
+    if fc.low_day is not None and all(r.day != fc.low_day for r in rows):
+        at = next((i for i, r in enumerate(rows) if r.day > fc.low_day), len(rows))
+        rows.insert(at, TimelineRow(fc.low_day, None, fc.low, True))
+    return rows
 
 
 def compare_label(m: spending.Month) -> str:
@@ -100,7 +124,8 @@ def router(panel: Panel) -> APIRouter:
             consent_days=record.days_left(now) if record and record.active else None,
             cm=card.month_status(conn, today) if f.is_current else None,
             fc=fc,
-            chart=charts.forecast_line(fc.days, buffer) if fc else None,
+            chart=charts.forecast_line(fc.days, buffer, fc.events, fc.payday) if fc else None,
+            timeline=forecast_timeline(fc) if fc else [],
         )
 
     def layout_response(request: Request) -> Response:

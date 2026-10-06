@@ -84,6 +84,25 @@ def test_late_outflow_counts_today_late_inflow_is_ignored() -> None:
     assert p.at_payday == Decimal("670.00")
 
 
+def test_events_are_signed_chronological_and_late_lands_today() -> None:
+    p = run(
+        [
+            due(1, date(2026, 10, 7), "100", "out"),
+            due(2, date(2026, 10, 1), "300", "out", sch.LATE),
+            due(3, date(2026, 10, 5), "200", "in"),
+            due(4, date(2026, 10, 7), "40", "in"),
+            due(5, date(2026, 10, 10), "5000", "in"),  # wypłata — poza listą zdarzeń
+            due(6, date(2026, 10, 20), "50", "out"),  # po wypłacie
+        ]
+    )
+    assert [(e.day.day, e.due.series.id, e.amount) for e in p.events] == [
+        (3, 2, Decimal(-300)),  # spóźniona → dziś
+        (5, 3, Decimal(200)),
+        (7, 1, Decimal(-100)),  # tego samego dnia wydatek przed wpływem
+        (7, 4, Decimal(40)),
+    ]
+
+
 def test_without_payday_horizon_is_end_of_month() -> None:
     p = run([due(1, date(2026, 10, 31), "100", "out")], per_day="0")
     assert p.payday is None and p.payday_series is None

@@ -52,3 +52,11 @@ dwuwarstwowy cień (`--elev`). Siatka 4 px, padding karty 20 px (16 na telefonie
 - Wycinki i słupki ≥ 3:1 względem karty, tekst ≥ 4,5:1; wycinek i legenda są linkami; wiersze legendy ≥ 44 px.
 - Jedna animacja: wjazd wycinków (dasharray), wyłączona przy `prefers-reduced-motion`.
 - Porównania liczone rzetelnie: bieżący (niepełny) miesiąc vs ten sam zakres dni poprzedniego, podpis mówi to wprost.
+
+### Wykres prognozy „Do wypłaty” (M8 E3b)
+- Linia salda dzień po dniu, `viewBox` 360×200, na całą szerokość karty (`.fc-line`, bez limitu 520 px).
+- Strefa poniżej zera: `--neg` przy krycie 0,08, od kreski zera do osi X. Kreska bufora: `--warn`.
+- Znaczniki zdarzeń na saldzie z końca dnia: wpływy `--pos` (wszystkie), wydatki `--neg` (3 największe);
+  nazwa i kwota w `<title>`. Reszta zdarzeń jest tylko na liście pod wykresem.
+- Etykieta „najniżej dd.mm” przy dnie, kotwica start/middle/end zależnie od położenia; oś X: „dziś” i „wypłata dd.mm”.
+- Lista pod wykresem (`ul.rows.fc-list`): jedna chronologiczna, „saldo” w ostatnim wierszu dnia, wiersz dna na `--surface-2`.
