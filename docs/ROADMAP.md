@@ -29,13 +29,14 @@ jawne „go” przed następnym).
 | M5c | **Skarbonki, trendy, limity** — nieregularne z celem rocznym, wykresy miesięczne, opcjonalne limity, `savings_rate` | — |
 | M6 | **Podsumowania + kalendarz płatności** — tydzień/miesiąc na telefon, kalendarz ICS | wywiad 2026-10-06 (`PLAN_M6.md`): cel = korekta wydatków w trakcie miesiąca; E1 podsumowania (poniedziałek + 1. dnia, 7:00, grupa domowników) i E2 kalendarz ICS → Remote Calendar wydane razem jako 0.22.0 i zainstalowane 2026-10-06; kalendarz zweryfikowany na żywo; 0.22.1 — link w powiadomieniu `/app/<slug>` (HA 2026.9: `/hassio/ingress/` = 404); ✅ 2026-10-06 — dostarczenie i otwieranie panelu potwierdzone przez użytkownika |
 | M7 | **Kategoryzacja v2** — lokalny klasyfikator (LLM przeniesiony do M4c) | — |
-| M8 | **Prognoza przepływów** — saldo do końca miesiąca, „bezpiecznie do wydania” | — |
+| M8 | **Prognoza: czy starczy do wypłaty** — wolne środki (rachunek PLN − zadłużenie karty) dzień po dniu do najbliższej wypłaty, najniższy punkt, ostrzeżenie poniżej bufora | wywiad 2026-10-06 (`PLAN_M8.md`, decyzja 17); start po M15 E1 |
 | M9 | **Majątek netto + kredyt** | — |
 | M10 | **Moduł oszczędności** — cele i postęp oszczędzania, stopa oszczędności w czasie (zakres do wywiadu) | — |
 | M11 | **Integracja z trackerem akcji** (osobny add-on autora) — wartość pakietu akcji w majątku netto, wpływy ze sprzedaży/dywidend powiązane z księgą (zakres do wywiadu) | — |
 | M12 | **Czat AI z danymi** — pytania o własne finanse w języku naturalnym w panelu (zakres danych wysyłanych do LLM do ustalenia, jak decyzja 12) | — |
 | M13 | **Całkowity refaktor UI** panelu — styl Monarch (jasny, jeden pomarańczowy akcent; wybrany 2026-10-05 spośród Copilot Money i Monarch), strona główna = podsumowanie budżetu, Status w menu ⚙ | ✅ 2026-10-06 — M13 zamknięty przez użytkownika (`PLAN_M13.md`): E1 0.18.0 fundament, nawigacja, Podsumowanie v0 ✅; E1b 0.18.1 drugi wygląd i przełącznik ✅ (`PLAN_M13_E1b.md`); E2 0.19.0 rozszerzone Podsumowanie: wykres kołowy kategorii, bilans z porównaniem, nadchodzące serie, ostatnie transakcje, wykres 12 miesięcy, przełączanie miesięcy ✅ (`PLAN_M13_E2.md`); E1c 0.19.1 jeden wygląd (Monarch), usunięty Copilot i przełącznik ✅ (wydane); E3 0.20.0 ekrany robocze (Transakcje, Do przejrzenia, Reguły): cele dotyku ≥ 44 px, wiersze na 360 px; kroki 0 pomiar, 1 Do przejrzenia, 2 Transakcje, 3 Reguły, 4 wydanie ✅ (`PLAN_M13_E3.md`, wydane 0.20.0); E3b 0.20.1 cele dotyku na Podsumowaniu, w tym słupki 12 miesięcy ≥ 24 px ✅ (`PLAN_M13_E3b.md`, wydane 0.20.1); E3c 0.20.2 cele dotyku w Wydatkach i Budżecie ✅ (`PLAN_M13_E3c.md`, wydane 0.20.1 razem z E3b); E3d 0.20.2 cele dotyku na pozostałych ekranach (reguła globalna dla pól i przycisków, rozwijany wiersz w Kategoriach, linki w zdaniu przez `::after`) — wszystkie ekrany ≥ 44 px ✅ (`PLAN_M13_E3d.md`, wydane 0.20.2; checkpoint zamknięty przez użytkownika 2026-10-05); E3e 0.20.3 domknięcie M13: pusty stan Reguł, „Wpływy” ≥ 44 px, rozwijany wiersz w Kosztach stałych, wspólna klasa linków `a.tap` — wydane 0.20.3 2026-10-05, na żywo 0 elementów < 44 px (`PLAN_M13_E3e.md`); ✅ checkpoint zamknięty przez użytkownika 2026-10-06 |
 | M14 | **Wydajność panelu** — pomiar na produkcji 2026-10-05: 0,45–1,7 s na ekran, stały koszt ~450 ms (dzwonek), pętla zdarzeń blokowana przez ciężkie żądania; E1 Ledger snapshot (seria + sumy + kategorie po sygnaturze bazy), potem do decyzji: handlery poza pętlą zdarzeń, kolejka „Do przejrzenia”, PRAGMA/indeksy | E1 0.21.0 i E1b 0.21.1 ✅ wydane 2026-10-05 (`PLAN_M14_E1.md`): `/` 1425→438 ms, `/budget` 1320→351, `/recurring` 1698→308, `/accounts` 1126→125, dzwonek 853→293; wszystkie ekrany < 400 ms (`/` < 600); podgląd reguły w kolejce ~40 ms; **M14 zamknięty 2026-10-06** (decyzja użytkownika po pomiarach); niezrobione świadomie: handlery poza pętlą zdarzeń, PRAGMA/indeksy, pomiar ścieżki zapisu |
+| M15 | **Karta kredytowa** — E1 licznik zakupów w miesiącu (karta bezpłatna przy 5) + ostrzeżenie przed końcem miesiąca; E2 limit, cykl rozliczeniowy, termin bezodsetkowy, kwota do spłaty w terminie | wywiad 2026-10-06 (`PLAN_M15.md`, decyzja 18); kolejność **M15 E1 → M8 → M15 E2**; E1 = 0.23.0 — kroki do akceptacji |
 
 Mapowanie starego planu (SPEC §10) na nowy: storage+dedup → M2; sync_service, panel, pakowanie,
 HA publisher (podstawy) → M3; kategoryzacja → M4/M7; `budget_engine` → M5; import CSV → M2;
@@ -92,6 +93,15 @@ backlog (decyzja 10).
     transakcje serii nie wchodzą do „wydane”. Serie wpływów nie zmieniają puli. Dzwonek w panelu
     zbiera wszystko, co czeka na decyzję (nowe serie, zmiany serii, nieskategoryzowane miesiąca,
     sprawy operacyjne) + encja `sensor.budget_inbox`. Szczegóły: [`PLAN_M5b.md`](PLAN_M5b.md).
+
+17. **(2026-10-06) Prognoza (M8) odpowiada na „czy starczy do wypłaty”:** wolne środki = saldo
+    rachunku PLN − bieżące zadłużenie karty (jawnie rozbite na widoku), EUR poza wynikiem;
+    horyzont do najbliższej wypłaty z serii przychodów; przyszłe wydatki = serie + reszta puli
+    Flex; ostrzeżenie (dzwonek + encje) poniżej bufora z opcji. Szczegóły: [`PLAN_M8.md`](PLAN_M8.md).
+18. **(2026-10-06) Karta kredytowa (M15):** licznik zakupów bezgotówkowych w miesiącu
+    kalendarzowym (karta bezpłatna przy 5), powiadomienie 5 dni i dzień przed końcem miesiąca,
+    gdy warunek niespełniony; potem limit (ręcznie) i okres bezodsetkowy (ustawienia — API ich
+    nie podaje). Kolejność M15 E1 → M8 → M15 E2. Szczegóły: [`PLAN_M15.md`](PLAN_M15.md).
 
 ## Zmiany względem SPEC (zweryfikowane na danych)
 
