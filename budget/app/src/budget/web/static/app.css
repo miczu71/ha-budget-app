@@ -814,17 +814,20 @@ a.row { min-height: var(--tap); align-content: center; }
   inset: calc(50% - var(--tap) / 2) 0;
 }
 
-/* M8 E1: „Do wypłaty” na Podsumowaniu */
-.forecast .hero-amount { margin-bottom: 0; }
-.forecast .hero-amount.neg { color: var(--neg); }
-.fc-kv { margin: 12px 0; }
-.fc-kv > div { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; align-items: baseline; padding: 4px 0; }
-.fc-kv dt { color: var(--muted); }
-.fc-kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-.fc-kv .sum { border-top: 1px solid var(--border); font-weight: 600; }
-.fc-kv .sum dt { color: var(--text); }
-.fc-kv .neg { color: var(--neg); }
-.fc-more { grid-column: 1 / -1; }
+/* M8 E1/E3a: „Do wypłaty” na Podsumowaniu */
+.fc-when { color: var(--muted); font-weight: 400; }
+.fc-verdict .hero-amount { font-size: clamp(30px, 9vw, 40px); margin-bottom: 4px; }
+.fc-verdict.bad .hero-amount { color: var(--neg); }
+.fc-verdict.ok .hero-amount { color: var(--pos); }
+.fc-verdict p { margin: 0 0 12px; }
+.fc-verdict strong { color: var(--text); font-weight: 600; }
+.fc-strip { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; margin: 0; background: var(--border); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.fc-strip > div { background: var(--surface-2); padding: 8px 12px; }
+.fc-strip dt { color: var(--muted); font-size: 13px; }
+.fc-strip dd { margin: 0; font-variant-numeric: tabular-nums; }
+.fc-result { margin: 8px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fc-result .small { font-weight: 400; }
+@media (min-width: 720px) { .fc-strip { grid-template-columns: repeat(4, 1fr); } }
 .fc-more summary { min-height: var(--tap); display: inline-flex; align-items: center; cursor: pointer; color: var(--text-2); font-size: 13px; }
 .fc-more .rows { margin: 0 0 8px; }
 .fc-line .zero { stroke: var(--neg); stroke-dasharray: none; opacity: 0.5; }
@@ -832,4 +835,11 @@ a.row { min-height: var(--tap); align-content: center; }
 .fc-line .fc-path { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .fc-line .fc-low { fill: var(--accent); stroke: var(--surface-1); stroke-width: 2; }
 .fc-line .fc-end { fill: var(--text); }
-.fc-opts { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 8px 0 12px; }
+.fc-foot { margin-top: 8px; }
+.fc-foot p { margin: 0; }
+label.switch { gap: 10px; }
+label.switch input[type="checkbox"] { appearance: none; width: 36px; height: 20px; border-radius: 10px; background: var(--surface-3); border: 1px solid var(--control-border); position: relative; cursor: pointer; }
+label.switch input[type="checkbox"]::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--text-2); transition: transform 0.15s; }
+label.switch input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+label.switch input[type="checkbox"]:checked::after { transform: translateX(16px); background: var(--on-accent); }
+@media (prefers-reduced-motion: reduce) { label.switch input[type="checkbox"]::after { transition: none; } }

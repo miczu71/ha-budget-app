@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import sqlite3
 from collections.abc import AsyncIterator
 from datetime import date, timedelta
@@ -225,12 +226,13 @@ async def test_home_shows_forecast_with_card_debt_row(
 ) -> None:
     _balances(service.conn)
     page = (await client.get("/")).text
-    assert "Do końca miesiąca" in page and "najniższy punkt" in page
-    for text in ("Saldo rachunku PLN", "Zadłużenie karty", "Wolne środki dziś", "Reszta puli Flex"):
+    assert "Do końca miesiąca" in page and "Starczy · zapas" in page
+    for text in ("Rachunek", "karta", "Wolne dziś", "Flex"):
         assert text in page
     for amount in ("9136.98", "377.67", "8759.31"):
         assert fmt_money(amount, "PLN") in page
-    assert "poniżej" not in page
+    assert "poniżej" not in page and "dziennie" in page
+    assert 'role="switch"' in page and 'name="include"' in page and "checked" in page
 
 
 async def test_forecast_card_row_is_visible_without_debt(
@@ -238,7 +240,7 @@ async def test_forecast_card_row_is_visible_without_debt(
 ) -> None:
     _balances(service.conn, debt="0.00")
     page = (await client.get("/")).text
-    assert "Zadłużenie karty" in page and fmt_money("0.00", "PLN") in page
+    assert "karta " + fmt_money("0.00", "PLN") in page
 
 
 async def test_forecast_flags_lowest_point_below_buffer(
@@ -247,16 +249,55 @@ async def test_forecast_flags_lowest_point_below_buffer(
     _balances(service.conn)
     service.settings = service.settings.model_copy(update={"forecast_buffer": 10_000})
     page = (await client.get("/")).text
-    assert "poniżej bufora" in page and fmt_money("10000", "PLN") in page
+    assert "Poniżej bufora o" in page and "poniżej bufora (" in page
+    assert fmt_money("10000", "PLN") in page and "Starczy" not in page
+
+
+@pytest.mark.parametrize(
+    ("low", "safe", "expected"),
+    [
+        (
+            "-150.00",
+            "190.00",
+            ("Zabraknie", fmt_money("150.00", "PLN"), "Wydawaj do", fmt_money("190.00", "PLN")),
+        ),
+        ("-150.00", "-20.00", ("Zabraknie", "Same płatności cykliczne przekraczają")),
+        ("-150.00", None, ("Zabraknie",)),
+    ],
+)
+async def test_forecast_verdict_when_short(
+    client: httpx.AsyncClient,
+    service: Service,
+    monkeypatch: pytest.MonkeyPatch,
+    low: str,
+    safe: str | None,
+    expected: tuple[str, ...],
+) -> None:
+    _balances(service.conn)
+    real = forecast.build
+
+    def short(*args: object, **kwargs: object) -> forecast.Forecast | None:
+        fc = real(*args, **kwargs)  # type: ignore[arg-type]
+        assert fc is not None
+        return dataclasses.replace(
+            fc, low=Decimal(low), safe_per_day=None if safe is None else Decimal(safe)
+        )
+
+    monkeypatch.setattr(forecast, "build", short)
+    page = (await client.get("/")).text
+    for text in expected:
+        assert text in page
+    assert "Starczy" not in page
+    assert ("Wydawaj do" in page) is (safe is not None and Decimal(safe) > 0)
 
 
 async def test_forecast_hidden_without_balances_and_in_past_months(
     client: httpx.AsyncClient, service: Service
 ) -> None:
-    assert "Zadłużenie karty" not in (await client.get("/")).text
+    assert "Wolne dziś" not in (await client.get("/")).text
     _balances(service.conn)
     prev = spending.add_months(date.today().replace(day=1), -1)
-    assert "Zadłużenie karty" not in (await client.get(f"/?month={prev:%Y-%m}")).text
+    assert "Wolne dziś" not in (await client.get(f"/?month={prev:%Y-%m}")).text
 
 
 async def test_forecast_failure_does_not_break_home(
@@ -277,11 +318,11 @@ async def test_card_debt_checkbox_is_remembered(
 ) -> None:
     _balances(service.conn)
     page = (await client.get("/")).text
-    assert 'name="include" value="1" checked' in page and "nie odjęte" not in page
+    assert 'name="include" value="1" checked' in page and "nie odjęta" not in page
     resp = await client.post("/forecast/card-debt", data={})  # odznaczony checkbox nic nie wysyła
     assert resp.status_code == 303 and not forecast.include_card_debt(service.conn)
     page = (await client.get("/")).text
-    assert "nie odjęte" in page and 'value="1" checked' not in page.split("fc-opts")[1][:200]
+    assert "nie odjęta" in page and 'name="include" value="1" checked' not in page
     assert fmt_money("9136.98", "PLN") in page  # wolne środki bez odjęcia karty
     await client.post("/forecast/card-debt", data={"include": "1"})
     assert forecast.include_card_debt(service.conn)

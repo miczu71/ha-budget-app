@@ -17,7 +17,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from decimal import Decimal
+from decimal import ROUND_FLOOR, Decimal
 
 from budget import card, flex, ledger, money
 from budget.recurring import schedule
@@ -70,10 +70,18 @@ class Forecast(Projection):
     stale: bool = False
     buffer: Decimal = ZERO
     card_debt_included: bool = True
+    safe_per_day: Decimal | None = (
+        None  # dzienny limit Flex, przy którym dno = bufor; None bez dni Flex
+    )
+    days_left: int = 0  # dni od dziś do końca horyzontu
 
     @property
     def below_buffer(self) -> bool:
         return self.low < self.buffer
+
+    @property
+    def shortfall(self) -> Decimal:
+        return max(self.buffer - self.low, ZERO)
 
 
 def payday_series_id(conn: sqlite3.Connection) -> int | None:
@@ -120,6 +128,21 @@ def flex_per_day(f: flex.FlexMonth) -> Decimal:
     if f.remaining is not None and f.remaining > 0 and after > 0:
         return (f.remaining / after).quantize(money.CENT)
     return (f.spent / f.day).quantize(money.CENT) if f.spent > 0 else ZERO
+
+
+def safe_per_day(
+    days: Sequence[tuple[date, Decimal]], today: date, per_day: Decimal, buffer: Decimal = ZERO
+) -> Decimal | None:
+    """Ile można wydawać dziennie z puli Flex (zamiast `per_day`), żeby saldo nigdy nie spadło
+    poniżej bufora: dla każdego dnia `d` po dzisiejszym `per_day + (saldo − bufor) / dni do d`,
+    a najostrzejszy dzień rządzi. Ujemny wynik = same serie przekraczają wolne środki;
+    None, gdy nie ma dni Flex (horyzont kończy się dziś)."""
+    limits = [
+        per_day + (balance - buffer) / (day - today).days for day, balance in days if day > today
+    ]
+    if not limits:
+        return None
+    return min(limits).quantize(money.CENT, rounding=ROUND_FLOOR)
 
 
 def _is_payday_candidate(d: schedule.Due, today: date) -> bool:
@@ -263,4 +286,6 @@ def build(
         stale=now - datetime.fromisoformat(balances.fetched_at) > STALE_AFTER,
         buffer=buffer,
         card_debt_included=card_debt_included,
+        safe_per_day=safe_per_day(p.days, today, per_day, buffer),
+        days_left=(p.horizon_end - today).days,
     )

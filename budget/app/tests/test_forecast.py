@@ -54,6 +54,22 @@ def test_series_flex_and_inflows_up_to_payday() -> None:
     assert p.days[0] == (TODAY, Decimal("1000.00")) and len(p.days) == 8
 
 
+def test_safe_per_day_is_set_by_the_tightest_day() -> None:
+    p = run([due(1, date(2026, 10, 5), "400", "out"), due(2, date(2026, 10, 10), "5000", "in")])
+    # dno 10.10: (1000 − 400 − 70) → 10 + 530/7; dzień 5.10: (1000 − 400 − 20) → 10 + 580/2
+    assert forecast.safe_per_day(p.days, TODAY, Decimal(10)) == Decimal("85.71")
+    assert forecast.safe_per_day(p.days, TODAY, Decimal(10), Decimal(100)) == Decimal("71.42")
+
+
+def test_safe_per_day_negative_when_series_alone_exceed_funds() -> None:
+    p = run([due(1, date(2026, 10, 5), "1500", "out"), due(2, date(2026, 10, 10), "5000", "in")])
+    assert forecast.safe_per_day(p.days, TODAY, Decimal(10)) == Decimal("-250.00")
+
+
+def test_safe_per_day_none_without_flex_days() -> None:
+    assert forecast.safe_per_day([(TODAY, Decimal(500))], TODAY, Decimal(10)) is None
+
+
 def test_late_outflow_counts_today_late_inflow_is_ignored() -> None:
     p = run(
         [
