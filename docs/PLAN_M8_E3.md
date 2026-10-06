@@ -77,3 +77,19 @@ dublowanie), DESIGN.md (w E3b dopiszę tylko sekcję wykresu prognozy).
 - Pasek równania zastąpił tabelę od razu (zamiast dublować liczby do E3b); listy serii i wpływów nadal
   w dwóch `<details>`, do zastąpienia w E3b.
 - Na desktopie wykres zajmuje ok. połowy szerokości karty (stały `viewBox`) — do poprawy w E3b.
+
+## Wynik E3b (2026-10-06)
+
+- **0.29.0 wydane** (release `v0.29.0`, nie draft), CI zielone, zainstalowane z backupem add-onu; 626 testów, ruff i mypy czyste.
+- Na produkcji: stopka `v0.29.0`, statyki `?v=0.29.0`, jedna lista `ul.fc-list` (0 starych `<details>`), strefa poniżej zera,
+  znaczniki, wiersz dna wyróżniony, 0 błędów konsoli. Telefon 390 px: czytelne; desktop 1280 px: wykres 640×356 px,
+  czcionka osi ok. 12 px, bez poziomego przewijania.
+- Odstępstwa od planu: (1) wykres ma `max-width: 640px` i na ekranach ≥ 720 px czcionkę osi 7 jednostek SVG — pełna szerokość
+  karty rozciągała tekst do ok. 40 px; (2) zwinięta część listy otwiera się sama, gdy chowa wiersz dna;
+  (3) lista `events` w `project()` jest źródłem znaków kwot, a `delta` liczy się z niej; (4) `impeccable detect` pominięty — narzędzia
+  nie ma w tej instalacji, zrzuty i pomiary robione ręcznie.
+- Instalacja: `ha_manage_updates` przerwało się timeoutem klienta po ok. 5 min, aktualizacja dokończyła się po stronie HA
+  (sprawdzone na encji `update.*`, bez ponawiania).
+- Do zgłoszenia: karta „Co jeszcze zejdzie” częściowo dubluje listę zdarzeń pod wykresem (nie ruszana).
+- **Czeka checkpoint użytkownika.**
+
