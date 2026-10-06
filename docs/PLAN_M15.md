@@ -107,6 +107,14 @@ liczy 5 płatności dla każdej.
 - Encja `sensor.budget_card_purchases_month` bez zmiany `entity_id`: nowe atrybuty `holders`,
   `unassigned`.
 
+### Wynik E2
+
+- 2026-10-06: 0.24.0 wydane (v0.24.0, CI zielone) i zainstalowane z backupem add-onu (`b4c02743`);
+  564 testy. Na żywo dodane dwie osoby (karta główna, potem dodatkowa — imiona tylko w bazie);
+  ekran Karta: 0/5 i 0/5, 1 płatność do przypisania; encja z atrybutami `holders`, `unassigned`;
+  konsola bez błędów. Przegląd `simplify`: jeden model (bez osób = pozycja „Razem”), „do
+  przypisania” tylko z bieżącego miesiąca.
+
 ## E3 — historia z CSV (0.24.1)
 
 - Przy każdej osobie wybór numeru karty z eksportu CSV → `card_holder.csv_number`.
