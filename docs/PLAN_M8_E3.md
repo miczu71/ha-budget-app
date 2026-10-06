@@ -91,5 +91,5 @@ dublowanie), DESIGN.md (w E3b dopiszę tylko sekcję wykresu prognozy).
 - Instalacja: `ha_manage_updates` przerwało się timeoutem klienta po ok. 5 min, aktualizacja dokończyła się po stronie HA
   (sprawdzone na encji `update.*`, bez ponawiania).
 - Do zgłoszenia: karta „Co jeszcze zejdzie” częściowo dubluje listę zdarzeń pod wykresem (nie ruszana).
-- **Czeka checkpoint użytkownika.**
+- ✅ Checkpoint zamknięty przez użytkownika 2026-10-06; M8 zamknięty.
 
