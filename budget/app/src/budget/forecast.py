@@ -1,0 +1,200 @@
+"""Prognoza „czy starczy do wypłaty” (M8 E1): wolne środki dzień po dniu do najbliższej wypłaty.
+
+Wolne środki dziś = saldo rachunku PLN (dostępne, już bez autoryzacji) − bieżące zadłużenie karty.
+Przyszłość: oczekiwane i spóźnione wydatki serii w ich terminach (spóźnione liczą się dziś),
+reszta puli Flex po równo na dni, wpływy serii przed wypłatą. Wydatki zrobione dziś są już
+w saldzie i zadłużeniu karty, więc Flex liczy się od jutra. Spóźniony wpływ nie jest
+wypłatą ani nie zwiększa salda — nie wiadomo, kiedy dotrze. Wypłata = najbliższy termin aktywnej
+serii wpływowej o największej oczekiwanej kwocie (mniejsze wpływy przed nią wchodzą do salda);
+bez takiej serii horyzont kończy się z miesiącem. Saldo na dzień wypłaty jest przed jej
+wpłynięciem, bo tam leży dno.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+from collections import defaultdict
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from datetime import date, datetime, timedelta
+from decimal import Decimal
+
+from budget import card, flex, ledger, money
+from budget.recurring import schedule
+from budget.snapshot import Snapshot
+from budget.spending import add_months
+
+ZERO = Decimal(0)
+EXTRA_MONTHS = 2  # ile następnych miesięcy sprawdzamy, gdy bieżący nie ma już wypłaty
+STALE_AFTER = timedelta(hours=24)
+
+
+@dataclass
+class Balances:
+    account: Decimal  # rachunek PLN: dostępne (ITAV), a bez niego zaksięgowane (ITBD)
+    card_debt: Decimal  # karta: ITBD = bieżące zadłużenie; bez karty 0
+    eur: Decimal | None
+    fetched_at: str  # najstarsza z migawek użytych do wyniku
+
+
+@dataclass
+class Projection:
+    payday: date | None
+    payday_series: str | None
+    horizon_end: date
+    outflows: list[schedule.Due] = field(default_factory=list)
+    inflows: list[schedule.Due] = field(default_factory=list)
+    flex_total: Decimal = ZERO
+    days: list[tuple[date, Decimal]] = field(default_factory=list)  # saldo na koniec dnia
+    at_payday: Decimal = ZERO
+    low: Decimal = ZERO
+    low_day: date | None = None
+
+    @property
+    def series_out(self) -> Decimal:
+        return sum((d.series.expected_amount for d in self.outflows), ZERO)
+
+    @property
+    def inflows_total(self) -> Decimal:
+        return sum((d.series.expected_amount for d in self.inflows), ZERO)
+
+
+@dataclass
+class Forecast(Projection):
+    balances: Balances | None = None
+    free_now: Decimal = ZERO
+    flex_per_day: Decimal = ZERO
+    stale: bool = False
+    buffer: Decimal = ZERO
+
+    @property
+    def below_buffer(self) -> bool:
+        return self.low < self.buffer
+
+
+def read_balances(conn: sqlite3.Connection) -> Balances | None:
+    """Salda z ostatnich migawek; None, gdy rachunek PLN nie ma żadnej."""
+    accounts = {
+        kind: conn.execute(
+            "SELECT id FROM account WHERE kind = ? AND currency = ? ORDER BY id", (kind, cur)
+        ).fetchone()
+        for kind, cur in (("current", "PLN"), ("card", "PLN"), ("fx", "EUR"))
+    }
+    snaps = ledger.latest_balances(conn, accounts["current"]["id"]) if accounts["current"] else {}
+    main = snaps.get("ITAV") or snaps.get("ITBD")
+    if main is None:
+        return None
+    fetched = [main["fetched_at"]]
+    card_debt = ZERO
+    if accounts["card"]:
+        debt = ledger.latest_balances(conn, accounts["card"]["id"]).get("ITBD")
+        if debt is not None:
+            card_debt = max(Decimal(debt["amount"]), ZERO)
+            fetched.append(debt["fetched_at"])
+    eur = None
+    if accounts["fx"]:
+        row = ledger.latest_balances(conn, accounts["fx"]["id"])
+        found = row.get("ITAV") or row.get("ITBD")
+        eur = Decimal(found["amount"]) if found else None
+    return Balances(Decimal(main["amount"]), card_debt, eur, min(fetched))
+
+
+def flex_per_day(f: flex.FlexMonth) -> Decimal:
+    """Ile dziennie wydaje się z puli od jutra: reszta puli po równo na pozostałe dni miesiąca,
+    a gdy pula wyczerpana (albo jej nie ma, albo to ostatni dzień) — dotychczasowe tempo."""
+    assert f.day is not None
+    after = f.days_in_month - f.day
+    if f.remaining is not None and f.remaining > 0 and after > 0:
+        return (f.remaining / after).quantize(money.CENT)
+    return (f.spent / f.day).quantize(money.CENT) if f.spent > 0 else ZERO
+
+
+def _is_payday_candidate(d: schedule.Due, today: date) -> bool:
+    """Oczekiwany wpływ po dzisiejszym dniu; spóźniony nie wiadomo, kiedy dotrze."""
+    return (
+        d.series.direction == "in"
+        and d.status == schedule.EXPECTED
+        and d.due is not None
+        and d.due > today
+    )
+
+
+def project(
+    *,
+    free_now: Decimal,
+    today: date,
+    dues: Sequence[schedule.Due],
+    per_day: Decimal,
+) -> Projection:
+    """Saldo dzień po dniu od dziś do dnia wypłaty (czysta logika)."""
+    live = [
+        (max(d.due, today), d)
+        for d in dues
+        if d.due is not None and d.status in (schedule.EXPECTED, schedule.LATE)
+    ]
+    paydays = [(day, d) for day, d in live if _is_payday_candidate(d, today)]
+    first = min(
+        paydays, key=lambda p: (-p[1].series.expected_amount, p[0], p[1].series.name), default=None
+    )
+    end = first[0] if first else card.last_day(today)
+    result = Projection(first[0] if first else None, first[1].series.name if first else None, end)
+    out = sorted(
+        ((day, d) for day, d in live if d.series.direction == "out" and day <= end),
+        key=lambda p: p[0],
+    )
+    inflows = sorted((p for p in paydays if p[0] < end), key=lambda p: p[0])
+    result.outflows, result.inflows = [d for _, d in out], [d for _, d in inflows]
+    delta: defaultdict[date, Decimal] = defaultdict(Decimal)
+    for day, d in out:
+        delta[day] -= d.series.expected_amount
+    for day, d in inflows:
+        delta[day] += d.series.expected_amount
+    balance, day = free_now, today
+    while day <= end:
+        if day > today:
+            balance -= per_day
+            result.flex_total += per_day
+        balance += delta[day]
+        result.days.append((day, balance.quantize(money.CENT)))
+        day += timedelta(days=1)
+    result.at_payday = result.days[-1][1]
+    result.low_day, result.low = min(result.days, key=lambda p: (p[1], p[0]))
+    return result
+
+
+def _dues(snap: Snapshot, today: date, mv: schedule.MonthView) -> list[schedule.Due]:
+    """Terminy bieżącego miesiąca (już policzone dla Podsumowania) i, dopóki nie ma wypłaty,
+    kolejnych miesięcy."""
+    rows, month = list(mv.rows), mv.month
+    for _ in range(EXTRA_MONTHS):
+        if any(_is_payday_candidate(d, today) for d in rows):
+            break
+        month = add_months(month, 1)
+        rows += schedule.for_month(snap, month, today).rows
+    return rows
+
+
+def build(
+    snap: Snapshot,
+    today: date,
+    now: datetime,
+    f: flex.FlexMonth,
+    mv: schedule.MonthView,
+    buffer: Decimal = ZERO,
+) -> Forecast | None:
+    """Prognoza z bazy dla bieżącego miesiąca (`f`, `mv` — już policzone przez Podsumowanie);
+    None, gdy rachunek PLN nie ma jeszcze żadnej migawki salda."""
+    balances = read_balances(snap.conn)
+    if balances is None:
+        return None
+    free_now = balances.account - balances.card_debt
+    per_day = flex_per_day(f)
+    p = project(free_now=free_now, today=today, dues=_dues(snap, today, mv), per_day=per_day)
+    return Forecast(
+        **vars(p),
+        balances=balances,
+        free_now=free_now,
+        flex_per_day=per_day,
+        stale=now - datetime.fromisoformat(balances.fetched_at) > STALE_AFTER,
+        buffer=buffer,
+    )

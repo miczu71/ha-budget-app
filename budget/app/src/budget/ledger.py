@@ -908,6 +908,18 @@ def check_balances(conn: sqlite3.Connection) -> list[BalanceCheck]:
     return out
 
 
+def latest_balances(conn: sqlite3.Connection, account_id: int) -> dict[str, sqlite3.Row]:
+    """Migawki salda konta z ostatniego pobrania, po typie salda (`ITAV`, `ITBD`…)."""
+    return {
+        r["balance_type"]: r
+        for r in conn.execute(
+            "SELECT * FROM balance_snapshot WHERE account_id = ? AND fetched_at = "
+            "(SELECT max(fetched_at) FROM balance_snapshot WHERE account_id = ?)",
+            (account_id, account_id),
+        )
+    }
+
+
 def set_reconcile_base(conn: sqlite3.Connection, account_id: int) -> str | None:
     """Ostatnia migawka ITBD konta jako baza kontroli; None — brak migawek."""
     row = conn.execute(

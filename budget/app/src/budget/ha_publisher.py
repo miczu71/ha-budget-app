@@ -21,7 +21,7 @@ from typing import Any
 
 import aiomqtt
 
-from budget import __version__, card, flex, inbox, money, sessions, sync_service
+from budget import __version__, card, flex, inbox, ledger, money, sessions, sync_service
 from budget.logging_utils import mask_iban
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
@@ -94,14 +94,7 @@ def build_entities(
     entities: list[Entity] = []
     taken: set[str] = set()
     for acc in conn.execute("SELECT * FROM account ORDER BY id").fetchall():
-        snaps = {
-            r["balance_type"]: r
-            for r in conn.execute(
-                "SELECT * FROM balance_snapshot WHERE account_id = ? AND fetched_at = "
-                "(SELECT max(fetched_at) FROM balance_snapshot WHERE account_id = ?)",
-                (acc["id"], acc["id"]),
-            )
-        }
+        snaps = ledger.latest_balances(conn, acc["id"])
         if not snaps:
             continue
         main = snaps.get("ITAV") or snaps.get("ITBD") or next(iter(snaps.values()))

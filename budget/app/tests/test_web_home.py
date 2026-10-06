@@ -10,11 +10,12 @@ from decimal import Decimal
 import httpx
 import pytest
 
-from budget import spending
+from budget import forecast, spending
 from budget.categorize.rules import Conditions, TextCondition
 from budget.recurring import series as S
 from budget.service import Service
 from budget.storage.db import now_iso
+from budget.web.common import fmt_money
 from budget.web.routes_home import compare_label
 
 from .test_web import INGRESS, _client
@@ -196,3 +197,76 @@ async def test_charts_render_and_there_is_no_theme_switch(
     assert "data-theme" not in page and 'content="#efecea"' in page  # jeden wygląd (Monarch)
     assert "Wygląd" not in page and "/theme" not in page
     assert (await client.post("/theme", data={"theme": "neon"})).status_code in (404, 405)
+
+
+# --- „Do wypłaty” (M8 E1) ----------------------------------------------------------------
+
+
+def _balances(conn: sqlite3.Connection, account: str = "9136.98", debt: str = "377.67") -> None:
+    conn.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (1, 'current', 'PLN', ?)",
+        (now_iso(),),
+    )
+    conn.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (2, 'card', 'PLN', ?)",
+        (now_iso(),),
+    )
+    at = now_iso()
+    for acc, kind, amount in ((1, "ITAV", account), (2, "ITBD", debt)):
+        conn.execute(
+            "INSERT INTO balance_snapshot (account_id, balance_type, amount, currency, fetched_at)"
+            " VALUES (?, ?, ?, 'PLN', ?)",
+            (acc, kind, amount, at),
+        )
+
+
+async def test_home_shows_forecast_with_card_debt_row(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    page = (await client.get("/")).text
+    assert "Do końca miesiąca" in page and "najniższy punkt" in page
+    for text in ("Saldo rachunku PLN", "Zadłużenie karty", "Wolne środki dziś", "Reszta puli Flex"):
+        assert text in page
+    for amount in ("9136.98", "377.67", "8759.31"):
+        assert fmt_money(amount, "PLN") in page
+    assert "poniżej" not in page
+
+
+async def test_forecast_card_row_is_visible_without_debt(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn, debt="0.00")
+    page = (await client.get("/")).text
+    assert "Zadłużenie karty" in page and fmt_money("0.00", "PLN") in page
+
+
+async def test_forecast_flags_lowest_point_below_buffer(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    service.settings = service.settings.model_copy(update={"forecast_buffer": 10_000})
+    page = (await client.get("/")).text
+    assert "poniżej bufora" in page and fmt_money("10000", "PLN") in page
+
+
+async def test_forecast_hidden_without_balances_and_in_past_months(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    assert "Zadłużenie karty" not in (await client.get("/")).text
+    _balances(service.conn)
+    prev = spending.add_months(date.today().replace(day=1), -1)
+    assert "Zadłużenie karty" not in (await client.get(f"/?month={prev:%Y-%m}")).text
+
+
+async def test_forecast_failure_does_not_break_home(
+    client: httpx.AsyncClient, service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _balances(service.conn)
+
+    def boom(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(forecast, "build", boom)
+    resp = await client.get("/")
+    assert resp.status_code == 200 and "Zadłużenie karty" not in resp.text

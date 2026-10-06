@@ -41,6 +41,7 @@ class Settings(BaseModel):
     currency: str = "PLN"
     month_start_day: int = Field(default=1, ge=1, le=28)
     consent_warning_days: int = Field(default=14, ge=1, le=60)
+    forecast_buffer: int = Field(default=0, ge=0, le=1_000_000)  # zł; poniżej = ostrzeżenie M8
     log_level: Literal["debug", "info", "warning", "error"] = "info"
     notify_service: str | None = None  # alias osoby, np. notify.<osoba>
     summary_notify_service: str | None = None  # podsumowania M6; None = wyłączone

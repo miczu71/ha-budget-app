@@ -29,6 +29,9 @@ configuration:
   consent_warning_days:
     name: Consent warning (days)
     description: How many days before the bank consent expires to remind about renewal.
+  forecast_buffer:
+    name: Forecast buffer (PLN)
+    description: Lowest free funds before payday below this amount are flagged in the "Do wypłaty" section of the overview. 0 = warn only below zero.
   currency:
     name: Budget currency
   month_start_day:

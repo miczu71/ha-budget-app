@@ -83,6 +83,14 @@ def test_month_start_day_range(tmp_path: Path, day: int) -> None:
         load_settings({"BUDGET_OPTIONS_PATH": str(path)})
 
 
+def test_forecast_buffer_default_and_range(tmp_path: Path) -> None:
+    assert load_settings({"BUDGET_OPTIONS_PATH": str(_options(tmp_path))}).forecast_buffer == 0
+    path = _options(tmp_path, forecast_buffer=1500)
+    assert load_settings({"BUDGET_OPTIONS_PATH": str(path)}).forecast_buffer == 1500
+    with pytest.raises(SettingsError, match="forecast_buffer"):
+        load_settings({"BUDGET_OPTIONS_PATH": str(_options(tmp_path, forecast_buffer=-1))})
+
+
 def test_broken_json(tmp_path: Path) -> None:
     path = tmp_path / "options.json"
     path.write_text("{", encoding="utf-8")

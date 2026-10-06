@@ -1,0 +1,33 @@
+{# Sekcja „Do wypłaty” (M8 E1): rozbicie z jawnym zadłużeniem karty + wykres; `fc` = forecast.Forecast #}
+{% from "_charts.html" import forecast_chart with context %}
+{% set b = fc.balances %}
+{% macro due_list(items, income) %}
+<ul class="rows">{% for d in items %}<li><a class="row" href="{{ base }}/recurring/{{ d.series.id }}"><span class="row-date">{{ d.due.strftime('%d.%m') }}</span><span class="row-title">{{ d.series.name }}{% if d.status == 'late' %} <span class="badge warn">spóźniona</span>{% endif %}</span><span class="row-amount {{ 'pos' if income }}">{{ d.series.expected_amount | money("PLN") }}</span></a></li>{% endfor %}</ul>
+{% endmacro %}
+<section class="card span2 forecast">
+  <h2>{% if fc.payday %}Do wypłaty — {{ fc.payday.strftime('%d.%m') }}{% else %}Do końca miesiąca{% endif %}</h2>
+  <div class="hero-amount {{ 'neg' if fc.below_buffer else '' }}">{{ fc.low | money("PLN") }}</div>
+  <p class="muted">najniższy punkt, {{ fc.low_day.strftime('%d.%m') }}{% if fc.below_buffer %} — <span class="neg">poniżej {% if fc.buffer %}bufora ({{ fc.buffer | money("PLN") }}){% else %}zera{% endif %}</span>{% endif %}</p>
+  {% if fc.stale %}<p class="small warn-text">Salda z {{ b.fetched_at | ts }} — starsze niż doba.</p>{% endif %}
+  <dl class="fc-kv">
+    <div><dt>Saldo rachunku PLN</dt><dd>{{ b.account | money("PLN") }}</dd></div>
+    <div><dt>− Zadłużenie karty <span class="small muted">({{ b.fetched_at | ts }})</span></dt><dd>{{ b.card_debt | money("PLN") }}</dd></div>
+    <div class="sum"><dt>= Wolne środki dziś</dt><dd>{{ fc.free_now | money("PLN") }}</dd></div>
+    <div>
+      <dt>− Serie do wypłaty ({{ fc.outflows | length }})</dt><dd>{{ fc.series_out | money("PLN") }}</dd>
+      {% if fc.outflows %}<details class="fc-more"><summary>pokaż serie</summary>
+        {{ due_list(fc.outflows, false) }}
+      </details>{% endif %}
+    </div>
+    <div><dt>− Reszta puli Flex <span class="small muted">({{ fc.flex_per_day | money("PLN") }} dziennie)</span></dt><dd>{{ fc.flex_total | money("PLN") }}</dd></div>
+    <div>
+      <dt>+ Wpływy przed wypłatą ({{ fc.inflows | length }})</dt><dd>{{ fc.inflows_total | money("PLN") }}</dd>
+      {% if fc.inflows %}<details class="fc-more"><summary>pokaż wpływy</summary>
+        {{ due_list(fc.inflows, true) }}
+      </details>{% endif %}
+    </div>
+    <div class="sum"><dt>= Na dzień {{ fc.horizon_end.strftime('%d.%m') }}{% if fc.payday %} <span class="small muted">przed wpływem „{{ fc.payday_series }}”</span>{% endif %}</dt><dd class="{{ 'neg' if fc.at_payday < 0 }}">{{ fc.at_payday | money("PLN") }}</dd></div>
+  </dl>
+  {{ forecast_chart(chart, "Wolne środki dzień po dniu do " ~ fc.horizon_end.strftime('%d.%m')) }}
+  {% if b.eur is not none %}<p class="small muted">Rachunek walutowy: {{ b.eur | money("EUR") }} (poza wynikiem).</p>{% endif %}
+</section>

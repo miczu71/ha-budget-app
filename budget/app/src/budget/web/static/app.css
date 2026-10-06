@@ -813,3 +813,22 @@ a.row { min-height: var(--tap); align-content: center; }
   position: absolute;
   inset: calc(50% - var(--tap) / 2) 0;
 }
+
+/* M8 E1: „Do wypłaty” na Podsumowaniu */
+.forecast .hero-amount { margin-bottom: 0; }
+.forecast .hero-amount.neg { color: var(--neg); }
+.fc-kv { margin: 12px 0; }
+.fc-kv > div { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; align-items: baseline; padding: 4px 0; }
+.fc-kv dt { color: var(--muted); }
+.fc-kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.fc-kv .sum { border-top: 1px solid var(--border); font-weight: 600; }
+.fc-kv .sum dt { color: var(--text); }
+.fc-kv .neg { color: var(--neg); }
+.fc-more { grid-column: 1 / -1; }
+.fc-more summary { min-height: var(--tap); display: inline-flex; align-items: center; cursor: pointer; color: var(--text-2); font-size: 13px; }
+.fc-more .rows { margin: 0 0 8px; }
+.fc-line .zero { stroke: var(--neg); stroke-dasharray: none; opacity: 0.5; }
+.fc-line .buffer { stroke: var(--warn); stroke-dasharray: 4 3; }
+.fc-line .fc-path { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.fc-line .fc-low { fill: var(--accent); stroke: var(--surface-1); stroke-width: 2; }
+.fc-line .fc-end { fill: var(--text); }

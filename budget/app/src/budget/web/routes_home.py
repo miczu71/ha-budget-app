@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from budget import card, flex, sessions, spending, sync_service
+from budget import card, flex, forecast, sessions, spending, sync_service
 from budget.recurring import schedule
 from budget.spending import MONTHS, MONTHS_GEN, add_months, month_label, parse_month
 from budget.web import charts
 from budget.web.common import Panel
+
+log = logging.getLogger(__name__)
 
 STALE_AFTER = timedelta(hours=30)  # synchronizacje są 3×/dobę, więc dłuższa przerwa to sygnał
 
@@ -47,6 +51,12 @@ def router(panel: Panel) -> APIRouter:
                 (d for d in mv.rows if d.status in (schedule.EXPECTED, schedule.LATE)),
                 key=lambda d: d.sort_day,
             )
+        fc, buffer = None, Decimal(panel.service.settings.forecast_buffer)
+        if mv is not None:  # prognoza (tylko bieżący miesiąc) nie może zablokować strony głównej
+            try:
+                fc = forecast.build(panel.service.snapshot, today, now, f, mv, buffer)
+            except Exception:
+                log.exception("Prognoza do wypłaty nieudana")
         sync_at = sync_service.last_success(conn)
         record = sessions.current(conn)
         return panel.render(
@@ -77,6 +87,8 @@ def router(panel: Panel) -> APIRouter:
             stale=bool(sync_at and now - datetime.fromisoformat(sync_at) > STALE_AFTER),
             consent_days=record.days_left(now) if record and record.active else None,
             cm=card.month_status(conn, today) if f.is_current else None,
+            fc=fc,
+            chart=charts.forecast_line(fc.days, buffer) if fc else None,
         )
 
     return r

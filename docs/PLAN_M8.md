@@ -6,8 +6,10 @@ Wywiad 2026-10-06. Start po M15 E1 (`PLAN_M15.md`).
 
 1. **Cel:** odpowiedź na pytanie „czy starczy do wypłaty” — wolne środki dzień po dniu do
    najbliższej wypłaty i najniższy punkt po drodze.
-2. **Horyzont:** do najbliższego oczekiwanego wpływu z dowolnej potwierdzonej serii przychodów
-   (M5b); wcześniejsze wpływy z innych serii wchodzą do salda. Bez serii — koniec miesiąca.
+2. **Horyzont (decyzja 2026-10-06, zmienia pierwotne „najbliższy wpływ z dowolnej serii”):** do
+   najbliższego terminu **głównej wypłaty** = aktywnej serii przychodów o największej oczekiwanej
+   kwocie; mniejsze wpływy przed nią wchodzą do salda. Spóźniony wpływ nie jest wypłatą i nie
+   zwiększa salda. Bez serii wpływów — koniec miesiąca.
 3. **Wolne środki dziś** = saldo rachunku PLN − bieżące zadłużenie karty (`ITBD`). Rachunek EUR
    obok jako informacja, poza wynikiem (bez kursów walut).
 4. **Przyszłość:** pozostałe wydatki serii w ich terminach; reszta puli Flex rozłożona równo na

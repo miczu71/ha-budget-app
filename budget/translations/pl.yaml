@@ -29,6 +29,9 @@ configuration:
   consent_warning_days:
     name: Ostrzeżenie o zgodzie (dni)
     description: Ile dni przed wygaśnięciem zgody bankowej przypominać o odnowieniu.
+  forecast_buffer:
+    name: Bufor prognozy (zł)
+    description: Najniższe wolne środki przed wypłatą poniżej tej kwoty są zaznaczone w sekcji „Do wypłaty” na Podsumowaniu. 0 = ostrzeżenie dopiero poniżej zera.
   currency:
     name: Waluta budżetu
   month_start_day:

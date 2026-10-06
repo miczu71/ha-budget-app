@@ -31,6 +31,7 @@ options:
   summary_notify_service: ""
   calendar_entity: ""
   consent_warning_days: 14
+  forecast_buffer: 0
   currency: "PLN"
   month_start_day: 1
   ai_base_url: ""
@@ -49,6 +50,7 @@ schema:
   summary_notify_service: "match(^(notify\\.[a-z0-9_]+)?$)?"
   calendar_entity: "match(^(calendar\\.[a-z0-9_]+)?$)?"
   consent_warning_days: "int(1,60)"
+  forecast_buffer: "int(0,1000000)"
   currency: str
   month_start_day: "int(1,28)"
   ai_base_url: "match(^(https?://\\S+)?$)?"

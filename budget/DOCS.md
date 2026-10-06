@@ -292,6 +292,16 @@ Core — panel nadal tylko przez Ingress.
 2. Wpisz utworzoną encję (np. `calendar.platnosci`) w opcji `calendar_entity` — add-on odświeży
    ją po każdej synchronizacji (sama integracja pobiera kalendarz rzadko).
 
+## Prognoza do wypłaty
+
+Podsumowanie (bieżący miesiąc) pokazuje, czy starczy do wypłaty: saldo rachunku PLN (dostępne,
+już bez autoryzacji) − zadłużenie karty = wolne środki dziś; od tego dzień po dniu odejmowane są
+oczekiwane i spóźnione płatności serii oraz reszta puli Flex (po równo na pozostałe dni, a przy
+wyczerpanej puli — dotychczasowe tempo), a dodawane mniejsze wpływy serii. Wypłata to najbliższy
+termin serii wpływowej o największej kwocie; bez takiej serii horyzont kończy się z miesiącem.
+Pokazane są kwota w dniu wypłaty (przed jej wpłynięciem) i najniższy punkt z datą. Rachunek EUR
+jest tylko informacją. Opcja `forecast_buffer` (zł) zaznacza najniższy punkt poniżej bufora.
+
 ## Odnowienie zgody
 
 Zgoda PSD2 jest ważna maksymalnie 180 dni. Przed wygaśnięciem: **Bank → Odnów zgodę** —

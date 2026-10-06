@@ -30,8 +30,10 @@ Karta: **ITBD** = bieżące zadłużenie, bo ITAV karty jest opóźnione (FINDIN
 - `build(snap, today, now, buffer) -> Forecast | None` (None, gdy brak migawki rachunku PLN):
   1. Salda z ostatniej migawki `balance_snapshot` (wzorzec zapytania jak w `ha_publisher.build_entities`).
   2. Terminy: reużyć `calendar_ics.dues(snap, today, days=62)`, statusy EXPECTED/LATE (spóźnione
-     liczone na dziś). Wypłata = najbliższy termin aktywnej serii `direction="in"` (decyzja z wywiadu,
-     PLAN_M8 pkt 2). Bez serii wpływów → koniec miesiąca.
+     liczone na dziś). Wypłata = najbliższy termin aktywnej serii `direction="in"` o największej oczekiwanej
+     kwocie (decyzja użytkownika 2026-10-06, PLAN_M8 pkt 2); spóźniony wpływ jest pomijany.
+     Bez serii wpływów → koniec miesiąca. Terminy: bieżący miesiąc z trasy (`mv`), kolejne tylko
+     do czasu znalezienia wypłaty.
   3. Flex: `flex.build(snap, month_start(today), today)`. Reszta puli = `max(remaining, 0)` rozłożona
      po równo na dni od jutra do końca miesiąca (dzisiejsze wydatki są już w saldzie). Pula
      przekroczona → tempo `spent / day`. Dni z następnego miesiąca liczone tym samym `per_day`
@@ -93,5 +95,9 @@ Karta: **ITBD** = bieżące zadłużenie, bo ITAV karty jest opóźnione (FINDIN
   aktualizacji (ha_manage_backup restore, robi użytkownik albo ja za zgodą).
 - Brak migracji bazy i nowych encji, więc cofnięcie nie zostawia danych.
 
-## Otwarte
-- Saldo rachunku ITAV czy ITBD: rozstrzygam w kroku 1 i ogłaszam przed krokiem 2.
+## Rozstrzygnięte w trakcie
+- Saldo rachunku: **ITAV** (na produkcji 9136,98 vs ITBD 9321,00 — różnica to autoryzacje w toku);
+  karta: ITBD.
+- Wypłata = seria wpływowa o największej kwocie (zob. wyżej). Uwaga na checkpoint: przy dwóch
+  pensjach (dwie serie przychodów) horyzont kończy się na późniejszej, a wcześniejsza wchodzi
+  do salda jako „Wpływy przed wypłatą”.

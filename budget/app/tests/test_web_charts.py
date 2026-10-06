@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from budget.categorize.taxonomy import Category
 from budget.spending import MainLine, MonthTotals
 from budget.web import charts
@@ -113,3 +115,30 @@ def test_tiny_value_is_still_visible_and_empty_chart_has_axes() -> None:
     assert chart.bars[1].income_h == 1.0  # minimum, żeby słupek nie zniknął
     empty = charts.month_bars([month(9, "0", "0")], date(2026, 9, 1))
     assert not empty.has_data and len(empty.ticks) == 3 and chart.has_data
+
+
+def line(values: list[str], buffer: str = "0") -> charts.LineChart:
+    days = [(date(2026, 10, 3 + i), Decimal(v)) for i, v in enumerate(values)]
+    return charts.forecast_line(days, Decimal(buffer))
+
+
+def test_forecast_line_marks_lowest_point_and_zero() -> None:
+    c = line(["500", "100", "-200", "300"])
+    xs = [float(p.split(",")[0]) for p in c.points.split()]
+    ys = [float(p.split(",")[1]) for p in c.points.split()]
+    assert len(ys) == 4 and xs == sorted(xs)
+    assert c.low_y == pytest.approx(max(ys), abs=0.1) and c.low_x == pytest.approx(xs[2], abs=0.1)
+    assert c.zero_y is not None and ys[1] < c.zero_y < ys[2]
+    assert c.buffer_y is None
+    assert [t.label for t in c.ticks] == ["−200", "500"]
+    big = line(["5210.89", "-2627", "100"])
+    assert [t.label for t in big.ticks] == ["−2,63k", "5,21k"]
+    assert [text for _, text in c.x_labels] == ["dziś", "06.10"]
+
+
+def test_forecast_line_buffer_only_when_in_scale_and_flat_series() -> None:
+    assert line(["9000", "8000"], buffer="1000").buffer_y is None  # poza skalą
+    assert line(["900", "300"], buffer="500").buffer_y is not None
+    flat = line(["1000", "1000", "1000"])
+    assert flat.zero_y is None and len(flat.points.split()) == 3
+    assert len(line(["50"]).points.split()) == 1  # ostatni dzień miesiąca: jeden punkt

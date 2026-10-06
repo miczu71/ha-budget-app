@@ -27,6 +27,7 @@
 {% endif %}
 
 <div class="home-grid">
+  {% if fc %}{% include "_forecast.html" %}{% endif %}
   <section class="card span2">
     <h2>Gdzie poszły pieniądze</h2>
     {% if slices %}

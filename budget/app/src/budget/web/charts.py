@@ -201,3 +201,62 @@ def month_bars(rows: Sequence[MonthTotals], selected: date) -> BarChart:
     ]
     ticks = [Tick(_compact(v), HEIGHT - BOTTOM - v / top * plot_h) for v in (0.0, top / 2, top)]
     return BarChart(bars, ticks)
+
+
+# --- prognoza do wypłaty (M8) -----------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class LineChart:
+    points: str  # atrybut `points` linii łamanej
+    low_x: float
+    low_y: float
+    end_x: float
+    end_y: float
+    zero_y: float | None  # kreska zera, gdy mieści się w skali
+    buffer_y: float | None  # kreska bufora, gdy bufor > 0 i mieści się w skali
+    ticks: list[Tick]
+    x_labels: list[tuple[float, str]]
+    width: int = WIDTH
+    height: int = HEIGHT
+    plot_left: float = LEFT
+    plot_right: float = WIDTH - RIGHT
+    baseline: float = HEIGHT - BOTTOM
+
+
+def _signed_compact(value: float) -> str:
+    """Etykieta osi prognozy: 3 cyfry znaczące („5,21k”, „−2,63k”), bo skala nie jest „ładna”."""
+    text = f"{abs(value) / 1000:.3g}k" if abs(value) >= 1000 else f"{abs(value):.0f}"
+    return ("−" if value < 0 else "") + text.replace(".", ",")
+
+
+def forecast_line(days: Sequence[tuple[date, Decimal]], buffer: Decimal = ZERO) -> LineChart:
+    """Saldo dzień po dniu jako linia w skali od najniższej do najwyższej wartości (z zapasem 8%,
+    żeby płaska linia też miała wysokość); zero i bufor to kreski, jeśli mieszczą się w skali."""
+    values = [float(v) for _, v in days]
+    lo, hi = min(values), max(values)
+    pad = ((hi - lo) or max(abs(hi), 1.0)) * 0.08
+    lo, hi = lo - pad, hi + pad
+    plot_h = HEIGHT - TOP - BOTTOM
+    plot_w = WIDTH - RIGHT - LEFT
+    last = max(len(values) - 1, 1)
+
+    def x_at(i: int) -> float:
+        return LEFT + i * plot_w / last
+
+    def y_at(value: float) -> float:
+        return TOP + (hi - value) / (hi - lo) * plot_h
+
+    low_i = min(range(len(values)), key=lambda i: (values[i], i))
+    labels = [(x_at(0), "dziś"), (x_at(len(values) - 1), f"{days[-1][0]:%d.%m}")]
+    return LineChart(
+        points=" ".join(f"{x_at(i):.1f},{y_at(v):.1f}" for i, v in enumerate(values)),
+        low_x=x_at(low_i),
+        low_y=y_at(values[low_i]),
+        end_x=x_at(len(values) - 1),
+        end_y=y_at(values[-1]),
+        zero_y=y_at(0.0) if lo <= 0.0 <= hi else None,
+        buffer_y=y_at(float(buffer)) if buffer > 0 and lo <= float(buffer) <= hi else None,
+        ticks=[Tick(_signed_compact(v), y_at(v)) for v in (min(values), max(values))],
+        x_labels=labels,
+    )
