@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.24.3
+
+- „Karta” jest główną zakładką, zaraz po „Wydatkach” (wcześniej w menu ⚙).
+- Na telefonie pasek zakładek przewija się do aktywnej zakładki po każdym przejściu.
+- Poprawka: zakładka „Transakcje” jest podświetlona, gdy jesteś na tym ekranie.
+
 ## 0.24.2
 
 - Poprawka: zapis numeru karty z CSV kończył się błędem („unable to open database file”). Pliki
