@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.24.2
+
+- Poprawka: zapis numeru karty z CSV kończył się błędem („unable to open database file”). Pliki
+  tymczasowe bazy SQLite są teraz w pamięci — profil AppArmor add-onu nie pozwala pisać do
+  `/var/tmp`, gdzie SQLite domyślnie je zakłada.
+
 ## 0.24.1
 
 **Historia płatności kartą przypisana z eksportu CSV** (M15 E3, `docs/PLAN_M15.md`).
