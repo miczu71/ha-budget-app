@@ -66,3 +66,14 @@ dublowanie), DESIGN.md (w E3b dopiszę tylko sekcję wykresu prognozy).
 - Lokalna kopia księgi może nie mieć świeżych sald: zrzuty lokalne na danych syntetycznych, wygląd na żywo
   dopiero po instalacji.
 - WebView cache: statyki z nowym `?v=`, HTML `no-store` (już jest).
+
+## Wynik E3a (2026-10-06)
+
+- **0.27.0 wydane** (release `v0.27.0`, nie draft), zainstalowane z backupem add-onu; 608 testów, ruff i mypy czyste.
+- Na produkcji: stopka `v0.27.0`, statyki `?v=0.27.0`, werdykt i dzienny limit widoczne, przełącznik
+  zadłużenia karty zapisuje się sam (htmx, bez przeładowania), 0 błędów konsoli (telefon 390 px).
+- Odstępstwo od planu: przy „Starczy” zapas to **najniższy punkt** (nie saldo w dniu wypłaty), bo to on
+  decyduje, ile naprawdę zostaje; saldo w dniu wypłaty zostaje w wierszu wyniku pod paskiem.
+- Pasek równania zastąpił tabelę od razu (zamiast dublować liczby do E3b); listy serii i wpływów nadal
+  w dwóch `<details>`, do zastąpienia w E3b.
+- Na desktopie wykres zajmuje ok. połowy szerokości karty (stały `viewBox`) — do poprawy w E3b.
