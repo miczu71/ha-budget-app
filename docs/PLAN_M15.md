@@ -183,3 +183,16 @@ Spłaty są ręczne i nieregularne („wcześniejsza spłata z rachunku”), a A
 7. Weryfikacja UI na kopii księgi (Playwright 390/1280, konsola).
 8. Checkpoint → „go” → wydanie skillem `release`, backup add-onu, aktualizacja w HA, limit
    ustawiony przez panel. Cofnięcie: revert + 0.30.1 albo backup add-onu.
+
+### Wynik E4
+
+- 2026-10-06: 0.30.0 wydane (v0.30.0) i zainstalowane z backupem add-onu (`73121fd1`); 638 testów. Przegląd
+  `simplify`: jeden formatter kwot PLN (`money.pl`) dla panelu, telefonu i dzwonka, `CardDue.soon`, filtr `when`.
+- Na żywo (Ingress, 390 px, konsola strony bez błędów): wersja 0.30.0, „Spłata — do 20.10: Spłacone” (wrześniowy
+  cykl spłacony wcześniejszymi spłatami), limit wpisany w panelu, wykorzystanie < 1%; encja `sensor.budget_card_due`
+  = 0, atrybuty limit/wykorzystanie; dzwonek bez pozycji karty.
+- Do poprawy: atrybut `available` nie trafia do encji (HA odrzuca tę nazwę w atrybutach MQTT) — zmiana nazwy
+  w kolejnym wydaniu.
+- Obserwacja: zakup z końca września zaksięgowany 3. dnia cyklu (poza oknem 2 dni) liczy się do nowego cyklu;
+  przy niespłaconym wyciągu kwota mogłaby wyjść zaniżona. Sprawdzić 20.10 z „kwotą do spłaty” w aplikacji banku.
+
