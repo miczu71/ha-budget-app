@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.24.0
+
+**Płatności kartą przypisane do osób** (M15 E2, `docs/PLAN_M15.md`).
+
+- Bank liczy warunek bezpłatnej karty (5 płatności w miesiącu) osobno dla karty głównej i dodatkowej,
+  a API nie podaje numeru karty. Nowy ekran **Karta** (menu ⚙): dodajesz osoby, a każdą płatność kartą
+  przypisujesz osobie jednym dotknięciem. Licznik liczy 5 płatności dla każdej osoby; nieprzypisana
+  płatność nie liczy się nikomu.
+- Dzwonek: „płatności do przypisania” przez cały miesiąc (w ostatnich 5 dniach jako ostrzeżenie) i braki
+  każdej osoby w ostatnich 5 dniach. Przypomnienie na telefon podaje stan każdej osoby i liczbę
+  nieprzypisanych.
+- Kafelek „Karta kredytowa” na Podsumowaniu z wierszem na osobę; plakietka osoby w Transakcjach.
+- `sensor.budget_card_purchases_month`: nowe atrybuty `holders` (imię, liczba, brakuje) i `unassigned`.
+- Bez osób wszystko działa jak w 0.23.0 (licznik wspólny).
+- Migracja bazy `011_card_holder` (addytywna).
+
 ## 0.23.0
 
 **Licznik płatności kartą kredytową** (M15 E1, `docs/PLAN_M15.md`).
