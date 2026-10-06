@@ -7,7 +7,8 @@ Kwoty w pełnych złotych — to wiadomość na telefon, nie wyciąg.
 
 Wysyłka o `SEND_AT`; podsumowanie, które nie wyszło (add-on nie działał), wychodzi po starcie
 tego samego dnia. Wysłane okresy w `kv` (`SENT_KEY`) — bez dubli po restarcie.
-Tą samą drogą idzie przypomnienie o płatnościach kartą kredytową (M15, `card.REMIND_DAYS`).
+Tą samą drogą idzie przypomnienie o płatnościach kartą kredytową (M15, `card.REMIND_DAYS`)
+i o spłacie karty przed terminem (M15 E4, `card.DUE_REMIND_DAYS`) — ta kwota z groszami.
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ from budget.storage.db import kv_get, kv_set
 
 SEND_AT = time(7, 0)
 SENT_KEY = "summary_sent"
-WEEKLY, MONTHLY, CARD = "weekly", "monthly", "card"
+WEEKLY, MONTHLY, CARD, CARD_DUE = "weekly", "monthly", "card", "card_due"
 UPCOMING_DAYS = 7
 TOP = 3
 MONTH_NAMES = (
@@ -48,7 +49,7 @@ MONTH_NAMES = (
 
 @dataclass(frozen=True)
 class Message:
-    kind: str  # WEEKLY | MONTHLY | CARD
+    kind: str  # WEEKLY | MONTHLY | CARD | CARD_DUE
     period: str  # znacznik wysłanego okresu: dzień poniedziałku, RRRR-MM albo RRRR-MM-<dni>
     title: str
     text: str
@@ -59,6 +60,11 @@ def zl(amount: Decimal) -> str:
     whole = int(abs(amount).quantize(Decimal(1), ROUND_HALF_UP))
     sign = "−" if amount < 0 and whole else ""
     return f"{sign}{whole:,}".replace(",", " ") + " zł"
+
+
+def zl_gr(amount: Decimal) -> str:
+    """`1234.5` → `1 234,50 zł` — kwota do przelewu, bez zaokrąglania (spacje jak w `zl`)."""
+    return f"{amount:,.2f}".replace(",", "\xa0").replace(".", ",") + "\xa0zł"
 
 
 def _short(d: date) -> str:
@@ -194,6 +200,22 @@ def card_reminder(cm: card.CardMonth, today: date) -> Message:
     return Message(CARD, period, title, "\n".join(lines))
 
 
+def when(days: int) -> str:
+    return {0: "dziś", 1: "jutro"}.get(days, f"za {days} dni")
+
+
+def due_reminder(cd: card.CardDue) -> Message:
+    """Przypomnienie o spłacie karty z zamkniętego cyklu przed terminem (M15 E4)."""
+    cycle = MONTH_NAMES[add_months(cd.due, -1).month - 1]
+    return Message(
+        CARD_DUE,
+        f"{cd.due:%Y-%m}-{cd.days_left}",
+        f"Karta kredytowa — spłata do {_short(cd.due)}",
+        f"Zostało {zl_gr(cd.left)} z cyklu: {cycle}; termin {when(cd.days_left)}. "
+        "Po terminie bank nalicza odsetki.",
+    )
+
+
 def build(snap: Snapshot, kind: str, today: date) -> Message:
     return weekly(snap, today) if kind == WEEKLY else monthly(snap, today)
 
@@ -213,6 +235,11 @@ def due(snap: Snapshot, now: datetime) -> list[Message]:
     if cm and cm.needs_action:
         msg = card_reminder(cm, today)
         if sent.get(CARD) != msg.period:
+            out.append(msg)
+    cd = card.due_status(snap.conn, today) if card.due_remind_today(today) else None
+    if cd and cd.left:
+        msg = due_reminder(cd)
+        if sent.get(CARD_DUE) != msg.period:
             out.append(msg)
     return out
 

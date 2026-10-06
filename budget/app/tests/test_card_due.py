@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
 
-from budget import card
+from budget import card, inbox, summary
+from budget.snapshot import Snapshot
 
-from .test_card import CARD, buy
+from .test_card import CARD, WAW, buy
 from .test_categorize_engine import conn
 from .test_forecast import snapshot
 
@@ -87,3 +88,39 @@ def test_limit(conn: sqlite3.Connection) -> None:
 @pytest.mark.parametrize(("day", "expected"), [(14, False), (15, True), (19, True), (20, False)])
 def test_due_remind_days(day: int, expected: bool) -> None:
     assert card.due_remind_today(date(2026, 10, day)) is expected
+
+
+def due_msgs(c: sqlite3.Connection, day: int) -> list[summary.Message]:
+    now = datetime(2026, 10, day, 7, 30, tzinfo=WAW)
+    return [m for m in summary.due(Snapshot(c), now) if m.kind == summary.CARD_DUE]
+
+
+def due_items(c: sqlite3.Connection, day: int) -> list[inbox.Item]:
+    now = datetime(2026, 10, day, 12, tzinfo=WAW)
+    return [i for i in inbox.items(Snapshot(c), now, inbox.BalanceMemo()) if i.kind == "card_due"]
+
+
+def test_reminder_on_15th_and_19th_once(conn: sqlite3.Connection) -> None:
+    debt(conn, "1234.50")
+    assert due_msgs(conn, 14) == []
+    (msg,) = due_msgs(conn, 15)
+    assert msg.title == "Karta kredytowa — spłata do 20.10"
+    assert "1\xa0234,50\xa0zł" in msg.text and "wrzesień" in msg.text and "za 5 dni" in msg.text
+    summary.mark_sent(conn, msg)
+    assert due_msgs(conn, 15) == []
+    (msg,) = due_msgs(conn, 19)
+    assert "jutro" in msg.text and msg.period == "2026-10-1"
+
+
+def test_no_reminder_when_paid(conn: sqlite3.Connection) -> None:
+    debt(conn, "0.00")
+    assert due_msgs(conn, 15) == [] and due_items(conn, 15) == []
+
+
+def test_inbox_severity(conn: sqlite3.Connection) -> None:
+    debt(conn, "300.00")
+    (early,) = due_items(conn, 3)
+    assert early.severity == "info" and "300,00\xa0zł" in early.title and early.link == "/card"
+    assert due_items(conn, 15)[0].severity == "warn"
+    (late,) = due_items(conn, 21)
+    assert late.severity == "warn" and "po terminie" in late.title

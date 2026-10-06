@@ -208,6 +208,29 @@ def card_payments(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> 
     return out
 
 
+def card_due(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Kwota z zamkniętego cyklu karty do spłaty — od 1. dnia, warn od przypomnień i po terminie."""
+    cd = card.due_status(conn, ctx.today)
+    if not cd or not cd.left:
+        return []
+    if cd.overdue:
+        title, detail = "Karta kredytowa: spłata po terminie", f"Termin minął {cd.due:%d.%m}."
+    else:
+        title = "Karta kredytowa: do spłaty"
+        detail = f"Termin {cd.due:%d.%m} — {summary.when(cd.days_left)}."
+    warn = cd.overdue or cd.days_left <= max(card.DUE_REMIND_DAYS)
+    return [
+        Item(
+            "card_due",
+            f"{title} {summary.zl_gr(cd.left)}",
+            1,
+            "/card",
+            "warn" if warn else "info",
+            detail + " Kwota liczona ostrożnie — może być nieco wyższa niż w banku.",
+        )
+    ]
+
+
 def forecast_low(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
     """Najniższe wolne środki przed wypłatą poniżej bufora (`forecast_buffer`, domyślnie 0)."""
     fc = ctx.forecast
@@ -229,6 +252,7 @@ PROVIDERS: tuple[Provider, ...] = (
     new_series,
     series_changes,
     card_payments,
+    card_due,
     forecast_low,
 )
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
