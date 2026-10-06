@@ -40,7 +40,7 @@ def card_msgs(c: sqlite3.Connection, now: datetime) -> list[summary.Message]:
 
 def card_items(c: sqlite3.Connection, now: datetime) -> list[inbox.Item]:
     return [
-        i for i in inbox.items(Snapshot(c), now, inbox.BalanceMemo()) if i.kind == "card_payments"
+        i for i in inbox.items(Snapshot(c), now, inbox.BalanceMemo()) if i.kind.startswith("card_")
     ]
 
 
@@ -104,14 +104,20 @@ def test_inbox_item_in_last_days(conn: sqlite3.Connection) -> None:
     assert card_items(conn, datetime(2026, 10, 25, 12, 0, tzinfo=WAW)) == []
     (item,) = card_items(conn, datetime(2026, 10, 26, 12, 0, tzinfo=WAW))
     assert item.count == 1 and item.severity == "warn"
-    assert item.link == f"/transactions?account={CARD}&date_from=2026-10-01&date_to=2026-10-31"
+    assert item.link == "/card"
 
 
 def test_entity(conn: sqlite3.Connection) -> None:
     buy(conn, "2026-10-10", 2)
     (e,) = ha_publisher.card_entities(Snapshot(conn), date(2026, 10, 20))
     assert e.key == "card_purchases_month" and e.state == "2"
-    assert e.attributes == {"threshold": 5, "missing": 3, "month": "2026-10"}
+    assert e.attributes == {
+        "threshold": 5,
+        "missing": 3,
+        "month": "2026-10",
+        "holders": [],
+        "unassigned": 0,
+    }
 
 
 async def test_home_tile(service: Service, monkeypatch: pytest.MonkeyPatch) -> None:

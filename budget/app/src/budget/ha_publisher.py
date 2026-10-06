@@ -298,7 +298,7 @@ def flex_entities(snap: Snapshot, today: date) -> list[Entity]:
 
 
 def card_entities(snap: Snapshot, today: date) -> list[Entity]:
-    """Płatności kartą kredytową w bieżącym miesiącu (M15 E1); próg zwolnienia z opłaty."""
+    """Płatności kartą kredytową w bieżącym miesiącu (M15); stan łącznie, osoby w `holders`."""
     cm = card.month_status(snap.conn, today)
     if cm is None:
         return []
@@ -312,6 +312,12 @@ def card_entities(snap: Snapshot, today: date) -> list[Entity]:
                 "threshold": cm.threshold,
                 "missing": cm.missing,
                 "month": cm.month.strftime("%Y-%m"),
+                "holders": [
+                    {"name": h.name, "count": h.count, "missing": h.missing}
+                    for h in cm.holders
+                    if not cm.shared
+                ],
+                "unassigned": cm.unassigned,
             },
         )
     ]

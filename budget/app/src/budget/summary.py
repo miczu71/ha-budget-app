@@ -162,14 +162,36 @@ def monthly(snap: Snapshot, today: date) -> Message:
 
 
 def card_reminder(cm: card.CardMonth, today: date) -> Message:
-    """Przypomnienie o płatnościach kartą kredytową (M15 E1)."""
-    lines = [
-        f"Brakuje {cm.missing} z {cm.threshold} płatności kartą — miesiąc kończy się "
-        f"{_short(cm.last_day)}, bez nich bank pobierze opłatę za kartę.",
-        "BLIK się nie liczy; bank liczy kartę główną i dodatkową osobno.",
-    ]
+    """Przypomnienie o płatnościach kartą kredytową (M15; licznik wspólny albo per osoba)."""
+    end = _short(cm.last_day)
+    if cm.shared:
+        title = f"Karta kredytowa — {cm.count}/{cm.threshold}"
+        lines = [
+            f"Brakuje {cm.missing} z {cm.threshold} płatności kartą — miesiąc kończy się {end}, "
+            "bez nich bank pobierze opłatę za kartę.",
+            "BLIK się nie liczy; bank liczy kartę główną i dodatkową osobno.",
+        ]
+    else:
+        title = "Karta kredytowa — " + (
+            "brakuje płatności" if cm.missing else "płatności do przypisania"
+        )
+        lines = [
+            " · ".join(
+                f"{h.name}: {h.count}/{h.threshold}"
+                + (f" (brakuje {h.missing})" if h.missing else "")
+                for h in cm.holders
+            )
+        ]
+        if cm.unassigned:
+            lines.append(
+                f"Do przypisania: {cm.unassigned} — nieprzypisana płatność nie liczy się nikomu."
+            )
+        lines.append(
+            f"Miesiąc kończy się {end}; bez {cm.threshold} płatności bank pobierze opłatę za kartę "
+            "tej osoby. BLIK się nie liczy."
+        )
     period = f"{cm.month:%Y-%m}-{card.days_to_end(today)}"
-    return Message(CARD, period, f"Karta kredytowa — {cm.count}/{cm.threshold}", "\n".join(lines))
+    return Message(CARD, period, title, "\n".join(lines))
 
 
 def build(snap: Snapshot, kind: str, today: date) -> Message:
@@ -188,7 +210,7 @@ def due(snap: Snapshot, now: datetime) -> list[Message]:
     if today.weekday() == 0 and sent.get(WEEKLY) != today.isoformat():
         out.append(weekly(snap, today))
     cm = card.month_status(snap.conn, today) if card.remind_today(today) else None
-    if cm and cm.missing:
+    if cm and cm.needs_action:
         msg = card_reminder(cm, today)
         if sent.get(CARD) != msg.period:
             out.append(msg)

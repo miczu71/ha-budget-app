@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% macro pay_row(t) %}
+<li>
+  <div class="row"><span class="row-date">{{ t.booking_date[8:10] }}.{{ t.booking_date[5:7] }}</span><span class="row-title">{{ t.merchant or t.description or "—" }}</span><span class="row-amount num">{{ t.amount | money(t.currency) }}</span></div>
+  <form class="who" method="post" action="{{ base }}/card/assign" hx-post="{{ base }}/card/assign" hx-target="#card-main" hx-select="#card-main" hx-swap="outerHTML">
+    <input type="hidden" name="txn_id" value="{{ t.id }}">
+    <input type="hidden" name="month" value="{{ ym }}">
+    {% for h in holders %}
+    <button type="submit" name="holder_id" value="{{ h.id }}" class="{{ '' if t.card_holder_id == h.id else 'secondary' }}" aria-pressed="{{ 'true' if t.card_holder_id == h.id else 'false' }}">{{ h.name }}</button>
+    {% endfor %}
+  </form>
+</li>
+{% endmacro %}
+{% block content %}
+<div class="month-nav">
+  <a class="month-link tap" href="{{ base }}/card?month={{ prev }}" aria-label="poprzedni miesiąc">«</a>
+  <h1>Karta kredytowa — {{ label }}</h1>
+  {% if next %}<a class="month-link tap" href="{{ base }}/card?month={{ next }}" aria-label="następny miesiąc">»</a>{% else %}<span class="month-link"></span>{% endif %}
+</div>
+<div id="card-main">
+{% if error %}<div class="msg error" role="alert">{{ error }}</div>{% endif %}
+{% if cm is none %}
+<section class="card"><p class="muted">Nie ma konta karty kredytowej.</p></section>
+{% else %}
+<section class="card">
+  <h2>Płatności kartą</h2>
+  <div class="stats">
+    {% for h in cm.holders %}
+    <div class="stat"><span class="stat-label">{{ h.name }}</span><span class="stat-value">{{ h.count }} / {{ h.threshold }}</span><span class="small {{ 'warn-text' if h.missing else 'pos' }}">{{ "brakuje " ~ h.missing if h.missing else "spełnione" }}</span></div>
+    {% endfor %}
+    {% if not cm.shared %}<div class="stat"><span class="stat-label">Do przypisania</span><span class="stat-value">{{ cm.unassigned }}</span></div>{% endif %}
+  </div>
+  <p class="small muted">Karta jest bezpłatna przy {{ cm.threshold }} płatnościach w miesiącu — bank liczy każdą kartę osobno, BLIK się nie liczy. Nieprzypisana płatność nie liczy się nikomu. Liczone ostrożnie, bo zakup pojawia się w banku ok. 2 dni później.</p>
+</section>
+
+{% if holders %}
+<section class="card">
+  <h2>Do przypisania</h2>
+  {% if todo %}<ul class="rows pays">{% for t in todo %}{{ pay_row(t) }}{% endfor %}</ul>
+  {% else %}<p class="muted">Wszystkie płatności z tego miesiąca są przypisane.</p>{% endif %}
+</section>
+{% if done %}
+<section class="card">
+  <h2>Przypisane</h2>
+  <ul class="rows pays">{% for t in done %}{{ pay_row(t) }}{% endfor %}</ul>
+</section>
+{% endif %}
+{% endif %}
+{% endif %}
+</div>
+
+<section class="card">
+  <h2>Osoby z kartą</h2>
+  {% if not holders %}<p class="muted">Dodaj osoby, które płacą kartą główną i dodatkową — wtedy każdą płatność przypiszesz osobie, a licznik policzy {{ threshold }} płatności dla każdej.</p>{% endif %}
+  {% for h in holders %}
+  <form class="rename" method="post" action="{{ base }}/card/holders/{{ h.id }}">
+    <input name="name" value="{{ h.name }}" maxlength="40" aria-label="imię" required>
+    <button type="submit" class="secondary">Zmień imię</button>
+  </form>
+  {% endfor %}
+  <form class="rename" method="post" action="{{ base }}/card/holders">
+    <input name="name" maxlength="40" placeholder="imię" aria-label="nowa osoba" required>
+    <button type="submit">Dodaj osobę</button>
+  </form>
+</section>
+{% endblock %}

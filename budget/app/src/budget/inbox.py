@@ -169,24 +169,41 @@ def series_changes(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) ->
 
 
 def card_payments(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
-    """Ostatnie dni miesiąca, a płatności kartą kredytową mniej niż próg zwolnienia z opłaty."""
-    if not card.in_remind_window(ctx.today):
-        return []
+    """Płatności kartą do przypisania osobie (zawsze) i braki do progu (ostatnie dni miesiąca)."""
     cm = card.month_status(conn, ctx.today)
-    if not cm or not cm.missing:
+    if not cm:
         return []
-    period = f"date_from={cm.month.isoformat()}&date_to={cm.last_day.isoformat()}"
-    return [
-        Item(
-            "card_payments",
-            f"Karta kredytowa: brakuje {cm.missing} płatności",
-            cm.missing,
-            f"/transactions?account={cm.account_id}&{period}",
-            "warn",
-            f"Do {cm.last_day:%d.%m} potrzeba {cm.threshold} płatności kartą, inaczej bank "
-            "pobierze opłatę. BLIK się nie liczy.",
+    window = card.in_remind_window(ctx.today)
+    out = []
+    if cm.unassigned:
+        out.append(
+            Item(
+                "card_assign",
+                "Karta kredytowa: płatności do przypisania",
+                cm.unassigned,
+                "/card",
+                "warn" if window else "info",
+                "Nieprzypisana płatność kartą nie liczy się do progu zwolnienia z opłaty nikomu.",
+            )
         )
-    ]
+    if window:
+        detail = (
+            f"Do {cm.last_day:%d.%m} potrzeba {cm.threshold} płatności kartą, inaczej bank "
+            "pobierze opłatę. BLIK się nie liczy."
+        )
+        out += [
+            Item(
+                "card_payments",
+                f"Karta kredytowa: {'' if cm.shared else h.name + ' — '}brakuje płatności",
+                h.missing,
+                "/card",
+                "warn",
+                detail,
+            )
+            for h in cm.holders
+            if h.missing
+        ]
+    return out
 
 
 Provider = Callable[[sqlite3.Connection, Context, BalanceMemo], list[Item]]

@@ -127,9 +127,10 @@ def router(panel: Panel) -> APIRouter:
         page = max(page, 1)
         rows = conn.execute(
             f"SELECT t.*, {TXN_DATE} AS day, a.display_name, a.product, "
-            f"a.kind AS account_kind, c.name AS category_name, p.name AS category_main "
-            f"FROM txn t JOIN account a ON a.id = t.account_id {joins} "
-            f"LEFT JOIN category p ON p.id = c.parent_id WHERE {sql_where} "
+            f"a.kind AS account_kind, c.name AS category_name, p.name AS category_main, "
+            f"h.name AS holder_name FROM txn t JOIN account a ON a.id = t.account_id {joins} "
+            f"LEFT JOIN category p ON p.id = c.parent_id "
+            f"LEFT JOIN card_holder h ON h.id = t.card_holder_id WHERE {sql_where} "
             f"ORDER BY {TXN_DATE} DESC, t.id DESC LIMIT ? OFFSET ?",
             [*params, PAGE_SIZE, (page - 1) * PAGE_SIZE],
         ).fetchall()

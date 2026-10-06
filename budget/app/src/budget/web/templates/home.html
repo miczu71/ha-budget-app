@@ -70,15 +70,18 @@
   <section class="card">
     <h2>Karta kredytowa</h2>
     <div class="stats">
-      <div class="stat"><span class="stat-label">Płatności kartą w tym miesiącu</span><span class="stat-value">{{ cm.count }} / {{ cm.threshold }}</span></div>
+      {% for h in cm.holders %}
+      <div class="stat"><span class="stat-label">{{ "Płatności kartą w tym miesiącu" if cm.shared else h.name }}</span><span class="stat-value">{{ h.count }} / {{ h.threshold }}</span></div>
+      {% endfor %}
+      {% if not cm.shared %}<div class="stat"><span class="stat-label">Do przypisania</span><span class="stat-value">{{ cm.unassigned }}</span></div>{% endif %}
     </div>
     {% if cm.missing %}
-    <p class="small warn-text">Brakuje {{ cm.missing }} do {{ cm.last_day.strftime('%d.%m') }} — inaczej bank pobierze opłatę za kartę.</p>
+    <p class="small warn-text">{% if not cm.shared %}Brakuje płatności do {{ cm.last_day.strftime('%d.%m') }} — {% for h in cm.holders if h.missing %}{{ h.name }}: {{ h.missing }}{{ ", " if not loop.last }}{% endfor %}{% else %}Brakuje {{ cm.missing }} do {{ cm.last_day.strftime('%d.%m') }}{% endif %}; inaczej bank pobierze opłatę za kartę.</p>
     {% else %}
     <p class="small pos">Warunek bezpłatnej karty spełniony.</p>
     {% endif %}
-    <p class="small muted">BLIK się nie liczy. Bank liczy kartę główną i dodatkową osobno, a tu widać ich sumę; zakup pojawia się w banku ok. 2 dni później.</p>
-    <p class="small card-link"><a class="tap" href="{{ base }}/transactions?account={{ cm.account_id }}&{{ period }}">Transakcje karty »</a></p>
+    <p class="small muted">BLIK się nie liczy. Bank liczy kartę główną i dodatkową osobno{% if not cm.shared %}; nieprzypisana płatność nie liczy się nikomu{% else %}, a tu widać ich sumę{% endif %}; zakup pojawia się w banku ok. 2 dni później.</p>
+    <p class="small card-link"><a class="tap" href="{{ base }}/card">{{ "Przypisz płatności »" if cm.unassigned else "Karta »" }}</a></p>
   </section>
   {% endif %}
 

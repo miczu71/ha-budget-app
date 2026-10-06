@@ -62,6 +62,7 @@
           <span class="flags">
           {% if t.id in series_of %}<a class="badge tap" href="{{ base }}/recurring/{{ series_of[t.id].id }}" title="płatność cykliczna">cykliczna: {{ series_of[t.id].name }}</a>
           {% elif t.id in repeatable %}<a class="small tap" href="{{ base }}/recurring/new?txn={{ t.id }}">to się powtarza</a>{% endif %}
+          {% if t.holder_name %}<span class="badge" title="osoba, która zapłaciła kartą">{{ t.holder_name }}</span>{% endif %}
           {% if t.refund_of %}<span class="badge" title="zwrot powiązany z zakupem">zwrot</span>{% endif %}
           <span class="badge" title="źródło kwoty i daty">{{ "API" if t.source == "eb" else "CSV" }}</span>
           </span>
