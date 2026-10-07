@@ -89,3 +89,17 @@ bez commitów 02:45–03:15. Sukces = makieta w Claude Design zbudowana na tym s
 ## Weryfikacja końcowa
 Po E3: w Claude Design nowa makieta (np. szkic M19) z tym systemem — porównanie zrzutu z panelem dev
 (fonty, kolory, karty, wiersze). Zamknięcie M20 Twoim checkpointem.
+
+## Wynik (2026-10-07)
+Artefakt: https://claude.ai/artifact/GgbLCb6vkcwtvKAEQ3wwzr (prywatny). Źródła w `design-system/project/`.
+- E0 `b1efd84`: plan i wiersz roadmapy.
+- E1 `9b118bc`: tokeny (29 kolorów, 9 stylów, odstępy, promienie, cień), fonty, 11 ikon SVG, README, okładka.
+- E2 `0329eb8`: `bundle.css` z `app.css` i 16 komponentów rdzenia.
+- E3 `0084711`: 13 komponentów (wykresy i ekrany robocze), SVG z prawdziwych makr `_charts.html`.
+- E3b `22f6ee5` (dodatek poza pierwotnym planem, na życzenie): 7 komponentów domykających inwentarz;
+  223 z 227 klas `app.css` ma podgląd (bez: `buffer`, `c1`, `c2`, `htmx-request`).
+- E4: procedura re-sync w `DESIGN.md`, `meta.ref` w `tokens.json`; skrypt `check.py` (rozbieżności tokenów) pominięty.
+Odchylenia: podglądy AI (AiCard, część ReviewExtras) to statyczne odwzorowania szablonów (w dev AI wyłączone);
+`bundle.css` bez dwóch głównych `@font-face` (te kroje dają tokeny), zostaje blok U+202F.
+Znaleziska poza M20: plakietka w `.row-title` prognozy rozciąga się na cały wiersz (rodzic `flex-direction: column`);
+w publicznym fixture `millenet_sample.csv` jest ciąg z „gmail” do zbadania.

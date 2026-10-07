@@ -60,3 +60,25 @@ dwuwarstwowy cień (`--elev`). Siatka 4 px, padding karty 20 px (16 na telefonie
   nazwa i kwota w `<title>`. Reszta zdarzeń jest tylko na liście pod wykresem.
 - Etykieta „najniżej dd.mm” przy dnie, kotwica start/middle/end zależnie od położenia; oś X: „dziś” i „wypłata dd.mm”.
 - Lista pod wykresem (`ul.rows.fc-list`): jedna chronologiczna, „saldo” w ostatnim wierszu dnia, wiersz dna na `--surface-2`.
+
+## System designu w Claude Design (M20)
+Przeglądalne lustro tego pliku i `app.css`: https://claude.ai/artifact/GgbLCb6vkcwtvKAEQ3wwzr (prywatny artefakt typu
+Design System: tokeny, fonty, ikony, README, 36 komponentów z podglądami). Służy do makiet nowych ekranów i planowania
+refaktorów. **Kod jest źródłem prawdy** (`app.css`, ten plik), artefakt nie dyktuje stylu. Źródła artefaktu leżą w
+`design-system/project/` (poza kontekstem builda add-onu); plan i historia etapów: `docs/PLAN_M20.md`.
+
+**Kiedy zrobić re-sync:** zmiana `:root` w `app.css`, nowa grupa klas albo komponent, zmiana fontów lub ikon.
+1. Przeczytaj aktualny indeks artefaktu (`Artifact read`, `project/design-system.json`); strona potrafi go przepisać
+   (zmiana kolejności kluczy), więc nakładaj zmianę na jej wersję, nie na starą kopię.
+2. Zmień pliki w `design-system/project/`: `tokens.json` wg różnic w `:root` (nazwy tokenów = nazwy zmiennych CSS bez
+   `--`); `components/bundle.css` = `app.css` bez dwóch pierwszych `@font-face` i z `url("../fonts/…")` w trzecim;
+   README i `preview.html` komponentu (linia 1 `<!-- @dsCard group="…" height=N -->`). Dane w podglądach neutralne
+   (Sklep X, Osoba 1), markup z prawdziwych szablonów albo z dev serwera na fixture z `tests/fixtures`, nigdy z danych
+   produkcyjnych.
+3. Wyrenderuj każdy zmieniony podgląd na 390 i 1280 px (Playwright z `reducedMotion`, konsola bez błędów).
+4. Opublikuj tylko zmienione pliki jednym wywołaniem, indeks (`lastChange`) na końcu; w `tokens.json` ustaw
+   `meta.ref` (`main@<sha>`) i `synced`.
+5. Zacommituj `design-system/` (hook prywatności działa jak zawsze).
+
+Klasy z `app.css` bez podglądu (świadomie): `buffer` (kreska bufora widoczna tylko przy ustawionym buforze), `c1`, `c2`
+(sloty koloru wycinka, zależne od `id % 8`), `htmx-request` (stan biblioteki).

@@ -100,9 +100,9 @@
   ],
   "lastChange": {
     "by": "Claude",
-    "at": "2026-10-07T13:00:00Z",
-    "via": "Claude Code · ha-budget-app@0084711",
-    "note": "E3b: 7 komponentów domykających inwentarz klas (223 z 227 klas ma podgląd)"
+    "at": "2026-10-07T14:00:00Z",
+    "via": "Claude Code · ha-budget-app@22f6ee5",
+    "note": "E4: meta.ref tokens.json na main@22f6ee5, procedura re-sync w DESIGN.md"
   },
   "layout": "files",
   "libraries": [],
