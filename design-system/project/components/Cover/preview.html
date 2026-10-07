@@ -1,0 +1,52 @@
+<!-- @dsCard height=320 -->
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=960">
+<style>
+  html, body { margin: 0; background: var(--canvas); }
+  svg { display: block; width: 960px; height: 320px; }
+  .ember { fill: var(--accent); }
+  .ink { fill: var(--text); }
+  .terra { fill: var(--chart-3); }
+  .blue { fill: var(--chart-4); }
+  .sage { fill: var(--chart-5); }
+  .stone { fill: var(--chart-other); }
+  .slab { rx: var(--r-card); }
+  .pill { rx: 8px; }
+  .name { fill: var(--text); font-family: var(--font-display); font-size: 64px; font-weight: 350; letter-spacing: -0.035em; }
+  .tag { fill: var(--text-3); font-family: var(--font-ui); font-size: 14px; font-weight: 400; letter-spacing: -0.01em; }
+</style>
+</head>
+<body>
+<svg viewBox="0 0 960 320" role="img" aria-label="Budżet Domowy — Monarch">
+  <!--
+    Blocks: accent 320×96, text 200×96, chart-3 136×96, chart-4 96×96, chart-5 64×96, chart-other 40×96; corners r-card (12px).
+    Arrangement: top band of unequal slabs (gap 8, inset 32), name beneath on the ground; Monarch composes in horizontal strips like its bar charts.
+    Pattern: pills (soft system, pill buttons and chips, r-btn) in a row of ten, heights 16, widths 32–136, in block colours: pill-shaped controls are what the panel is made of.
+    Steps and radii: 8px gap and pitch, 32px inset, 16px pill height; r-card for slabs, half the short side (8px) for pills; name 64px because "Budżet Domowy" is too wide for the 440px zone.
+  -->
+  <rect class="slab ember" x="32" y="16" width="320" height="96"/>
+  <rect class="slab ink" x="360" y="16" width="200" height="96"/>
+  <rect class="slab terra" x="568" y="16" width="136" height="96"/>
+  <rect class="slab blue" x="712" y="16" width="96" height="96"/>
+  <rect class="slab sage" x="816" y="16" width="64" height="96"/>
+  <rect class="slab stone" x="888" y="16" width="40" height="96"/>
+
+  <rect class="pill ember" x="144" y="128" width="96" height="16"/>
+  <rect class="pill ink" x="248" y="128" width="56" height="16"/>
+  <rect class="pill terra" x="312" y="128" width="136" height="16"/>
+  <rect class="pill blue" x="456" y="128" width="40" height="16"/>
+  <rect class="pill sage" x="504" y="128" width="80" height="16"/>
+  <rect class="pill stone" x="592" y="128" width="32" height="16"/>
+  <rect class="pill ember" x="632" y="128" width="112" height="16"/>
+  <rect class="pill ink" x="752" y="128" width="48" height="16"/>
+  <rect class="pill terra" x="808" y="128" width="72" height="16"/>
+  <rect class="pill blue" x="888" y="128" width="40" height="16"/>
+
+  <text class="name" x="32" y="224">Budżet Domowy — Monarch</text>
+  <text class="tag" x="32" y="260">Jasny, jeden pomarańczowy akcent; liczby są bohaterem.</text>
+</svg>
+</body>
+</html>

@@ -1,0 +1,112 @@
+{
+  "v": 3,
+  "layout": "files",
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-10-07T10:05:00Z"
+  },
+  "title": "Budżet Domowy — Monarch",
+  "namespace": "Budzet",
+  "libraries": [],
+  "sections": {},
+  "groups": [
+    "Ikony"
+  ],
+  "assetGroups": {
+    "Ikony": {
+      "name": "Ikony",
+      "tile": "m",
+      "order": [
+        "bell.svg",
+        "settings.svg",
+        "search.svg",
+        "chevron-right.svg",
+        "check.svg",
+        "arrow-up-right.svg",
+        "arrow-down-right.svg",
+        "arrow-up.svg",
+        "arrow-down.svg",
+        "eye.svg",
+        "eye-off.svg"
+      ],
+      "files": {
+        "bell.svg": {
+          "name": "bell.svg",
+          "blob": "34ec8d67ddaf3c66194b09d2c174dc60",
+          "size": 353,
+          "type": "image/svg+xml"
+        },
+        "settings.svg": {
+          "name": "settings.svg",
+          "blob": "80f5a884852652abaf4cfa5fc135d784",
+          "size": 566,
+          "type": "image/svg+xml"
+        },
+        "search.svg": {
+          "name": "search.svg",
+          "blob": "5bcf1ffd171f86a15d4b51fa81ad2ea9",
+          "size": 206,
+          "type": "image/svg+xml"
+        },
+        "chevron-right.svg": {
+          "name": "chevron-right.svg",
+          "blob": "fb393010a7963b4cfd6d5814576da2f1",
+          "size": 214,
+          "type": "image/svg+xml"
+        },
+        "check.svg": {
+          "name": "check.svg",
+          "blob": "1fb43d0ecd61554b8467506a2a48dcfb",
+          "size": 215,
+          "type": "image/svg+xml"
+        },
+        "arrow-up-right.svg": {
+          "name": "arrow-up-right.svg",
+          "blob": "3dccce9eb58f6d3ff1eae649313cd2db",
+          "size": 220,
+          "type": "image/svg+xml"
+        },
+        "arrow-down-right.svg": {
+          "name": "arrow-down-right.svg",
+          "blob": "a0f33ea6a4e6e3bffaf7f52d3877d809",
+          "size": 220,
+          "type": "image/svg+xml"
+        },
+        "arrow-up.svg": {
+          "name": "arrow-up.svg",
+          "blob": "3545b0d369553ecd60222096688062d2",
+          "size": 221,
+          "type": "image/svg+xml"
+        },
+        "arrow-down.svg": {
+          "name": "arrow-down.svg",
+          "blob": "89ee11d5b40b5215460d880b0f3ab972",
+          "size": 220,
+          "type": "image/svg+xml"
+        },
+        "eye.svg": {
+          "name": "eye.svg",
+          "blob": "be340d9d517f01f96e67d0314548168a",
+          "size": 335,
+          "type": "image/svg+xml"
+        },
+        "eye-off.svg": {
+          "name": "eye-off.svg",
+          "blob": "8a51a793749d86021fc56980da3d5582",
+          "size": 432,
+          "type": "image/svg+xml"
+        }
+      }
+    }
+  },
+  "blobs": {},
+  "docs": {
+    "sections": []
+  },
+  "lastChange": {
+    "by": "Claude",
+    "at": "2026-10-07T10:05:00Z",
+    "via": "Claude Code · ha-budget-app@b1efd84",
+    "note": "E1: tokeny, fonty, ikony, README, okładka z app.css i DESIGN.md"
+  }
+}
