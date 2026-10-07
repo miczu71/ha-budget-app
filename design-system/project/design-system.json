@@ -100,9 +100,9 @@
   ],
   "lastChange": {
     "by": "Claude",
-    "at": "2026-10-07T14:00:00Z",
-    "via": "Claude Code · ha-budget-app@22f6ee5",
-    "note": "E4: meta.ref tokens.json na main@22f6ee5, procedura re-sync w DESIGN.md"
+    "at": "2026-10-07T15:00:00Z",
+    "via": "Claude Code · ha-budget-app@7ef9117",
+    "note": "re-sync bundle.css: reguła .row-title > .badge (poprawka rozciągniętej plakietki)"
   },
   "layout": "files",
   "libraries": [],

@@ -101,5 +101,8 @@ Artefakt: https://claude.ai/artifact/GgbLCb6vkcwtvKAEQ3wwzr (prywatny). Źródł
 - E4: procedura re-sync w `DESIGN.md`, `meta.ref` w `tokens.json`; skrypt `check.py` (rozbieżności tokenów) pominięty.
 Odchylenia: podglądy AI (AiCard, część ReviewExtras) to statyczne odwzorowania szablonów (w dev AI wyłączone);
 `bundle.css` bez dwóch głównych `@font-face` (te kroje dają tokeny), zostaje blok U+202F.
-Znaleziska poza M20: plakietka w `.row-title` prognozy rozciąga się na cały wiersz (rodzic `flex-direction: column`);
-w publicznym fixture `millenet_sample.csv` jest ciąg z „gmail” do zbadania.
+✅ M20 zamknięty przez użytkownika 2026-10-07.
+Znaleziska poza M20: plakietka w `.row-title` prognozy rozciągała się na cały wiersz (rodzic `flex-direction: column`)
+— naprawione regułą `.row-title > .badge { align-self: flex-start; }` w `app.css` (pomiar: 734 → 81 px; wejdzie w
+życie z następnym wydaniem add-onu), `bundle.css` zsynchronizowany; w publicznym fixture `millenet_sample.csv` jest
+prawdziwy adres e-mail (linia 45, opis płatności BLIK), anonimizator nie ma kategorii e-mail — sprawa otwarta.
