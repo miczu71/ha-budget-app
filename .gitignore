@@ -5,6 +5,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 *.egg-info/
+uv.lock
 
 # Sekrety i dane finansowe — nigdy w repo
 .env
