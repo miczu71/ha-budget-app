@@ -211,6 +211,38 @@ def test_no_personal_or_location_data(tool: ModuleType) -> None:
         assert kept in text, kept
 
 
+def test_emails_are_masked(tool: ModuleType) -> None:
+    """E-mail w opisie (też przecięty zawijaniem) nie przechodzi, a kontrola wycieków go widzi."""
+    mail = "anna.kowalska@poczta.example"
+    desc = tool.wrap("SKLEP SKLEP SKLEP SKLEP SKLEP " + mail + " SP ZOO")  # adres przecięty
+    assert NBSP in desc[desc.index("anna") :]
+    buf = io.StringIO(newline="")
+    writer = csv.writer(buf, quoting=csv.QUOTE_ALL, lineterminator="\r\n")
+    writer.writerow(HEADER)
+    writer.writerow(
+        [
+            ACC,
+            "2026-09-03",
+            "2026-09-03",
+            "PŁATNOŚĆ BLIK W INTERNECIE",
+            "",
+            "",
+            desc,
+            "-10.00",
+            "",
+            "100.00",
+            "PLN",
+        ]
+    )
+    src = b"\xef\xbb\xbf" + buf.getvalue().encode("utf-8")
+    out = tool.anonymize(src, per_type=50, seed=7)
+    flat = out.decode("utf-8-sig").replace(NBSP, "")
+    assert "kowalska" not in flat.lower() and "poczta.example" not in flat.lower()
+    assert tool.EMAIL_PLACEHOLDER in flat
+    assert not tool.leak_report(src, out)
+    assert tool.leak_report(src, src)["e-mail"] == 1  # niezamaskowana kopia = wyciek
+
+
 def test_format_preserved(tool: ModuleType) -> None:
     src = _source(tool)
     out = tool.anonymize(src, per_type=50, seed=7)
@@ -266,6 +298,7 @@ def test_committed_fixture_is_anonymized() -> None:
     text = data.decode("utf-8-sig")
     assert set(re.findall(r"\b\d{2}-\d{3}\b", text)) <= {"00-000"}
     assert not re.search(r"\bUL\. (?!TESTOWA)", text, re.IGNORECASE)
+    assert "@" not in text  # e-mail z opisu płatności nie ma prawa trafić do publicznego repo
     free_text = re.compile(r"PRZELEW|ZLECENIE|POLECENIE")
     for r in rows:
         party = r["Odbiorca/Zleceniodawca"]

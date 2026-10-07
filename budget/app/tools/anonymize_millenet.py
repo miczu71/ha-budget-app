@@ -53,6 +53,8 @@ WRAP = 45  # Millenet zawija opisy twardą spacją co 45 znaków
 DATE_SHIFT = timedelta(days=-14)
 DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 POSTCODE_RE = re.compile(r"\b\d{2}-\d{3}\b")
+EMAIL_RE = re.compile(r"[\w.%+-]+@[\w.-]+\.\w+")
+EMAIL_PLACEHOLDER = "osoba@example.com"  # domena zarezerwowana (RFC 2606)
 STREET_RE = re.compile(r"^(UL|AL|OS|PL|ULICA|ALEJA|RONDO)\b\.?", re.IGNORECASE)
 
 COMPANY_MARKERS = re.compile(
@@ -235,6 +237,12 @@ def fold(text: str) -> str:
     text = text.replace("ł", "l").replace("Ł", "L").replace(NBSP, " ")
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     return re.sub(r"\s+", " ", text.upper()).strip()
+
+
+def mask_emails(text: str) -> str:
+    """Adresy e-mail → placeholder; zawijanie (twarde spacje) nie ukrywa adresu przed wykryciem."""
+    flat = text.replace(NBSP, "")
+    return wrap(EMAIL_RE.sub(EMAIL_PLACEHOLDER, flat)) if EMAIL_RE.search(flat) else text
 
 
 def unwrap(parts: list[str]) -> str:
@@ -463,6 +471,7 @@ def anonymize(src: bytes, per_type: int, seed: int) -> bytes:
                 r[DESC] = anon.scrub(r[DESC])
         r[DEBIT] = anon.amount(r[DEBIT], salt)
         r[CREDIT] = anon.amount(r[CREDIT], salt)
+        r[DESC], r[PARTY] = mask_emails(r[DESC]), mask_emails(r[PARTY])
         out_rows.append(r)
     _recompute_balances(out_rows, anon.rng)
 
@@ -488,6 +497,7 @@ def _location_tokens(rows: Iterable[dict[str, str]]) -> dict[str, set[str]]:
             found["strona przelewu"].add(fold(r[PARTY].split(NBSP)[0]))
         for text in (r[DESC], r[PARTY]):
             folded = fold(text)
+            found["e-mail"].update(fold(m) for m in EMAIL_RE.findall(text.replace(NBSP, "")))
             found["kod pocztowy"].update(POSTCODE_RE.findall(text))
             # bez „PL” — myli się z domenami .pl (np. „…PL PAYPRO”)
             for street in re.findall(r"\b(?:UL|AL|OS)\b\.? ?([A-Z]{4,})", folded):
@@ -516,6 +526,7 @@ def leak_report(original: bytes, anonymized: bytes) -> Counter[str]:
     """Ile wrażliwych fragmentów oryginału (z całego pliku) występuje w wyniku — wg kategorii."""
     _, _, _, rows = _read(original)
     out = fold(anonymized.decode("utf-8-sig"))
+    out_flat = fold(anonymized.decode("utf-8-sig").replace(NBSP, ""))  # adres przecięty zawijaniem
     out_digits = re.sub(r"\D", "", out)
     leaks: Counter[str] = Counter()
     for category, values in _location_tokens(rows).items():
@@ -523,8 +534,9 @@ def leak_report(original: bytes, anonymized: bytes) -> Counter[str]:
             if category == "numer":
                 hit = value in out_digits
             else:  # całe słowa — „MIASTO” w „NATYCHMIASTOWY” to nie wyciek
+                text = out_flat if category == "e-mail" else out
                 hit = (
-                    re.search(rf"(?<![A-Z0-9]){re.escape(fold(value))}(?![A-Z0-9])", out)
+                    re.search(rf"(?<![A-Z0-9]){re.escape(fold(value))}(?![A-Z0-9])", text)
                     is not None
                 )
             leaks[category] += hit
