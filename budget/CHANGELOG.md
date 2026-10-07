@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.35.2
+
+**Poprawka wyglądu: plakietka w wierszu listy.**
+
+- Plakietka stanu (np. „spóźniona”) w tytule wiersza listy, m.in. w „Do wypłaty”, nie rozciąga się już
+  na całą szerokość wiersza, tylko ma szerokość treści (reguła `.row-title > .badge` w `app.css`).
+
 ## 0.35.1
 
 **Status: log pytań czatu** (M12 E3a, `docs/PLAN_M12.md` § E3).
