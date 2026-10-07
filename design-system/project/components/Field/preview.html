@@ -1,0 +1,14 @@
+<!-- @dsCard group="Akcje i formularze" height=260 -->
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{background:var(--canvas)}main{padding:16px}</style></head>
+<body>
+<main>
+<form class="inline" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+  <label>Konto<select name="account"><option>wszystkie</option><option>#1 rachunek</option><option>#2 karta kredytowa</option></select></label>
+  <label>Od<input type="date" name="date_from" value="2026-09-01"></label>
+  <label>Nazwa<input name="name" value="Seria czynsz" autocomplete="off"></label>
+  <label class="check"><input type="checkbox" name="make_rule" value="1" checked> utwórz regułę</label>
+  <label class="check switch"><input type="checkbox" role="switch" name="include" value="1" checked><span>Odejmij zadłużenie karty</span></label>
+</form>
+</main>
+</body></html>
