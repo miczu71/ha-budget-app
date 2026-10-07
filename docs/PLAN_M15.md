@@ -192,7 +192,8 @@ Spłaty są ręczne i nieregularne („wcześniejsza spłata z rachunku”), a A
   cykl spłacony wcześniejszymi spłatami), limit wpisany w panelu, wykorzystanie < 1%; encja `sensor.budget_card_due`
   = 0, atrybuty limit/wykorzystanie; dzwonek bez pozycji karty.
 - Do poprawy: atrybut `available` nie trafia do encji (HA odrzuca tę nazwę w atrybutach MQTT) — zmiana nazwy
-  przy najbliższym wydaniu innego etapu (decyzja użytkownika, bez osobnego 0.30.1).
+  przy najbliższym wydaniu innego etapu (decyzja użytkownika, bez osobnego 0.30.1). Zrobione w 0.31.0 (`5a5407d`):
+  encja ma `available_bank`, sprawdzone w HA 2026-10-07.
 - ✅ Checkpoint E4 zamknięty przez użytkownika 2026-10-06 — M15 zamknięty.
 - Obserwacja: zakup z końca września zaksięgowany 3. dnia cyklu (poza oknem 2 dni) liczy się do nowego cyklu;
   przy niespłaconym wyciągu kwota mogłaby wyjść zaniżona. Sprawdzić 20.10 z „kwotą do spłaty” w aplikacji banku.
