@@ -100,9 +100,9 @@
   ],
   "lastChange": {
     "by": "Claude",
-    "at": "2026-10-07T10:40:00Z",
-    "via": "Claude Code · ha-budget-app@9b118bc",
-    "note": "E2: bundle.css z app.css, 16 komponentów rdzenia z podglądami"
+    "at": "2026-10-07T12:00:00Z",
+    "via": "Claude Code · ha-budget-app@0329eb8",
+    "note": "E3: 13 komponentów (wykresy i ekrany robocze) z podglądami"
   },
   "layout": "files",
   "libraries": [],

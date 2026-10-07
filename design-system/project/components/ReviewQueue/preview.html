@@ -1,0 +1,42 @@
+<!-- @dsCard group="Ekrany robocze" height=900 -->
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{background:var(--canvas)}main{padding:16px}</style></head>
+<body>
+<main>
+<section class="card rv-head">
+  <p id="rv-coverage" class="rv-coverage">Pokrycie wydatków: <strong>53%</strong> transakcji, <strong>64%</strong> kwoty <span class="muted">· w kolejce: 64</span></p>
+  <p class="small muted">Transakcje bez kategorii, w grupach. Kategoria dla grupy zapisuje regułę „sprzedawca równa się …” — kolejne transakcje skategoryzują się same.</p>
+</section>
+<nav class="tabs rv-tabs" aria-label="widok kolejki">
+  <a href="#" class="tap on">Wydatki</a><a href="#" class="tap">Wpływy</a>
+  <span class="rv-sort small muted">sortuj: <a href="#" class="tap on">kwota</a> <a href="#" class="tap">liczba</a></span>
+</nav>
+<section class="card">
+  <h2>Sprzedawcy i odbiorcy</h2>
+  <ul class="rv-list">
+    <li id="m1" class="rv-group"><details open>
+      <summary><span class="cat-name">Osoba 1</span><span class="cat-amount">11 490,80&nbsp;zł</span><span class="cat-meta small muted">6 tr. · 22.08.2025 – 24.07.2026</span></summary>
+      <div class="rv-body">
+        <form id="f-m1" class="rv-form" onsubmit="return false">
+          <div class="rv-actions">
+            <select name="category_id" aria-label="kategoria" required><option value="">— wybierz kategorię —</option><optgroup label="Jedzenie"><option>Spożywcze</option><option>Restauracje i kawiarnie</option></optgroup><optgroup label="Dom"><option>Media i energia</option></optgroup></select>
+            <label class="check"><input type="checkbox" name="make_rule" value="1"> utwórz regułę</label>
+            <button type="submit">Zapisz</button>
+          </div>
+          <div class="rv-rulebox">
+            <div class="rv-rule"><span class="small muted">reguła:</span>
+              <select name="rule_field_0" aria-label="pole reguły"><option selected>sprzedawca / odbiorca</option><option>opis / tytuł</option></select>
+              <select name="rule_op_0" aria-label="warunek reguły"><option>zawiera</option><option selected>równa się</option><option>zaczyna się od</option></select>
+              <input type="text" name="rule_value_0" value="Osoba 1" maxlength="120" aria-label="tekst reguły" autocomplete="off">
+            </div>
+            <details class="rv-more"><summary class="small">+ więcej warunków (wszystkie muszą być spełnione)</summary></details>
+          </div>
+        </form>
+      </div>
+    </details></li>
+    <li id="m2" class="rv-group"><details><summary><span class="cat-name">Osoba 2</span><span class="cat-amount">5 115,16&nbsp;zł</span><span class="cat-meta small muted">2 tr. · 23.05.2025 – 26.05.2026</span></summary></details></li>
+    <li id="m3" class="rv-group"><details><summary><span class="cat-name">Sklep X</span><span class="cat-amount">1 876,27&nbsp;zł</span><span class="cat-meta small muted">1 tr. · 12.08.2025</span></summary></details></li>
+  </ul>
+</section>
+</main>
+</body></html>

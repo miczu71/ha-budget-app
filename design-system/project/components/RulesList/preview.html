@@ -1,0 +1,22 @@
+<!-- @dsCard group="Ekrany robocze" height=560 -->
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{background:var(--canvas)}main{padding:16px}</style></head>
+<body>
+<main>
+<nav class="tabs rules-tabs" aria-label="Reguły i kategorie"><a href="#" class="tap on">Reguły</a><a href="#" class="tap">Słownik sieci</a><a href="#" class="tap">Kategorie</a></nav>
+<section class="card">
+  <p class="small muted">Wygrywa pierwsza pasująca reguła z góry listy. Reguły mają pierwszeństwo przed słownikiem sieci; ręcznie ustawionej kategorii nic nie nadpisuje.</p>
+  <p><a class="button tap" href="#">+ Nowa reguła</a></p>
+  <div id="rules-list">
+    <p class="search-count small muted">2 z 2</p>
+    <div class="table-wrap"><table class="rules">
+      <thead><tr><th>Warunki</th><th>Kategoria</th><th class="num">Trafienia</th><th></th></tr></thead>
+      <tbody>
+        <tr class="rule-row"><td class="cond-cell"><a class="tap" href="#">sprzedawca równa się „Sklep X”</a></td><td>Spożywcze</td><td class="num">42</td><td class="actions"><button class="secondary" disabled>wyżej</button> <button class="secondary">niżej</button> <button class="secondary">Wyłącz</button> <button class="secondary danger">Usuń</button></td></tr>
+        <tr class="rule-row disabled"><td class="cond-cell"><a class="tap" href="#">opis zawiera „PALIWO”</a><br><span class="small muted">nazwa: Stacja Y</span> <span class="badge warn">wyłączona</span></td><td>Paliwo</td><td class="num">7</td><td class="actions"><button class="secondary">wyżej</button> <button class="secondary" disabled>niżej</button> <button class="secondary">Włącz</button> <button class="secondary danger">Usuń</button></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+</main>
+</body></html>

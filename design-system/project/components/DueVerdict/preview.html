@@ -1,0 +1,65 @@
+<!-- @dsCard group="Wykresy" height=700 -->
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{background:var(--canvas)}main{padding:16px}</style></head>
+<body>
+<main>
+
+    
+    
+<div class="month-nav">
+  <a class="month-link tap" href="/card?month=2026-07" aria-label="poprzedni miesiąc">«</a>
+  <h1>Karta kredytowa — sierpień 2026</h1>
+  <span class="month-link"></span>
+</div>
+<div id="card-main">
+
+
+
+<section class="card card-due">
+  <h2>Spłata — do 20.08</h2>
+  <div class="fc-verdict due-verdict bad">
+    <div class="hero-amount">400,00&nbsp;zł</div>
+    <p class="muted">Termin minął 20.08 — tyle zostało z zamkniętego cyklu; spłać, żeby ograniczyć odsetki.</p>
+  </div>
+  <p class="small muted">Liczone ostrożnie: zadłużenie z banku minus zakupy zaksięgowane w tym cyklu (bez pierwszych 2 dni) — może wyjść nieco więcej niż w aplikacji banku, nigdy mniej.</p>
+</section>
+<section class="card card-limit">
+  <h2>Limit</h2>
+  
+  <p class="muted">Bank nie podaje limitu karty — wpisz go, a zobaczysz, ile limitu jest wykorzystane.</p>
+  
+  <form class="rename" method="post" action="/card/limit">
+    <input name="limit" inputmode="decimal" value="" placeholder="limit, np. 5000" aria-label="limit karty w zł">
+    <button type="submit" class="">Zapisz limit</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Płatności kartą</h2>
+  <div class="stats">
+    
+    <div class="stat"><span class="stat-label">Razem</span><span class="stat-value">0 / 5</span><span class="small warn-text">brakuje 5</span></div>
+    
+    
+  </div>
+  <p class="small muted">Karta jest bezpłatna przy 5 płatnościach w miesiącu — bank liczy każdą kartę osobno, BLIK się nie liczy. Nieprzypisana płatność nie liczy się nikomu. Liczone ostrożnie, bo zakup pojawia się w banku ok. 2 dni później.</p>
+</section>
+
+
+
+</div>
+
+<section class="card">
+  <h2>Osoby z kartą</h2>
+  <p class="muted">Dodaj osoby, które płacą kartą główną i dodatkową — wtedy każdą płatność przypiszesz osobie, a licznik policzy 5 płatności dla każdej.</p>
+  
+  
+  <form class="rename" method="post" action="/card/holders">
+    <input name="name" maxlength="40" placeholder="imię" aria-label="nowa osoba" required="">
+    <button type="submit">Dodaj osobę</button>
+  </form>
+</section>
+
+  
+</main>
+</body></html>

@@ -1,0 +1,21 @@
+<!-- @dsCard group="Ekrany robocze" height=600 -->
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{background:var(--canvas)}main{padding:16px}</style></head>
+<body>
+<main>
+<nav class="tabs rules-tabs" aria-label="Reguły i kategorie"><a href="#" class="tap">Reguły</a><a href="#" class="tap">Słownik sieci</a><a href="#" class="tap on">Kategorie</a></nav>
+<section class="card">
+  <form class="rename main" onsubmit="return false"><input name="name" value="Jedzenie" aria-label="nazwa kategorii głównej" maxlength="60"><button class="secondary">Zmień</button></form>
+  <ul class="leaf-list">
+    <li><details class="leaf" open>
+      <summary><span class="cat-name">Spożywcze</span><span class="small muted">jedzenie · 48 tr.</span></summary>
+      <form class="rename" onsubmit="return false"><input name="name" value="Spożywcze" aria-label="nazwa podkategorii" maxlength="60"><button class="secondary">Zmień</button></form>
+      <form class="move group" onsubmit="return false"><select name="flex_group" aria-label="grupa budżetu: Spożywcze"><option selected>elastyczne</option><option>stałe</option><option>nieregularne</option></select><button class="secondary">Ustaw</button></form>
+      <form class="move" onsubmit="return false"><select name="parent_id" aria-label="przenieś Spożywcze do kategorii głównej" required><option>Jedzenie</option><option>Dom</option></select><button class="secondary">Przenieś</button></form>
+    </details></li>
+    <li><details class="leaf"><summary><span class="cat-name">Restauracje i kawiarnie</span><span class="small muted">jedzenie · 12 tr.</span></summary></details></li>
+    <li><details class="leaf"><summary><span class="cat-name">Dostawy jedzenia</span><span class="small muted">jedzenie · 3 tr.</span></summary></details></li>
+  </ul>
+</section>
+</main>
+</body></html>

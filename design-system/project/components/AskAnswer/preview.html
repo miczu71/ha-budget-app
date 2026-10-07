@@ -1,0 +1,28 @@
+<!-- @dsCard group="Ekrany robocze" height=640 -->
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{background:var(--canvas)}main{padding:16px}</style></head>
+<body>
+<main>
+<section class="card ask-answer">
+  <p class="ask-q muted small">ile wydajemy rocznie na paliwo?</p>
+  <p class="ask-text">W ostatnich dwóch latach na paliwo wydano średnio około 4 200 zł rocznie; w tym roku wynik jest niepełny.</p>
+  <div class="table-wrap"><table class="ask-table">
+    <thead><tr><th scope="col"></th><th scope="col">2025</th><th scope="col">2026 <span class="small muted">(niepełny)</span></th></tr></thead>
+    <tbody><tr><th scope="row">Paliwo</th><td class="num">4 380,00&nbsp;zł</td><td class="num">2 915,00&nbsp;zł</td></tr></tbody>
+    <tfoot><tr><th scope="row">Razem</th><td class="num"><strong>4 380,00&nbsp;zł</strong> <span class="small muted">(31 tr.)</span></td><td class="num"><strong>2 915,00&nbsp;zł</strong> <span class="small muted">(22 tr.)</span></td></tr></tfoot>
+  </table></div>
+  <details class="ask-how"><summary>Jak policzono</summary><ul class="small"><li>Kategoria: Paliwo</li><li>Bez przelewów między własnymi kontami; zwroty pomniejszają kategorię</li></ul></details>
+  <p class="ask-links"><a class="tap" href="#">Pokaż transakcje: 2025</a> <a class="tap" href="#">Pokaż transakcje: 2026</a></p>
+</section>
+<section class="card ask">
+  <form id="ask-form" class="ask-form" onsubmit="return false">
+    <label for="ask-q">Pytanie o Wasze finanse</label>
+    <textarea id="ask-q" name="q" rows="2" maxlength="300" placeholder="np. ile kosztuje nas samochód rocznie? Potem możesz dopytać: „a w 2025?”"></textarea>
+    <div class="ask-actions"><button type="submit">Zapytaj</button><a class="tap ask-new" href="#">Nowa rozmowa</a></div>
+    <h2 class="small muted">Przykłady (nowa rozmowa)</h2>
+    <div class="ask-chips"><button type="button" class="secondary">ile wydaliśmy na jedzenie w tym roku?</button><button type="button" class="secondary">top 5 kategorii w zeszłym miesiącu</button></div>
+  </form>
+</section>
+<div class="msg error" role="alert"><span class="ask-q small">ile za zeszły tydzień?</span><br>Model nie odpowiedział w limicie czasu.</div>
+</main>
+</body></html>
