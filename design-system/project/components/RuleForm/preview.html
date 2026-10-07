@@ -1,0 +1,27 @@
+<!-- @dsCard group="Ekrany robocze" height=820 -->
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{background:var(--canvas)}main{padding:16px}</style></head>
+<body>
+<main>
+<h1>Nowa reguła</h1>
+<form class="card rule-form" onsubmit="return false">
+  <h2>Gdy</h2>
+  <div class="cond"><select name="field_0" aria-label="pole"><option>sprzedawca / odbiorca</option><option>opis / tytuł</option><option>kontrahent</option></select><select name="op_0" aria-label="operator"><option>równa się</option><option>zawiera</option><option>zaczyna się od</option></select><input type="text" name="value_0" value="" placeholder="np. Sklep X" aria-label="wartość" maxlength="120" autocomplete="off" required></div>
+  <div class="cond"><select name="field_1" aria-label="pole"><option>opis / tytuł</option><option>opis / tytuł</option><option>kontrahent</option></select><select name="op_1" aria-label="operator"><option>zawiera</option><option>zawiera</option><option>zaczyna się od</option></select><input type="text" name="value_1" value="" placeholder="opcjonalnie" aria-label="wartość" maxlength="120" autocomplete="off"></div>
+  <div class="cond"><select name="field_2" aria-label="pole"><option>opis / tytuł</option><option>opis / tytuł</option><option>kontrahent</option></select><select name="op_2" aria-label="operator"><option>zawiera</option><option>zawiera</option><option>zaczyna się od</option></select><input type="text" name="value_2" value="" placeholder="opcjonalnie" aria-label="wartość" maxlength="120" autocomplete="off"></div>
+  <div class="inline">
+    <label>Konto<select name="account_id"><option>dowolne</option><option>#1 rachunek</option><option>#2 karta kredytowa</option></select></label>
+    <label>Kierunek<select name="direction"><option>oba</option><option>wydatki</option><option>wpływy</option></select></label>
+    <label>Kwota od<input name="amount_min" inputmode="decimal" value="" size="8"></label>
+    <label>do<input name="amount_max" inputmode="decimal" value="" size="8"></label>
+  </div>
+  <h2>Wtedy</h2>
+  <div class="inline">
+    <label>Kategoria<select name="category_id" required><option>Spożywcze</option><option>Paliwo</option></select></label>
+    <label>Nazwa sprzedawcy (opcjonalnie)<input name="rename" value="" maxlength="60" placeholder="np. Czynsz"></label>
+  </div>
+  <p class="actions-row"><button type="submit">Zapisz i przelicz</button> <a class="tap" href="#">Anuluj</a></p>
+</form>
+<section class="card"><h2>Podgląd</h2><div aria-live="polite"><p class="muted">wpisz warunek…</p></div></section>
+</main>
+</body></html>

@@ -1,0 +1,3 @@
+Zmiany w seriach cyklicznych: karta „Wymaga decyzji”, lista ostatnich transakcji serii i przyciski akcji.
+
+`li.series-item` z plakietką rodzaju zmiany (`badge error` dla „spóźniona”, zwykła dla „inna kwota”) i szczegółem `small muted`. `div.series-actions` trzyma małe formularze z przyciskami (główny, `secondary`) i linkiem `tap`: przyjmij nową kwotę, jednorazowo, pomiń okres, zakończ, zostaw; dla wykrytej serii: potwierdź, edytuj, odrzuć. `ul.series-txns` w `details` pokazuje ostatnie transakcje (data, opis, kwota). Plakietki stanów połączenia z bankiem: `badge error` / `warn` (`expired`, `no_session`, `rate_limited`).

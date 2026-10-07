@@ -1,0 +1,42 @@
+<!-- @dsCard group="Ekrany robocze" height=840 -->
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{background:var(--canvas)}main{padding:16px}</style></head>
+<body>
+<main>
+<section class="card">
+  <h2>Pula na elastyczne</h2>
+  <p>2 320,00&nbsp;zł <span class="small muted">— automatyczna, z wpływów z miesiąca: lipiec 2026</span></p>
+  <ul class="cats pool">
+    <li><details>
+      <summary><span class="cat-name">Wpływy (lipiec 2026)</span><span class="cat-amount">8 300,00&nbsp;zł</span></summary>
+      <ul class="flex-lines"><li><span>Pensja</span><span class="cat-amount">7 500,00&nbsp;zł</span><span class="small muted">w tym premia poza pulą 500,00&nbsp;zł</span></li><li><span>Zwrot</span><span class="cat-amount">800,00&nbsp;zł</span></li></ul>
+      <p class="small muted">Wynagrodzenie i Świadczenia; inne wpływy nie zasilają puli.</p>
+    </details></li>
+    <li class="pool-row"><span>premia poza pulą — Pensja</span><span class="cat-amount neg">−500,00&nbsp;zł</span></li>
+    <li><details open>
+      <summary><span class="cat-name">Koszty stałe</span><span class="cat-amount">2 630,00&nbsp;zł</span></summary>
+      <ul class="flex-lines"><li><details class="leaf" open>
+        <summary><span class="cat-name">Internet i telefon</span><span class="cat-amount">80,00&nbsp;zł</span></summary>
+        <div class="leaf-meta small"><span class="muted">Dom</span> <a class="tap" href="#">Transakcje</a></div>
+        <form class="move" onsubmit="return false"><select name="flex_group" aria-label="przenieś Internet i telefon do grupy"><option>elastyczne</option><option>nieregularne</option></select><button class="secondary">Przenieś</button></form>
+      </details></li></ul>
+      <form class="move add-fixed" onsubmit="return false"><select name="category" aria-label="dodaj podkategorię do kosztów stałych"><option>Dom › Media i energia (310,00 zł, elastyczne)</option></select><button>Dodaj do stałych</button></form>
+    </details></li>
+    <li class="pool-row"><span class="cat-name">Pula automatyczna</span><span class="cat-amount"><strong>2 320,00&nbsp;zł</strong></span></li>
+  </ul>
+</section>
+<section class="card card-limit"><h2>Limit</h2>
+  <div class="flex-bar limit-bar" role="img" aria-label="wykorzystanie limitu 8%"><span class="fill" style="width: 8%"></span></div>
+  <dl class="fc-strip limit-strip">
+    <div><dt>Zadłużenie</dt><dd>400,00 zł</dd></div><div><dt>Limit</dt><dd>5 000,00 zł</dd></div><div><dt>Wykorzystanie</dt><dd>8%</dd></div><div><dt>Dostępne wg banku</dt><dd>4 600,00 zł</dd></div>
+  </dl>
+</section>
+<section class="card card-limit"><h2>Limit przekroczony</h2><div class="flex-bar limit-bar over" role="img" aria-label="wykorzystanie limitu 104%"><span class="fill" style="width: 100%"></span></div></section>
+<section class="card"><h2>Płatności kartą</h2>
+  <ul class="rows pays">
+    <li><div class="row"><span class="row-date">03.09</span><span class="row-title">Sklep X</span><span class="row-amount num">−86,40 zł</span></div>
+      <form class="who" onsubmit="return false"><button type="submit" aria-pressed="true">Osoba 1</button><button type="submit" class="secondary" aria-pressed="false">Osoba 2</button></form></li>
+  </ul>
+</section>
+</main>
+</body></html>

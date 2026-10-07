@@ -1,0 +1,46 @@
+<!-- @dsCard group="Ekrany robocze" height=940 -->
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{background:var(--canvas)}main{padding:16px}</style></head>
+<body>
+<main>
+<section class="card rv-head">
+  <form class="rv-ai-run" onsubmit="return false">
+    <button type="submit" class="secondary">Podpowiedz teraz (AI)</button>
+    <span class="small muted">Do 3 propozycji kategorii pod nazwą sprzedawcy — dotknięcie wybiera kategorię, zapisujesz jak zwykle.</span>
+  </form>
+</section>
+<nav class="rv-ai-filter" aria-label="filtr propozycji AI">
+  <span class="small muted">Propozycja AI:</span>
+  <a class="rv-f chip tap on" href="#">wszystkie</a><a class="rv-f chip tap" href="#">Spożywcze (12)</a><a class="rv-f chip tap" href="#">Paliwo (5)</a>
+  <details class="rv-f-more"><summary class="small">więcej (3)</summary><div class="rv-ai-filter"><a class="rv-f chip tap" href="#">Apteka (2)</a></div></details>
+</nav>
+<section class="card">
+  <ul class="rv-list">
+    <li class="rv-group"><details open>
+      <summary><span class="cat-name">Sklep X</span><span class="cat-amount">1 876,27&nbsp;zł</span><span class="cat-meta small muted">4 tr. · 12.08.2025 – 03.09.2026</span>
+        <span class="rv-ai"><button type="button" class="rv-accept">Spożywcze</button><span class="small muted">AI:</span><button type="button" class="chip on">Spożywcze</button><button type="button" class="chip">Dom</button></span>
+      </summary>
+      <div class="rv-body">
+        <form class="rv-form" onsubmit="return false">
+          <ul class="rv-items">
+            <li><label class="check"><input type="checkbox" checked><span class="date small muted">03.09.2026</span><span class="rv-desc">ZAKUP KARTĄ 123</span></label><span class="num neg">−86,40&nbsp;zł</span></li>
+            <li><label class="check"><input type="checkbox" checked><span class="date small muted">12.08.2025</span><span class="rv-desc">ZAKUP KARTĄ 456</span></label><span class="num neg">−1 004,00&nbsp;zł</span></li>
+          </ul>
+          <div class="rv-preview small" aria-live="polite"><p class="muted">Kategoria ręczna dla zaznaczonych pozycji. Zaznacz „utwórz regułę”, żeby przyszłe transakcje dostawały kategorię same.</p></div>
+        </form>
+        <details class="rv-more" open><summary class="small">+ więcej warunków (wszystkie muszą być spełnione)</summary><div class="rule-fields"><div class="cond"><select aria-label="pole"><option>opis / tytuł</option></select><select aria-label="operator"><option>zawiera</option></select><input type="text" placeholder="opcjonalnie" aria-label="wartość"></div><label>Nazwa sprzedawcy (opcjonalnie)<input name="rename" value="" maxlength="60"></label></div></details>
+        <div class="rv-sub"><span class="cat-name">Sklep Y</span><span class="small muted">AI: Spożywcze, Dom</span><button type="button" class="link small">reguła dla tego sprzedawcy</button></div>
+      </div>
+    </details></li>
+    <li class="rv-done"><span class="badge ok">zapisano</span> Osoba 1: 6 tr. → <strong>Przelewy rodzinne</strong> · reguła, zaktualizowane w księdze: 6 · <a href="#">reguły »</a></li>
+  </ul>
+</section>
+<section class="card"><form class="cat-form" onsubmit="return false"><select name="category_id" aria-label="kategoria"><option>— automatycznie —</option><option>Spożywcze</option></select><label class="check"><input type="checkbox" name="make_rule" value="1"> utwórz regułę</label><button type="submit">Zapisz</button><button type="button" class="secondary">Anuluj</button></form></section>
+<section class="card"><details class="rv-learned" open>
+  <summary><h2>Przypisane automatycznie (2)</h2></summary>
+  <p class="small muted">Kategoria z Twoich wcześniejszych decyzji u tego samego sprzedawcy — już liczona w budżecie.</p>
+  <button type="button" class="secondary">Potwierdź wszystkie (2)</button>
+  <ul class="rv-list"><li class="rv-group"><details><summary><span class="cat-name">Sklep Z</span><span class="cat-amount">210,00&nbsp;zł</span><span class="cat-meta small muted">2 tr. · <button type="button" class="rv-accept">Potwierdź</button></span></summary></details></li></ul>
+</details></section>
+</main>
+</body></html>

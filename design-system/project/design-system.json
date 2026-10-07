@@ -100,9 +100,9 @@
   ],
   "lastChange": {
     "by": "Claude",
-    "at": "2026-10-07T12:00:00Z",
-    "via": "Claude Code · ha-budget-app@0329eb8",
-    "note": "E3: 13 komponentów (wykresy i ekrany robocze) z podglądami"
+    "at": "2026-10-07T13:00:00Z",
+    "via": "Claude Code · ha-budget-app@0084711",
+    "note": "E3b: 7 komponentów domykających inwentarz klas (223 z 227 klas ma podgląd)"
   },
   "layout": "files",
   "libraries": [],

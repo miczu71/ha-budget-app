@@ -1,0 +1,37 @@
+<!-- @dsCard group="Ekrany robocze" height=760 -->
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{background:var(--canvas)}main{padding:16px}</style></head>
+<body>
+<main>
+<section class="card ai-card">
+  <h2>Podpowiedzi AI</h2>
+  <dl class="kv">
+    <dt>Model</dt><dd>model-x</dd>
+    <dt>Wywołania dziś</dt><dd>3 / 20 <span class="small muted">(4 210 tokenów)</span></dd>
+    <dt>Podpowiedzi</dt><dd>12 czeka na decyzję · 2 „nie wiadomo” · 40 przyjętych · 3 odrzucone</dd>
+    <dt>Bez podpowiedzi</dt><dd>5 sprzedawców w kolejce</dd>
+  </dl>
+  <div class="ai-actions">
+    <form onsubmit="return false"><button type="submit">Podpowiedz teraz</button> <span class="htmx-indicator muted small">pytam model…</span></form>
+    <form onsubmit="return false"><button type="submit" class="secondary">Zmierz trafność</button> <span class="htmx-indicator muted small">mierzę…</span></form>
+  </div>
+  <h3>Trafność <span class="small muted">(model-x, 120 sprzedawców z kategorią)</span></h3>
+  <div class="table-wrap"><table class="ai-eval">
+    <thead><tr><th>pewność ≥</th><th>pokazane</th><th>1. propozycja</th><th>wśród 3</th><th>kategoria główna</th></tr></thead>
+    <tbody><tr><td>0.5</td><td>110</td><td>71%</td><td>88%</td><td>92%</td></tr><tr><td>0.8</td><td>64</td><td>86%</td><td>95%</td><td>97%</td></tr></tbody>
+  </table></div>
+</section>
+<section class="card">
+  <h3>Podsumowanie tygodnia</h3>
+  <pre class="summary-preview">Wydatki: 820 zł (−12% vs poprzedni tydzień)
+Największa kategoria: Spożywcze, 310 zł</pre>
+  <button type="button" class="secondary">Wyślij teraz</button>
+</section>
+<section class="card"><h2>Czat — ostatnie pytania</h2>
+  <ul class="rows chat-log">
+    <li><span class="small muted">07.10 09:12</span><div>ile wydajemy rocznie na paliwo?</div><p class="small muted">odpowiedź: 2 okresy, 53 transakcje</p></li>
+    <li><span class="small muted">07.10 09:15 · tura 2</span><div>a w 2024?</div><p class="small neg">nie umiem: brak danych sprzed importu</p></li>
+  </ul>
+</section>
+</main>
+</body></html>
