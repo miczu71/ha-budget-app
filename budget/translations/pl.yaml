@@ -46,7 +46,7 @@ configuration:
     name: Podpowiedzi AI — klucz API
   ai_model:
     name: Podpowiedzi AI — model
-    description: Nazwany model (np. gemini-3.1-flash-lite); „auto” routera nie obsługuje odpowiedzi według schematu.
+    description: Nazwany model (np. gemini-3.1-flash-lite) albo łańcuch fallback routera „auto:<nazwa>” (np. auto:text); samo „auto” nie ogłasza obsługi odpowiedzi według schematu.
   ai_daily_calls:
     name: Podpowiedzi AI — limit wywołań na dobę
     description: Jedno wywołanie obejmuje do 40 sprzedawców. 0 = bez wywołań.

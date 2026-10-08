@@ -1,7 +1,8 @@
 """Klient API zgodnego z OpenAI (freellmapi) — jedno wywołanie z odpowiedzią wg schematu JSON.
 
 Zachowanie routera zmierzone w innym add-onie użytkownika (nokia_tracker):
-- `json_schema` działa tylko na nazwanym modelu (`auto` go nie obsługuje);
+- `json_schema` działa na nazwanym modelu i na łańcuchu fallback `auto:<nazwa>` (np. `auto:text`,
+  zmierzone 2026-10-08); samo `auto` nie ogłasza `response_format` w `/v1/models`;
 - `max_tokens` poniżej ~1500 ucina JSON u modeli z tokenami rozumowania;
 - awarie dostawcy po drodze to HTTP 502, nie tylko 429 — oba ponawiane;
 - typ „liczba albo null” psuł schemat na Gemini — schematy bez unii typów.

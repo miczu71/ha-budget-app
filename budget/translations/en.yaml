@@ -46,7 +46,7 @@ configuration:
     name: AI suggestions — API key
   ai_model:
     name: AI suggestions — model
-    description: A named model (e.g. gemini-3.1-flash-lite); the router's "auto" does not support schema-constrained responses.
+    description: A named model (e.g. gemini-3.1-flash-lite) or a router fallback chain "auto:<name>" (e.g. auto:text); plain "auto" does not advertise schema-constrained responses.
   ai_daily_calls:
     name: AI suggestions — daily call limit
     description: One call covers up to 40 merchants. 0 = no calls.
