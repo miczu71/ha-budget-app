@@ -24,7 +24,8 @@ def test_default_layout_is_all_visible_in_default_order(conn: sqlite3.Connection
 
 def test_move_swaps_neighbours_and_ignores_edges(conn: sqlite3.Connection) -> None:
     H.move(conn, "inbox", -1)
-    assert _keys(conn)[:3] == ["forecast", "inbox", "spending"]
+    assert _keys(conn)[:4] == ["forecast", "month", "inbox", "spending"]
+    H.move(conn, "inbox", -1)
     H.move(conn, "inbox", -1)
     H.move(conn, "inbox", -1)  # już pierwszy
     assert _keys(conn)[0] == "inbox"
@@ -49,6 +50,13 @@ def test_reset_restores_default(conn: sqlite3.Connection) -> None:
 def test_load_drops_unknown_keys_and_appends_new_tiles(conn: sqlite3.Connection) -> None:
     db.kv_set(conn, H.KEY, {"order": ["recent", "gone", "inbox"], "hidden": ["gone", "inbox"]})
     tiles = H.load(conn)
-    assert [t.key for t in tiles[:2]] == ["recent", "inbox"]
-    assert [t.key for t in tiles[2:]] == [k for k in H.TILES if k not in ("recent", "inbox")]
+    assert {t.key for t in tiles} == set(H.TILES)
+    assert [t.key for t in tiles[:3]] == ["recent", "months", "inbox"]  # „months” za „recent”
     assert [t.key for t in tiles if t.hidden] == ["inbox"]
+
+
+def test_new_tile_lands_after_its_default_predecessor(conn: sqlite3.Connection) -> None:
+    saved = [k for k in H.TILES if k != "month"][::-1]  # układ sprzed kafelka „month”
+    db.kv_set(conn, H.KEY, {"order": saved, "hidden": []})
+    keys = _keys(conn)
+    assert keys.index("month") == keys.index("forecast") + 1

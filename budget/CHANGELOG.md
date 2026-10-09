@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.37.0
+
+**Podsumowanie liczy do wypłaty** (M21 E2, `docs/PLAN_M21.md`).
+
+- Na górze Podsumowania (bieżący miesiąc, gdy są salda) karta „Do wypłaty”: ile dziennie możesz wydawać
+  do dnia wypłaty, żeby saldo nie spadło poniżej bufora, i czy przy obecnym tempie starczy (zapas albo
+  brak, najniższy dzień). Link prowadzi do prognozy dzień po dniu i pola daty wypłaty.
+- „Zostało na elastyczne” (miesiąc kalendarzowy) jest teraz kafelkiem „Zostało w miesiącu” zaraz za
+  prognozą; można go przesunąć albo ukryć w „Edytuj układ”. Bez sald i w minionych miesiącach na górze
+  zostaje karta miesięczna jak dotąd.
+- Kafelek prognozy nazywa się „Prognoza do wypłaty” i zawiera rozbicie, wykres, listę zdarzeń i datę.
+- Nowe kafelki w kolejnych wersjach trafiają za swojego domyślnego poprzednika, nie na koniec układu.
+
 ## 0.36.0
 
 **Ręczna data wypłaty** (M21 E1, `docs/PLAN_M21.md`).

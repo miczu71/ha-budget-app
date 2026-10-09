@@ -1,17 +1,11 @@
-{# Sekcja „Do wypłaty” (M8 E1, E3): werdykt + dzienny limit, pasek równania, wykres i lista zdarzeń; `fc` = forecast.Forecast, `timeline` = routes_home.forecast_timeline #}
+{# Kafelek prognozy (M8 E1, E3; werdykt w hero `_payday_hero.html` od M21 E2): pasek równania, wykres, lista zdarzeń, data wypłaty; `fc` = forecast.Forecast, `timeline` = routes_home.forecast_timeline #}
 {% from "_charts.html" import forecast_chart with context %}
 {% set b = fc.balances %}
-{% set unit = "bufora" if fc.buffer else "zera" %}
 {% macro tl_row(r) %}
 <li{% if r.low %} class="fc-low-row"{% endif %}>{% if r.event %}<a class="row" href="{{ base }}/recurring/{{ r.event.due.series.id }}">{% else %}<div class="row">{% endif %}<span class="row-date">{{ r.day.strftime('%d.%m') }}</span><span class="row-title">{% if r.event %}{{ r.event.due.series.name }}{% if r.event.due.status == 'late' %} <span class="badge warn">spóźniona</span>{% endif %}{% else %}Najniższy punkt{% endif %}{% if r.low and r.event %}<span class="small fc-low-tag">najniższy punkt</span>{% endif %}</span><span class="row-amount">{% if r.event %}<span class="{{ 'pos' if r.event.amount > 0 }}">{{ '+ ' if r.event.amount > 0 }}{{ r.event.amount | money("PLN") }}</span>{% endif %}{% if r.balance is not none %}<span class="row-bal small muted">saldo {{ r.balance | money("PLN") }}</span>{% endif %}</span>{% if r.event %}</a>{% else %}</div>{% endif %}</li>
 {% endmacro %}
 <section class="card span2 forecast" id="fc">
-  <h2>{% if fc.payday %}Do wypłaty — {{ fc.payday.strftime('%d.%m') }}{% if fc.payday_manual %} <span class="small muted">(data ręczna)</span>{% endif %}{% else %}Do końca miesiąca{% endif %}{% if fc.days_left %} <span class="fc-when">za {{ fc.days_left }} {{ "dzień" if fc.days_left == 1 else "dni" }}</span>{% endif %}</h2>
-  <div class="fc-verdict {{ 'bad' if fc.below_buffer else 'ok' }}">
-    <div class="hero-amount">{% if not fc.below_buffer %}Starczy · zapas {{ fc.low | money("PLN") }}{% elif fc.buffer %}Poniżej bufora o {{ fc.shortfall | money("PLN") }}{% else %}Zabraknie {{ fc.shortfall | money("PLN") }}{% endif %}</div>
-    <p class="muted">{% if fc.below_buffer %}{{ fc.low_day.strftime('%d.%m') }} saldo spadnie poniżej {{ unit }}{% if fc.buffer %} ({{ fc.buffer | money("PLN") }}){% endif %}.{% else %}Najniżej {{ fc.low_day.strftime('%d.%m') }}.{% endif %}
-    {% if fc.safe_per_day is none %}{% elif fc.safe_per_day <= 0 %}Same płatności cykliczne przekraczają wolne środki.{% elif fc.below_buffer %}Wydawaj do <strong>{{ fc.safe_per_day | money("PLN") }}</strong> dziennie, żeby nie zejść poniżej {{ unit }} (teraz {{ fc.flex_per_day | money("PLN") }}), przy równym tempie.{% else %}Możesz wydawać do <strong>{{ fc.safe_per_day | money("PLN") }}</strong> dziennie (teraz {{ fc.flex_per_day | money("PLN") }}), przy równym tempie.{% endif %}</p>
-  </div>
+  <h2>Prognoza do {% if fc.payday %}wypłaty {{ fc.payday.strftime('%d.%m') }}{% else %}końca miesiąca{% endif %}</h2>
   {% if fc.stale %}<p class="small warn-text">Salda z {{ b.fetched_at | ts }} — starsze niż doba.</p>{% endif %}
   <dl class="fc-strip">
     <div><dt>Wolne dziś</dt><dd>{{ fc.free_now | money("PLN") }}</dd></div>

@@ -262,7 +262,7 @@ async def test_forecast_flags_lowest_point_below_buffer(
         (
             "-150.00",
             "190.00",
-            ("Zabraknie", fmt_money("150.00", "PLN"), "Wydawaj do", fmt_money("190.00", "PLN")),
+            ("Zabraknie", fmt_money("150.00", "PLN"), "hero-unit", fmt_money("190.00", "PLN")),
         ),
         ("-150.00", "-20.00", ("Zabraknie", "Same płatności cykliczne przekraczają")),
         ("-150.00", None, ("Zabraknie",)),
@@ -291,7 +291,7 @@ async def test_forecast_verdict_when_short(
     for text in expected:
         assert text in page
     assert "Starczy" not in page
-    assert ("Wydawaj do" in page) is (safe is not None and Decimal(safe) > 0)
+    assert ("hero-unit" in page) is (safe is not None and Decimal(safe) > 0)  # „X zł dziennie”
 
 
 def _days(*balances: str) -> list[tuple[date, Decimal]]:
@@ -535,3 +535,23 @@ async def test_forecast_card_offers_payday_date_and_marks_manual(
     sch.set_override(service.conn, sid, fc.payday.replace(day=1), fc.payday)
     page = (await client.get("/")).text
     assert "(data ręczna)" in page and "wróć do dnia z serii" in page
+
+
+async def test_with_balances_hero_counts_to_payday_and_month_is_a_tile(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    await client.post("/budget/amount", data={"month": MONTH, "amount": "1000"})
+    page = (await client.get("/")).text
+    hero = page.index("payday-hero")
+    assert "dziennie" in page[hero:] and 'href="#fc"' in page
+    assert hero < page.index("home-grid") < page.index("Zostało na elastyczne")
+    await client.post("/layout/toggle", data={"key": "month"})
+    assert "Zostało na elastyczne" not in (await client.get("/")).text
+
+
+async def test_past_month_keeps_monthly_hero(client: httpx.AsyncClient, service: Service) -> None:
+    _balances(service.conn)
+    prev = (date.fromisoformat(DAY) - timedelta(days=1)).strftime("%Y-%m")
+    page = (await client.get(f"/?month={prev}")).text
+    assert "payday-hero" not in page

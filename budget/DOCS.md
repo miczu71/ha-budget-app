@@ -309,6 +309,13 @@ poniżej bufora, w dzwonku pojawia się wpis, a w HA zapala się `binary_sensor.
 (add-on sam nic nie wysyła — powiadomienie zrób automatyzacją na tej encji). Encje:
 `sensor.budget_forecast_free_now`, `_card_debt`, `_lowest`, `_at_payday` (szczegóły w atrybutach).
 
+Na górze Podsumowania (bieżący miesiąc, gdy są salda) jest karta „Do wypłaty”: ile dziennie możesz
+wydawać, żeby saldo nie spadło poniżej bufora do dnia wypłaty, i czy przy obecnym tempie starczy.
+Szczegóły (rozbicie, wykres, lista zdarzeń) są w kafelku „Prognoza do wypłaty”, a miesięczne
+„Zostało na elastyczne” w kafelku „Zostało w miesiącu” (kolejność i ukrywanie w „Edytuj układ”).
+Gdy znasz faktyczną datę wypłaty w tym miesiącu, wpisz ją w kafelku prognozy („Data wypłaty w tym
+miesiącu”); obowiązuje tylko w tym miesiącu, a „wróć do dnia z serii” ją kasuje.
+
 ## Odnowienie zgody
 
 Zgoda PSD2 jest ważna maksymalnie 180 dni. Przed wygaśnięciem: **Bank → Odnów zgodę** —

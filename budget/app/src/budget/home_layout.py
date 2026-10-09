@@ -10,7 +10,8 @@ from budget.storage import db
 KEY = "home_layout"
 
 TILES: dict[str, str] = {  # domyślna kolejność
-    "forecast": "Do wypłaty",
+    "forecast": "Prognoza do wypłaty",
+    "month": "Zostało w miesiącu",
     "spending": "Gdzie poszły pieniądze",
     "inbox": "Do decyzji",
     "balance": "Bilans miesiąca",
@@ -28,10 +29,15 @@ class Tile(NamedTuple):
 
 
 def load(conn: sqlite3.Connection) -> list[Tile]:
-    """Zapisany układ; nieznane klucze odpadają, nowe kafelki trafiają na koniec jako widoczne."""
+    """Zapisany układ; nieznane klucze odpadają, nowe kafelki są widoczne i stają za swoim
+    poprzednikiem z domyślnej kolejności (bez niego — na końcu)."""
     saved = db.kv_get(conn, KEY) or {}
     order = [k for k in saved.get("order", []) if k in TILES]
-    order += [k for k in TILES if k not in order]
+    keys = list(TILES)
+    for i, k in enumerate(keys):
+        if k not in order:
+            prev = keys[i - 1] if i else None
+            order.insert(order.index(prev) + 1 if prev in order else len(order), k)
     hidden = set(saved.get("hidden", []))
     return [Tile(k, TILES[k], k in hidden) for k in order]
 

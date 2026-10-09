@@ -14,6 +14,7 @@
   · <a href="{{ base }}/status">Status</a>
 </p>
 
+{% macro month_card() %}
 {% if f.budget is none %}
 {% if f.is_current %}
 <section class="card flex-hero">
@@ -25,6 +26,10 @@
 {% else %}
 {% with details=True %}{% include "_flex_hero.html" %}{% endwith %}
 {% endif %}
+{% endmacro %}
+{# M21 E2: w bieżącym miesiącu z prognozą hero liczy do wypłaty, a miesiąc to kafelek „month” #}
+{% set payday_hero = fc %}
+{% if payday_hero %}{% include "_payday_hero.html" %}{% else %}{{ month_card() }}{% endif %}
 
 {% if edit %}
 {% include "_home_layout.html" %}
@@ -32,6 +37,7 @@
 <div class="home-grid">
   {% for t in layout if not t.hidden %}
   {% if t.key == "forecast" %}{% if fc %}{% include "_forecast.html" %}{% endif %}
+  {% elif t.key == "month" %}{% if payday_hero %}{{ month_card() }}{% endif %}
   {% elif t.key == "spending" %}
   <section class="card span2">
     <h2>Gdzie poszły pieniądze</h2>
