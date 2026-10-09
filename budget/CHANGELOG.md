@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.36.0
+
+**Ręczna data wypłaty** (M21 E1, `docs/PLAN_M21.md`).
+
+- Na karcie „Do wypłaty” jest pole „Data wypłaty w tym miesiącu”: gdy znasz faktyczną datę (np. dzień
+  wcześniej niż zwykle), wpisz ją, a prognoza, „Co jeszcze zejdzie”, kalendarz ICS i encje HA liczą do
+  niej. Nagłówek pokazuje „(data ręczna)”, a „wróć do dnia z serii” przywraca stały dzień.
+- Data obowiązuje tylko w miesiącu terminu; kolejne miesiące wracają do dnia z serii.
+
 ## 0.35.2
 
 **Poprawka wyglądu: plakietka w wierszu listy.**
