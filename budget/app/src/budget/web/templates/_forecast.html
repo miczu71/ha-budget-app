@@ -6,7 +6,7 @@
 <li{% if r.low %} class="fc-low-row"{% endif %}>{% if r.event %}<a class="row" href="{{ base }}/recurring/{{ r.event.due.series.id }}">{% else %}<div class="row">{% endif %}<span class="row-date">{{ r.day.strftime('%d.%m') }}</span><span class="row-title">{% if r.event %}{{ r.event.due.series.name }}{% if r.event.due.status == 'late' %} <span class="badge warn">spóźniona</span>{% endif %}{% else %}Najniższy punkt{% endif %}{% if r.low and r.event %}<span class="small fc-low-tag">najniższy punkt</span>{% endif %}</span><span class="row-amount">{% if r.event %}<span class="{{ 'pos' if r.event.amount > 0 }}">{{ '+ ' if r.event.amount > 0 }}{{ r.event.amount | money("PLN") }}</span>{% endif %}{% if r.balance is not none %}<span class="row-bal small muted">saldo {{ r.balance | money("PLN") }}</span>{% endif %}</span>{% if r.event %}</a>{% else %}</div>{% endif %}</li>
 {% endmacro %}
 <section class="card span2 forecast" id="fc">
-  <h2>{% if fc.payday %}Do wypłaty — {{ fc.payday.strftime('%d.%m') }}{% else %}Do końca miesiąca{% endif %}{% if fc.days_left %} <span class="fc-when">za {{ fc.days_left }} {{ "dzień" if fc.days_left == 1 else "dni" }}</span>{% endif %}</h2>
+  <h2>{% if fc.payday %}Do wypłaty — {{ fc.payday.strftime('%d.%m') }}{% if fc.payday_manual %} <span class="small muted">(data ręczna)</span>{% endif %}{% else %}Do końca miesiąca{% endif %}{% if fc.days_left %} <span class="fc-when">za {{ fc.days_left }} {{ "dzień" if fc.days_left == 1 else "dni" }}</span>{% endif %}</h2>
   <div class="fc-verdict {{ 'bad' if fc.below_buffer else 'ok' }}">
     <div class="hero-amount">{% if not fc.below_buffer %}Starczy · zapas {{ fc.low | money("PLN") }}{% elif fc.buffer %}Poniżej bufora o {{ fc.shortfall | money("PLN") }}{% else %}Zabraknie {{ fc.shortfall | money("PLN") }}{% endif %}</div>
     <p class="muted">{% if fc.below_buffer %}{{ fc.low_day.strftime('%d.%m') }} saldo spadnie poniżej {{ unit }}{% if fc.buffer %} ({{ fc.buffer | money("PLN") }}){% endif %}.{% else %}Najniżej {{ fc.low_day.strftime('%d.%m') }}.{% endif %}
@@ -33,5 +33,14 @@
       <label class="check switch"><input type="checkbox" role="switch" name="include" value="1" {{ "checked" if fc.card_debt_included }}><span>Odejmij zadłużenie karty</span></label>
       <noscript><button class="secondary">Zastosuj</button></noscript>
     </form>
+    {% if fc.payday_series_id %}
+    <form class="inline fc-payday" method="post" action="{{ base }}/forecast/payday-date">
+      <input type="hidden" name="series" value="{{ fc.payday_series_id }}">
+      <input type="hidden" name="month" value="{{ fc.payday.strftime('%Y-%m') }}">
+      <label>Data wypłaty w tym miesiącu<input type="date" name="day" value="{{ fc.payday.isoformat() }}"></label>
+      <button class="secondary">Zapisz datę</button>
+      {% if fc.payday_manual %}<button class="link" name="reset" value="1">wróć do dnia z serii</button>{% endif %}
+    </form>
+    {% endif %}
   </div>
 </section>

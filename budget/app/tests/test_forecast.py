@@ -371,3 +371,30 @@ def test_memo_computes_once_per_database_state(
     conn.execute("UPDATE balance_snapshot SET amount = '4000.00' WHERE account_id = 1")
     refreshed = memo.get(snap, TODAY, at(3), Decimal(500))  # zmiana bazy
     assert len(calls) == 3 and refreshed is not None and refreshed.free_now == Decimal("3600.00")
+
+
+# --- ręczna data wypłaty (M21 E1) -----------------------------------------------------------
+
+
+def test_build_uses_manual_payday_and_reset_restores_series_day(conn: sqlite3.Connection) -> None:
+    seeded(conn)
+    mine = serie(conn, "pensja", "9000.00", direction="in")  # termin 7.
+    serie(conn, "czynsz", "800.00")  # termin 7.
+    fc = build(conn, payday_id=mine)
+    assert fc is not None and fc.payday == date(2026, 10, 7) and not fc.payday_manual
+    assert fc.payday_series_id == mine
+    sch.set_override(conn, mine, date(2026, 10, 1), date(2026, 10, 9))
+    fc = build(conn, payday_id=mine)
+    assert fc is not None and fc.payday == date(2026, 10, 9) and fc.payday_manual
+    assert fc.horizon_end == date(2026, 10, 9) and fc.days_left == 6
+    sch.set_override(conn, mine, date(2026, 10, 1), None)
+    fc = build(conn, payday_id=mine)
+    assert fc is not None and fc.payday == date(2026, 10, 7) and not fc.payday_manual
+
+
+def test_set_override_drops_entries_older_than_three_months(conn: sqlite3.Connection) -> None:
+    sch.set_override(conn, 5, date(2026, 6, 1), date(2026, 6, 20))
+    sch.set_override(conn, 5, date(2026, 10, 1), date(2026, 10, 23))
+    assert sch.overrides_from_db(conn) == {(5, "2026-10"): date(2026, 10, 23)}
+    sch.set_override(conn, 5, date(2026, 10, 1), None)
+    assert db.kv_get(conn, sch.OVERRIDES_KEY) is None

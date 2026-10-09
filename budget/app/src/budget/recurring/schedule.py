@@ -12,7 +12,8 @@ Status terminu: zapłacone (jest transakcja), oczekiwane (do `WINDOW` dni po ter
 spóźnione (później, miesiąc bieżący albo przyszły) i brak płatności (miesiąc już minął).
 Spóźnione nadal liczą się do „jeszcze zejdzie / wpłynie”; brak płatności w minionym
 miesiącu — nie. Termin, który użytkownik pominął („pomiń ten okres”, E3), ma status
-„pominięte” i nie liczy się do „jeszcze zejdzie / wpłynie”.
+„pominięte” i nie liczy się do „jeszcze zejdzie / wpłynie”. Termin serii w danym miesiącu
+można przestawić ręcznie (M21 E1, np. faktyczna data wypłaty).
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from budget.recurring import series as S
 from budget.recurring.series import Candidate, Series
 from budget.snapshot import Snapshot
 from budget.spending import add_months, month_start
+from budget.storage import db
 
 WINDOW = 5  # dni po terminie, zanim płatność jest spóźniona
 MATCH_DAYS = 15  # transakcja dalej niż tyle dni od każdego terminu jest „dodatkowa”
@@ -53,6 +55,9 @@ STATUS_LABELS = {
 
 # Decyzje użytkownika o zmianach serii: (id serii, okres RRRR-MM terminu, rodzaj) → decyzja.
 Acks = Mapping[tuple[int, str, str], str]
+# Ręczne terminy: (id serii, miesiąc RRRR-MM) → dzień w tym miesiącu zamiast wyliczonego.
+Overrides = Mapping[tuple[int, str], date]
+OVERRIDES_KEY = "due_overrides"  # kv: {"<id serii>:RRRR-MM": "RRRR-MM-DD"}
 
 
 @dataclass(frozen=True)
@@ -61,6 +66,7 @@ class Due:
     due: date | None  # None = dodatkowa płatność bez terminu
     status: str
     txns: tuple[Candidate, ...] = ()
+    manual: bool = False  # termin przestawiony ręcznie (`Overrides`)
 
     @property
     def paid_amount(self) -> Decimal:
@@ -133,9 +139,10 @@ def month_view(
     month: date,
     today: date,
     acks: Acks | None = None,
+    overrides: Overrides | None = None,
 ) -> MonthView:
     """Terminy aktywnych serii w miesiącu `month` ze statusami, po dacie terminu."""
-    acks = acks or {}
+    acks, overrides = acks or {}, overrides or {}
     month = month_start(month)
     nxt = add_months(month, 1)
     view = MonthView(month)
@@ -144,6 +151,7 @@ def month_view(
             continue
         txns = members.get(s.id, [])
         dues = {m: due_date(s, txns, m) for m in (add_months(month, -1), month, nxt)}
+        dues = {m: d and overrides.get((s.id, f"{m:%Y-%m}"), d) for m, d in dues.items()}
         taken: dict[date, list[Candidate]] = {d: [] for d in dues.values() if d is not None}
         extras: list[Candidate] = []
         for t in txns:
@@ -158,7 +166,8 @@ def month_view(
             status = PAID if paid else _status(due, today, month)
             if status in (LATE, MISSING) and acks.get((s.id, f"{due:%Y-%m}", "late")) == "skip":
                 status = SKIPPED
-            view.rows.append(Due(s, due, status, paid))
+            manual = (s.id, f"{month:%Y-%m}") in overrides
+            view.rows.append(Due(s, due, status, paid, manual))
         if extras:
             view.rows.append(Due(s, None, EXTRA, tuple(extras)))
     view.rows.sort(key=lambda d: (d.sort_day, d.series.name))
@@ -170,6 +179,7 @@ def history(
     members: Sequence[Candidate],
     today: date,
     acks: Acks | None = None,
+    overrides: Overrides | None = None,
 ) -> list[Due]:
     """Terminy serii od najstarszego do bieżącego miesiąca (ok. trzech kadencji wstecz).
 
@@ -181,7 +191,8 @@ def history(
     first = members[0].day - timedelta(days=MATCH_DAYS)
     rows: list[Due] = []
     for back in range(STEP[s.cadence] * 3, -1, -1):
-        view = month_view([s], {s.id: members}, add_months(current, -back), today, acks)
+        month = add_months(current, -back)
+        view = month_view([s], {s.id: members}, month, today, acks, overrides)
         rows += [d for d in view.rows if d.due is not None and d.due >= first]
     return rows
 
@@ -193,8 +204,33 @@ def acks_from_db(conn: sqlite3.Connection) -> dict[tuple[int, str, str], str]:
     }
 
 
+def overrides_from_db(conn: sqlite3.Connection) -> dict[tuple[int, str], date]:
+    saved = db.kv_get(conn, OVERRIDES_KEY) or {}
+    return {
+        (int(sid), ym): date.fromisoformat(day)
+        for key, day in saved.items()
+        for sid, ym in [key.split(":")]
+    }
+
+
+def set_override(conn: sqlite3.Connection, series_id: int, month: date, day: date | None) -> None:
+    """Ręczny termin serii w miesiącu `month` (None usuwa); wpisy sprzed 3 miesięcy odpadają."""
+    oldest = f"{add_months(month_start(month), -3):%Y-%m}"
+    saved = {
+        f"{sid}:{ym}": d.isoformat()
+        for (sid, ym), d in overrides_from_db(conn).items()
+        if ym >= oldest
+    }
+    saved.pop(f"{series_id}:{month:%Y-%m}", None)
+    if day is not None:
+        saved[f"{series_id}:{month:%Y-%m}"] = day.isoformat()
+    db.kv_set(conn, OVERRIDES_KEY, saved or None)
+
+
 def for_month(snap: Snapshot, month: date, today: date) -> MonthView:
     """Widok miesiąca z bazy: aktywne serie + przynależność do nich."""
     all_series = S.all_series(snap.conn, ("active",))
     members = S.assign(all_series, snap.candidates()) if all_series else {}
-    return month_view(all_series, members, month, today, acks_from_db(snap.conn))
+    return month_view(
+        all_series, members, month, today, acks_from_db(snap.conn), overrides_from_db(snap.conn)
+    )

@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, Response
 
 from budget import card, flex, forecast, home_layout, sessions, spending, sync_service
 from budget.recurring import schedule
-from budget.spending import MONTHS, MONTHS_GEN, add_months, month_label, parse_month
+from budget.spending import MONTHS, MONTHS_GEN, add_months, month_label, month_start, parse_month
 from budget.storage import db
 from budget.web import charts
 from budget.web.common import Panel
@@ -165,5 +165,36 @@ def router(panel: Panel) -> APIRouter:
             if include == "1"
             else "Zadłużenie karty nie jest odejmowane w prognozie.",
         )
+
+    @r.post("/forecast/payday-date")
+    async def payday_date(
+        request: Request,
+        series: int = Form(...),
+        month: str = Form(...),
+        day: str = Form(""),
+        reset: str = Form(""),
+    ) -> Response:
+        """Faktyczna data wypłaty w miesiącu terminu (M21 E1); `reset` wraca do dnia z serii."""
+        conn, today = panel.conn, panel.service.now().date()
+        try:
+            start = date.fromisoformat(f"{month}-01")
+        except ValueError:
+            raise HTTPException(400) from None
+        if reset:
+            schedule.set_override(conn, series, start, None)
+            return panel.redirect(request, "/", "Termin wypłaty wraca do dnia z serii.")
+        try:
+            when: date | None = date.fromisoformat(day)
+        except ValueError:
+            when = None
+        if when is None or month_start(when) != start or when <= today:
+            return panel.redirect(
+                request,
+                "/",
+                f"Podaj datę po dzisiejszej w miesiącu terminu ({MONTHS[start.month - 1]}).",
+                "error",
+            )
+        schedule.set_override(conn, series, start, when)
+        return panel.redirect(request, "/", f"Wypłata {when:%d.%m} — prognoza liczy do tej daty.")
 
     return r

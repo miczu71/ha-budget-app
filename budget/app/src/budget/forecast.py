@@ -7,7 +7,8 @@ w saldzie i zadłużeniu karty, więc Flex liczy się od jutra. Spóźniony wpł
 wypłatą ani nie zwiększa salda — nie wiadomo, kiedy dotrze. Wypłata = najbliższy termin aktywnej
 serii wpływowej o największej oczekiwanej kwocie (mniejsze wpływy przed nią wchodzą do salda);
 bez takiej serii horyzont kończy się z miesiącem. Saldo na dzień wypłaty jest przed jej
-wpłynięciem, bo tam leży dno.
+wpłynięciem, bo tam leży dno. Termin wypłaty w miesiącu można przestawić ręcznie (M21 E1,
+`schedule.set_override`).
 """
 
 from __future__ import annotations
@@ -52,6 +53,8 @@ class Projection:
     payday: date | None
     payday_series: str | None
     horizon_end: date
+    payday_series_id: int | None = None
+    payday_manual: bool = False  # termin wypłaty wpisany ręcznie
     outflows: list[schedule.Due] = field(default_factory=list)
     inflows: list[schedule.Due] = field(default_factory=list)
     events: list[Event] = field(default_factory=list)  # wydatki i wpływy chronologicznie
@@ -186,7 +189,13 @@ def project(
         default=None,
     )
     end = first[0] if first else card.last_day(today)
-    result = Projection(first[0] if first else None, first[1].series.name if first else None, end)
+    result = Projection(
+        first[0] if first else None,
+        first[1].series.name if first else None,
+        end,
+        first[1].series.id if first else None,
+        first[1].manual if first else False,
+    )
     out = sorted(
         ((day, d) for day, d in live if d.series.direction == "out" and day <= end),
         key=lambda p: p[0],

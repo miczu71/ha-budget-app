@@ -863,6 +863,7 @@ a.row { min-height: var(--tap); align-content: center; }
 .fc-line .fc-end { fill: var(--text); }
 .fc-foot { margin-top: 8px; }
 .fc-foot p { margin: 0; }
+.fc-payday { margin-top: 8px; }
 label.switch { gap: 10px; }
 label.switch input[type="checkbox"] { appearance: none; width: 36px; height: 20px; border-radius: 10px; background: var(--surface-3); border: 1px solid var(--control-border); position: relative; cursor: pointer; }
 label.switch input[type="checkbox"]::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--text-2); transition: transform 0.15s; }

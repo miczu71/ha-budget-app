@@ -79,6 +79,7 @@ def detect(
     members: Mapping[int, Sequence[Candidate]],
     acks: Acks,
     today: date,
+    overrides: schedule.Overrides | None = None,
 ) -> list[Change]:
     """Zmiany aktywnych serii, na które użytkownik jeszcze nie zdecydował."""
     recent = add_months(month_start(today), -1)  # tylko bieżący i poprzedni miesiąc
@@ -86,7 +87,7 @@ def detect(
     for s in series:
         if s.status != "active":
             continue
-        rows = schedule.history(s, members.get(s.id, []), today, acks)
+        rows = schedule.history(s, members.get(s.id, []), today, acks, overrides)
         if not rows:
             continue
         if change := _amount_change(s, rows, acks, recent):
@@ -115,7 +116,8 @@ def for_db(snap: Snapshot, today: date) -> list[Change]:
     if not active:
         return []
     members = S.assign(active, snap.candidates())
-    return detect(active, members, schedule.acks_from_db(snap.conn), today)
+    acks, overrides = schedule.acks_from_db(snap.conn), schedule.overrides_from_db(snap.conn)
+    return detect(active, members, acks, today, overrides)
 
 
 def ack(conn: sqlite3.Connection, series_id: int, period: str, kind: str) -> None:

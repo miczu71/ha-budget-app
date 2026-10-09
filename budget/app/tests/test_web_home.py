@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 import sqlite3
 from collections.abc import AsyncIterator
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import httpx
@@ -20,6 +20,7 @@ from budget.storage.db import now_iso
 from budget.web.common import fmt_money
 from budget.web.routes_home import compare_label, forecast_timeline
 
+from .test_flex import serie
 from .test_recurring_schedule import make_event
 from .test_web import INGRESS, _client
 from .test_web_categorize import DAY, _seed
@@ -504,3 +505,33 @@ async def test_layout_rejects_unknown_key_and_bad_delta(client: httpx.AsyncClien
     assert (
         await client.post("/layout/move", data={"key": "recent", "delta": "5"})
     ).status_code == 400
+
+
+async def test_payday_date_is_validated_saved_and_reset(
+    client: httpx.AsyncClient, service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(service, "now", lambda: datetime(2026, 10, 9, 12, tzinfo=service.tz))
+    form = {"series": "5", "month": "2026-10"}
+    for bad in ("2026-11-02", "2026-10-09", "nie-data"):  # inny miesiąc, dziś, śmieci
+        resp = await client.post("/forecast/payday-date", data={**form, "day": bad})
+        assert resp.status_code == 303 and sch.overrides_from_db(service.conn) == {}
+    await client.post("/forecast/payday-date", data={**form, "day": "2026-10-23"})
+    assert sch.overrides_from_db(service.conn) == {(5, "2026-10"): date(2026, 10, 23)}
+    await client.post("/forecast/payday-date", data={**form, "reset": "1"})
+    assert sch.overrides_from_db(service.conn) == {}
+    resp = await client.post("/forecast/payday-date", data={**form, "month": "x", "day": ""})
+    assert resp.status_code == 400
+
+
+async def test_forecast_card_offers_payday_date_and_marks_manual(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    sid = serie(service.conn, "pensja", "9000.00", direction="in")
+    fc = service.forecast()
+    assert fc is not None and fc.payday is not None and fc.payday_series_id == sid
+    page = (await client.get("/")).text
+    assert 'name="day"' in page and "data ręczna" not in page
+    sch.set_override(service.conn, sid, fc.payday.replace(day=1), fc.payday)
+    page = (await client.get("/")).text
+    assert "(data ręczna)" in page and "wróć do dnia z serii" in page

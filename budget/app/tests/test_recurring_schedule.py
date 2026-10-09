@@ -129,3 +129,19 @@ def test_only_active_series_and_direction_split() -> None:
     assert [d.series.id for d in v.rows] == [1, 2]
     assert v.out_planned == Decimal("100.00") and v.in_planned == Decimal("5000.00")
     assert v.in_received == 0
+
+
+def test_override_moves_due_and_matches_payment_to_new_day() -> None:
+    s = make(anchor=24, amount="9000.00", direction="in")
+    moved = {(1, "2026-10"): date(2026, 10, 23)}
+    v = sch.month_view([s], {}, OCT, date(2026, 10, 9), overrides=moved)
+    assert [(d.due, d.status, d.manual) for d in v.rows] == [
+        (date(2026, 10, 23), sch.EXPECTED, True)
+    ]
+    paid = sch.month_view(
+        [s], {1: [tx(1, date(2026, 10, 23), "9000.00")]}, OCT, date(2026, 10, 25), overrides=moved
+    )
+    assert [(d.due, d.status) for d in paid.rows] == [(date(2026, 10, 23), sch.PAID)]
+    other = sch.month_view([s], {}, date(2026, 11, 1), date(2026, 10, 9), overrides=moved)
+    assert other.rows[0].due == date(2026, 11, 24)  # nadpisanie dotyczy tylko swojego miesiąca
+    assert not other.rows[0].manual
