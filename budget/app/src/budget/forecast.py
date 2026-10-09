@@ -5,7 +5,8 @@ Przyszłość: oczekiwane i spóźnione wydatki serii w ich terminach (spóźnio
 reszta puli Flex po równo na dni, wpływy serii przed wypłatą. Wydatki zrobione dziś są już
 w saldzie i zadłużeniu karty, więc Flex liczy się od jutra. Spóźniony wpływ nie jest
 wypłatą ani nie zwiększa salda — nie wiadomo, kiedy dotrze. Wypłata = najbliższy termin aktywnej
-serii wpływowej o największej oczekiwanej kwocie (mniejsze wpływy przed nią wchodzą do salda);
+serii wpływowej o największej oczekiwanej kwocie (mniejsze wpływy do dnia wypłaty włącznie wchodzą
+do salda — jak wydatki tego dnia, M21);
 bez takiej serii horyzont kończy się z miesiącem. Saldo na dzień wypłaty jest przed jej
 wpłynięciem, bo tam leży dno. Termin wypłaty w miesiącu można przestawić ręcznie (M21 E1,
 `schedule.set_override`).
@@ -210,7 +211,7 @@ def project(
         ((day, d) for day, d in live if d.series.direction == "out" and day <= end),
         key=lambda p: p[0],
     )
-    inflows = sorted((p for p in paydays if p[0] < end), key=lambda p: p[0])
+    inflows = sorted((p for p in paydays if p[0] <= end and p is not first), key=lambda p: p[0])
     result.outflows, result.inflows = [d for _, d in out], [d for _, d in inflows]
     result.events = sorted(
         [Event(day, d, -d.series.expected_amount) for day, d in out]

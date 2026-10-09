@@ -260,7 +260,7 @@ def test_build_chosen_payday_moves_to_next_month_and_ignores_stale_choice(
     today = date(2026, 10, 30)
     fc = build(conn, today=today, payday_id=mine)
     assert fc is not None and fc.payday == date(2026, 11, 7) and fc.payday_series == "Seria pensja"
-    assert fc.inflows == []  # „premia” też wpływa 7.11 — w dniu wypłaty, więc po niej
+    assert [d.series.name for d in fc.inflows] == ["Seria premia"]  # w dniu wypłaty — liczy się
     assert build(conn, today=today, payday_id=other) is not None
     gone = build(
         conn, today=today, payday_id=9999
@@ -425,3 +425,16 @@ def test_without_payday_in_ledger_there_is_no_period(conn: sqlite3.Connection) -
     mine = serie(conn, "pensja", "9000.00", direction="in")
     fc = build(conn, payday_id=mine)
     assert fc is not None and fc.period_start is None and fc.period_elapsed == 0.0
+
+
+def test_other_inflow_on_payday_counts_like_outflows_that_day() -> None:
+    dues = [
+        due(1, date(2026, 10, 23), "9000", "in"),  # wypłata
+        due(2, date(2026, 10, 23), "800", "in"),  # inny wpływ tego samego dnia
+        due(3, date(2026, 10, 23), "100", "out"),
+    ]
+    p = forecast.project(
+        free_now=Decimal(1000), today=TODAY, dues=dues, per_day=Decimal(0), payday_id=1
+    )
+    assert p.payday == date(2026, 10, 23) and [d.series.id for d in p.inflows] == [2]
+    assert p.at_payday == Decimal("1700.00")  # bez samej wypłaty

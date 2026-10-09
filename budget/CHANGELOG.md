@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.38.1
+
+**Poprawka prognozy: wpływy w dniu wypłaty.**
+
+- Inne wpływy serii, które przychodzą tego samego dnia co wypłata (np. świadczenie), liczą się do
+  prognozy, tak jak wydatki tego dnia; sama wypłata dalej jest po najniższym punkcie. Wcześniej
+  przesunięcie daty wypłaty na dzień takiego wpływu gubiło go i pogarszało wynik zamiast poprawiać.
+
 ## 0.38.0
 
 **Okres od wypłaty** (M21 E3, `docs/PLAN_M21.md`).
