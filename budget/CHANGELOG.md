@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.38.0
+
+**Okres od wypłaty** (M21 E3, `docs/PLAN_M21.md`).
+
+- Karta „Do wypłaty”: pasek, ile minęło okresu od ostatniej wypłaty do następnej, i „Od wypłaty dd.mm
+  wydane na elastyczne …” (ta sama definicja co „wydane” w budżecie miesiąca).
+- `sensor.budget_forecast_at_payday`: nowe atrybuty `period_start`, `spent_since_payday`, `safe_per_day`,
+  `payday_manual`.
+- Przynależność transakcji do serii liczy się raz na stan bazy (wspólna dla prognozy, puli i terminów).
+
 ## 0.37.0
 
 **Podsumowanie liczy do wypłaty** (M21 E2, `docs/PLAN_M21.md`).

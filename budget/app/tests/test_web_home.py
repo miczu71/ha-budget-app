@@ -20,6 +20,7 @@ from budget.storage.db import now_iso
 from budget.web.common import fmt_money
 from budget.web.routes_home import compare_label, forecast_timeline
 
+from .test_categorize_engine import add
 from .test_flex import serie
 from .test_recurring_schedule import make_event
 from .test_web import INGRESS, _client
@@ -555,3 +556,16 @@ async def test_past_month_keeps_monthly_hero(client: httpx.AsyncClient, service:
     prev = (date.fromisoformat(DAY) - timedelta(days=1)).strftime("%Y-%m")
     page = (await client.get(f"/?month={prev}")).text
     assert "payday-hero" not in page
+
+
+async def test_hero_shows_spending_since_last_payday(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    serie(service.conn, "pensja", "9000.00", direction="in")
+    day = (date.today() - timedelta(days=2)).isoformat()
+    add(service.conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day=day)
+    add(service.conn, "-80.00", day=date.today().isoformat())
+    page = (await client.get("/")).text
+    hero = page[page.index("payday-hero") : page.index("home-grid")]
+    assert "Od wypłaty" in hero and fmt_money("80.00", "PLN") in hero and "flex-bar" in hero

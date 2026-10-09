@@ -1,4 +1,5 @@
-{# Hero „Do wypłaty” (M21 E2): ile dziennie do wypłaty i werdykt prognozy; szczegóły w kafelku „forecast” (`#fc`) #}
+{# Hero „Do wypłaty” (M21 E2, E3): dzienny limit do wypłaty, werdykt prognozy i okres od ostatniej wypłaty; szczegóły w kafelku „forecast” (`#fc`) #}
+{% from "_macros.html" import pct %}
 {% set unit = "bufora" if fc.buffer else "zera" %}
 {% set spd = fc.safe_per_day %}
 <section class="card flex-hero payday-hero">
@@ -8,5 +9,9 @@
   {% endif %}
   <p class="{{ 'neg' if fc.below_buffer else 'pos' }}"><strong>{% if not fc.below_buffer %}Starczy · zapas {{ fc.low | money("PLN") }}{% elif fc.buffer %}Poniżej bufora o {{ fc.shortfall | money("PLN") }}{% else %}Zabraknie {{ fc.shortfall | money("PLN") }}{% endif %}</strong> przy obecnym tempie ({{ fc.flex_per_day | money("PLN") }} dziennie).</p>
   <p class="small muted">{% if fc.below_buffer %}{{ fc.low_day.strftime('%d.%m') }} saldo spadnie poniżej {{ unit }}{% if fc.buffer %} ({{ fc.buffer | money("PLN") }}){% endif %}.{% else %}Najniżej {{ fc.low_day.strftime('%d.%m') }}.{% endif %}{% if spd is not none and spd <= 0 %} Same płatności cykliczne przekraczają wolne środki.{% endif %}{% if fc.stale %} <span class="warn-text">Salda starsze niż doba.</span>{% endif %}</p>
+  {% if fc.period_start and fc.payday %}
+  <div class="flex-bar" role="img" aria-label="minęło {{ pct(fc.period_elapsed) }} okresu od wypłaty"><span class="fill" style="width: {{ pct(fc.period_elapsed) }}"></span></div>
+  <p class="small muted">Od wypłaty {{ fc.period_start.strftime('%d.%m') }} wydane na elastyczne {{ fc.spent_since | money("PLN") }}.</p>
+  {% endif %}
   <p class="small"><a class="tap" href="#fc">Prognoza dzień po dniu{% if fc.payday_series_id %} i data wypłaty{% endif %}</a></p>
 </section>

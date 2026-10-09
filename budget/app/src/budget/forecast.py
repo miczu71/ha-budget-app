@@ -85,6 +85,16 @@ class Forecast(Projection):
         None  # dzienny limit Flex, przy którym dno = bufor; None bez dni Flex
     )
     days_left: int = 0  # dni od dziś do końca horyzontu
+    period_start: date | None = None  # dzień ostatniej wypłaty (M21 E3); None bez wypłaty w księdze
+    spent_since: Decimal = ZERO  # wydane elastyczne od `period_start` do dziś
+
+    @property
+    def period_elapsed(self) -> float:
+        """Część okresu od ostatniej wypłaty do następnej, która minęła (z dzisiejszym dniem)."""
+        if self.period_start is None or self.payday is None:
+            return 0.0
+        total = (self.payday - self.period_start).days
+        return min(1.0, (total - self.days_left) / total) if total > 0 else 1.0
 
     @property
     def below_buffer(self) -> bool:
@@ -298,6 +308,7 @@ def build(
         per_day=per_day,
         payday_id=payday_id,
     )
+    start = last_payday(snap, p.payday_series_id, today)
     return Forecast(
         **vars(p),
         balances=balances,
@@ -308,4 +319,14 @@ def build(
         card_debt_included=card_debt_included,
         safe_per_day=safe_per_day(p.days, today, per_day, buffer),
         days_left=(p.horizon_end - today).days,
+        period_start=start,
+        spent_since=flex.spent_between(snap, start, today + timedelta(days=1)) if start else ZERO,
     )
+
+
+def last_payday(snap: Snapshot, series_id: int | None, today: date) -> date | None:
+    """Dzień ostatniego wpływu serii wypłaty do dziś — początek bieżącego okresu."""
+    if series_id is None:
+        return None
+    days = [t.day for t in snap.members().get(series_id, []) if t.day <= today]
+    return max(days, default=None)

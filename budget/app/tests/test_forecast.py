@@ -313,6 +313,9 @@ def test_forecast_entities(conn: sqlite3.Connection) -> None:
         and ents["forecast_lowest"].attributes["date"] == TODAY.isoformat()
     )
     assert ents["forecast_at_payday"].attributes["payday"] == "2026-10-07"
+    attrs = ents["forecast_at_payday"].attributes
+    assert attrs["payday_manual"] is False and attrs["period_start"] is None
+    assert attrs["spent_since_payday"] == "0.00" and attrs["safe_per_day"] is not None
     assert ents["forecast_shortfall"].state == "ON"  # 4600 < bufor 6000
     assert ents["forecast_shortfall"].component == "binary_sensor"
     calm = build(conn, buffer="100")
@@ -398,3 +401,27 @@ def test_set_override_drops_entries_older_than_three_months(conn: sqlite3.Connec
     assert sch.overrides_from_db(conn) == {(5, "2026-10"): date(2026, 10, 23)}
     sch.set_override(conn, 5, date(2026, 10, 1), None)
     assert db.kv_get(conn, sch.OVERRIDES_KEY) is None
+
+
+# --- okres od ostatniej wypłaty (M21 E3) ----------------------------------------------------
+
+
+def test_period_starts_at_last_payday_and_counts_flexible_spending(
+    conn: sqlite3.Connection,
+) -> None:
+    seeded(conn)
+    mine = serie(conn, "pensja", "9000.00", direction="in")  # termin 7.
+    add(conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day="2026-09-07")
+    add(conn, "-50.00", day="2026-09-01")  # przed okresem
+    add(conn, "-120.00", day="2026-09-20")  # bez kategorii — liczy się jak elastyczne
+    fc = build(conn, payday_id=mine)
+    assert fc is not None and fc.payday == date(2026, 10, 7)
+    assert fc.period_start == date(2026, 9, 7) and fc.spent_since == Decimal("120.00")
+    assert fc.period_elapsed == pytest.approx(26 / 30)  # 7.09 → 7.10, dziś 3.10
+
+
+def test_without_payday_in_ledger_there_is_no_period(conn: sqlite3.Connection) -> None:
+    seeded(conn)
+    mine = serie(conn, "pensja", "9000.00", direction="in")
+    fc = build(conn, payday_id=mine)
+    assert fc is not None and fc.period_start is None and fc.period_elapsed == 0.0

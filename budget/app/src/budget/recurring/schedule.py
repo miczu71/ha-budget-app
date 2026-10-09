@@ -230,7 +230,11 @@ def set_override(conn: sqlite3.Connection, series_id: int, month: date, day: dat
 def for_month(snap: Snapshot, month: date, today: date) -> MonthView:
     """Widok miesiąca z bazy: aktywne serie + przynależność do nich."""
     all_series = S.all_series(snap.conn, ("active",))
-    members = S.assign(all_series, snap.candidates()) if all_series else {}
     return month_view(
-        all_series, members, month, today, acks_from_db(snap.conn), overrides_from_db(snap.conn)
+        all_series,
+        snap.members(),
+        month,
+        today,
+        acks_from_db(snap.conn),
+        overrides_from_db(snap.conn),
     )

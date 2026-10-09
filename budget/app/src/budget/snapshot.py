@@ -19,6 +19,8 @@ class Snapshot:
         self.conn = conn
         self._key: tuple[int, int] | None = None
         self._candidates: tuple[series.Candidate, ...] = ()
+        self._members_key: tuple[int, int] | None = None
+        self._members: dict[int, list[series.Candidate]] = {}
 
     def signature(self) -> tuple[int, int]:
         return (self.conn.total_changes, self.conn.execute("PRAGMA data_version").fetchone()[0])
@@ -32,4 +34,17 @@ class Snapshot:
         # Wewnątrz transakcji `total_changes` nie maleje po ROLLBACK — wynik byłby nieaktualny.
         if not self.conn.in_transaction:
             self._key, self._candidates = key, found
+        return found
+
+    def members(self) -> dict[int, list[series.Candidate]]:
+        """Transakcje aktywnych serii (`series.assign`), liczone raz do pierwszego zapisu.
+        Transakcja trafia tylko do serii o swoim kierunku, więc wynik dla podzbioru serii
+        (np. wydatkowych) jest taki sam jak tu."""
+        key = self.signature()
+        if key == self._members_key:
+            return self._members
+        live = series.all_series(self.conn, ("active",))
+        found = series.assign(live, self.candidates()) if live else {}
+        if not self.conn.in_transaction:
+            self._members_key, self._members = key, found
         return found

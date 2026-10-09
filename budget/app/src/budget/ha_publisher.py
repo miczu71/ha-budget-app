@@ -336,6 +336,10 @@ def forecast_entities(fc: forecast_mod.Forecast | None) -> list[Entity]:
             series_out=_amount(fc.series_out),
             flex_rest=_amount(fc.flex_total),
             inflows_before=_amount(fc.inflows_total),
+            payday_manual=fc.payday_manual,
+            safe_per_day=_amount(fc.safe_per_day),
+            period_start=fc.period_start.isoformat() if fc.period_start else None,
+            spent_since_payday=_amount(fc.spent_since),
         ),
         Entity(
             "binary_sensor",

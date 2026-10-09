@@ -256,7 +256,7 @@ def pool_series(snap: Snapshot) -> Pool:
     live = [s for s in S.all_series(snap.conn, ("active",)) if s.direction == "out"]
     if not live:
         return Pool()
-    members = S.assign(live, snap.candidates())
+    members = snap.members()
     groups = {i: c.flex_group for i, c in taxonomy.leaves(snap.conn).items()}
     pool = Pool()
     for s in live:
@@ -282,6 +282,10 @@ def _history(
         if m >= first:
             out.append((m, sums(conn, m, add_months(m, 1), skip or ())))
     return out
+
+
+def _flexible(conn: sqlite3.Connection) -> list[Category]:
+    return [c for c in taxonomy.leaves(conn).values() if c.flex_group == "flexible"]
 
 
 def _spent(s: Sums, flexible: list[Category]) -> Decimal:
@@ -414,6 +418,11 @@ def _drop(
     if current.amount >= usual * (1 - DROP_RATIO):
         return None
     return main, float(1 - current.amount / usual)
+
+
+def spent_between(snap: Snapshot, start: date, end: date) -> Decimal:
+    """„Wydane” elastyczne (jak `FlexMonth.spent`) w dowolnym okresie [start, end) — M21 E3."""
+    return _spent(sums(snap.conn, start, end, pool_series(snap).skip), _flexible(snap.conn))
 
 
 def build(snap: Snapshot, month: date, today: date) -> FlexMonth:
