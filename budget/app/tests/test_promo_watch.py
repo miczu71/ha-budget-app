@@ -40,6 +40,9 @@ def text(
     return REGULATION.format(n=n, start=start, deadline=deadline, baseline=baseline)
 
 
+NEXT = text(78, "22 października 2026", "3 grudnia 2026", "16 października 2026")  # badanie −5 dni
+
+
 def now(day: int, month: int = 10) -> datetime:
     return datetime(2026, month, day, 8, 0, tzinfo=WAW)
 
@@ -91,6 +94,11 @@ def tiny_pdf(line: str) -> bytes:
     return out + b"trailer<</Root 1 0 R/Size %d>>\nstartxref\n%d\n%%%%EOF" % (len(objs) + 1, xref)
 
 
+def test_parse_rejects_inconsistent_dates() -> None:
+    with pytest.raises(promo_watch.WatchError, match="Niespójne daty"):
+        promo_watch.parse(text(baseline="4 listopada 2026"))  # badanie po końcu przystępowania
+
+
 def test_pdf_text_reads_a_pdf() -> None:
     assert "edycja 78" in promo_watch.pdf_text(tiny_pdf("edycja 78"))
 
@@ -104,9 +112,7 @@ async def test_refresh_first_read_is_silent_and_new_edition_is_pending(
     assert w and w.edition and w.edition.number == 77 and w.pending_confirm is None and not w.error
     await fetch(conn, text(), now(13))  # ta sama edycja — nic nowego
     assert promo_watch.load(conn).pending_confirm is None  # type: ignore[union-attr]
-    await fetch(
-        conn, text(78, "22 października 2026", "3 grudnia 2026", "16 października 2026"), now(22)
-    )
+    await fetch(conn, NEXT, now(22))
     w = promo_watch.load(conn)
     assert w and w.edition and w.edition.number == 78 and w.pending_confirm == 78
 
@@ -160,9 +166,7 @@ async def test_push_before_window(conn: sqlite3.Connection) -> None:
 
 async def test_push_confirms_new_edition_once(conn: sqlite3.Connection) -> None:
     await fetch(conn, text(), now(12))
-    await fetch(
-        conn, text(78, "22 października 2026", "3 grudnia 2026", "16 października 2026"), now(22)
-    )
+    await fetch(conn, NEXT, now(22))
     w = promo_watch.load(conn)
     assert w
     msgs = [m for m in summary.promo_messages(w, date(2026, 10, 22)) if m.kind == "promo_confirm"]
@@ -205,3 +209,19 @@ async def test_bell_error_card_after_three_days(conn: sqlite3.Connection) -> Non
 
     assert kinds(2) == []
     assert kinds(4) == ["promo_error"]
+
+
+async def test_gap_is_recorded_and_flagged_when_window_was_too_narrow(
+    conn: sqlite3.Connection,
+) -> None:
+    await fetch(conn, text(), now(12))  # koniec przystępowania 21.10
+    await fetch(conn, NEXT, now(22))  # badanie 16.10 → 5 dni przed końcem
+    w = promo_watch.load(conn)
+    assert w and w.gap == 5 and summary._gap_note(w.gap) == ""
+    early = text(79, "5 grudnia 2026", "14 stycznia 2027", "30 listopada 2026")  # 3.12 → 3 dni
+    wide = text(80, "5 stycznia 2027", "20 lutego 2027", "1 stycznia 2027")  # 14.01 → 13 dni
+    await fetch(conn, early, now(30, 11))
+    await fetch(conn, wide, now(5, 12))
+    w = promo_watch.load(conn)
+    assert w and w.gap == 13
+    assert "13 dni przed końcem" in summary._gap_note(w.gap)

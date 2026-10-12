@@ -9,14 +9,18 @@ przystępowania obecnej minus `WINDOW_DAYS` do tego końca (odstępy 0/−5/−6
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 import re
 import sqlite3
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
 
+import httpx
+
+from budget.spending import MONTHS_GEN
 from budget.storage import db
 
 log = logging.getLogger(__name__)
@@ -25,20 +29,6 @@ URL = "https://www.bankmillennium.pl/delegate/managedfiles/591/latest"
 KEY = "promo_watch"
 WINDOW_DAYS = 6  # dzień badania następnej edycji: [koniec przystępowania − 6 dni, koniec]
 ERROR_ALERT_DAYS = 3  # tyle dni nieudanych odczytów → karta w dzwonku
-MONTHS = {  # miesiące w dopełniaczu, jak w regulaminie
-    "stycznia": 1,
-    "lutego": 2,
-    "marca": 3,
-    "kwietnia": 4,
-    "maja": 5,
-    "czerwca": 6,
-    "lipca": 7,
-    "sierpnia": 8,
-    "września": 9,
-    "października": 10,
-    "listopada": 11,
-    "grudnia": 12,
-}
 _DATE = r"(\d{1,2} [a-ząćęłńóśźż]+ \d{4})"
 
 
@@ -58,6 +48,18 @@ class Edition:
         """Prognoza dnia badania sald NASTĘPNEJ edycji (od, do)."""
         return self.deadline - timedelta(days=WINDOW_DAYS), self.deadline
 
+    def days_to_window(self, today: date) -> int:
+        """Dni do początku prognozowanego okna (ujemne, gdy już trwa)."""
+        return (self.window()[0] - today).days
+
+    def to_json(self) -> dict[str, object]:
+        return {k: v.isoformat() if isinstance(v, date) else v for k, v in asdict(self).items()}
+
+    @classmethod
+    def from_json(cls, raw: dict[str, object]) -> Edition:
+        d = {k: date.fromisoformat(str(raw[k])) for k in ("baseline", "start", "deadline")}
+        return cls(int(str(raw["number"])), days=int(str(raw["days"])), **d)
+
 
 @dataclass(frozen=True)
 class Watch:
@@ -65,14 +67,17 @@ class Watch:
     checked: datetime | None
     error: str | None
     error_since: datetime | None
-    pending_confirm: int | None  # numer nowej edycji, o której jeszcze nie powiadomiono
+    pending_confirm: (
+        int | None
+    )  # numer ostatniej edycji wykrytej PO instalacji (push raz, przez `sent`)
+    gap: int | None  # dni od końca poprzedniej edycji do dnia badania nowej (None: brak porównania)
 
 
 def _day(text: str) -> date:
     d, month, y = text.split()
-    if month not in MONTHS:
+    if month not in MONTHS_GEN:
         raise WatchError(f"Nieznany miesiąc w regulaminie: {month}")
-    return date(int(y), MONTHS[month], int(d))
+    return date(int(y), MONTHS_GEN.index(month) + 1, int(d))
 
 
 def parse(text: str) -> Edition:
@@ -89,13 +94,16 @@ def parse(text: str) -> Edition:
         raise WatchError("Nie znaleziono w regulaminie: " + ", ".join(missing))
     number, baseline, span, days = (found[k] for k in ("number", "baseline", "range", "days"))
     assert number and baseline and span and days  # mypy: braki wyłapane wyżej
-    return Edition(
+    ed = Edition(
         int(number.group(1)),
         _day(baseline.group(1)),
         _day(span.group(1)),
         _day(span.group(2)),
         int(days.group(1)),
     )
+    if not ed.baseline <= ed.start <= ed.deadline:  # inna kolejność = zmiana układu regulaminu
+        raise WatchError(f"Niespójne daty regulaminu: {ed.baseline}, {ed.start}, {ed.deadline}")
+    return ed
 
 
 def pdf_text(data: bytes) -> str:
@@ -109,15 +117,7 @@ def _raw(conn: sqlite3.Connection) -> dict[str, object]:
 
 
 def _edition(raw: object) -> Edition | None:
-    if not isinstance(raw, dict):
-        return None
-    return Edition(
-        raw["number"],
-        date.fromisoformat(raw["baseline"]),
-        date.fromisoformat(raw["start"]),
-        date.fromisoformat(raw["deadline"]),
-        raw["days"],
-    )
+    return Edition.from_json(raw) if isinstance(raw, dict) else None
 
 
 def load(conn: sqlite3.Connection) -> Watch | None:
@@ -131,12 +131,25 @@ def load(conn: sqlite3.Connection) -> Watch | None:
         datetime.fromisoformat(str(checked)) if checked else None,
         str(raw["error"]) if raw.get("error") else None,
         datetime.fromisoformat(str(since)) if since else None,
-        raw.get("pending_confirm"),  # type: ignore[arg-type]
+        int(str(raw["pending_confirm"])) if raw.get("pending_confirm") else None,
+        int(str(raw["gap"])) if raw.get("gap") is not None else None,
     )
 
 
+async def fetch_text() -> str:
+    """Regulamin z bankmillennium.pl jako tekst (PDF czytany poza pętlą zdarzeń)."""
+    async with httpx.AsyncClient(
+        timeout=20, headers={"User-Agent": "ha-budget-app"}, follow_redirects=True
+    ) as client:
+        resp = await client.get(URL)
+        resp.raise_for_status()
+    return await asyncio.to_thread(pdf_text, resp.content)
+
+
 async def refresh(
-    conn: sqlite3.Connection, now: datetime, get_text: Callable[[], Awaitable[str]]
+    conn: sqlite3.Connection,
+    now: datetime,
+    get_text: Callable[[], Awaitable[str]] = fetch_text,
 ) -> None:
     """Jeden odczyt regulaminu; nigdy nie rzuca (błąd trafia do stanu i dzwonka)."""
     raw = _raw(conn)
@@ -153,15 +166,9 @@ async def refresh(
     prev = _edition(raw.get("edition"))
     if prev is not None and ed.number > prev.number:
         raw["pending_confirm"] = ed.number
-    raw.update(
-        edition={
-            "number": ed.number,
-            "baseline": ed.baseline.isoformat(),
-            "start": ed.start.isoformat(),
-            "deadline": ed.deadline.isoformat(),
-            "days": ed.days,
-        },
-        error=None,
-        error_since=None,
-    )
+        gap = (prev.deadline - ed.baseline).days
+        raw["gap"] = gap
+        if gap > WINDOW_DAYS:  # prognoza okna była za wąska — widać to w logu i w push
+            log.warning("Dzień badania sald %d dni przed końcem poprzedniej edycji", gap)
+    raw.update(edition=ed.to_json(), error=None, error_since=None)
     db.kv_set(conn, KEY, raw)

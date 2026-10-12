@@ -8,6 +8,7 @@ import httpx
 import pytest
 import respx
 
+from budget import promo_watch
 from budget.service import Service
 from budget.storage.db import now_iso
 
@@ -154,7 +155,6 @@ async def test_savings_rate_on_screen_and_home_tile(
     assert "savings-tile" in home and "Stopa w tym miesiącu" in home and "25%" in home
 
 
-PDF_URL = "https://www.bankmillennium.pl/delegate/managedfiles/591/latest"
 REGULATION = (
     "edycja 77 3. Do promocji możesz przystąpić od 11 września 2026 r. do 21 października 2026 r. "
     "4. Okres promocyjny trwa przez 91 dni od dnia. "
@@ -166,9 +166,7 @@ REGULATION = (
 async def test_promo_refresh_route_and_section(
     client: httpx.AsyncClient, service: Service, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from budget import promo_watch
-
-    route = respx.get(PDF_URL).mock(return_value=httpx.Response(200, content=b"%PDF"))
+    route = respx.get(promo_watch.URL).mock(return_value=httpx.Response(200, content=b"%PDF"))
     monkeypatch.setattr(promo_watch, "pdf_text", lambda data: REGULATION)
     await client.post("/promo/refresh")
     assert not route.called  # bez konta oszczędnościowego nic nie pobieramy
@@ -190,7 +188,7 @@ async def test_promo_refresh_route_and_section(
 
 @respx.mock
 async def test_promo_refresh_failure_is_shown(client: httpx.AsyncClient) -> None:
-    respx.get(PDF_URL).mock(return_value=httpx.Response(503))
+    respx.get(promo_watch.URL).mock(return_value=httpx.Response(503))
     await client.post(
         "/savings",
         data={

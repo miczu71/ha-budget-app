@@ -330,13 +330,14 @@ def promo_cards(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> li
     if ed.baseline < today:
         title = f"Profit, edycja {ed.number}: wpłać nowe środki do {ed.deadline:%d.%m}"
         out.append(Item("promo_intake", title, 1, link, "info", "Dzień badania sald już minął."))
-    days = (start - today).days
+    days = ed.days_to_window(today)
     if days <= PROMO_BELL_DAYS:
         title = f"Profit: wyzeruj Millennium przed badaniem sald edycji {ed.number + 1}"
         detail = (
-            f"Badanie wypadnie prawdopodobnie {start:%d.%m}–{end:%d.%m} (bank poda datę po fakcie)."
+            f"Badanie wypadnie prawdopodobnie {start:%d.%m}–{end:%d.%m} (prognoza; datę poda bank)."
         )
-        out.append(Item("promo_window", title, 1, link, "warn" if days <= 3 else "info", detail))
+        severity: Severity = "warn" if days <= max(summary.PROMO_PUSH_DAYS) else "info"
+        out.append(Item("promo_window", title, 1, link, severity, detail))
     return out
 
 

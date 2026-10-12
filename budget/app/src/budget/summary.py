@@ -226,6 +226,14 @@ def promo_reminder(acc: savings.Account, days: int) -> Message:
     )
 
 
+def _gap_note(gap: int | None) -> str:
+    if gap is None or gap <= promo_watch.WINDOW_DAYS:
+        return ""
+    return (
+        f" Uwaga: badanie wypadło {gap} dni przed końcem poprzedniej edycji (okno było za wąskie)."
+    )
+
+
 def promo_messages(watch: promo_watch.Watch, today: date) -> list[Message]:
     """Push o oknie badania sald następnej edycji Profit i o nowej edycji regulaminu (M10 E7)."""
     ed = watch.edition
@@ -233,7 +241,7 @@ def promo_messages(watch: promo_watch.Watch, today: date) -> list[Message]:
         return []
     out = []
     start, end = ed.window()
-    days = (start - today).days
+    days = ed.days_to_window(today)
     if days in PROMO_PUSH_DAYS:
         out.append(
             Message(
@@ -241,9 +249,9 @@ def promo_messages(watch: promo_watch.Watch, today: date) -> list[Message]:
                 f"{ed.number}-{days}",
                 "Millennium Profit — wyzeruj konto przed badaniem sald",
                 f"Dzień badania sald edycji {ed.number + 1} wypadnie prawdopodobnie między "
-                f"{_short(start)} a {_short(end)} (bank poda go dopiero po fakcie). Wyprowadź "
-                f"środki z Millennium — z KOP i z rachunków PLN — przed {_short(start)} i trzymaj "
-                f"0 do {_short(end)}.",
+                f"{_short(start)} a {_short(end)} (prognoza z poprzednich edycji; bank poda datę "
+                f"dopiero po fakcie). Wyprowadź środki z Millennium — z KOP i z rachunków PLN — "
+                f"przed {_short(start)} i trzymaj 0 do {_short(end)}.",
             )
         )
     if watch.pending_confirm == ed.number:
@@ -254,7 +262,7 @@ def promo_messages(watch: promo_watch.Watch, today: date) -> list[Message]:
                 f"Millennium Profit — edycja {ed.number}",
                 f"Bank opublikował regulamin: dzień badania sald {_short(ed.baseline)}, "
                 f"nowe środki wpłać po tym dniu, najpóźniej {_short(ed.deadline)} "
-                f"(okres promocyjny {ed.days} dni).",
+                f"(okres promocyjny {ed.days} dni)." + _gap_note(watch.gap),
             )
         )
     return out

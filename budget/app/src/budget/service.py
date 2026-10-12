@@ -225,17 +225,8 @@ class Service:
 
     async def watch_promo(self) -> None:
         """Odczyt regulaminu promocji Profit (M10 E7) — tylko gdy jest konto oszczędnościowe."""
-        if not savings.all_accounts(self.conn):
-            return
-
-        async def get_text() -> str:
-            headers = {"User-Agent": "ha-budget-app"}
-            async with httpx.AsyncClient(timeout=20, headers=headers, follow_redirects=True) as c:
-                resp = await c.get(promo_watch.URL)
-                resp.raise_for_status()
-                return promo_watch.pdf_text(resp.content)
-
-        await promo_watch.refresh(self.conn, self.now(), get_text)
+        if savings.all_accounts(self.conn):
+            await promo_watch.refresh(self.conn, self.now())
 
     async def summaries(self) -> None:
         """Podsumowania o `summary.SEND_AT`; zaległe z dzisiaj zaraz po starcie."""

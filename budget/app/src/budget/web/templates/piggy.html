@@ -112,7 +112,7 @@
   <div class="stats">
     <div class="stat"><span class="stat-label">Edycja {{ ed.number }}</span><span class="stat-value">{{ ed.baseline.isoformat() | pldate }}</span><span class="small muted">dzień badania sald</span></div>
     <div class="stat"><span class="stat-label">Nowe środki do</span><span class="stat-value">{{ ed.deadline.isoformat() | pldate }}</span><span class="small muted">od {{ ed.start.isoformat() | pldate }}, okres {{ ed.days }} dni</span></div>
-    <div class="stat"><span class="stat-label">Następne badanie (prognoza)</span><span class="stat-value">{{ win[0].strftime('%d.%m') }}–{{ win[1].strftime('%d.%m') }}</span><span class="small muted">bank poda datę po fakcie</span></div>
+    <div class="stat"><span class="stat-label">Następne badanie (prognoza)</span><span class="stat-value">{{ win[0].strftime('%d.%m') }}–{{ win[1].strftime('%d.%m') }}</span><span class="small muted">prognoza; bank poda datę po fakcie</span></div>
   </div>
   <p class="small muted">Wyzeruj Millennium (KOP i rachunki PLN) przed początkiem okna i trzymaj 0 do jego końca; potem wpłać środki i wpisz je jako nowe środki. Odczyt regulaminu raz dziennie{% if watch.checked %}, ostatni {{ watch.checked.strftime('%d.%m %H:%M') }}{% endif %}.</p>
   {% endif %}
