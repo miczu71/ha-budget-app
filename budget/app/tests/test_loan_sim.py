@@ -134,10 +134,15 @@ def test_always_promo_extends_promo_rate_past_its_end() -> None:
 def test_variants_table_rows_and_ordering(conn: sqlite3.Connection) -> None:
     lo = lo_of(conn)
     table = loan_sim.variants(lo, Scenario(lump=Decimal(20000)), TODAY)
-    assert [d for d, *_ in table] == list(loan_sim.DELTAS)
+    assert [d for d, *_ in table] == [Decimal(k) for k in range(-2, 3)]
     for _, plain, shorten, lower in table:
         assert shorten.payoff < plain.payoff and lower.installment < plain.installment
-    assert table[3][1].interest > table[0][1].interest  # wyższy WIBOR = więcej odsetek
+    assert table[4][1].interest > table[0][1].interest  # wyższy WIBOR = więcej odsetek
+
+
+def test_variants_step_scales_deltas(conn: sqlite3.Connection) -> None:
+    table = loan_sim.variants(lo_of(conn), Scenario(), TODAY, Decimal("0.25"))
+    assert [d for d, *_ in table] == [Decimal(k) / 4 for k in range(-2, 3)]
 
 
 def test_paid_off_loan_has_no_simulation(conn: sqlite3.Connection) -> None:

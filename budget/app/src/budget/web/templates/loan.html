@@ -88,7 +88,7 @@
 {% for lo, sm, sched in rows %}
 <section class="card" id="calc-{{ lo.id }}">
   <h2>Nadpłacić czy oszczędzać: {{ lo.name }}</h2>
-  <form class="rule-form piggy-form calc-form" hx-get="{{ base }}/loan/{{ lo.id }}/calc" hx-trigger="load, input delay:500ms, change" hx-target="#calc-out-{{ lo.id }}" hx-push-url="false">
+  <form id="calc-form-{{ lo.id }}" class="rule-form piggy-form calc-form" hx-get="{{ base }}/loan/{{ lo.id }}/calc" hx-trigger="load, input delay:500ms, change" hx-target="#calc-out-{{ lo.id }}" hx-push-url="false">
     <div class="inline">
       <label>Nadpłata dziś (zł)<input name="lump" inputmode="decimal" size="9" placeholder="np. 20000"></label>
       <label>Nadpłata co miesiąc (zł)<input name="monthly" inputmode="decimal" size="9" placeholder="np. 1000"></label>
@@ -111,6 +111,7 @@
     <div class="inline">
       <label>Stopa oszczędności (% rocznie)<input name="savings_rate" inputmode="decimal" size="6" placeholder="{{ 'z konta ' ~ account.name if account else 'np. 4,5' }}"></label>
     </div>
+    <input type="hidden" name="table" value="0"><input type="hidden" name="wibor_step" value="1">
     {% if account and account.promo_rate is not none %}<label class="check"><input type="checkbox" name="always_promo" value="1"> Zakładam, że zawsze załapię promocję ({{ account.promo_rate }}% przez cały horyzont, do limitu kwoty)</label>{% endif %}
   </form>
   <div id="calc-out-{{ lo.id }}" class="calc-out" aria-live="polite"></div>

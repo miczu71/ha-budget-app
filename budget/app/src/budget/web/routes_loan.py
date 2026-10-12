@@ -111,13 +111,30 @@ def router(panel: Panel) -> APIRouter:
             )
             months = int(q["months"]) if q.get("months") else None
             sim = loan_sim.simulate(lo, scen, today, acc, months)
-            table = loan_sim.variants(lo, scen, today) if sim else []
+            step = amount("wibor_step")
+            table_open = q.get("table") == "1"
+            table = (
+                loan_sim.variants(
+                    lo, scen, today, step if step in loan_sim.STEPS else loan_sim.STEPS[0]
+                )
+                if sim and table_open
+                else []
+            )
         except (loan.LoanError, money.AmountError, ValueError) as exc:
             return panel.partial(
                 request, "_loan_calc.html", error=str(exc) or "Nieprawidłowe dane."
             )
         return panel.partial(
-            request, "_loan_calc.html", error=None, sim=sim, table=table, scen=scen, months=months
+            request,
+            "_loan_calc.html",
+            error=None,
+            sim=sim,
+            table=table,
+            table_open=table_open,
+            step=step if step in loan_sim.STEPS else loan_sim.STEPS[0],
+            scen=scen,
+            months=months,
+            form_id=f"calc-form-{loan_id}",
         )
 
     @r.post("/loan/{loan_id}/archive")

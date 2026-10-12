@@ -21,7 +21,11 @@ from budget.loan import Installment, Loan, Scenario
 from budget.spending import add_months
 
 ZERO = money.ZERO
-DELTAS = (Decimal(-1), Decimal(0), Decimal(1), Decimal(2))  # zmiany WIBOR w tabeli wariantów, p.p.
+STEPS = (
+    Decimal(1),
+    Decimal("0.5"),
+    Decimal("0.25"),
+)  # dozwolone kroki WIBOR w tabeli wariantów, p.p.
 
 
 @dataclass(frozen=True)
@@ -214,13 +218,14 @@ def simulate(
 
 
 def variants(
-    lo: Loan, scen: Scenario, today: date
+    lo: Loan, scen: Scenario, today: date, step: Decimal = STEPS[0]
 ) -> list[tuple[Decimal, Outcome, Outcome, Outcome]]:
-    """Tabela: zmiana WIBOR × (bez nadpłaty, krótszy okres, niższa rata), ta sama nadpłata."""
+    """Tabela: zmiana WIBOR (−2…+2 kroki po `step`) × (bez nadpłaty, krótszy okres, niższa rata),
+    ta sama nadpłata."""
     balance, prev, seed = _start(lo, today)
     when = max(today, prev)
     out = []
-    for delta in DELTAS:
+    for delta in (step * k for k in range(-2, 3)):
         sc = replace(scen, wibor_delta=delta)
 
         def run(s: Scenario) -> Outcome:

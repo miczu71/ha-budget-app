@@ -19,17 +19,25 @@
 {% if not idle %}
 <p class="small muted">Stan na {{ sim.horizon_end.isoformat() | pldate }}{% if months is none %} (koniec kredytu){% endif %}: kapitał kredytu minus saldo konta to {{ (-sim.wealth_overpay) | money("PLN") }} przy nadpłacie i {{ (-sim.wealth_save) | money("PLN") }} przy oszczędzaniu (mniej = lepiej). W obu wariantach co miesiąc wydajesz tyle samo; co kredyt zabiera mniej, ląduje na koncie.{% if sim.savings_gross == 0 %} Konto bez stopy liczy się jako 0%, wpisz stopę oszczędności.{% endif %}</p>
 {% endif %}
-<h3>Zmiana WIBOR przy tej nadpłacie</h3>
-<p class="small muted">W komórce: rata, miesiąc spłaty, odsetki do końca.</p>
-<div class="table-wrap">
-  <table class="loan-table">
-    <thead><tr><th>WIBOR</th><th class="num">Bez nadpłaty</th><th class="num">Krótszy okres</th><th class="num">Niższa rata</th></tr></thead>
-    <tbody>{% for delta, plain, shorten, lower in table %}
-      <tr>
-        <th scope="row">{{ '%+.0f' | format(delta) if delta else '0' }} p.p.</th>
-        {% for o in (plain, shorten, lower) %}<td class="num"><strong>{{ o.installment | money("PLN") }}</strong><br><span class="small muted">{{ o.payoff.strftime('%m.%Y') if o.payoff }}<br>{{ (o.interest / 1000) | round | int }} tys. zł</span></td>{% endfor %}
-      </tr>{% endfor %}
-    </tbody>
-  </table>
-</div>
+<details class="wibor-table"{{ ' open' if table_open }} ontoggle="var f=document.getElementById('{{ form_id }}');f.elements.table.value=this.open?'1':'0';if(this.open!==(this.dataset.was==='1')){this.dataset.was=this.open?'1':'0';htmx.trigger(f,'change')}" data-was="{{ '1' if table_open else '0' }}">
+  <summary>Porównaj warianty przy innym WIBOR</summary>
+  <p class="small muted">W komórce: rata, miesiąc spłaty, odsetki do końca.
+    <label class="inline">Krok
+      <select onchange="var f=document.getElementById('{{ form_id }}');f.elements.wibor_step.value=this.value;htmx.trigger(f,'change')">{% for st in (1, 0.5, 0.25) %}
+        <option value="{{ st }}"{{ ' selected' if st == step }}>{{ ('%g' | format(st)).replace('.', ',') }} p.p.</option>{% endfor %}
+      </select>
+    </label>
+  </p>
+  {% if table %}<div class="table-wrap">
+    <table class="loan-table">
+      <thead><tr><th>WIBOR</th><th class="num">Bez nadpłaty</th><th class="num">Krótszy okres</th><th class="num">Niższa rata</th></tr></thead>
+      <tbody>{% for delta, plain, shorten, lower in table %}
+        <tr>
+          <th scope="row">{{ ((delta > 0 and '+' or '') ~ ('%g' | format(delta))).replace('.', ',') }} p.p.</th>
+          {% for o in (plain, shorten, lower) %}<td class="num"><strong>{{ o.installment | money("PLN") }}</strong><br><span class="small muted">{{ o.payoff.strftime('%m.%Y') if o.payoff }}<br>{{ (o.interest / 1000) | round | int }} tys. zł</span></td>{% endfor %}
+        </tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>{% endif %}
+</details>
 {% endif %}

@@ -57,13 +57,26 @@ async def test_calc_verdict_flips_with_savings_rate(client: httpx.AsyncClient) -
     await client.post("/loan", data=NEW)
     page = (await client.get("/loan")).text
     assert 'hx-get="' in page and "/loan/1/calc" in page and "Nadpłata dziś" in page
-    base = "/loan/1/calc?lump=20000&months="
+    base = "/loan/1/calc?lump=20000&table=1&months="
     low = (await client.get(f"{base}&savings_rate=1")).text
-    assert "Nadpłata wychodzi lepiej" in low and low.count("p.p.</th>") == 4
+    assert "Nadpłata wychodzi lepiej" in low and low.count("p.p.</th>") == 5
     high = (await client.get(f"{base}&savings_rate=30")).text
     assert "Oszczędności wychodzą lepiej" in high
-    idle = (await client.get("/loan/1/calc")).text
+    idle = (await client.get("/loan/1/calc?table=1")).text
     assert "Bez nadpłaty:" in idle and "Krótszy okres" in idle
+
+
+async def test_calc_wibor_table_only_when_open(client: httpx.AsyncClient) -> None:
+    await client.post("/loan", data=NEW)
+    closed = (await client.get("/loan/1/calc?lump=20000&table=0")).text
+    assert "Porównaj warianty" in closed and "loan-table" not in closed
+    opened = (await client.get("/loan/1/calc?lump=20000&table=1&wibor_step=0.5")).text
+    assert "loan-table" in opened and "-0,5 p.p." in opened and "-2 p.p." not in opened
+    assert (
+        "+1 p.p." in opened and "+0,5 p.p." in opened and '<option value="0.5" selected>' in opened
+    )
+    bad = (await client.get("/loan/1/calc?lump=20000&table=1&wibor_step=7")).text
+    assert "+2 p.p." in bad  # nieznany krok → 1 p.p.
 
 
 async def test_calc_reports_bad_input_and_unknown_loan(client: httpx.AsyncClient) -> None:
