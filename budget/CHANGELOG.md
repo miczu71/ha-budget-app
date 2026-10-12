@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.43.0
+
+**Kredyt hipoteczny: ekran „Kredyt” i kalkulator „nadpłacić czy oszczędzać”** (M9, `docs/PLAN_M9.md`, decyzja 28).
+
+- Nowa zakładka „Kredyt”: kredyt wpisany ręcznie (kapitał na dzień, WIBOR/WIRON + marża, raty równe albo
+  malejące, dzień raty, data ostatniej raty). Panel liczy harmonogram, kapitał na dziś, najbliższą ratę,
+  datę spłaty i odsetki do końca. Nowy kapitał albo nowa stopa to korekta względem banku.
+- Powiązanie z serią rat w księdze (Cykliczne). Gdy ostatnia rata w księdze różni się od harmonogramu
+  o więcej niż 1%, dzwonek podpowiada „zmienił się WIBOR lub marża? wpisz nowy kapitał i stopę”.
+- Encja `sensor.budget_loan_principal` (kapitał wg harmonogramu; atrybuty: stopa, rata, raty do spłaty,
+  data spłaty, odsetki do końca). Kolejne kredyty dostają encje z numerem.
+- Kalkulator scenariuszy: nadpłata dziś i co miesiąc (krótszy okres albo niższa rata), zmiana WIBOR
+  suwakiem i nowa marża od wybranej daty, stopa oszczędności z konta (promocja Profit do jej końca) albo
+  wpisana, opcja „zawsze załapię promocję”, horyzont 12 miesięcy / 5 lat / do końca kredytu. Wynik:
+  która opcja wychodzi lepiej i o ile, plus tabela „zmiana WIBOR × bez nadpłaty / krótszy okres / niższa
+  rata”. Odsetki z oszczędności liczone netto (Belka 19%).
+- Migracja 015 (tabela `loan`) jest addytywna; starsza wersja add-onu ją ignoruje.
+- Konto Profit: komunikaty mówią, że zerować trzeba tylko KOP, a saldo rachunków PLN to próg łączny.
+
 ## 0.42.0
 
 **Konto Profit: monitor edycji promocji, szczegóły miesięcy, aktywacja promocji** (M10 E5–E7, `docs/PLAN_M10_E7.md`, decyzja 27).
