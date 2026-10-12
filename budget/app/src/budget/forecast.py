@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from decimal import ROUND_FLOOR, Decimal
@@ -32,6 +32,8 @@ EXTRA_MONTHS = 2  # ile następnych miesięcy sprawdzamy, gdy bieżący nie ma j
 STALE_AFTER = timedelta(hours=24)
 PAYDAY_KEY = "payday_series_id"  # kv: seria przychodów będąca wypłatą użytkownika (dzień resetu)
 CARD_DEBT_KEY = "forecast_card_debt"  # kv: czy odejmować zadłużenie karty (domyślnie tak)
+PERIOD_PLAN_KEY = "period_plan"  # kv: limit dzienny z początku okresu (M21 E4)
+PAST, NOW, NEXT = "past", "now", "next"  # stan tygodnia okresu
 
 
 @dataclass
@@ -47,6 +49,31 @@ class Event:
     day: date  # dzień w prognozie: termin serii, a spóźnione liczą się dziś
     due: schedule.Due
     amount: Decimal  # ze znakiem: wydatek ujemny, wpływ dodatni
+
+
+@dataclass(frozen=True)
+class Week:
+    """Tydzień pon–nd okresu wypłaty (M21 E4), przycięty do okresu."""
+
+    start: date
+    end: date  # włącznie
+    state: str  # PAST / NOW / NEXT
+    spent: Decimal  # elastyczne; dla NEXT 0
+    limit: Decimal | None  # PAST: plan okresu; NOW: wydane + reszta; NEXT: plan
+
+    @property
+    def left(self) -> Decimal | None:
+        return None if self.limit is None else self.limit - self.spent
+
+    @property
+    def used(self) -> float:
+        if not self.limit or self.limit <= 0:
+            return 1.0 if self.spent > 0 else 0.0
+        return min(1.0, float(self.spent / self.limit))
+
+    @property
+    def over(self) -> bool:
+        return self.limit is not None and self.spent > self.limit
 
 
 @dataclass
@@ -88,6 +115,11 @@ class Forecast(Projection):
     days_left: int = 0  # dni od dziś do końca horyzontu
     period_start: date | None = None  # dzień ostatniej wypłaty (M21 E3); None bez wypłaty w księdze
     spent_since: Decimal = ZERO  # wydane elastyczne od `period_start` do dziś
+    weeks: list[Week] = field(default_factory=list)  # tygodnie okresu (M21 E4)
+
+    @property
+    def this_week(self) -> Week | None:
+        return next((w for w in self.weeks if w.state == NOW), None)
 
     @property
     def period_elapsed(self) -> float:
@@ -310,6 +342,17 @@ def build(
         payday_id=payday_id,
     )
     start = last_payday(snap, p.payday_series_id, today)
+    safe = safe_per_day(p.days, today, per_day, buffer)
+    week_list: list[Week] = []
+    if start is not None and p.payday is not None:
+        week_list = weeks(
+            start,
+            p.payday,
+            today,
+            lambda a, b: flex.spent_between(snap, a, b),
+            period_plan(snap.conn, start, safe),
+            safe,
+        )
     return Forecast(
         **vars(p),
         balances=balances,
@@ -318,11 +361,54 @@ def build(
         stale=now - datetime.fromisoformat(balances.fetched_at) > STALE_AFTER,
         buffer=buffer,
         card_debt_included=card_debt_included,
-        safe_per_day=safe_per_day(p.days, today, per_day, buffer),
+        safe_per_day=safe,
         days_left=(p.horizon_end - today).days,
         period_start=start,
         spent_since=flex.spent_between(snap, start, today + timedelta(days=1)) if start else ZERO,
+        weeks=week_list,
     )
+
+
+def period_plan(conn: sqlite3.Connection, start: date, safe: Decimal | None) -> Decimal | None:
+    """Limit dzienny zapamiętany przy pierwszej prognozie okresu zaczętego `start` — miara dla
+    minionych tygodni; nowy okres nadpisuje wpis. Bez wpisu (np. w transakcji) — `safe`."""
+    stored = db.kv_get(conn, PERIOD_PLAN_KEY)
+    if isinstance(stored, dict) and stored.get("start") == start.isoformat():
+        return Decimal(stored["per_day"])
+    if safe is not None and not conn.in_transaction:
+        db.kv_set(conn, PERIOD_PLAN_KEY, {"start": start.isoformat(), "per_day": str(safe)})
+    return safe
+
+
+def weeks(
+    start: date,
+    payday: date,
+    today: date,
+    spent: Callable[[date, date], Decimal],
+    plan: Decimal | None,
+    safe: Decimal | None,
+) -> list[Week]:
+    """Tygodnie pon–nd okresu [start, payday) (czysta logika; `spent(a, b)` = wydane w [a, b)).
+    Minione mierzy limit z początku okresu (`plan`), a bieżący i przyszłe — dzisiejszy `safe`
+    od jutra (dzisiejsze wydatki są już w saldzie), więc przekroczenie obniża kolejne tygodnie."""
+    plan_day = None if plan is None else max(plan, ZERO)
+    safe_day = None if safe is None else max(safe, ZERO)
+    result: list[Week] = []
+    ws = start
+    while ws < payday:
+        we = min(ws + timedelta(days=6 - ws.weekday()), payday - timedelta(days=1))
+        days = (we - ws).days + 1
+        if we < today:
+            limit = None if plan_day is None else plan_day * days
+            result.append(Week(ws, we, PAST, spent(ws, we + timedelta(days=1)), limit))
+        elif ws <= today:
+            done = spent(ws, today + timedelta(days=1))
+            limit = None if safe_day is None else done + safe_day * (we - today).days
+            result.append(Week(ws, we, NOW, done, limit))
+        else:
+            result.append(Week(ws, we, NEXT, ZERO, None if safe_day is None else safe_day * days))
+        ws = we + timedelta(days=1)
+    return result
 
 
 def last_payday(snap: Snapshot, series_id: int | None, today: date) -> date | None:

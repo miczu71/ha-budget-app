@@ -13,5 +13,10 @@
   <div class="flex-bar" role="img" aria-label="minęło {{ pct(fc.period_elapsed) }} okresu od wypłaty"><span class="fill" style="width: {{ pct(fc.period_elapsed) }}"></span></div>
   <p class="small muted">Od wypłaty {{ fc.period_start.strftime('%d.%m') }} wydane na elastyczne {{ fc.spent_since | money("PLN") }}.</p>
   {% endif %}
+  {% set w = fc.this_week %}
+  {% if w and w.limit is not none %}
+  <p class="small week-line"><strong>Ten tydzień</strong> {{ w.start.strftime('%d.%m') }}–{{ w.end.strftime('%d.%m') }}: wydane {{ w.spent | money("PLN") }} z {{ w.limit | money("PLN") }}{% if w.left > 0 %} · zostało {{ w.left | money("PLN") }}{% endif %}</p>
+  <div class="flex-bar{{ ' over' if w.over }}" role="img" aria-label="wydane {{ pct(w.used) }} limitu tygodnia"><span class="fill" style="width: {{ pct(w.used) }}"></span></div>
+  {% endif %}
   <p class="small"><a class="tap" href="#fc">Prognoza dzień po dniu{% if fc.payday_series_id %} i data wypłaty{% endif %}</a></p>
 </section>

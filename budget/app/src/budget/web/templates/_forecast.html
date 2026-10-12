@@ -1,5 +1,6 @@
 {# Kafelek prognozy (M8 E1, E3; werdykt w hero `_payday_hero.html` od M21 E2): pasek równania, wykres, lista zdarzeń, data wypłaty; `fc` = forecast.Forecast, `timeline` = routes_home.forecast_timeline #}
 {% from "_charts.html" import forecast_chart with context %}
+{% from "_macros.html" import pct %}
 {% set b = fc.balances %}
 {% macro tl_row(r) %}
 <li{% if r.low %} class="fc-low-row"{% endif %}>{% if r.event %}<a class="row" href="{{ base }}/recurring/{{ r.event.due.series.id }}">{% else %}<div class="row">{% endif %}<span class="row-date">{{ r.day.strftime('%d.%m') }}</span><span class="row-title">{% if r.event %}{{ r.event.due.series.name }}{% if r.event.due.status == 'late' %} <span class="badge warn">spóźniona</span>{% endif %}{% else %}Najniższy punkt{% endif %}{% if r.low and r.event %}<span class="small fc-low-tag">najniższy punkt</span>{% endif %}</span><span class="row-amount">{% if r.event %}<span class="{{ 'pos' if r.event.amount > 0 }}">{{ '+ ' if r.event.amount > 0 }}{{ r.event.amount | money("PLN") }}</span>{% endif %}{% if r.balance is not none %}<span class="row-bal small muted">saldo {{ r.balance | money("PLN") }}</span>{% endif %}</span>{% if r.event %}</a>{% else %}</div>{% endif %}</li>
@@ -14,6 +15,12 @@
     <div><dt>Wpływy ({{ fc.inflows | length }})</dt><dd class="pos">+ {{ fc.inflows_total | money("PLN") }}</dd></div>
   </dl>
   <p class="fc-result"><span>= {{ fc.at_payday | money("PLN") }}</span> <span class="small muted">{{ fc.horizon_end.strftime('%d.%m') }}{% if fc.payday %}, przed wpływem „{{ fc.payday_series }}”{% endif %}</span></p>
+  {% if fc.weeks %}
+  <h3 class="small">Tygodnie okresu</h3>
+  <ul class="rows fc-weeks">{% for w in fc.weeks %}
+    <li class="week-{{ w.state }}"><div class="row"><span class="row-date">{{ w.start.strftime('%d.%m') }}–{{ w.end.strftime('%d.%m') }}</span><span class="row-amount">{% if w.state != 'next' %}{{ w.spent | money("PLN") }}{% if w.limit is not none %} <span class="small muted">z {{ w.limit | money("PLN") }}</span>{% endif %}{% elif w.limit is not none %}<span class="small muted">plan</span> {{ w.limit | money("PLN") }}{% endif %}</span>{% if w.state != 'next' %}<span class="flex-bar{{ ' over' if w.over }}" role="img" aria-label="wydane {{ pct(w.used) }} limitu"><span class="fill" style="width: {{ pct(w.used) }}"></span></span>{% endif %}</div></li>
+  {% endfor %}</ul>
+  {% endif %}
   {{ forecast_chart(chart, "Wolne środki dzień po dniu do " ~ fc.horizon_end.strftime('%d.%m')) }}
   {% if timeline %}{% set head, rest = timeline[:8], timeline[8:] %}
   <ul class="rows fc-list">{% for r in head %}{{ tl_row(r) }}{% endfor %}</ul>

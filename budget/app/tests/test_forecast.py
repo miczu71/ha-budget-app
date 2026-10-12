@@ -438,3 +438,90 @@ def test_other_inflow_on_payday_counts_like_outflows_that_day() -> None:
     )
     assert p.payday == date(2026, 10, 23) and [d.series.id for d in p.inflows] == [2]
     assert p.at_payday == Decimal("1700.00")  # bez samej wypłaty
+
+
+# --- tygodnie okresu (M21 E4) ---------------------------------------------------------------
+
+
+def spent_days(a: date, b: date) -> Decimal:
+    return Decimal(20 * (b - a).days)  # 20 zł dziennie
+
+
+def test_weeks_split_period_monday_to_sunday() -> None:
+    # okres od środy 30.09 do wypłaty w czwartek 15.10, dziś sobota 3.10
+    ws = forecast.weeks(
+        date(2026, 9, 30), date(2026, 10, 15), TODAY, spent_days, Decimal(30), Decimal(25)
+    )
+    assert [(w.start, w.end, w.state) for w in ws] == [
+        (date(2026, 9, 30), date(2026, 10, 4), forecast.NOW),
+        (date(2026, 10, 5), date(2026, 10, 11), forecast.NEXT),
+        (date(2026, 10, 12), date(2026, 10, 14), forecast.NEXT),  # dzień wypłaty już poza okresem
+    ]
+    now = ws[0]
+    assert now.spent == Decimal(80)  # 30.09–3.10 włącznie z dziś
+    assert now.limit == Decimal(105) and now.left == Decimal(25)  # + 25 na niedzielę
+    assert ws[1].limit == Decimal(175) and ws[2].limit == Decimal(75) and ws[2].spent == 0
+
+
+def test_past_weeks_use_plan_and_current_week_uses_todays_limit() -> None:
+    today = date(2026, 10, 8)  # czwartek
+    ws = forecast.weeks(
+        date(2026, 9, 30), date(2026, 10, 15), today, spent_days, Decimal(15), Decimal(5)
+    )
+    past, now = ws[0], ws[1]
+    assert past.state == forecast.PAST and past.limit == Decimal(75) and past.spent == Decimal(100)
+    assert past.over and past.used == 1.0
+    assert now.spent == Decimal(80) and now.limit == Decimal(95)  # 5.10–8.10 + 5 × 3 dni
+    assert ws[2].limit == Decimal(15)
+
+
+def test_weeks_without_limit_and_negative_limit() -> None:
+    ws = forecast.weeks(date(2026, 10, 1), date(2026, 10, 10), TODAY, spent_days, None, None)
+    assert all(w.limit is None for w in ws) and ws[0].left is None
+    ws = forecast.weeks(
+        date(2026, 10, 1), date(2026, 10, 10), TODAY, spent_days, Decimal(-5), Decimal(-5)
+    )
+    assert ws[0].limit == ws[0].spent and ws[1].limit == 0  # ujemny limit = nic na kolejne dni
+
+
+def test_build_has_weeks_and_remembers_period_plan(conn: sqlite3.Connection) -> None:
+    seeded(conn)
+    mine = serie(conn, "pensja", "9000.00", direction="in")  # termin 7.
+    add(conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day="2026-09-07")
+    fc = build(conn, payday_id=mine)
+    assert fc is not None and fc.weeks[0].start == date(2026, 9, 7)
+    assert fc.weeks[-1].end == date(2026, 10, 6) and fc.this_week is not None
+    stored = db.kv_get(conn, forecast.PERIOD_PLAN_KEY)
+    assert stored == {"start": "2026-09-07", "per_day": str(fc.safe_per_day)}
+    db.kv_set(conn, forecast.PERIOD_PLAN_KEY, {"start": "2026-09-07", "per_day": "1.00"})
+    fc = build(conn, payday_id=mine)
+    assert fc is not None and fc.weeks[0].limit == Decimal(7)  # 7.09–13.09 × 1 zł
+
+
+def test_without_period_there_are_no_weeks(conn: sqlite3.Connection) -> None:
+    seeded(conn)
+    mine = serie(conn, "pensja", "9000.00", direction="in")
+    fc = build(conn, payday_id=mine)
+    assert fc is not None and fc.weeks == [] and fc.this_week is None
+    assert db.kv_get(conn, forecast.PERIOD_PLAN_KEY) is None
+
+
+def test_memo_settles_after_period_plan_write(
+    conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seeded(conn)
+    mine = serie(conn, "pensja", "9000.00", direction="in")
+    add(conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day="2026-09-07")
+    db.kv_set(conn, forecast.PAYDAY_KEY, mine)
+    snap, calls = Snapshot(conn), []
+    real = forecast.for_today
+
+    def counting(*args: object, **kwargs: object) -> forecast.Forecast | None:
+        calls.append(1)
+        return real(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(forecast, "for_today", counting)
+    memo = forecast.ForecastMemo()
+    for _ in range(4):
+        memo.get(snap, TODAY, at(3), Decimal(0))
+    assert len(calls) == 2  # zapis `period_plan` zmienia sygnaturę raz
