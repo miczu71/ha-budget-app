@@ -27,7 +27,7 @@
       <span class="row-amount">{% if w.limit is not none %}<span class="small muted">plan</span> {{ w.limit | money("PLN") }}{% endif %}</span>
       {{ bar(0, "plan tygodnia, jeszcze nic nie wydano") }}
       {% else %}
-      <span class="row-amount">{{ w.spent | money("PLN") }}{% if w.limit is not none %} <span class="small muted">z {{ w.limit | money("PLN") }}</span>{% endif %}{% if w.over and w.state == 'past' %} <span class="small neg">+{{ (w.spent - w.limit) | money("PLN") }} ponad plan</span>{% endif %}</span>
+      <span class="row-amount">{{ w.spent | money("PLN") }}{% if w.limit is not none %} <span class="small muted">z {{ w.limit | money("PLN") }}</span>{% endif %}{% if w.over and w.state == 'past' %} <span class="small neg over-note">+{{ (w.spent - w.limit) | money("PLN") }} ponad plan</span>{% endif %}</span>
       {{ bar(w.used, "wydane " ~ pct(w.used) ~ " limitu", w.over) }}
       {% endif %}
     </div></li>
