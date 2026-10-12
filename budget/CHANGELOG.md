@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.47.0
+
+**Kalkulator kredytu i tygodnie okresu czytelniejsze** (M27, `docs/PLAN_M9_M21_poprawki.md`).
+
+- Kredyt: tabela „zmiana WIBOR przy tej nadpłacie” jest zwinięta i liczy się dopiero po rozwinięciu
+  (nie przy każdym ruchu suwaka); pięć wierszy (−2…+2 kroki), krok do wyboru: 1, 0,5 lub 0,25 p.p.
+- Podsumowanie, „Tygodnie okresu”: zdanie wyjaśnia, czym mierzone są minione tygodnie (plan z dnia
+  wypłaty) i kolejne (dzisiejszy limit dzienny, więc przekroczenie obniża następne tygodnie). Przyszłe
+  tygodnie mają pusty pasek planu, minione przekroczone „+X zł ponad plan”, a skrócony pierwszy
+  i ostatni tydzień okresu etykietę „N dni od/do wypłaty”. Bez migracji schematu.
+
 ## 0.46.0
 
 **Czat „Zapytaj” zna stan panelu, nie tylko transakcje** (M12 E3b, `docs/PLAN_M12_E3b.md`).
