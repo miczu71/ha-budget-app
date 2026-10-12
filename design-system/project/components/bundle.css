@@ -704,8 +704,8 @@ a.row:hover .row-title { text-decoration: underline; }
 .row-title { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 .row-title > .badge { align-self: flex-start; }
 .row-amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.fc-weeks .row { grid-template-columns: 1fr auto; row-gap: 6px; }  /* M21 E4 */
-.fc-weeks .flex-bar { grid-column: 1 / -1; height: 8px; margin: 0; }
+.bar-rows .row { grid-template-columns: 1fr auto; row-gap: 6px; }  /* wiersz z paskiem pod spodem (M21 E4, M10 E1) */
+.bar-rows .flex-bar { grid-column: 1 / -1; height: 8px; margin: 0; }
 .fc-weeks .week-now .row-date { color: var(--text); font-weight: 600; }
 .week-line { margin-bottom: 0; }
 .bars { display: block; width: 100%; max-width: 520px; height: auto; }
@@ -893,7 +893,6 @@ label.switch input[type="checkbox"]:checked::after { transform: translateX(16px)
 .piggy-pick { display: inline-block; }
 .piggy-new > summary { line-height: var(--tap); cursor: pointer; font-weight: 600; }
 .piggy-pick select { min-height: var(--tap); }
-.piggy-tile .row { grid-template-columns: 1fr auto; row-gap: 6px; }
-.piggy-tile .flex-bar { grid-column: 1 / -1; height: 6px; margin: 0; }
+.piggy-tile .flex-bar { height: 6px; }
 .fc-strip > div:nth-child(5):last-child { grid-column: 1 / -1; }
 @media (min-width: 720px) { .fc-strip:has(> div:nth-child(5)) { grid-template-columns: repeat(5, 1fr); } .fc-strip > div:nth-child(5):last-child { grid-column: auto; } }

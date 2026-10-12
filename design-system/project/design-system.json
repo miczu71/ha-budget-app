@@ -100,9 +100,9 @@
   ],
   "lastChange": {
     "by": "Claude",
-    "at": "2026-10-12T08:30:00Z",
-    "via": "Claude Code · ha-budget-app@4d572d3",
-    "note": "re-sync M21 E5 + M10 E1: bundle.css (hero-unit, fc-weeks, fc-payday, skarbonki), nowe komponenty PaydayHero i Piggy"
+    "at": "2026-10-12T09:10:00Z",
+    "via": "Claude Code · ha-budget-app@5179248",
+    "note": "re-sync M21 E5 + M10 E1: bundle.css (hero-unit, fc-weeks, fc-payday, skarbonki), nowe komponenty PaydayHero i Piggy; klasa bar-rows"
   },
   "layout": "files",
   "libraries": [],
