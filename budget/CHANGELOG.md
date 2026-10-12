@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.49.0
+
+**Podział transakcji na podkategorie** (M29 E1–E3, `docs/PLAN_M29.md`).
+
+- Transakcje: w karcie kategorii „Podziel na kategorie” — wiersze podkategoria + kwota, „Dodaj wiersz”,
+  licznik „Zostało do przydzielenia”; „Zapisz podział” dopiero przy reszcie 0,00 zł. Pierwszy wiersz sam
+  bierze resztę. Podzieloną transakcję otwiera się od razu w podziale („Usuń podział”); na liście znacznik
+  „N kategorie” i części w podpisie.
+- Wyliczenia (Wydatki, Budżet, Podsumowanie, oszczędności, czat) liczą każdą część w jej podkategorii;
+  liczba transakcji liczy podzieloną raz. Filtr kategorii w Transakcjach trafia też w części.
+- Ręczna kategoria zwykłym wyborem zastępuje podział; podział nie uczy pamięci sprzedawcy ani podpowiedzi AI.
+  Zmiana kwoty przez bank zdejmuje podział; CSV zastąpiony przez API przenosi podział na następcę.
+- Migracja `018_split.sql` (nowa tabela `txn_split`, addytywna).
+
 ## 0.48.0
 
 **Kredyt bez zbędnego pola i edytowalne zakładki** (M28, `docs/PLAN_M28.md`).
