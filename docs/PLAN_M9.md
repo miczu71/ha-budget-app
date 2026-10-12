@@ -98,3 +98,6 @@ Ingress (playwright-ha): ekran Kredyt, encja w HA. Użytkownik wpisuje parametry
 - Otwarte: kalibracja z prawdziwą ratą z banku (±1 zł) po wpisaniu kredytu przez użytkownika.
 - **Wydanie 0.43.0** 2026-10-12: tag v0.43.0 na 3ee791f (zawiera też f044cef), migracja 015 sprawdzona na kopii księgi
   z 2.10, na żywo stopka v0.43.0 i `/loan` 200 `no-store`.
+- **Kalibracja 0.44.1** (checkpoint z bankiem): odsetki 30/360 zamiast act/365, ostatnia rata w dniu końca
+  kredytu, opcjonalna „rata wg banku” (migracja 016). Szczegóły: `docs/PLAN_M9_kalibracja.md`. Na neutralnych
+  liczbach testowych i na harmonogramie banku różnica ≤ 0,02 zł na ratę, suma odsetek ±0,25 zł.

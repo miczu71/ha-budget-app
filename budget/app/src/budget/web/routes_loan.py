@@ -52,6 +52,7 @@ def router(panel: Panel) -> APIRouter:
                 installment_kind=field.get("installment_kind", ""),
                 last_payment_date=field.get("last_payment_date"),
                 payment_day=field.get("payment_day"),
+                installment=field.get("installment"),
             )
         except loan.LoanError as exc:
             back = f"/loan?edit={loan_id}" if loan_id else "/loan"

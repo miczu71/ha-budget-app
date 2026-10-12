@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.44.1
+
+**Kredyt: harmonogram zgodny z bankiem** (`docs/PLAN_M9_kalibracja.md`).
+
+- Odsetki liczone jak w banku, metodą 30/360: pełny miesiąc to saldo × stopa / 12 (wcześniej dni/365, przez co
+  odsetki skakały z miesiąca na miesiąc, a suma do końca wychodziła o ok. 1 100 zł za duża).
+- Ostatnia rata wypada w dniu końca kredytu (odsetki za niepełny okres), nie w dniu raty.
+- Nowe, opcjonalne pole „Rata wg banku” (raty równe): bank przelicza ratę po zmianie WIBOR po swojemu,
+  więc wzór annuitetowy bywa o kilkanaście groszy inny. Puste = rata ze wzoru. Migracja 016 (addytywna).
+
 ## 0.44.0
 
 **„Do decyzji”: ręczne ukrywanie kart** (`docs/PLAN_inbox_dismiss.md`).

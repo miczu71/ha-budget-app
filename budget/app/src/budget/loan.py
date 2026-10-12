@@ -1,9 +1,10 @@
 """Kredyt hipoteczny wpisany ręcznie (M9 E1, decyzja 28).
 
 Stan = kapitał na dzień + stopa (stawka referencyjna + marża). Harmonogram liczy add-on przy stałej
-bieżącej stopie: odsetki za okres = kapitał × stopa × dni / 365, rata równa z wzoru annuitetowego
-(stopa / 12), rata malejąca = stała część kapitału. Ostatnia rata domyka saldo. Bank liczy co do
-grosza inaczej — stąd ręczna korekta kapitału i stopy.
+bieżącej stopie: odsetki za okres = kapitał × stopa × dni / 360 (30/360: pełny miesiąc = stopa / 12,
+tak liczy bank), rata równa z wzoru annuitetowego (stopa / 12) albo wpisana z banku, rata malejąca
+= stała część kapitału. Ostatnia rata wypada w dniu końca kredytu i domyka saldo. Bank liczy co do
+grosza inaczej — stąd ręczna korekta kapitału, stopy i raty.
 """
 
 from __future__ import annotations
@@ -41,6 +42,7 @@ class Loan:
     last_payment_date: date
     payment_day: int
     series_id: int | None = None
+    installment: Decimal | None = None  # rata równa wg banku; None = ze wzoru annuitetowego
 
     @property
     def rate(self) -> Decimal:
@@ -81,6 +83,7 @@ def _row(r: sqlite3.Row) -> Loan:
         last_payment_date=date.fromisoformat(r["last_payment_date"]),
         payment_day=r["payment_day"],
         series_id=r["series_id"],
+        installment=Decimal(r["installment"]) if r["installment"] else None,
     )
 
 
@@ -128,6 +131,7 @@ def save(
     installment_kind: str,
     last_payment_date: str | None,
     payment_day: str | None,
+    installment: str | None = None,
 ) -> int:
     """Nowy kredyt (`loan_id` None) albo zmiana; nowy kapitał na nowy dzień to korekta."""
     clean = " ".join(name.split())[:40]
@@ -151,6 +155,14 @@ def save(
         day = 0
     if not 1 <= day <= 31:
         raise LoanError("Podaj dzień raty (1–31).")
+    fixed = None
+    if installment and installment.strip():
+        try:
+            fixed = money.parse(installment)
+        except money.AmountError:
+            fixed = None
+        if fixed is None or fixed <= ZERO:
+            raise LoanError("Podaj ratę z banku większą od zera albo zostaw puste.")
     values = (
         clean,
         str(capital),
@@ -160,20 +172,21 @@ def save(
         installment_kind,
         end.isoformat(),
         day,
+        str(fixed) if fixed else None,
     )
     try:
         if loan_id is None:
             return conn.execute(
                 "INSERT INTO loan (name, principal, principal_date, reference_rate, margin,"
-                " installment_kind, last_payment_date, payment_day, created_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " installment_kind, last_payment_date, payment_day, installment, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (*values, now_iso()),
             ).lastrowid  # type: ignore[return-value]
         get(conn, loan_id)
         conn.execute(
             "UPDATE loan SET name = ?, principal = ?, principal_date = ?, reference_rate = ?,"
-            " margin = ?, installment_kind = ?, last_payment_date = ?, payment_day = ?"
-            " WHERE id = ?",
+            " margin = ?, installment_kind = ?, last_payment_date = ?, payment_day = ?,"
+            " installment = ? WHERE id = ?",
             (*values, loan_id),
         )
         return loan_id
@@ -188,15 +201,24 @@ def archive(conn: sqlite3.Connection, loan_id: int) -> None:
 
 def payment_dates(after: date, last: date, payment_day: int) -> list[date]:
     """Dni rat po `after` (bez tego dnia) do miesiąca `last` włącznie; dzień raty przycięty do
-    długości miesiąca (31 → 28/29/30)."""
+    długości miesiąca (31 → 28/29/30); w miesiącu `last` rata wypada dokładnie w dniu `last`."""
     out: list[date] = []
     y, m = after.year, after.month
     while (y, m) <= (last.year, last.month):
-        d = date(y, m, min(payment_day, calendar.monthrange(y, m)[1]))
+        d = (
+            last
+            if (y, m) == (last.year, last.month)
+            else date(y, m, min(payment_day, calendar.monthrange(y, m)[1]))
+        )
         if d > after:
             out.append(d)
         y, m = (y + 1, 1) if m == 12 else (y, m + 1)
     return out
+
+
+def _days360(a: date, b: date) -> int:
+    """Dni między datami wg 30E/360 (dzień 31 liczony jak 30)."""
+    return 360 * (b.year - a.year) + 30 * (b.month - a.month) + min(b.day, 30) - min(a.day, 30)
 
 
 def _annuity(principal: Decimal, rate: Decimal, n: int) -> Decimal:
@@ -253,7 +275,7 @@ def run(
     days = payment_dates(prev, lo.last_payment_date, lo.payment_day)
     equal = lo.installment_kind == "equal"
     n_left, prev_rate = len(days), lo.rate
-    level = seed.payment if seed and equal else None
+    level = seed.payment if seed and equal else lo.installment if equal else None
     part = seed.principal if seed and not equal else None
     out: list[Installment] = []
 
@@ -282,11 +304,11 @@ def run(
         rate = scen.rate(lo, day, today)  # stopa z dnia raty obowiązuje za cały okres
         if (level if equal else part) is None or rate != prev_rate:
             reprice(rate)
-        weights = balance * (today - prev).days if i == 0 and today > prev else ZERO
+        weights = balance * _days360(prev, today) if i == 0 and today > prev else ZERO
         if i == 0 and scen.lump > ZERO:
             overpay(min(scen.lump, balance), rate)
-        span = (day - max(prev, today)).days if i == 0 else (day - prev).days
-        interest = ((weights + balance * span) * rate / 100 / 365).quantize(
+        span = _days360(max(prev, today) if i == 0 else prev, day)
+        interest = ((weights + balance * span) * rate / 100 / 360).quantize(
             money.CENT, ROUND_HALF_UP
         )
         if n_left <= 1:

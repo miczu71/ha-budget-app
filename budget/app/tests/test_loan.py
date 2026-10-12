@@ -37,7 +37,47 @@ def make(c: sqlite3.Connection, **kw: object) -> int:
 def test_payment_dates_clamp_day_and_exclude_start() -> None:
     days = loan.payment_dates(date(2026, 1, 31), date(2026, 4, 30), 31)
     assert days == [date(2026, 2, 28), date(2026, 3, 31), date(2026, 4, 30)]
-    assert loan.payment_dates(date(2026, 1, 20), date(2026, 2, 28), 20) == [date(2026, 2, 20)]
+    assert loan.payment_dates(date(2026, 1, 20), date(2026, 3, 28), 20) == [
+        date(2026, 2, 20),
+        date(2026, 3, 28),  # ostatnia rata w dniu końca kredytu, nie w dniu raty
+    ]
+
+
+def test_interest_is_30_360_and_last_period_is_prorated(conn: sqlite3.Connection) -> None:
+    lo = loan.get(
+        conn,
+        make(
+            conn,
+            principal="100000",
+            principal_date="2026-01-20",
+            reference_rate="4",
+            margin="2",
+            last_payment_date="2026-04-04",
+        ),
+    )
+    rows = loan.schedule(lo)
+    # pełny miesiąc: saldo × 6% / 12, niezależnie od liczby dni w miesiącu
+    assert rows[0].interest == Decimal("500.00")
+    assert rows[1].interest == (rows[0].balance * Decimal("0.005")).quantize(Decimal("0.01"))
+    # ostatni okres 20.03 → 4.04 = 14 dni / 360
+    assert rows[-1].day == date(2026, 4, 4)
+    assert rows[-1].interest == (rows[-2].balance * Decimal("0.06") * 14 / 360).quantize(
+        Decimal("0.01")
+    )
+    assert rows[-1].balance == Decimal("0.00")
+
+
+def test_bank_installment_is_the_level_and_last_installment_closes(
+    conn: sqlite3.Connection,
+) -> None:
+    lo = loan.get(conn, make(conn, installment="8600.00"))
+    assert lo.installment == Decimal("8600.00")
+    rows = loan.schedule(lo)
+    assert {r.payment for r in rows[:-1]} == {Decimal("8600.00")}
+    assert rows[-1].balance == Decimal("0.00")
+    with pytest.raises(loan.LoanError):
+        make(conn, name="Inny", installment="-5")
+    assert loan.get(conn, make(conn, name="Trzeci", installment="  ")).installment is None
 
 
 def test_equal_schedule_matches_annuity_and_closes_balance(conn: sqlite3.Connection) -> None:

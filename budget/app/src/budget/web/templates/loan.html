@@ -24,7 +24,10 @@
     <label>Dzień raty<input name="payment_day" inputmode="numeric" size="3" value="{{ lo.payment_day if lo }}" required placeholder="1–31"></label>
     <label>Ostatnia rata<input type="date" name="last_payment_date" value="{{ lo.last_payment_date.isoformat() if lo }}" required></label>
   </div>
-  <p class="small muted">Harmonogram liczy panel przy stałej bieżącej stopie. Gdy rata w banku się zmieni (nowy WIBOR, nadpłata), wpisz nowy kapitał na nowy dzień i nową stopę.</p>
+  <div class="inline">
+    <label>Rata wg banku (opcjonalnie, raty równe)<input name="installment" inputmode="decimal" size="10" value="{{ lo.installment if lo and lo.installment }}" placeholder="z harmonogramu banku"></label>
+  </div>
+  <p class="small muted">Harmonogram liczy panel przy stałej bieżącej stopie, odsetki jak bank (30/360). Podaj kapitał na dzień ostatniej zapłaconej raty — wtedy pierwszy okres jest pełny. Gdy rata w banku się zmieni (nowy WIBOR, nadpłata), wpisz nowy kapitał, stopę i ratę.</p>
   <p class="actions-row">
     <button type="submit">{{ "Zapisz" if lo else "Dodaj kredyt" }}</button>
     {% if lo %}<a class="tap" href="{{ base }}/loan">Anuluj</a>{% endif %}
