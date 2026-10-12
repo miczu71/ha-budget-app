@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-from budget import card, flex, money, promo_watch, review, savings
+from budget import card, flex, loan, loan_sim, money, promo_watch, review, savings
 from budget.categorize import taxonomy
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
@@ -31,6 +31,10 @@ SENT_KEY = "summary_sent"
 WEEKLY, MONTHLY, CARD, CARD_DUE = "weekly", "monthly", "card", "card_due"
 PROMO = "savings_promo"
 PROMO_WINDOW, PROMO_CONFIRM = "promo_window", "promo_confirm"
+LOAN_RESET = "loan_reset"
+LOAN_RESET_DAYS = (
+    3  # powiadomienie o nowej stopie wychodzi najwcześniej dzień po zmianie, najdalej tyle dni
+)
 PROMO_PUSH_DAYS = (3, 1, 0)  # dni do początku okna badania sald, w które idzie push
 UPCOMING_DAYS = 7
 TOP = 3
@@ -269,6 +273,31 @@ def promo_messages(watch: promo_watch.Watch, today: date) -> list[Message]:
     return out
 
 
+def _pct(value: Decimal) -> str:
+    return f"{value:.2f}".replace(".", ",")
+
+
+def loan_reset_message(lo: loan.Loan, fc: loan_sim.Forecast) -> Message:
+    """Nowe oprocentowanie kredytu po zmianie WIBOR (M9 E4): stawka, rata, co zrobić."""
+    return Message(
+        f"{LOAN_RESET}_{lo.id}",  # rodzaj per kredyt — `mark_sent` pamięta jeden okres na rodzaj
+        fc.reset.isoformat(),
+        f"Kredyt: nowe oprocentowanie od {_short(fc.reset)}",
+        f"WIBOR 3M {_pct(fc.wibor)}% (notowanie z {_short(fc.quote_day)}), oprocentowanie "
+        f"{_pct(fc.rate)}%. Rata ≈ {money.pl(fc.installment, 'PLN')} zamiast "
+        f"{money.pl(fc.current, 'PLN')}. Sprawdź ratę w banku i zaktualizuj kredyt w panelu.",
+    )
+
+
+def loan_reset_messages(conn: sqlite3.Connection, today: date) -> list[Message]:
+    out = []
+    for lo in loan.all_loans(conn):
+        fc = loan_sim.pending(conn, lo, today)
+        if fc and timedelta(0) < today - fc.reset <= timedelta(LOAN_RESET_DAYS):
+            out.append(loan_reset_message(lo, fc))
+    return out
+
+
 def build(snap: Snapshot, kind: str, today: date) -> Message:
     return weekly(snap, today) if kind == WEEKLY else monthly(snap, today)
 
@@ -296,6 +325,9 @@ def due(snap: Snapshot, now: datetime) -> list[Message]:
             out.append(msg)
     watch = promo_watch.load(snap.conn)
     for msg in promo_messages(watch, today) if watch else []:
+        if sent.get(msg.kind) != msg.period:
+            out.append(msg)
+    for msg in loan_reset_messages(snap.conn, today):
         if sent.get(msg.kind) != msg.period:
             out.append(msg)
     for acc in savings.all_accounts(snap.conn):

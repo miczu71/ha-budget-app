@@ -8,7 +8,7 @@ from decimal import Decimal
 
 import pytest
 
-from budget import ha_publisher, inbox, loan, loan_sim
+from budget import ha_publisher, inbox, loan, loan_sim, summary
 from budget.categorize.rules import Conditions
 from budget.recurring import series as S
 from budget.snapshot import Snapshot
@@ -276,3 +276,51 @@ def test_entity_carries_wibor_forecast(conn: sqlite3.Connection) -> None:
     (ent,) = ha_publisher.loan_entities(conn, date(2026, 4, 15))
     assert ent.attributes["wibor"] == "5.00" and ent.attributes["next_reset"] == "2026-06-09"
     assert ent.attributes["wibor_date"] == "2026-04-14" and ent.attributes["forecast_installment"]
+
+
+def test_reset_push_goes_out_the_day_after_once_and_only_when_rate_changed(
+    conn: sqlite3.Connection,
+) -> None:
+    make(conn, rate_reset_date="2026-09-09")
+    quotes(conn, {"2026-12-04": "5.00"})  # 4.12 = 3 dni robocze przed 9.12
+    snap = Snapshot(conn)
+
+    def kinds(day: int, hour: int = 7) -> list[str]:
+        return [
+            m.kind for m in summary.due(snap, datetime(2026, 12, day, hour)) if "loan" in m.kind
+        ]
+
+    assert kinds(9) == [] and kinds(10, 6) == []  # w dniu zmiany i przed 7:00 jeszcze nie
+    (msg,) = [m for m in summary.due(snap, datetime(2026, 12, 10, 7)) if "loan" in m.kind]
+    assert msg.period == "2026-12-09" and "5,00%" in msg.text and "7,00%" in msg.text
+    assert "zamiast" in msg.text
+    summary.mark_sent(conn, msg)
+    assert kinds(10) == [] and kinds(11) == []  # raz na zmianę
+    quotes(conn, {"2026-12-04": "4.00"})
+    db.kv_set(conn, summary.SENT_KEY, {})
+    assert kinds(10) == []  # WIBOR bez zmiany — bez powiadomienia
+
+
+def test_reset_push_is_not_late_forever(conn: sqlite3.Connection) -> None:
+    make(conn, rate_reset_date="2026-09-09")
+    quotes(conn, {"2026-12-04": "5.00"})
+    due = summary.due(Snapshot(conn), datetime(2026, 12, 13, 7))
+    assert [m for m in due if "loan" in m.kind] == []  # po 3 dniach zostaje karta w dzwonku
+
+
+def test_reset_card_in_bell_until_loan_updated(conn: sqlite3.Connection) -> None:
+    lid = make(conn, rate_reset_date="2026-09-09")
+    quotes(conn, {"2026-12-04": "5.00"})
+    ctx = inbox.Context(datetime(2026, 12, 12, 8), Snapshot(conn))
+    (card,) = inbox.loan_reset(conn, ctx, inbox.BalanceMemo())
+    assert card.kind == "loan_reset" and card.link == f"/loan?edit={lid}#edit-loan"
+    assert "nowe oprocentowanie 7.00%" in card.title
+    make(
+        conn,
+        loan_id=lid,
+        principal_date="2026-12-10",
+        principal="50000",
+        reference_rate="5",
+        rate_reset_date="2026-09-09",
+    )
+    assert inbox.loan_reset(conn, ctx, inbox.BalanceMemo()) == []

@@ -21,6 +21,7 @@ from budget import (
     card,
     ledger,
     loan,
+    loan_sim,
     money,
     notifications,
     promo_watch,
@@ -378,6 +379,22 @@ def loan_rate(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list
     return out
 
 
+def loan_reset(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Bank zmienił oprocentowanie (WIBOR), a kredyt w panelu jest sprzed zmiany (M9 E4)."""
+    out = []
+    for lo in loan.all_loans(conn):
+        fc = loan_sim.pending(conn, lo, ctx.today)
+        if fc is None:
+            continue
+        detail = (
+            f"WIBOR 3M {fc.wibor}% z {fc.quote_day:%d.%m}: rata ≈ {summary.zl(fc.installment)} "
+            f"zamiast {summary.zl(fc.current)}. Wpisz nowy kapitał, stopę i ratę z banku."
+        )
+        title = f"{lo.name}: od {fc.reset:%d.%m} nowe oprocentowanie {fc.rate}%"
+        out.append(Item("loan_reset", title, 1, f"/loan?edit={lo.id}#edit-loan", "warn", detail))
+    return out
+
+
 def wibor_error(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
     """Odczyt notowań WIBOR nie działa od kilku dni (M9 E4): prognoza raty jest nieaktualna."""
     err = wibor.error(conn)
@@ -400,6 +417,7 @@ PROVIDERS: tuple[Provider, ...] = (
     savings_promo,
     promo_cards,
     loan_rate,
+    loan_reset,
     wibor_error,
 )
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}

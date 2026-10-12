@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.45.0
+
+**Kredyt: śledzenie WIBOR 3M i rata po zmianie oprocentowania** (M9 E4, `docs/PLAN_M9_wibor.md`).
+
+- Add-on raz dziennie czyta notowania WIBOR 3M (bankier.pl). Przy kredycie z wpisaną „Ostatnią zmianą
+  oprocentowania” (bank zmienia je co 3 miesiące, np. 9.03/9.06/9.09/9.12) ekran Kredyt pokazuje:
+  „od 9.12 rata ≈ X zł (wyższa o Y)”. Do dnia ustalenia stawki to prognoza przy ostatnim WIBOR, potem
+  stawka ostateczna. Dzień ustalenia = 3 dni robocze przed zmianą (skalibrowane na zmianie z 9.09).
+- Dzień po zmianie (o 7:00, przez usługę podsumowań) przychodzi powiadomienie z nową stopą i ratą; karta
+  w dzwonku „nowe oprocentowanie” zostaje, dopóki nie zaktualizujesz kredytu. Gdy WIBOR się nie zmienił,
+  nic nie przychodzi.
+- Atrybuty `sensor.budget_loan_principal`: `wibor`, `wibor_date`, `next_reset`, `forecast_installment`.
+- Karta w dzwonku, gdy odczyt WIBOR nie działa od 3 dni. Migracja 017 (addytywna).
+
 ## 0.44.1
 
 **Kredyt: harmonogram zgodny z bankiem** (`docs/PLAN_M9_kalibracja.md`).

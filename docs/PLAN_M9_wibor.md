@@ -1,5 +1,9 @@
 # Kredyt: śledzenie WIBOR 3M i informacja o nowej racie (M9 E4)
 
+> **Odstępstwo od planu (kalibracja 2026-10-12):** bank bierze WIBOR z notowania 3 dni roboczych przed dniem
+> zmiany (`wibor.FIXING_LAG`), nie z dnia zmiany; źródło odczytu: komórki „Data” i „WIBOR 3M” na stronie
+> bankier.pl. Powiadomienie idzie przez `summary_notify_service`, nie `notify_service`.
+
 ## Context
 Kredyt ma zmienne oprocentowanie (WIBOR 3M + marża). Bank zmienia stopę co 3 miesiące, **9. dnia**
 (9.03/9.06/9.09/9.12), a zmiana pojawia się w banku przed północą tego dnia. User chce wiedzieć z góry,

@@ -101,3 +101,7 @@ Ingress (playwright-ha): ekran Kredyt, encja w HA. Użytkownik wpisuje parametry
 - **Kalibracja 0.44.1** (checkpoint z bankiem): odsetki 30/360 zamiast act/365, ostatnia rata w dniu końca
   kredytu, opcjonalna „rata wg banku” (migracja 016). Szczegóły: `docs/PLAN_M9_kalibracja.md`. Na neutralnych
   liczbach testowych i na harmonogramie banku różnica ≤ 0,02 zł na ratę, suma odsetek ±0,25 zł.
+- **E4 (0.45.0)** śledzenie WIBOR 3M: `wibor.py` (odczyt, stan w `kv`), pole „Ostatnia zmiana
+  oprocentowania” (migracja 017), prognoza raty na ekranie i w encji, powiadomienie dzień po zmianie.
+  Kalibracja: bank bierze stawkę z notowania 3 dni roboczych przed zmianą (9.09.2026 → 3,80% = notowania
+  z 3–4.09). Szczegóły: `docs/PLAN_M9_wibor.md`.
