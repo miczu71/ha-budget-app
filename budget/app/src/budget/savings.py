@@ -282,9 +282,13 @@ class Move:
 @dataclass(frozen=True)
 class MonthRate:
     month: date
-    saved: Decimal  # wpłaty na konta oszczędnościowe minus wypłaty z nich (skarbonki się nie liczą)
     income: Decimal  # wpływy miesiąca wg `spending.totals`
     moves: tuple[Move, ...] = ()
+
+    @property
+    def saved(self) -> Decimal:
+        """Wpłaty na konta oszczędnościowe minus wypłaty z nich (skarbonki się nie liczą)."""
+        return sum((m.amount for m in self.moves), ZERO)
 
     @property
     def by_account(self) -> list[tuple[str, Decimal, list[Move]]]:
@@ -318,9 +322,7 @@ def monthly_rates(conn: sqlite3.Connection, today: date, n: int = 12) -> list[Mo
         moves[month_start(day)].append(Move(day, -Decimal(r["amount"]), names[r["number"]]))
     skip = {r["id"] for r in transfers} | piggy.txn_ids(conn)
     return [
-        MonthRate(
-            t.month, sum((m.amount for m in moves[t.month]), ZERO), t.income, tuple(moves[t.month])
-        )
+        MonthRate(t.month, t.income, tuple(moves[t.month]))
         for t in monthly_totals(conn, today, n, skip)
     ]
 

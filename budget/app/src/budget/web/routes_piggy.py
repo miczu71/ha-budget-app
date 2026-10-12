@@ -15,6 +15,10 @@ def router(panel: Panel) -> APIRouter:
     r = APIRouter()
     conn = panel.conn
 
+    def promo_days(watch: promo_watch.Watch | None) -> int:
+        """Długość okresu promocyjnego z ostatnio odczytanego regulaminu (domyślnie 91 dni)."""
+        return watch.edition.days if watch and watch.edition else savings.PROMO_DAYS
+
     @r.get("/piggy", response_class=HTMLResponse)
     async def piggy_page(
         request: Request, edit: int | None = None, edit_savings: int | None = None
@@ -41,7 +45,8 @@ def router(panel: Panel) -> APIRouter:
             accounts=[(a, savings.estimate(conn, a, today)) for a in accts],
             rates=savings.monthly_rates(conn, today) if accts else [],
             watch=watch,
-            promo_days=watch.edition.days if watch and watch.edition else savings.PROMO_DAYS,
+            promo_days=promo_days(watch),
+            promo_funds_max=savings.PROMO_FUNDS_MAX,
             edit_savings=next((a for a in accts if a.id == edit_savings), None),
         )
 
@@ -130,7 +135,7 @@ def router(panel: Panel) -> APIRouter:
                 promo_rate=field.get("promo_rate"),
                 new_funds=field.get("new_funds"),
                 start=field.get("start"),
-                days=watch.edition.days if watch and watch.edition else savings.PROMO_DAYS,
+                days=promo_days(watch),
             )
         except piggy.PiggyError as exc:
             return panel.redirect(request, f"/piggy#savings-{account_id}", str(exc), "error")
