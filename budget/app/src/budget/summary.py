@@ -247,11 +247,12 @@ def promo_messages(watch: promo_watch.Watch, today: date) -> list[Message]:
             Message(
                 PROMO_WINDOW,
                 f"{ed.number}-{days}",
-                "Millennium Profit — wyzeruj konto przed badaniem sald",
+                "Millennium Profit — wyzeruj KOP przed badaniem sald",
                 f"Dzień badania sald edycji {ed.number + 1} wypadnie prawdopodobnie między "
                 f"{_short(start)} a {_short(end)} (prognoza z poprzednich edycji; bank poda datę "
-                f"dopiero po fakcie). Wyprowadź środki z Millennium — z KOP i z rachunków PLN — "
-                f"przed {_short(start)} i trzymaj 0 do {_short(end)}.",
+                f"dopiero po fakcie). Wyprowadź środki z KOP przed {_short(start)} i trzymaj 0 "
+                f"do {_short(end)}; saldo rachunków PLN w tym dniu będzie progiem łącznym — "
+                f"trzymaj je nisko.",
             )
         )
     if watch.pending_confirm == ed.number:

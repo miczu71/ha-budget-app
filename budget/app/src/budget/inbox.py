@@ -285,7 +285,7 @@ def savings_promo(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> 
     return out
 
 
-PROMO_BELL_DAYS = 10  # karta „wyzeruj Millennium” od tylu dni przed początkiem okna badania (E7)
+PROMO_BELL_DAYS = 10  # karta „wyzeruj KOP” od tylu dni przed początkiem okna badania (E7)
 
 
 def promo_cards(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
@@ -332,7 +332,7 @@ def promo_cards(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> li
         out.append(Item("promo_intake", title, 1, link, "info", "Dzień badania sald już minął."))
     days = ed.days_to_window(today)
     if days <= PROMO_BELL_DAYS:
-        title = f"Profit: wyzeruj Millennium przed badaniem sald edycji {ed.number + 1}"
+        title = f"Profit: wyzeruj KOP przed badaniem sald edycji {ed.number + 1}"
         detail = (
             f"Badanie wypadnie prawdopodobnie {start:%d.%m}–{end:%d.%m} (prognoza; datę poda bank)."
         )
