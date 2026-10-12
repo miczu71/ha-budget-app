@@ -53,3 +53,15 @@ testy w `budget/app/tests/`, `docs/ROADMAP.md`, `docs/PLAN_M10_E2.md`. Gałąź 
 `uv run pytest` (obecnie 722 testy zielone + nowe), lokalny serwer na danych `~/budget_dev`
 i Playwright (ekran Oszczędności, kafelek, konsola bez błędów), po wydaniu wersja w UI przez Ingress
 i saldo porównane z aplikacją banku.
+
+## Wynik (2026-10-12)
+
+E2–E4 zakodowane i zacommitowane (737 testów, ruff, mypy czyste), `simplify` zastosowany;
+UI sprawdzone w Playwrighcie na kopii księgi (ekran, kafelek, brak błędów w konsoli).
+Poza planem, na prośbę użytkownika: lista aktywnych serii w Cyklicznych pokazuje
+„Skarbonka: <nazwa>” z linkiem. Ustalenia z implementacji: wpływy do `savings_rate` liczone bez
+przelewów z kont oszczędnościowych i skarbonek (wypłata z nich zawyżała mianownik; `spending.sums(skip)`);
+ekran zostaje pod `/piggy` (zmiana nazwy tylko w menu i nagłówku); push przed końcem promocji
+14 i 3 dni (rodzaj wiadomości per konto). Odłożone świadomie: osobna tabela `savings_account`
+zamiast wspólnej z `piggy` (decyzja 26), pamięć podręczna `estimate`, rename trasy `/piggy`.
+Wydanie 0.40.0 czeka na zgodę użytkownika.
