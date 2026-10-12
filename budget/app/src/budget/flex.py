@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import ROUND_CEILING, Decimal
 
-from budget import money
+from budget import money, piggy
 from budget.categorize import taxonomy
 from budget.categorize.taxonomy import Category
 from budget.recurring import series as S
@@ -93,14 +93,16 @@ class SeriesLine:
 
 @dataclass
 class Pool:
-    """Serie liczone w puli: ich transakcje są pomijane w „wydane”, medianach i „poza pulą”."""
+    """Serie liczone w puli: ich transakcje są pomijane w „wydane”, medianach i „poza pulą”;
+    tak samo transakcje skarbonek (`piggy_ids`, M10 E1)."""
 
     lines: list[SeriesLine] = field(default_factory=list)
     txns: list[S.Candidate] = field(default_factory=list)
+    piggy_ids: set[int] = field(default_factory=set)
 
     @property
     def skip(self) -> set[int]:
-        return {t.id for t in self.txns}
+        return {t.id for t in self.txns} | self.piggy_ids
 
 
 @dataclass
@@ -254,11 +256,11 @@ def first_month(conn: sqlite3.Connection) -> date | None:
 def pool_series(snap: Snapshot) -> Pool:
     """Aktywne serie wydatkowe liczone w puli (reguła: ostatnia transakcja nie z grup poza pulą)."""
     live = [s for s in S.all_series(snap.conn, ("active",)) if s.direction == "out"]
+    pool = Pool(piggy_ids=piggy.txn_ids(snap.conn))
     if not live:
-        return Pool()
+        return pool
     members = snap.members()
     groups = {i: c.flex_group for i, c in taxonomy.leaves(snap.conn).items()}
-    pool = Pool()
     for s in live:
         txns = members.get(s.id, [])
         if txns and groups.get(txns[-1].category_id or 0) in OUTSIDE_POOL:

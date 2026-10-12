@@ -1,0 +1,65 @@
+"""Panel M10 E1: ekran „Skarbonki” i przypisanie wydatku do skarbonki."""
+
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+
+import httpx
+import pytest
+
+from budget.service import Service
+from budget.storage.db import now_iso
+
+from .test_categorize_engine import add
+from .test_web import INGRESS, _client
+
+__all__ = ["service"]
+from .test_web import service
+
+NUMBER = "11 2222 3333 4444 5555 6666 7777"  # fikcyjny
+NEW = {"name": "Wakacje", "account_number": NUMBER, "target": "1200", "due_date": "2099-01-15"}
+
+
+@pytest.fixture
+async def client(service: Service) -> AsyncIterator[httpx.AsyncClient]:
+    service.conn.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (1, 'current', 'PLN', ?)",
+        (now_iso(),),
+    )
+    async with _client(service) as c:
+        yield c
+
+
+async def test_create_shows_masked_number(client: httpx.AsyncClient) -> None:
+    page = (await client.get("/piggy")).text
+    assert "Nowa skarbonka" in page and f'href="{INGRESS}/piggy"' in page
+    r = await client.post("/piggy", data=NEW)
+    assert r.status_code == 303
+    page = (await client.get("/piggy")).text
+    assert "Wakacje" in page and "PL** **** … 7777" in page
+    assert "22223333" not in page.replace(" ", "")  # pełny numer nie trafia do panelu
+
+
+async def test_bad_number_is_an_error(client: httpx.AsyncClient) -> None:
+    await client.post("/piggy", data={**NEW, "account_number": "123"})
+    assert "26 cyfr" in (await client.get("/piggy")).text
+
+
+async def test_edit_keeps_number_when_left_empty(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    await client.post("/piggy", data=NEW)
+    await client.post("/piggy/1", data={**NEW, "name": "Urlop", "account_number": ""})
+    row = service.conn.execute("SELECT name, account_number FROM piggy").fetchone()
+    assert tuple(row) == ("Urlop", "11222233334444555566667777")
+
+
+async def test_assign_expense_from_transactions(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    await client.post("/piggy", data=NEW)
+    txn = add(service.conn, "-300.00", "card", "HOTEL", "HOTEL X")
+    assert 'class="piggy-pick"' in (await client.get("/transactions")).text
+    r = await client.post(f"/transactions/{txn}/piggy", data={"piggy_id": "1"})
+    assert "selected>ze skarbonki: Wakacje" in r.text
+    assert "Wydane ze skarbonki: 300,00" in (await client.get("/piggy")).text

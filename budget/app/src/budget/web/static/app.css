@@ -901,3 +901,10 @@ label.switch input[type="checkbox"]:checked::after { transform: translateX(16px)
 #ask-out .msg.error { margin-bottom: 12px; }
 .chat-log li { padding: 8px 0; }
 .chat-log li p { margin: 2px 0 0; overflow-wrap: anywhere; }
+/* M10 E1: skarbonki */
+.piggy h2 .small { font-weight: 400; margin-left: 6px; }
+.piggy .stats { margin-top: 4px; }
+.piggy-form .inline { flex-wrap: wrap; }
+.piggy-pick { display: inline-block; }
+.piggy-new > summary { min-height: var(--tap); display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.piggy-pick select { min-height: var(--tap); }

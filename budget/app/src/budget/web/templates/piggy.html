@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pct %}
+{% macro piggy_form(p=None) %}
+<form class="rule-form piggy-form" method="post" action="{{ base }}/piggy{{ '/' ~ p.id if p }}" hx-boost="false">
+  <div class="inline">
+    <label>Nazwa<input name="name" value="{{ p.name if p }}" maxlength="40" required placeholder="np. Wakacje"></label>
+    <label>Numer konta-celu<input name="account_number" inputmode="numeric" autocomplete="off" {% if p %}placeholder="{{ p.masked }} — bez zmiany"{% else %}required placeholder="26 cyfr"{% endif %}></label>
+  </div>
+  <div class="inline">
+    <label>Seria (opcjonalnie)
+      <select name="series_id">
+        <option value="">— bez serii —</option>
+        {% for s in series %}<option value="{{ s.id }}" {{ "selected" if p and p.series_id == s.id }}>{{ s.name }} · {{ s.expected_amount | money("PLN") }} {{ {"M": "co miesiąc", "Q": "co kwartał", "Y": "co rok"}[s.cadence] }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Cel<input name="target" inputmode="decimal" size="10" value="{{ p.target if p and p.target }}" placeholder="np. 3000"></label>
+    <label>Termin<input type="date" name="due_date" value="{{ p.due_date.isoformat() if p and p.due_date }}"></label>
+    <label>Saldo początkowe<input name="opening_balance" inputmode="decimal" size="10" value="{{ p.opening_balance if p and p.opening_balance }}" placeholder="0"></label>
+  </div>
+  <p class="small muted">Z serią cel i termin biorą się z niej (kwota i następna płatność) — pola „Cel” i „Termin” zostaw puste. Saldo liczy się z przelewów na konto-cel i z niego; saldo początkowe wpisz tylko, gdy na koncie były już pieniądze sprzed historii w panelu.</p>
+  <p class="actions-row">
+    <button type="submit">{{ "Zapisz" if p else "Utwórz skarbonkę" }}</button>
+    {% if p %}<a class="tap" href="{{ base }}/piggy">Anuluj</a>{% endif %}
+  </p>
+</form>
+{% endmacro %}
+{% block content %}
+<h1>Skarbonki</h1>
+{% if rows %}
+<section class="card piggy-sum">
+  <p>{% if to_transfer > 0 %}Od wypłaty {{ period_start.strftime('%d.%m') }} odłóż jeszcze <strong>{{ to_transfer | money("PLN") }}</strong> — przelewem na konta-cele.{% else %}<span class="pos"><strong>Odłożone</strong></span> — w tym okresie (od {{ period_start.strftime('%d.%m') }}) wszystko przelane.{% endif %}</p>
+</section>
+{% for s in rows %}{% set p = s.piggy %}
+<section class="card piggy" id="piggy-{{ p.id }}">
+  <h2>{{ p.name }} <span class="small muted">{{ p.masked }}</span></h2>
+  {% if s.target %}
+  <div class="flex-bar" role="img" aria-label="zebrane {{ pct(s.progress) }} celu"><span class="fill" style="width: {{ pct(s.progress) }}"></span></div>
+  {% endif %}
+  <div class="stats">
+    <div class="stat"><span class="stat-label">Saldo</span><span class="stat-value">{{ s.balance | money("PLN") }}</span>{% if s.target %}<span class="small muted">z {{ s.target | money("PLN") }}</span>{% endif %}</div>
+    <div class="stat"><span class="stat-label">Termin</span><span class="stat-value">{{ s.due.strftime('%d.%m.%Y') if s.due else "—" }}</span>{% if s.series_name %}<span class="small muted">{{ s.series_name }}</span>{% endif %}</div>
+    <div class="stat"><span class="stat-label">W tym okresie</span><span class="stat-value">{{ s.monthly | money("PLN") }}</span><span class="small {{ 'pos' if not s.to_transfer else 'warn-text' }}">{% if s.to_transfer %}przelej {{ s.to_transfer | money("PLN") }}{% elif s.monthly %}odłożone{% else %}nic nie trzeba{% endif %}</span></div>
+  </div>
+  {% if s.due and s.due < today %}<p class="small warn-text">Termin minął — ustaw nowy albo zarchiwizuj skarbonkę.</p>{% endif %}
+  {% if s.spent %}<p class="small muted">Wydane ze skarbonki: {{ s.spent | money("PLN") }}.</p>{% endif %}
+  <form class="actions-row small" method="post" action="{{ base }}/piggy/{{ p.id }}/archive">
+    <a class="tap" href="{{ base }}/piggy?edit={{ p.id }}#edit">Zmień</a>
+    <button class="link">Archiwizuj</button>
+  </form>
+</section>
+{% endfor %}
+{% else %}
+<section class="card"><p class="muted">Skarbonka odkłada co miesiąc na koszt roczny albo nieregularny (np. subskrypcję roczną, wakacje), żeby nie zaskoczył. Pieniądze leżą na koncie-celu w banku; panel liczy saldo z przelewów na nie i podpowiada, ile przelać w każdym okresie wypłaty.</p></section>
+{% endif %}
+
+{% if edit %}
+<section class="card" id="edit">
+  <h2>Zmień: {{ edit.name }}</h2>
+  {{ piggy_form(edit) }}
+</section>
+{% else %}
+<details class="card piggy-new" {{ "open" if not rows }}>
+  <summary>Nowa skarbonka</summary>
+  {{ piggy_form() }}
+</details>
+{% endif %}
+
+{% if archived %}
+<section class="card">
+  <h2>Zarchiwizowane</h2>
+  <ul class="rows">{% for p in archived %}
+    <li><div class="row"><span class="row-date"></span><span class="row-title">{{ p.name }}</span><span class="row-amount"><form method="post" action="{{ base }}/piggy/{{ p.id }}/archive"><input type="hidden" name="restore" value="1"><button class="link">przywróć</button></form></span></div></li>
+  {% endfor %}</ul>
+</section>
+{% endif %}
+{% endblock %}

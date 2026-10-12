@@ -31,6 +31,7 @@ from budget.web import (
     routes_home,
     routes_import,
     routes_inbox,
+    routes_piggy,
     routes_recurring,
     routes_review,
     routes_rules,
@@ -93,6 +94,7 @@ def create_app(service: Service, *, dev: bool = False) -> FastAPI:
         routes_calendar,
         routes_card,
         routes_ask,
+        routes_piggy,
     ):
         app.include_router(module.router(panel))
 

@@ -21,7 +21,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from starlette.datastructures import FormData
 
-from budget import ledger
+from budget import ledger, piggy
 from budget.categorize import engine, rules, taxonomy
 from budget.categorize.rules import Conditions, Rule, RuleError, TextCondition
 from budget.categorize.taxonomy import TaxonomyError
@@ -154,6 +154,7 @@ def router(panel: Panel) -> APIRouter:
             accounts=conn.execute("SELECT * FROM account ORDER BY id").fetchall(),
             kinds=[r[0] for r in conn.execute("SELECT DISTINCT kind FROM txn ORDER BY 1")],
             tree=taxonomy.tree(conn),
+            piggies=piggy.all_piggies(conn),
             f={
                 "account": account_id,
                 "date_from": date_from or "",

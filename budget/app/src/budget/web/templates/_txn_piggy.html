@@ -1,0 +1,9 @@
+{# Wydatek ze skarbonki (M10 E1): wybór skarbonki przy transakcji; `t` = id + piggy_id #}
+<form class="piggy-pick" method="post" action="{{ base }}/transactions/{{ t.id }}/piggy" hx-post="{{ base }}/transactions/{{ t.id }}/piggy" hx-trigger="change" hx-swap="outerHTML">
+  <select name="piggy_id" aria-label="skarbonka">
+    <option value="">bez skarbonki</option>
+    {% for p in piggies %}<option value="{{ p.id }}" {{ "selected" if t.piggy_id == p.id }}>ze skarbonki: {{ p.name }}</option>{% endfor %}
+  </select>
+  <noscript><button class="secondary">Zapisz</button></noscript>
+  {% if error %}<span class="small neg">{{ error }}</span>{% endif %}
+</form>

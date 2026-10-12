@@ -411,6 +411,11 @@ def weeks(
     return result
 
 
+def period_start(snap: Snapshot, today: date) -> date:
+    """Początek bieżącego okresu wypłaty, a bez wypłaty w księdze — 1. dzień miesiąca."""
+    return last_payday(snap, payday_series_id(snap.conn), today) or month_start(today)
+
+
 def last_payday(snap: Snapshot, series_id: int | None, today: date) -> date | None:
     """Dzień ostatniego wpływu serii wypłaty do dziś — początek bieżącego okresu."""
     if series_id is None:
