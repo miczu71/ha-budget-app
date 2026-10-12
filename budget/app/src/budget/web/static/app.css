@@ -975,10 +975,9 @@ button.split-add { justify-self: start; display: inline-flex; align-items: cente
   font-size: 14px;
 }
 .split-rest output { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.split-rest[data-state="over"], .split-rest[data-state="over"] output { color: var(--neg); }
+.split-rest[data-state="over"] { color: var(--neg); }
 .split-rest[data-state="done"] output { color: var(--pos); }
 .split-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.split-form button:disabled { cursor: not-allowed; }
 button.split-clear { margin-left: auto; min-height: var(--tap); color: var(--neg); }
 @media (max-width: 640px) {
   td.cat:has(.split-form) { min-width: 0; }

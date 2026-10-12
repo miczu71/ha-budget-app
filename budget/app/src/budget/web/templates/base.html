@@ -27,25 +27,28 @@
     function splitText(c) { return (c / 100).toFixed(2).replace(".", ","); }
     function splitSync(form) {
       var rows = form.querySelectorAll(".split-row"), auto = form.querySelector("input[data-auto]");
-      var total = +form.dataset.total, others = 0, sum = 0, ok = true;
-      rows.forEach(function (r, i) {
-        var a = r.querySelector("input");
-        if (a !== auto) others += splitCents(a.value);
-        a.setAttribute("aria-label", "kwota części " + (i + 1) + " w zł");
-        r.querySelector("select").setAttribute("aria-label", "podkategoria części " + (i + 1));
-        r.querySelector("[data-split=remove]").disabled = rows.length <= 2;
-      });
-      if (auto) auto.value = splitText(Math.max(total - others, 0));
+      var total = +form.dataset.total, others = 0, ok = true;
       rows.forEach(function (r) {
-        var c = splitCents(r.querySelector("input").value);
-        sum += c;
-        if (!c || !r.querySelector("select").value) ok = false;
+        var a = r.querySelector("input"), c = a === auto ? 0 : splitCents(a.value);
+        others += c;
+        if ((a !== auto && !c) || !r.querySelector("select").value) ok = false;
       });
-      var rest = total - sum, p = form.querySelector(".split-rest");
+      var autoCents = auto ? Math.max(total - others, 0) : 0;
+      if (auto) auto.value = splitText(autoCents);
+      var rest = total - others - autoCents, p = form.querySelector(".split-rest");
       p.dataset.state = rest < 0 ? "over" : rest > 0 ? "left" : "done";
       p.querySelector("span").textContent = rest < 0 ? "Przydzielono za dużo o" : "Zostało do przydzielenia";
       p.querySelector("output").textContent = splitText(Math.abs(rest)) + " zł";
-      form.querySelector("button[type=submit]:not([name])").disabled = !ok || rest !== 0;
+      form.querySelector("button[type=submit]:not([name])").disabled = !ok || (auto && !autoCents) || rest !== 0;
+    }
+    function splitRows(form) {  // numery w etykietach i „usuń” ukryte przy dwóch wierszach; po dodaniu/usunięciu
+      var rows = form.querySelectorAll(".split-row");
+      rows.forEach(function (r, i) {
+        r.querySelector("input").setAttribute("aria-label", "kwota części " + (i + 1) + " w zł");
+        r.querySelector("select").setAttribute("aria-label", "podkategoria części " + (i + 1));
+        r.querySelector("[data-split=remove]").disabled = rows.length <= 2;
+      });
+      splitSync(form);
     }
     document.addEventListener("input", function (e) {
       var form = e.target.closest(".split-form");
@@ -60,17 +63,17 @@
         var last = form.querySelector(".split-row:last-child"), row = last.cloneNode(true);
         row.querySelector("select").value = "";
         row.querySelector("input").value = "";
-        row.querySelector("input").removeAttribute("data-auto");
         last.after(row);
-        splitSync(form);
+        splitRows(form);
         row.querySelector("select").focus();
-      } else if (form.querySelectorAll(".split-row").length > 2) {
-        b.closest(".split-row").remove();
-        splitSync(form);
+      } else {
+        b.closest(".split-row").remove();  // przy dwóch wierszach przycisk jest wyłączony
+        splitRows(form);
       }
     });
     document.addEventListener("htmx:load", function (e) {
-      document.querySelectorAll(".split-form").forEach(splitSync);
+      e.detail.elt.querySelectorAll(".split-form").forEach(splitRows);
+      if (e.detail.elt.matches(".split-form")) splitRows(e.detail.elt);
     });
   </script>
 </head>

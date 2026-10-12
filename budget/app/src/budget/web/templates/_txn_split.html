@@ -17,7 +17,7 @@
   <button type="button" class="link split-add" data-split="add"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-7-7v14"/></svg>Dodaj wiersz</button>
   <p class="split-rest" aria-live="polite"><span>Zostało do przydzielenia</span> <output></output></p>
   <div class="split-actions">
-    <button type="submit">Zapisz podział</button>
+    <button type="submit"{{ " disabled" if not saved }}>Zapisz podział</button>
     <button type="button" class="secondary" hx-get="{{ back }}" hx-target="#cat-{{ t.id }}" hx-swap="innerHTML">Anuluj</button>
     {% if saved %}<button type="submit" name="action" value="clear" class="link danger split-clear" formnovalidate>Usuń podział</button>{% endif %}
   </div>

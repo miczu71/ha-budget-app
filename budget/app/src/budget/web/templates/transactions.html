@@ -44,7 +44,7 @@
 </section>
 
 <section class="card" id="tx-results">
-  <p class="search-count small muted">{{ total }} {{ "transakcja" if total == 1 else ("transakcje" if total % 10 in (2, 3, 4) and total % 100 not in (12, 13, 14) else "transakcji") }}{% if filtered %} · <a class="tap" href="{{ base }}/transactions">wyczyść filtry</a>{% endif %}</p>
+  <p class="search-count small muted">{{ total }} {{ total | plural("transakcja", "transakcje", "transakcji") }}{% if filtered %} · <a class="tap" href="{{ base }}/transactions">wyczyść filtry</a>{% endif %}</p>
   <div class="table-wrap"><table class="tx">
     <thead><tr><th>Data</th><th>Sprzedawca / opis</th><th class="num">Kwota</th><th>Kategoria</th><th>Szczegóły</th></tr></thead>
     <tbody>

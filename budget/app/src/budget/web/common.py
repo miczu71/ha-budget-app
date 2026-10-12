@@ -62,6 +62,13 @@ def fmt_date(value: str | None) -> str:
 fmt_money = money.pl
 
 
+def plural(n: int, *forms: str) -> str:
+    """Forma po liczbie n: (1, 2–4 bez 12–14, reszta), np. transakcja/transakcje/transakcji."""
+    if n == 1:
+        return forms[0]
+    return forms[1] if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else forms[2]
+
+
 class Panel:
     """Stan i pomocnicze funkcje ekranów; jeden użytkownik, więc komunikat „flash” to lista."""
 
@@ -71,6 +78,7 @@ class Panel:
         self.flash: list[tuple[str, str]] = []
         t = Jinja2Templates(directory=HERE / "templates")
         t.env.filters["money"] = fmt_money
+        t.env.filters["plural"] = plural
         t.env.filters["ts"] = lambda v: fmt_ts(v, service.tz)
         t.env.filters["iban"] = mask_iban
         t.env.filters["pldate"] = fmt_date

@@ -311,18 +311,18 @@ def router(panel: Panel) -> APIRouter:
     ) -> HTMLResponse:
         """Wiersze (podkategoria, kwota bez znaku); nowy = obecna kategoria + pusty wiersz."""
         saved = split.get(conn, int(t["id"]))
+        total = abs(Decimal(t["amount"]))
         if rows is None:
             rows = [(str(c), str(abs(a)).replace(".", ",")) for c, a in saved] or [
-                (str(t["category_id"] or ""), str(abs(Decimal(t["amount"]))).replace(".", ",")),
+                (str(t["category_id"] or ""), str(total).replace(".", ",")),
                 ("", ""),
             ]
-        cents = int(abs(Decimal(t["amount"])) * 100)
         return panel.partial(
             request,
             "_txn_split.html",
             t=t,
             rows=rows,
-            total_cents=cents,
+            total_cents=int(total * 100),
             saved=bool(saved),
             error=error,
             tree=taxonomy.tree(conn),
