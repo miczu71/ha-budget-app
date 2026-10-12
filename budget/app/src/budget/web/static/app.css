@@ -985,3 +985,10 @@ button.split-clear { margin-left: auto; min-height: var(--tap); color: var(--neg
   .split-row { grid-template-columns: minmax(0, 1fr) 5.25rem var(--tap); gap: 4px; }
   .split-row input { padding: 9px 10px; }
 }
+
+/* M29 E5: paragony Lidl — link w komórce kategorii, wybór paragonu, mapa kategorii */
+a.lidl-link { display: inline-flex; align-items: center; min-height: var(--tap); margin-right: 6px; color: var(--link); }
+.lidl-pick { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lidl-pick button.chip { min-height: var(--tap); display: inline-flex; align-items: center; }
+form.lidl-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; }
+form.lidl-map select { width: 100%; }

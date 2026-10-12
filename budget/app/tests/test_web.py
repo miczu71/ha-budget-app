@@ -36,6 +36,7 @@ def service(tmp_path: Path) -> Service:
         eb_application_id="app-kid-1",
         config_dir=tmp_path / "config",
         data_dir=tmp_path / "data",
+        share_dir=tmp_path / "share",
         eb_base_url=BASE,
     )
     return Service(settings, db.connect(":memory:"), HAClient(None), tz=ZoneInfo("Europe/Warsaw"))

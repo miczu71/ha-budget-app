@@ -136,8 +136,8 @@ class Service:
             return None
         if receipts:
             log.info(
-                "Paragony Lidl: %d połączonych, %d do wyboru, %d bez płatności",
-                result.linked, result.ambiguous, result.unmatched,
+                "Paragony Lidl: %d połączonych, %d do wyboru, %d bez płatności, %s zł poza spoż.",
+                result.linked, result.ambiguous, result.unmatched, result.moved,
             )  # fmt: skip
         return result
 

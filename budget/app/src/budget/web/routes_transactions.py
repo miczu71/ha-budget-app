@@ -22,7 +22,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from starlette.datastructures import FormData
 
-from budget import ledger, money, piggy, split
+from budget import ledger, lidl_link, money, piggy, split
 from budget.categorize import engine, rules, taxonomy
 from budget.categorize.rules import Conditions, Rule, RuleError, TextCondition
 from budget.categorize.taxonomy import TaxonomyError
@@ -85,6 +85,7 @@ def router(panel: Panel) -> APIRouter:
     r = APIRouter()
     conn = panel.conn
     panel.templates.env.globals["source_labels"] = SOURCE_LABELS
+    panel.templates.env.globals["lidl_panel"] = lidl_link.LIDL_PANEL
 
     def category_filter(value: str, where: list[str], params: list[Any]) -> None:
         if value == "none":
@@ -166,6 +167,7 @@ def router(panel: Panel) -> APIRouter:
             rows=rows,
             series_of=belongs,
             splits=split_parts(conn, [int(t["id"]) for t in rows]),
+            receipts={k: v[0] for k, v in lidl_link.links(conn).items()},
             repeatable={c.id for c in page_txns},
             total=total,
             page_no=page,  # `page` = nazwa ekranu w base.html (aktywna zakładka)
@@ -223,8 +225,16 @@ def router(panel: Panel) -> APIRouter:
             pick=category_id,
             make_rule=requested(form),
             tree=taxonomy.tree(conn),
+            lidl_choices=lidl_choices(int(t["id"])),
             **conditions_context(conn, shown, RULE),
         )
+
+    def lidl_choices(txn_id: int) -> list[lidl_link.Receipt]:
+        """Paragony Lidl do wyboru, gdy dopasowanie nie było jednoznaczne (M29 E5)."""
+        if txn_id in lidl_link.links(conn):
+            return []
+        receipts = lidl_link.load(panel.service.settings.lidl_receipts_path)
+        return lidl_link.receipts_for_txn(conn, receipts, txn_id)
 
     def leaf(form: FormData) -> int | None:
         try:
@@ -298,10 +308,31 @@ def router(panel: Panel) -> APIRouter:
         return shown(request, t, error)
 
     def shown(request: Request, t: sqlite3.Row, error: str | None = None) -> HTMLResponse:
-        parts = split_parts(conn, [int(t["id"])]).get(int(t["id"]))
+        tid = int(t["id"])
         return panel.partial(
-            request, "_txn_category.html", t=t, editing=False, error=error, parts=parts
+            request,
+            "_txn_category.html",
+            t=t,
+            editing=False,
+            error=error,
+            parts=split_parts(conn, [tid]).get(tid),
+            receipt=lidl_link.links(conn).get(tid, (None,))[0],
         )
+
+    @r.post("/transactions/{txn_id}/lidl", response_class=HTMLResponse)
+    async def choose_receipt(request: Request, txn_id: int) -> HTMLResponse:
+        """Wybór paragonu Lidl dla transakcji; kategorie z paragonu jak przy dopasowaniu."""
+        t = txn_row(conn, txn_id)
+        if t is None:
+            return HTMLResponse("Nie ma takiej transakcji.", 404)
+        ticket = str((await request.form()).get("ticket_id") or "")
+        receipt = next((r for r in lidl_choices(txn_id) if r.id == ticket), None)
+        if receipt is None:
+            return editor(request, t, error="Tego paragonu nie można już wybrać.")
+        with ledger.transaction(conn):
+            lidl_link.choose(conn, txn_id, receipt)
+            engine.recategorize(conn)
+        return shown(request, txn_row(conn, txn_id) or t)
 
     def split_editor(
         request: Request,

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import category_options %}
 {% block content %}
 <h1>Kategorie</h1>
 {% include "_rules_tabs.html" %}
@@ -50,6 +51,16 @@
     </form>
   </section>
 {% endfor %}
+  <section class="card" id="lidl">
+    <h2>Paragony Lidl</h2>
+    <p class="small muted">Zakup w Lidlu z paragonem dzieli się według kategorii produktów. Tu wybierasz, do której podkategorii trafia każda z nich; zmiana działa dla kolejnych dopasowań.</p>
+    <form class="lidl-map" method="post" action="{{ base }}/categories/lidl">
+      {% for key, label in lidl_labels.items() %}
+      <label>{{ label }}<select name="{{ key }}">{{ category_options(tree, lidl_map[key]) }}</select></label>
+      {% endfor %}
+      <button>Zapisz</button>
+    </form>
+  </section>
   <section class="card">
     <h2>Nowa kategoria główna</h2>
     <p class="small muted">Pojawi się na końcu listy. Potem przenieś do niej podkategorie albo dodaj nowe.</p>

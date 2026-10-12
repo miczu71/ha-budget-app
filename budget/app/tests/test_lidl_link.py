@@ -95,3 +95,57 @@ def test_service_links_after_sync_without_file_is_quiet(
         conn=conn, settings=SimpleNamespace(lidl_receipts_path=tmp_path / "brak.json")
     )
     assert Service.link_lidl(svc) == lidl_link.MatchResult(0, 0, 0)  # type: ignore[arg-type]
+
+
+def test_linked_receipt_splits_transaction_once(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    from budget import split
+    from budget.categorize import engine
+
+    t = add(conn, "-20.00", "card", "LIDL SKLEP X POL", day="2026-09-03")
+    single = add(conn, "-8.00", "card", "LIDL SKLEP X POL", day="2026-09-12")
+    mine = add(conn, "-5.00", "card", "LIDL SKLEP X POL", day="2026-09-20")
+    engine.recategorize(conn)
+    engine.set_manual(conn, mine, sid(conn, "restauracje"))  # decyzja użytkownika zostaje
+    receipts = lidl_link.load(
+        _file(
+            tmp_path,
+            _r("a", "2026-09-02", 20.0, food=12.0, drugstore=6.0, nonfood=2.0),
+            _r("b", "2026-09-12", 8.0, drugstore=8.0),
+            _r("c", "2026-09-20", 5.0, kids=5.0),
+        )
+    )
+    lidl_link.set_category_map(
+        conn, {**lidl_link.category_map(conn), "nonfood": sid(conn, "drogeria")}
+    )
+    assert lidl_link.match(conn, receipts).linked == 3
+    assert split.get(
+        conn, t
+    ) == [  # nonfood zmapowane na drogerię: części sumują się per podkategoria
+        (sid(conn, "spozywcze"), Decimal("-12.00")),
+        (sid(conn, "drogeria"), Decimal("-8.00")),
+    ]
+    assert (
+        conn.execute("SELECT source FROM txn_split WHERE txn_id = ?", (t,)).fetchone()[0] == "lidl"
+    )
+    row = conn.execute(
+        "SELECT category_id, category_source FROM txn WHERE id = ?", (single,)
+    ).fetchone()
+    assert (row[0], row[1]) == (
+        sid(conn, "drogeria"),
+        "manual",
+    )  # jedna kategoria = zwykła kategoria
+    row = conn.execute("SELECT category_id FROM txn WHERE id = ?", (mine,)).fetchone()
+    assert row[0] == sid(conn, "restauracje") and split.get(conn, mine) == []
+
+
+def test_choose_links_ambiguous_receipt(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    from budget import split
+
+    a = add(conn, "-7.00", "card", "LIDL SKLEP X POL", day="2026-09-05")
+    b = add(conn, "-7.00", "card", "LIDL SKLEP X POL", day="2026-09-06")
+    receipts = lidl_link.load(_file(tmp_path, _r("c", "2026-09-05", 7.0, food=4.0, kids=3.0)))
+    assert lidl_link.match(conn, receipts).ambiguous == 1
+    assert [r.id for r in lidl_link.receipts_for_txn(conn, receipts, b)] == ["c"]
+    lidl_link.choose(conn, b, receipts[0])
+    assert lidl_link.links(conn) == {b: ("c", "chosen")} and len(split.get(conn, b)) == 2
+    assert lidl_link.receipts_for_txn(conn, receipts, a) == []  # paragon już użyty

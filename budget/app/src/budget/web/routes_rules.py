@@ -15,7 +15,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 from starlette.datastructures import FormData
 
-from budget import ledger
+from budget import ledger, lidl_link
 from budget.categorize import engine, merchants, rules, taxonomy
 from budget.categorize.rules import Conditions, Rule, RuleError, TextCondition
 from budget.categorize.taxonomy import TaxonomyError
@@ -230,7 +230,22 @@ def router(panel: Panel) -> APIRouter:
             counts=counts,
             groups=taxonomy.FLEX_LABELS,
             tab="categories",
+            lidl_map=lidl_link.category_map(conn),
+            lidl_labels=lidl_link.LABELS,
         )
+
+    @r.post("/categories/lidl")
+    async def lidl_map(request: Request) -> Response:
+        """Mapa kategorii produktów Lidl → podkategorie (M29); działa dla kolejnych dopasowań."""
+        form = await request.form()
+        try:
+            mapping = {k: int(str(form.get(k) or "")) for k in lidl_link.LABELS}
+            with ledger.transaction(conn):
+                lidl_link.set_category_map(conn, mapping)
+        except (TaxonomyError, ValueError) as exc:
+            msg = str(exc) if isinstance(exc, TaxonomyError) else "Wybierz podkategorie."
+            return panel.redirect(request, "/categories#lidl", msg, "error")
+        return panel.redirect(request, "/categories#lidl", "Zapisano kategorie paragonów Lidl.")
 
     @r.post("/categories/add")
     async def add_category(

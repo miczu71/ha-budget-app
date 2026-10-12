@@ -17,14 +17,17 @@ from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
-from budget import money
-from budget.categorize import taxonomy
+from budget import money, split
+from budget.categorize import engine, taxonomy
 from budget.categorize.taxonomy import TaxonomyError
 from budget.storage.db import kv_get, kv_set
 
 log = logging.getLogger(__name__)
 
 WINDOW = timedelta(days=3)
+LIDL_PANEL = (
+    "/app/f0987e0f_lidl"  # panel add-onu Lidl w HA; otwiera paragon z `url_path` (Lidl ≥ 0.19.1)
+)
 MAP_KEY = "lidl_category_map"
 DEFAULT_MAP = {
     "food": "spozywcze",
@@ -32,6 +35,7 @@ DEFAULT_MAP = {
     "kids": "dzieci-zakupy",
     "nonfood": "zakupy-inne",
 }
+LABELS = {"food": "Spożywcze", "drugstore": "Drogeria", "kids": "Dla dzieci", "nonfood": "Inne"}
 _EXPENSES = (
     "SELECT id, amount, coalesce(tx_date, booking_date) AS day FROM txn WHERE status = 'BOOK' "
     "AND transfer_group IS NULL AND amount LIKE '-%' "
@@ -54,6 +58,9 @@ class MatchResult:
     linked: int
     ambiguous: int
     unmatched: int
+    moved: Decimal = Decimal(
+        0
+    )  # zł przesunięte z podkategorii spożywczej do innych (raport M29 E6)
 
 
 def load(path: Path) -> list[Receipt]:
@@ -129,14 +136,63 @@ def match(conn: sqlite3.Connection, receipts: list[Receipt]) -> MatchResult:
     for tids in found.values():
         for tid in tids:
             claims[tid] = claims.get(tid, 0) + 1
-    pairs = [
-        (tids[0], rid) for rid, tids in found.items() if len(tids) == 1 and claims[tids[0]] == 1
-    ]
-    conn.executemany(
-        "INSERT INTO txn_lidl (txn_id, ticket_id, status) VALUES (?, ?, 'auto')", pairs
-    )
+    pairs = [(t[0], r) for r in pending if len(t := found[r.id]) == 1 and claims[t[0]] == 1]
+    cmap = category_map(conn) if pairs else {}
+    moved = sum((_link(conn, tid, r, "auto", cmap) for tid, r in pairs), Decimal(0))
     unmatched = sum(1 for tids in found.values() if not tids)
-    return MatchResult(len(pairs), len(found) - len(pairs) - unmatched, unmatched)
+    return MatchResult(len(pairs), len(found) - len(pairs) - unmatched, unmatched, moved)
+
+
+def receipts_for_txn(
+    conn: sqlite3.Connection, receipts: list[Receipt], txn_id: int
+) -> list[Receipt]:
+    """Wolne paragony pasujące do tej transakcji (do wyboru przy niejednoznacznych, E5)."""
+    used = {ticket for ticket, _ in links(conn).values()}
+    free = [r for r in receipts if r.id not in used and r.paid > 0]
+    by_amount = _expenses(conn, free)
+    return [r for r in free if txn_id in _candidates(by_amount, r)]
+
+
+def choose(conn: sqlite3.Connection, txn_id: int, receipt: Receipt) -> None:
+    """Ręczny wybór paragonu dla transakcji."""
+    _link(conn, txn_id, receipt, "chosen", category_map(conn))
+
+
+def _link(
+    conn: sqlite3.Connection, txn_id: int, receipt: Receipt, status: str, cmap: dict[str, int]
+) -> Decimal:
+    conn.execute(
+        "INSERT INTO txn_lidl (txn_id, ticket_id, status) VALUES (?, ?, ?)",
+        (txn_id, receipt.id, status),
+    )
+    return _apply(conn, txn_id, receipt, cmap)
+
+
+def _apply(
+    conn: sqlite3.Connection, txn_id: int, receipt: Receipt, cmap: dict[str, int]
+) -> Decimal:
+    """Kategorie z paragonu, raz — przy połączeniu: wiele podkategorii = podział (`source='lidl'`),
+    jedna = zwykła kategoria. Ręcznej kategorii ani podziału użytkownika nie ruszamy, a późniejsza
+    zmiana użytkownika wygrywa (nic nie stosujemy ponownie). Zwraca zł poza spożywczymi."""
+    row = conn.execute(
+        "SELECT category_id, category_source FROM txn WHERE id = ?", (txn_id,)
+    ).fetchone()
+    if row is None or row["category_source"] == "manual":
+        return Decimal(0)
+    sums: dict[int, Decimal] = {}
+    for part, amount in receipt.parts.items():
+        cat = cmap.get(part, cmap["food"])
+        sums[cat] = sums.get(cat, Decimal(0)) - amount
+    parts = sorted(((c, a) for c, a in sums.items() if a), key=lambda p: -abs(p[1]))
+    try:
+        if len(parts) > 1:
+            split.save(conn, txn_id, parts, source="lidl")
+        elif parts and parts[0][0] != row["category_id"]:
+            engine.set_manual(conn, txn_id, parts[0][0])
+    except TaxonomyError as exc:  # np. zwrot kaucji większy niż część: zostaje kategoria transakcji
+        log.info("Paragon Lidl %s: bez podziału (%s)", receipt.id, exc)
+        return Decimal(0)
+    return sum((-a for c, a in parts if c != cmap["food"]), Decimal(0))
 
 
 def category_map(conn: sqlite3.Connection) -> dict[str, int]:

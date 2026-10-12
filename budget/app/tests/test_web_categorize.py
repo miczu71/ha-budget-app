@@ -387,3 +387,41 @@ async def test_split_rejects_own_transfer(client: httpx.AsyncClient, service: Se
         data={"category_id": [str(leaf), str(leaf)], "amount": ["300", "400"]},
     )
     assert "własnymi kontami" in r.text and split.get(service.conn, ids["own"]) == []
+
+
+async def test_lidl_receipt_link_choice_and_category_map(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    import json
+
+    from budget import lidl_link
+
+    conn = service.conn
+    ids = _seed(conn)  # LIDL −50,00
+    twin = add(conn, "-50.00", "card", "LIDL UL. X XYZ POL", day=DAY)
+    path = service.settings.lidl_receipts_path
+    path.parent.mkdir(parents=True)
+    receipt = {"id": "p1", "day": DAY, "paid": 50.0, "url_path": "/paragony/p1",
+               "parts": {"food": 30.0, "drugstore": 20.0}}  # fmt: skip
+    path.write_text(json.dumps({"version": 1, "receipts": [receipt]}), encoding="utf-8")
+    assert service.link_lidl() == lidl_link.MatchResult(0, 1, 0)  # dwie płatności — do wyboru
+
+    editor = (await client.get(f"/transactions/{ids['lidl']}/category")).text
+    assert "Paragon Lidl pasuje do kilku płatności" in editor and '"ticket_id": "p1"' in editor
+    r = await client.post(f"/transactions/{ids['lidl']}/lidl", data={"ticket_id": "p1"})
+    assert "2 kategorie" in r.text and "/app/f0987e0f_lidl/paragony/p1" in r.text
+    assert lidl_link.links(conn) == {ids["lidl"]: ("p1", "chosen")}
+    assert "Paragon Lidl pasuje" not in (await client.get(f"/transactions/{twin}/category")).text
+    page = (await client.get("/transactions")).text
+    assert 'target="_top">paragon Lidl</a>' in page
+
+    cats = (await client.get("/categories")).text
+    assert 'action="' + INGRESS + '/categories/lidl"' in cats
+    m = lidl_link.category_map(conn)
+    r = await client.post(
+        "/categories/lidl", data={**{k: str(v) for k, v in m.items()}, "kids": "abc"}
+    )
+    assert r.status_code == 303 and lidl_link.category_map(conn) == m
+    new = {**m, "kids": taxonomy.by_slug(conn)["drogeria"].id}
+    await client.post("/categories/lidl", data={k: str(v) for k, v in new.items()})
+    assert lidl_link.category_map(conn) == new
