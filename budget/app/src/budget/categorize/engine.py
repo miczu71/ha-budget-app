@@ -59,6 +59,7 @@ class _Txn:
     refund_of: int | None
     current: Assignment
     is_manual: bool
+    is_split: bool = False  # podział (M29) — kategoria = największa część, nie uczy pamięci
 
 
 @lru_cache(maxsize=50_000)
@@ -112,7 +113,9 @@ def _load(conn: sqlite3.Connection, dictionary: Dictionary) -> list[_Txn]:
     out = []
     rows = conn.execute(
         f"SELECT {_FACT_COLUMNS}, tx_date, booking_date, transfer_group, refund_of, "
-        "category_id, category_source, rule_id, merchant FROM txn ORDER BY id"
+        "category_id, category_source, rule_id, merchant, "
+        "EXISTS (SELECT 1 FROM txn_split s WHERE s.txn_id = txn.id) AS is_split "
+        "FROM txn ORDER BY id"
     )
     for t in rows:
         known, entry = _facts(t, dictionary)
@@ -129,6 +132,7 @@ def _load(conn: sqlite3.Connection, dictionary: Dictionary) -> list[_Txn]:
                     t["category_id"], t["category_source"], t["rule_id"], t["merchant"] or ""
                 ),
                 is_manual=t["category_source"] == "manual",
+                is_split=bool(t["is_split"]),
             )
         )
     return out
@@ -187,7 +191,7 @@ def _classify(
         merchant = (rule.rename if rule and rule.rename else None) or t.facts.merchant
         key: learn.Key = (merchant, review.direction(t.amount))
         found[t.id] = (rule, merchant, key)
-        if t.is_manual and t.current.category_id is not None and merchant:
+        if t.is_manual and not t.is_split and t.current.category_id is not None and merchant:
             decided[key].append(t.current.category_id)
     memory = {key: learn.memory(cats, 1) for key, cats in decided.items()}  # pamięć sprzedawcy
     result: dict[int, Assignment] = {}
@@ -344,6 +348,7 @@ def set_manual(conn: sqlite3.Connection, txn_id: int, category_id: int | None) -
     if row is None:
         raise taxonomy.TaxonomyError("Nie ma takiej transakcji.")
     if category_id is None:
+        conn.execute("DELETE FROM txn_split WHERE txn_id = ?", (txn_id,))
         conn.execute(
             "UPDATE txn SET category_source = NULL WHERE id = ? AND category_source = 'manual'",
             (txn_id,),
@@ -357,6 +362,9 @@ def set_manual(conn: sqlite3.Connection, txn_id: int, category_id: int | None) -
         stats = learned_stats(conn)
         stats["confirmed" if row["category_id"] == category_id else "corrected"] += 1
         kv_set(conn, LEARNED_STATS_KEY, stats)
+    conn.execute(
+        "DELETE FROM txn_split WHERE txn_id = ?", (txn_id,)
+    )  # jedna kategoria zamiast podziału
     conn.execute(
         "UPDATE txn SET category_id = ?, category_source = 'manual', rule_id = NULL WHERE id = ?",
         (category_id, txn_id),

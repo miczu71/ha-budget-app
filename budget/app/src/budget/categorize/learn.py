@@ -84,7 +84,8 @@ def _features(merchant: str, kind: str, way: str, amount: Decimal) -> tuple[str,
 def _rows(conn: sqlite3.Connection) -> list[_Row]:
     rows = conn.execute(
         "SELECT coalesce(t.tx_date, t.booking_date) AS day, t.id, t.merchant, t.kind, t.amount, "
-        "t.description, t.orig_currency, t.category_id, t.category_source "
+        "t.description, t.orig_currency, t.category_id, t.category_source, "
+        "EXISTS (SELECT 1 FROM txn_split s WHERE s.txn_id = t.id) AS is_split "
         "FROM txn t JOIN account a ON a.id = t.account_id "
         f"WHERE {review.QUEUE_SCOPE} ORDER BY day, t.id"
     )
@@ -92,7 +93,7 @@ def _rows(conn: sqlite3.Connection) -> list[_Row]:
     for r in rows:
         amount, merchant, kind = Decimal(r["amount"]), str(r["merchant"] or ""), str(r["kind"])
         way, source = review.direction(amount), r["category_source"]
-        learnable = source in LEARN_FROM and r["category_id"] is not None
+        learnable = source in LEARN_FROM and r["category_id"] is not None and not r["is_split"]
         out.append(
             _Row(
                 id=int(r["id"]),
