@@ -720,6 +720,7 @@ a.row:hover .row-title { text-decoration: underline; }
 .row-title > .badge { align-self: flex-start; }
 .row-amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bar-rows .row { grid-template-columns: 1fr auto; row-gap: 6px; }  /* wiersz z paskiem pod spodem (M21 E4, M10 E1) */
+.loan-rows .row { grid-template-columns: 4.6em 1fr auto; }  /* harmonogram kredytu: data z rokiem (M9 E1) */
 .bar-rows .flex-bar { grid-column: 1 / -1; height: 8px; margin: 0; }
 .fc-weeks .week-now .row-date { color: var(--text); font-weight: 600; }
 .week-line { margin-bottom: 0; }

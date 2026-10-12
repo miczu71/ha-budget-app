@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% macro inst_row(i) %}
+<li><div class="row"><span class="row-date">{{ i.day.strftime('%d.%m.%y') }}</span><span class="row-title">odsetki {{ i.interest | money("PLN") }}, kapitał {{ i.principal | money("PLN") }}</span><span class="row-amount">{{ i.payment | money("PLN") }}</span></div></li>
+{% endmacro %}
+{% macro loan_form(lo=None) %}
+<form class="rule-form piggy-form" method="post" action="{{ base }}/loan{{ '/' ~ lo.id if lo }}" hx-boost="false">
+  <div class="inline">
+    <label>Nazwa<input name="name" value="{{ lo.name if lo }}" maxlength="40" required placeholder="np. Kredyt hipoteczny"></label>
+    <label>Rodzaj rat
+      <select name="installment_kind">{% for key, label in kinds.items() %}
+        <option value="{{ key }}" {{ "selected" if lo and lo.installment_kind == key }}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="inline">
+    <label>Kapitał do spłaty<input name="principal" inputmode="decimal" size="10" value="{{ lo.principal if lo }}" required placeholder="z aplikacji banku"></label>
+    <label>Na dzień<input type="date" name="principal_date" value="{{ (lo.principal_date if lo else today).isoformat() }}" required></label>
+  </div>
+  <div class="inline">
+    <label>WIBOR/WIRON (% rocznie)<input name="reference_rate" inputmode="decimal" size="6" value="{{ lo.reference_rate if lo }}" required placeholder="np. 4,2"></label>
+    <label>Marża (%)<input name="margin" inputmode="decimal" size="6" value="{{ lo.margin if lo }}" required placeholder="np. 1,7"></label>
+  </div>
+  <div class="inline">
+    <label>Dzień raty<input name="payment_day" inputmode="numeric" size="3" value="{{ lo.payment_day if lo }}" required placeholder="1–31"></label>
+    <label>Ostatnia rata<input type="date" name="last_payment_date" value="{{ lo.last_payment_date.isoformat() if lo }}" required></label>
+  </div>
+  <p class="small muted">Harmonogram liczy panel przy stałej bieżącej stopie. Gdy rata w banku się zmieni (nowy WIBOR, nadpłata), wpisz nowy kapitał na nowy dzień i nową stopę.</p>
+  <p class="actions-row">
+    <button type="submit">{{ "Zapisz" if lo else "Dodaj kredyt" }}</button>
+    {% if lo %}<a class="tap" href="{{ base }}/loan">Anuluj</a>{% endif %}
+  </p>
+</form>
+{% endmacro %}
+{% block content %}
+<h1>Kredyt</h1>
+{% for lo, sm, sched in rows %}
+<section class="card piggy" id="loan-{{ lo.id }}">
+  <h2>{{ lo.name }} <span class="small muted">raty {{ kinds[lo.installment_kind] }}</span></h2>
+  <div class="stats">
+    <div class="stat"><span class="stat-label">Kapitał do spłaty</span><span class="stat-value">{{ lo.principal | money("PLN") }}</span><span class="small muted">na {{ lo.principal_date.isoformat() | pldate }}</span></div>
+    <div class="stat"><span class="stat-label">Najbliższa rata</span><span class="stat-value">{{ sm.installment | money("PLN") }}</span><span class="small muted">{{ sm.count }} rat do spłaty</span></div>
+    <div class="stat"><span class="stat-label">Oprocentowanie</span><span class="stat-value">{{ lo.rate }}%</span><span class="small muted">{{ lo.reference_rate }}% + marża {{ lo.margin }}%</span></div>
+    <div class="stat"><span class="stat-label">Spłata</span><span class="stat-value">{{ sm.payoff.strftime('%m.%Y') if sm.payoff }}</span><span class="small muted">odsetki do końca: {{ sm.interest_left | money("PLN") }}</span></div>
+  </div>
+  <details class="piggy-new">
+    <summary>Harmonogram</summary>
+    <ul class="rows loan-rows">{% for i in sched[:12] %}
+      {{ inst_row(i) }}
+    {% endfor %}</ul>
+    {% if sched | length > 12 %}
+    <details class="piggy-new">
+      <summary>Pozostałe raty ({{ sched | length - 12 }})</summary>
+      <ul class="rows loan-rows">{% for i in sched[12:] %}
+        {{ inst_row(i) }}
+      {% endfor %}</ul>
+    </details>
+    {% endif %}
+  </details>
+  <form class="actions-row small" method="post" action="{{ base }}/loan/{{ lo.id }}/archive">
+    <a class="tap" href="{{ base }}/loan?edit={{ lo.id }}#edit-loan">Zmień</a>
+    <button class="link">Archiwizuj</button>
+  </form>
+</section>
+{% endfor %}
+{% if edit %}
+<section class="card" id="edit-loan">
+  <h2>Zmień: {{ edit.name }}</h2>
+  {{ loan_form(edit) }}
+</section>
+{% else %}
+<details class="card piggy-new" {{ "open" if not rows }}>
+  <summary>Nowy kredyt</summary>
+  {{ loan_form() }}
+</details>
+{% endif %}
+{% endblock %}
