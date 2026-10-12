@@ -75,3 +75,20 @@ widok `txn_part`, `flex._income_by_source`.
 - Przeliczenie historii zmienia średnie limitów auto → raport przed/po, backup.
 - Zwrot podzielonego zakupu dziedziczy kategorię największej części (świadome uproszczenie).
 - Płatności gotówką/z innego konta nie dopasują się — w raporcie jako niedopasowane.
+
+## Wynik grupy C (2026-10-12)
+- Wydane: Budżet 0.50.0 (E4 f12e9df, E5 e699882, simplify b6b8d3e, code-review d7655ce) i Lidl 0.19.1
+  (głęboki link: HA przekazuje do iframe tylko korzeń panelu, więc panel Lidla czyta adres okna nadrzędnego
+  i raz przechodzi do paragonu). Po code-review dodane: „to nie ten paragon” (`txn_lidl_reject`), pomijanie
+  paragonów gotówkowych, przebieg dopasowania też przy starcie add-onu.
+- **E6 historia (start 0.50.0, po backupie add-onów przy aktualizacji):** 529 paragonów — 183 połączone
+  automatycznie, 3 do wyboru (paragon pasuje do kilku płatności), 342 bez płatności (paragony sprzed historii
+  banku w księdze; Lidl ma historię od 2019). W księdze 193 wydatki w Lidlu → pokryte 186 (96%).
+  Przesunięte ze Spożywczych do innych podkategorii: **1 717,24 zł** (głównie Drogeria).
+- Na żywo: 5 podzielonych transakcji — części = kwota płatności co do grosza; link „paragon Lidl” otwiera
+  właściwy paragon w panelu Lidla (te same kwoty podziału), powrót na listę bez ponownego przekierowania;
+  konsola bez błędów, 390 px bez przewijania w poziomie.
+- Świadomie odłożone: kategoria z paragonu jednokategoryjnego zapisywana jako `manual` (osobne źródło wymaga
+  zmiany schematu `category_source`); slug panelu Lidla stały w `lidl_link.LIDL_PANEL`; `flex._income_by_source`
+  bez części.
+
