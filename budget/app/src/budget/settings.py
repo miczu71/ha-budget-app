@@ -56,6 +56,7 @@ class Settings(BaseModel):
     dev: bool = False  # tylko env: panel bez allowlisty Ingress (lokalne testy)
     config_dir: Path = Path("/config")
     data_dir: Path = Path("/data")
+    share_dir: Path = Path("/share")  # M29: paragony z add-onu Lidl (`lidl/receipts.json`)
     source: Literal["options", "env"] = "options"
 
     @field_validator("sync_times", mode="before")
@@ -120,6 +121,10 @@ class Settings(BaseModel):
         return bool(self.ai_base_url)
 
     @property
+    def lidl_receipts_path(self) -> Path:
+        return self.share_dir / "lidl" / "receipts.json"
+
+    @property
     def db_path(self) -> Path:
         return self.data_dir / "budget.db"
 
@@ -154,7 +159,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
             raise SettingsError(f"{options_path}: niepoprawny JSON ({exc})") from exc
         data["source"] = "options"
         # Z env tylko ścieżki/URL — nie opcje użytkownika
-        for name in ("config_dir", "data_dir", "eb_base_url", "dev"):
+        for name in ("config_dir", "data_dir", "share_dir", "eb_base_url", "dev"):
             if (value := env.get(_ENV_PREFIX + name.upper())) is not None:
                 data[name] = value
     else:

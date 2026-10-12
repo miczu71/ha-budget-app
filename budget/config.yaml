@@ -20,6 +20,8 @@ services:
 map:
   - type: addon_config
     read_only: false
+  - type: share
+    read_only: true
 options:
   eb_application_id: ""
   eb_private_key_file: "enablebanking.pem"

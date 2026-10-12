@@ -20,6 +20,8 @@ from budget import forecast as forecast_mod
 from budget import (
     ha_publisher,
     inbox,
+    ledger,
+    lidl_link,
     loan,
     notifications,
     promo_watch,
@@ -114,10 +116,29 @@ class Service:
                 self.conn, eb, tz=self.tz, trigger=trigger, psu=psu, full=full
             )
         self.last_result = result
+        self.link_lidl()
         self.detect_series()
         await self.refresh()
         await self.refresh_calendar()
         self.suggest_later()
+        return result
+
+    # --- paragony Lidl (M29) -------------------------------------------------------------------
+
+    def link_lidl(self) -> lidl_link.MatchResult | None:
+        """Dopasowanie paragonów z add-onu Lidl po synchronizacji; błąd jej nie zatrzymuje."""
+        try:
+            receipts = lidl_link.load(self.settings.lidl_receipts_path)
+            with ledger.transaction(self.conn):
+                result = lidl_link.match(self.conn, receipts)
+        except Exception:
+            log.exception("Błąd dopasowania paragonów Lidl")
+            return None
+        if receipts:
+            log.info(
+                "Paragony Lidl: %d połączonych, %d do wyboru, %d bez płatności",
+                result.linked, result.ambiguous, result.unmatched,
+            )  # fmt: skip
         return result
 
     # --- płatności cykliczne (M5b) ------------------------------------------------------------
