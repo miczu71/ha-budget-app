@@ -16,15 +16,17 @@ import logging
 import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Any
 
 from budget import flex
-from budget.ask import query
+from budget.ask import query, sources
 from budget.ask.query import PlanError, Result
 from budget.categorize import taxonomy
 from budget.categorize.taxonomy import Category
 from budget.settings import Settings
+from budget.snapshot import Snapshot
 from budget.storage.db import kv_get, kv_set, now_iso
 from budget.suggest import client
 from budget.suggest import engine as suggest
@@ -52,6 +54,7 @@ class Answer:
     question: str
     text: str = ""  # odpowiedź z prawdziwymi nazwami
     result: Result | None = None
+    source_result: sources.SourceResult | None = None  # źródło stanu zamiast transakcji (E3b)
     unsupported: str = ""  # „nie umiem” — czego brakuje
     error: str = ""
     plan: dict[str, Any] | None = None  # surowy plan od LLM (do logu)
@@ -113,12 +116,13 @@ def log_rows(conn: sqlite3.Connection, limit: int = 30) -> list[dict[str, Any]]:
 
 def _log(conn: sqlite3.Connection, a: Answer) -> None:
     entries = (kv_get(conn, LOG_KEY) or [])[-(LOG_MAX - 1) :]
+    shown = a.source_result or a.result
     entries.append(
         {
             "at": now_iso(),
             "q": a.question,
             "turn": a.turn,
-            "how": a.result.filters if a.result else None,
+            "how": shown.filters if shown else None,
             "plan": a.plan,
             "unsupported": a.unsupported,
             "error": a.error,
@@ -167,6 +171,12 @@ def plan_prompt(
             f"Dzisiaj: {today.isoformat()} (bieżący miesiąc jest niepełny). Dane od: {since}.",
             "",
             "Pola planu:",
+            "- source: transactions (wydatki, wpływy, sprzedawcy, kategorie — pola niżej) albo",
+            "  źródło stanu na ekranie panelu; wybierz je, gdy pytanie dotyczy stanu (salda, kwoty",
+            "  do spłaty, terminów, kredytu), a nie sum z historii transakcji:",
+            *sources.prompt_lines(),
+            "- month: RRRR-MM dla źródeł z miesiącem; pusty = bieżący. Dla źródła innego niż",
+            "  transactions resztę pól wypełnij domyślnie (pusty okres = ostatnie 12 miesięcy).",
             "- periods: jeden okres albo dwa do porównania; miesiące RRRR-MM, oba końce włącznie.",
             "  „w tym roku” = od stycznia do bieżącego miesiąca; „w zeszłym roku” = cały poprzedni",
             "  rok; „ostatnie 12 miesięcy” = 12 pełnych miesięcy przed bieżącym. Pytanie bez",
@@ -185,7 +195,7 @@ def plan_prompt(
             "- metric: sum (suma zł), count (liczba transakcji), avg_per_month (średnio na mies.).",
             "- limit: wierszy przy podziale na kategorie lub sprzedawców (domyślnie 10).",
             "- unsupported: pusty, gdy plan odpowiada na pytanie. Gdy pytania nie da się wyrazić",
-            "  tymi polami (np. salda kont, prognoza, majątek, pojedyncza transakcja),",
+            "  tymi polami ani źródłami (np. majątek netto, pojedyncza transakcja),",
             "  wpisz krótko po polsku, czego brakuje; resztę pól wypełnij czymkolwiek poprawnym.",
             "",
             "Wskazówki: „który miesiąc był najdroższy” → group_by month; „na co wydajemy",
@@ -210,6 +220,8 @@ def answer_prompt(question: str, payload: dict[str, Any]) -> str:
             "w wyniku. Kwoty w formacie 1 234,56 zł. Etykiety w nawiasach kwadratowych (np. [O1])",
             "przepisuj bez zmian. Jeśli okres ma niepełny bieżący miesiąc, wspomnij o tym.",
             "Gdy transakcji jest 0, powiedz, że nie znaleziono pasujących transakcji.",
+            "Wynik ze źródła stanu ma facts (label, value): wartości są już sformatowane —",
+            "przepisuj je, nie przeliczaj.",
             "",
             "Wynik (JSON): metric sum = suma w zł, count = liczba transakcji, avg_per_month =",
             "średnio na miesiąc w zł; rows = podział, values = wartość dla każdego okresu;",
@@ -237,6 +249,8 @@ async def _run(
     a: Answer,
     today: date,
     call: suggest.Call,
+    snap: Snapshot,
+    now: datetime,
 ) -> None:
     cats = taxonomy.all_categories(conn)
     first = flex.first_month(conn)
@@ -253,6 +267,10 @@ async def _run(
     )
     a.unsupported = str(a.plan.get("unsupported") or "").strip()
     if a.unsupported:
+        return
+    name = str(a.plan.get("source") or sources.TRANSACTIONS)
+    if name != sources.TRANSACTIONS:
+        await _run_source(conn, settings, a, name, today, call, snap, now)
         return
     try:
         plan = query.parse(a.plan, cats, today)
@@ -274,6 +292,43 @@ async def _run(
     a.text = restore(str(raw.get("answer") or "").strip(), a.result.labels)
 
 
+async def _run_source(
+    conn: sqlite3.Connection,
+    settings: Settings,
+    a: Answer,
+    name: str,
+    today: date,
+    call: suggest.Call,
+    snap: Snapshot,
+    now: datetime,
+) -> None:
+    """Źródło stanu (E3b): fakty z kodu ekranu, potem zdanie od modelu — chyba że brak danych."""
+    assert a.plan is not None
+    ctx = sources.Ctx(
+        conn, snap, today, now, today.replace(day=1), Decimal(settings.forecast_buffer)
+    )
+    try:
+        a.source_result = sources.run(name, ctx, str(a.plan.get("month") or ""))
+    except sources.SourceError as exc:
+        a.unsupported = f"Nie udało się odczytać źródła ({exc})."
+        return
+    a.context = [*a.context, {"q": a.question, "plan": compact(a.plan)}][-CONTEXT_MAX:]
+    if a.source_result.note:
+        a.text = a.source_result.note
+        return
+    raw = await suggest.metered_call(
+        conn,
+        settings,
+        today,
+        call,
+        key=USAGE_KEY,
+        prompt=answer_prompt(a.question, a.source_result.for_llm()),
+        schema=ANSWER_SCHEMA,
+        schema_name="odpowiedz",
+    )
+    a.text = restore(str(raw.get("answer") or "").strip(), a.source_result.labels)
+
+
 async def ask(
     conn: sqlite3.Connection,
     settings: Settings,
@@ -281,6 +336,8 @@ async def ask(
     today: date,
     call: suggest.Call = client.complete,
     context: Sequence[dict[str, Any]] = (),
+    snap: Snapshot | None = None,
+    now: datetime | None = None,
 ) -> Answer:
     """`context` — wcześniejsze tury rozmowy (`parse_context`); `Answer.context` — po tej turze
     (bez zmian, gdy pytanie się nie udało, żeby można było je powtórzyć)."""
@@ -294,7 +351,7 @@ async def ask(
         a.error = "Wyczerpany dzienny limit pytań (opcja chat_daily_calls)."
         return a
     try:
-        await _run(conn, settings, a, today, call)
+        await _run(conn, settings, a, today, call, snap or Snapshot(conn), now or datetime.now(UTC))
     except AIError as exc:
         log.warning("czat: %s", exc)
         a.error = str(exc)

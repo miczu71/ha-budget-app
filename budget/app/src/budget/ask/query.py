@@ -17,6 +17,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
+from budget.ask import sources
 from budget.categorize import taxonomy
 from budget.categorize.taxonomy import FLEX_LABELS, Category
 from budget.kinds import CARD_KINDS
@@ -54,6 +55,8 @@ SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "unsupported": {"type": "string"},
+        "source": {"type": "string", "enum": [sources.TRANSACTIONS, *sources.NAMES]},
+        "month": _MONTH,
         "periods": {
             "type": "array",
             "items": {
@@ -74,6 +77,8 @@ SCHEMA: dict[str, Any] = {
     },
     "required": [
         "unsupported",
+        "source",
+        "month",
         "periods",
         "scope",
         "categories",

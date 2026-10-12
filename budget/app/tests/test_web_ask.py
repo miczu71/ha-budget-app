@@ -153,3 +153,22 @@ async def test_status_shows_chat_log(ai: httpx.AsyncClient) -> None:
     assert "Podział: sprzedawcy i odbiorcy" in page and "Bez przelewów" not in page
     assert "nie umiem: brak sald kont" in page and "błąd: Router AI odrzucił klucz" in page
     assert "200,00" not in page  # bez kwot z wyników
+
+
+@respx.mock
+async def test_source_answer_renders_facts_and_screen_link(
+    ai: httpx.AsyncClient, ai_service: Service
+) -> None:
+    from .test_forecast import snapshot
+
+    snapshot(ai_service.conn, 1, "ITAV", "5000.00", db.now_iso())
+    respx.post(f"{ROUTER}/chat/completions").mock(
+        side_effect=[
+            _reply({**PLAN, "source": "payday", "month": ""}),
+            _reply({"answer": "Starczy do wypłaty."}),
+        ]
+    )
+    r = await ai.post("/ask", data={"q": "Czy starczy do wypłaty?"}, headers=HX)
+    assert "Starczy do wypłaty." in r.text and "Wolne środki dziś" in r.text
+    assert "Otwórz Podsumowanie" in r.text and "Jak policzono" in r.text
+    assert "Pokaż transakcje" not in r.text

@@ -16,6 +16,7 @@ EXAMPLES = (
     "Na co wydajemy najwięcej w ostatnich 12 miesiącach?",
     "Ile średnio miesięcznie kosztują nas koszty stałe?",
     "Restauracje: ten rok vs zeszły rok",
+    "Czy starczy nam do wypłaty?",
 )
 RECENT = 5
 
@@ -55,7 +56,10 @@ def router(panel: Panel) -> APIRouter:
         s = panel.service.settings
         a = None
         if engine.enabled(s):
-            a = await engine.ask(conn, s, question, panel.service.now().date(), context=context)
+            now = panel.service.now()
+            a = await engine.ask(
+                conn, s, question, now.date(), context=context, snap=panel.service.snapshot, now=now
+            )
         ctx_json = json.dumps(a.context, ensure_ascii=False) if a else "[]"
         if request.headers.get("hx-request"):  # formularz ma własny hx-post (bez hx-boost)
             return panel.partial(request, "_ask_answer.html", a=a, left=left(), ctx_json=ctx_json)

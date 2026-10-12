@@ -141,3 +141,36 @@ def test_parse_context_rejects_bad_input() -> None:
     raw = json.dumps([{"q": 1, "plan": {}}, {"q": "y", "plan": "nie"}, good] + [good] * 5)
     out = engine.parse_context(raw)
     assert len(out) == engine.CONTEXT_MAX and len(out[0]["q"]) == engine.QUESTION_MAX
+
+
+async def test_source_flow_uses_registry(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    from .test_forecast import at, seeded
+
+    seeded(conn)
+    today = date(2026, 10, 3)
+    plan = {**PLAN, "source": "payday", "month": ""}
+    llm = FakeLLM(plan, {"answer": "Starczy."})
+    a = await engine.ask(conn, settings(tmp_path), "Czy starczy do wypłaty?", today, llm, now=at(3))
+    assert not a.error and not a.unsupported and a.text == "Starczy."
+    assert a.source_result is not None and a.result is None
+    assert "payday" in llm.prompts[0] and "Wolne środki dziś" in llm.prompts[1]
+    assert suggest.usage(conn, today, engine.USAGE_KEY)["calls"] == 2
+    entry = engine.history(conn)[0]
+    assert entry["plan"]["source"] == "payday" and entry["how"]
+    assert a.context[0]["plan"]["source"] == "payday"  # dopytania widzą źródło
+
+
+async def test_source_without_data_skips_second_call(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    from .test_forecast import at
+
+    llm = FakeLLM({**PLAN, "source": "payday", "month": ""})
+    a = await engine.ask(conn, settings(tmp_path), "Czy starczy?", TODAY, llm, now=at(3))
+    assert "Brak salda" in a.text and len(llm.prompts) == 1
+
+
+async def test_unknown_source_is_unsupported(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    llm = FakeLLM({**PLAN, "source": "nie_ma", "month": ""})
+    a = await engine.ask(conn, settings(tmp_path), "?", TODAY, llm)
+    assert "nie_ma" in a.unsupported and len(llm.prompts) == 1
