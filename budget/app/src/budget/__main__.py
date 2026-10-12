@@ -47,6 +47,7 @@ async def serve(settings: Settings) -> None:
     service = Service(settings, conn, ha, tz=_timezone())
     if (slug := await ha.self_slug()) is not None:
         service.notifier.panel_url = f"/app/{slug}"  # HA ≥ 2026.9: /hassio/ingress/ = 404
+    service.link_lidl()  # paragony Lidl od razu po aktualizacji, nie dopiero po synchronizacji
 
     tasks: list[asyncio.Task[None]] = []
     mqtt = await ha.mqtt_service()

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.50.0
+
+**Paragony Lidl Plus** (M29 E4–E5, `docs/PLAN_M29.md`; wymaga add-onu Lidl Plus ≥ 0.19.1).
+
+- Po każdej synchronizacji Budżet czyta `/share/lidl/receipts.json` (paragony z podziałem na kategorie
+  produktów) i łączy paragon z płatnością w Lidlu: ta sama kwota co do grosza, data ±3 dni, jeden
+  kandydat po obu stronach. Paragony gotówkowe pomija.
+- Połączony zakup dzieli się według paragonu (np. Spożywcze + Drogeria) — raz, przy połączeniu; ręcznej
+  kategorii i ręcznego podziału nie rusza, a późniejsza zmiana użytkownika wygrywa.
+- Transakcje: link „paragon Lidl” otwiera paragon w panelu Lidla; „to nie ten paragon” odłącza go
+  (i nie łączy ponownie); gdy paragon pasuje do kilku płatności — wybór w edytorze kategorii.
+- Kategorie: karta „Paragony Lidl” — do której podkategorii trafia każda kategoria produktów.
+- Migracja `019_lidl.sql` (nowe tabele `txn_lidl`, `txn_lidl_reject`, addytywna); add-on dostaje dostęp
+  do `/share` tylko do odczytu.
+
 ## 0.49.0
 
 **Podział transakcji na podkategorie** (M29 E1–E3, `docs/PLAN_M29.md`).
