@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.46.0
+
+**Czat „Zapytaj” zna stan panelu, nie tylko transakcje** (M12 E3b, `docs/PLAN_M12_E3b.md`).
+
+- Nowy rejestr źródeł danych: Do wypłaty, Karta, Budżet, Cykliczne, Skarbonki (konta oszczędnościowe
+  i skarbonki) oraz Kredyt. Pytania typu „czy starczy do wypłaty?”, „ile zostało w budżecie we
+  wrześniu?”, „ile spłacić na karcie i do kiedy?”, „jaką mam ratę kredytu?” liczy ten sam kod co ekran;
+  pod odpowiedzią tabela faktów, „Jak policzono” i link do ekranu.
+- Karta, Budżet i Cykliczne przyjmują miesiąc z pytania; reszta pokazuje stan na dziś.
+- Do modelu idą kwoty, ale nie nazwy: osoby, serie, konta, skarbonki i kredyty widzi jako `[Osoba 1]`,
+  `[Seria 1]`, `[Konto 1]`, `[Skarbonka 1]`, `[Kredyt 1]`; nazwy wracają lokalnie. Brak danych źródła
+  (np. brak salda) daje odpowiedź bez drugiego wywołania modelu. Bez migracji schematu.
+
 ## 0.45.0
 
 **Kredyt: śledzenie WIBOR 3M i rata po zmianie oprocentowania** (M9 E4, `docs/PLAN_M9_wibor.md`).
