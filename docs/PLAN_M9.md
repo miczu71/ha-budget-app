@@ -95,5 +95,6 @@ Ingress (playwright-ha): ekran Kredyt, encja w HA. Użytkownik wpisuje parametry
 - **E3a** 92c0dd0: `loan.run` (wspólny silnik rat i scenariuszy), `loan_sim` (porównanie z oszczędnościami,
   tabela WIBOR × wariant). Stopa z dnia raty obowiązuje za cały okres. `savings.daily/net` są publiczne.
 - **E3b**: formularz i wynik htmx na `/loan` (`GET /loan/{id}/calc`), weryfikacja na 360 i 1280 px.
-- Otwarte: kalibracja z prawdziwą ratą z banku (±1 zł) po wpisaniu kredytu przez użytkownika; wydanie 0.43.0
-  czeka na zgodę (zawiera też niewydane f044cef).
+- Otwarte: kalibracja z prawdziwą ratą z banku (±1 zł) po wpisaniu kredytu przez użytkownika.
+- **Wydanie 0.43.0** 2026-10-12: tag v0.43.0 na 3ee791f (zawiera też f044cef), migracja 015 sprawdzona na kopii księgi
+  z 2.10, na żywo stopka v0.43.0 i `/loan` 200 `no-store`.
