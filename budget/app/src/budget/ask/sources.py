@@ -15,8 +15,9 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from budget import card, flex, forecast
+from budget import card, flex, forecast, loan, loan_sim, piggy, savings
 from budget.money import ZERO, pl
+from budget.recurring import schedule
 from budget.snapshot import Snapshot
 from budget.spending import month_label, month_start, parse_month
 
@@ -210,6 +211,121 @@ def _budget(c: Ctx) -> SourceResult:
     return res
 
 
+# --- Cykliczne -------------------------------------------------------------------------------
+
+MAX_SERIES = 30  # wierszy listy serii dla modelu
+
+
+def _recurring(c: Ctx) -> SourceResult:
+    mv = schedule.for_month(c.snap, c.month, c.today)
+    cur = c.month == month_start(c.today)
+    res = SourceResult(
+        "recurring",
+        link="/recurring" if cur else f"/recurring?month={c.month:%Y-%m}",
+        link_label="Otwórz Cykliczne",
+    )
+    facts = res.facts
+    facts.append(Fact("Miesiąc", month_label(c.month)))
+    facts.append(Fact("Wydatki cykliczne zapłacone", pl(mv.out_paid, "PLN")))
+    facts.append(Fact("Wydatki cykliczne do zapłaty", pl(mv.out_planned, "PLN")))
+    facts.append(Fact("Wpływy cykliczne otrzymane", pl(mv.in_received, "PLN")))
+    facts.append(Fact("Wpływy cykliczne oczekiwane", pl(mv.in_planned, "PLN")))
+    late = mv.count(schedule.LATE)
+    if late:
+        facts.append(Fact("Spóźnione płatności", str(late)))
+    rows = sorted(mv.rows, key=lambda d: d.sort_day)[:MAX_SERIES]
+    for i, d in enumerate(rows, 1):
+        paid = d.status in (schedule.PAID, schedule.EXTRA)
+        kind = "wydatek" if d.series.direction == "out" else "wpływ"
+        amount = d.paid_amount if paid else d.series.expected_amount
+        when = f" · {_date(d.sort_day)}" if d.due or d.txns else ""
+        value = f"{kind} {pl(amount, 'PLN')} · {schedule.STATUS_LABELS[d.status]}{when}"
+        facts.append(Fact(d.series.name, value, llm_label=f"[Seria {i}]"))
+    res.filters = ["Serie jak na ekranie Cykliczne: aktywne, z terminem i statusem w miesiącu"]
+    return res
+
+
+# --- Oszczędności i skarbonki ----------------------------------------------------------------
+
+
+def _savings(c: Ctx) -> SourceResult:
+    res = SourceResult("savings", link="/piggy", link_label="Otwórz Skarbonki")
+    accounts = savings.all_accounts(c.conn)
+    fc = forecast.for_today(c.snap, c.today, c.now, c.buffer)
+    if fc is not None and fc.piggies_from is not None:
+        rows = fc.piggies
+    else:
+        rows = piggy.statuses(c.snap, c.today, month_start(c.today))
+    if not accounts and not rows:
+        res.note = "Brak kont oszczędnościowych i skarbonek w panelu."
+        return res
+    facts = res.facts
+    if accounts:
+        ov = savings.overview(c.conn, c.today, 1)
+        if ov is not None:
+            facts.append(Fact("Saldo kont oszczędnościowych razem", pl(ov.total, "PLN")))
+            cur = ov.current
+            facts.append(Fact("Odłożone w tym miesiącu", pl(cur.saved, "PLN")))
+            if cur.income:
+                facts.append(
+                    Fact("Stopa oszczędności w tym miesiącu", f"{cur.saved / cur.income:.0%}")
+                )
+        for i, a in enumerate(accounts, 1):
+            est = savings.estimate(c.conn, a, c.today)
+            value = f"{pl(est.total, 'PLN')} · odsetki netto {pl(est.interest, 'PLN')}"
+            facts.append(Fact(a.name, value, llm_label=f"[Konto {i}]"))
+    if rows:
+        facts.append(
+            Fact(
+                "Do przelania na skarbonki w tym okresie", pl(piggy.total_to_transfer(rows), "PLN")
+            )
+        )
+    for i, st in enumerate(rows, 1):
+        parts = [f"saldo {pl(st.balance, 'PLN')}"]
+        if st.target:
+            parts.append(f"cel {pl(st.target, 'PLN')}")
+        if st.due:
+            parts.append(f"termin {_date(st.due)}")
+        parts.append(f"do przelania {pl(st.to_transfer, 'PLN')}")
+        facts.append(Fact(st.piggy.name, " · ".join(parts), llm_label=f"[Skarbonka {i}]"))
+    res.filters = [
+        "Salda i odsetki jak na ekranie Skarbonki (szacunek odsetek netto po podatku Belki)"
+    ]
+    return res
+
+
+# --- Kredyt ----------------------------------------------------------------------------------
+
+
+def _loan(c: Ctx) -> SourceResult:
+    res = SourceResult("loan", link="/loan", link_label="Otwórz Kredyt")
+    loans = loan.all_loans(c.conn)
+    if not loans:
+        res.note = "Brak kredytów w panelu."
+        return res
+    for i, lo in enumerate(loans, 1):
+        s = loan.summary(lo, loan.schedule(lo), c.today)
+        parts = [
+            f"kapitał {pl(s.principal, 'PLN')}",
+            f"najbliższa rata {pl(s.installment, 'PLN')}",
+            f"oprocentowanie {lo.rate}% (stawka {lo.reference_rate}% + marża {lo.margin}%)",
+            f"pozostało rat {s.count}",
+        ]
+        if s.payoff:
+            parts.append(f"ostatnia rata {_date(s.payoff)}")
+        parts.append(f"odsetki do końca {pl(s.interest_left, 'PLN')}")
+        fc = loan_sim.forecast(c.conn, lo, c.today)
+        if fc is not None:
+            kind = "stawka banku" if fc.final else "prognoza"
+            parts.append(
+                f"od {_date(fc.reset)} rata {pl(fc.installment, 'PLN')} "
+                f"({kind}, WIBOR 3M {fc.wibor}%)"
+            )
+        res.facts.append(Fact(lo.name, " · ".join(parts), llm_label=f"[Kredyt {i}]"))
+    res.filters = ["Harmonogram jak na ekranie Kredyt: raty równe/malejące, odsetki 30/360"]
+    return res
+
+
 REGISTRY: tuple[Source, ...] = (
     Source(
         "payday",
@@ -231,6 +347,25 @@ REGISTRY: tuple[Source, ...] = (
         "budżet elastyczny miesiąca: pula, wydane, ile zostało, ile można wydawać dziennie, tempo",
         _budget,
         monthly=True,
+    ),
+    Source(
+        "recurring",
+        "Cykliczne",
+        "płatności i wpływy cykliczne miesiąca: co zapłacone, co jeszcze do zapłaty, terminy",
+        _recurring,
+        monthly=True,
+    ),
+    Source(
+        "savings",
+        "Skarbonki",
+        "konta oszczędnościowe (salda, odsetki, stopa oszczędności) i skarbonki (cel, postęp)",
+        _savings,
+    ),
+    Source(
+        "loan",
+        "Kredyt",
+        "kredyt hipoteczny: kapitał, rata, oprocentowanie, pozostałe raty, odsetki, zmiana stopy",
+        _loan,
     ),
 )
 NAMES = tuple(s.name for s in REGISTRY)

@@ -6,14 +6,19 @@ import sqlite3
 from datetime import date, datetime
 from decimal import Decimal
 
-from budget import card, flex, forecast
+from budget import card, flex, forecast, loan
 from budget.ask import sources
 from budget.money import pl
 from budget.snapshot import Snapshot
 
 from .test_card import CARD, buy
 from .test_categorize_engine import conn
+from .test_flex import serie
 from .test_forecast import at, seeded
+from .test_loan import make as make_loan
+from .test_piggy import make as make_piggy
+from .test_savings import NUMBER
+from .test_savings import make as make_savings
 
 __all__ = ["conn"]
 
@@ -120,3 +125,44 @@ def test_budget_without_amount_says_so(conn: sqlite3.Connection) -> None:
 def test_budget_month_param_and_link(conn: sqlite3.Connection) -> None:
     res = sources.run("budget", ctx(conn, at(3)), "2026-08")
     assert res.link == "/budget?month=2026-08" and "sierpień" in facts(res)["Miesiąc"].lower()
+
+
+def test_recurring_lists_series_and_redacts_names(conn: sqlite3.Connection) -> None:
+    serie(conn, "abc", "120.00")
+    res = sources.run("recurring", ctx(conn, at(3)))
+    got = facts(res)
+    assert "Seria abc" in got and "120" in got["Seria abc"] and "oczekiwane" in got["Seria abc"]
+    assert "abc" not in str(res.for_llm()) and res.labels == {"[Seria 1]": "Seria abc"}
+    assert res.link == "/recurring"
+    assert sources.run("recurring", ctx(conn, at(3)), "2026-09").link == "/recurring?month=2026-09"
+
+
+def test_savings_balances_and_piggies_redacted(conn: sqlite3.Connection) -> None:
+    make_savings(conn)
+    make_piggy(conn)
+    res = sources.run("savings", ctx(conn, at(3)))
+    got = facts(res)
+    assert got["Oszczędnościowe"].startswith("1")  # saldo z odsetkami ≥ 1000
+    assert "Wakacje" in got and "Oszczędnościowe" not in str(res.for_llm())
+    assert "Wakacje" not in str(res.for_llm()) and NUMBER not in str(res)
+    assert res.labels["[Konto 1]"] == "Oszczędnościowe" and res.labels["[Skarbonka 1]"] == "Wakacje"
+
+
+def test_savings_empty_has_note(conn: sqlite3.Connection) -> None:
+    assert "Brak" in sources.run("savings", ctx(conn, at(3))).note
+
+
+def test_loan_matches_summary_and_redacts_name(conn: sqlite3.Connection) -> None:
+    lid = make_loan(conn)
+    lo = loan.get(conn, lid)
+    s = loan.summary(lo, loan.schedule(lo), TODAY)
+    res = sources.run("loan", ctx(conn, at(3)))
+    got = facts(res)
+    assert got["Dom"].startswith(pl(s.principal, "PLN")) or pl(s.principal, "PLN") in got["Dom"]
+    assert pl(s.installment, "PLN") in got["Dom"]
+    assert "Dom" not in str(res.for_llm()) and res.labels == {"[Kredyt 1]": "Dom"}
+    assert res.link == "/loan"
+
+
+def test_loan_empty_has_note(conn: sqlite3.Connection) -> None:
+    assert "Brak" in sources.run("loan", ctx(conn, at(3))).note
