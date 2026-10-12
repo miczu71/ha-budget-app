@@ -397,4 +397,6 @@ def release_manual(conn: sqlite3.Connection, txn_id: int, category_id: int) -> b
         "WHERE id = ? AND category_source = 'manual' AND category_id = ?",
         (txn_id, category_id),
     )
+    if cur.rowcount:
+        conn.execute("DELETE FROM txn_split WHERE txn_id = ?", (txn_id,))
     return cur.rowcount > 0

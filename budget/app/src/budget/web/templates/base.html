@@ -20,9 +20,10 @@
 
     // Podział transakcji (M29 E3): reszta do przydzielenia liczona tu, „Zapisz” dopiero przy 0,00 zł.
     // Pierwszy wiersz (data-auto) bierze resztę, dopóki nie wpisze się go ręcznie; serwer waliduje to samo.
-    function splitCents(v) {
-      var n = parseFloat(String(v).replace(/[\s  ]/g, "").replace(",", "."));
-      return isFinite(n) ? Math.round(Math.abs(n) * 100) : 0;
+    function splitCents(v) {  // jak money.parse: maks. dwa miejsca po przecinku; zły zapis = NaN
+      var t = String(v).replace(/[\s\u00a0\u202f]/g, "");
+      if (!t) return 0;
+      return /^\d+([.,]\d{1,2})?$/.test(t) ? Math.round(parseFloat(t.replace(",", ".")) * 100) : NaN;
     }
     function splitText(c) { return (c / 100).toFixed(2).replace(".", ","); }
     function splitSync(form) {
@@ -30,8 +31,8 @@
       var total = +form.dataset.total, others = 0, ok = true;
       rows.forEach(function (r) {
         var a = r.querySelector("input"), c = a === auto ? 0 : splitCents(a.value);
-        others += c;
-        if ((a !== auto && !c) || !r.querySelector("select").value) ok = false;
+        others += c || 0;
+        if ((a !== auto && !c) || !r.querySelector("select").value) ok = false;  // NaN też
       });
       var autoCents = auto ? Math.max(total - others, 0) : 0;
       if (auto) auto.value = splitText(autoCents);

@@ -232,6 +232,8 @@ def _update_changed(
         f"UPDATE txn SET {sets}, updated_at = ? WHERE id = ?",
         (*changed.values(), now_iso(), txn_id),
     )
+    if "amount" in changed:  # części (M29) nie sumowałyby się do nowej kwoty
+        conn.execute("DELETE FROM txn_split WHERE txn_id = ?", (txn_id,))
     return True
 
 
@@ -612,11 +614,15 @@ def _drop_csv_txn(conn: sqlite3.Connection, txn_id: int, successor: int | None) 
                 "UPDATE txn SET budget_flag = ? WHERE id = ?", (old["budget_flag"], successor)
             )
         if old["category_source"] == "manual":
-            conn.execute(
+            cur = conn.execute(
                 "UPDATE txn SET category_id = ?, category_source = 'manual', rule_id = NULL "
-                "WHERE id = ? AND category_source IS NOT 'manual'",
-                (old["category_id"], successor),
+                "WHERE id = ? AND category_source IS NOT 'manual' AND amount = ?",
+                (old["category_id"], successor, old["amount"]),
             )
+            if cur.rowcount:  # podział (M29) przechodzi razem z kategorią
+                conn.execute(
+                    "UPDATE txn_split SET txn_id = ? WHERE txn_id = ?", (successor, txn_id)
+                )
     conn.execute("DELETE FROM txn WHERE id = ?", (txn_id,))
 
 

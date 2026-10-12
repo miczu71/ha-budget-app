@@ -159,11 +159,15 @@ def parse_month(value: str | None, today: date) -> date:
 @dataclass
 class _Acc:
     amount: Decimal = ZERO
-    count: int = 0
+    ids: set[int] = field(default_factory=set)  # transakcja z podziałem (M29) liczy się raz
 
-    def add(self, amount: Decimal) -> None:
+    @property
+    def count(self) -> int:
+        return len(self.ids)
+
+    def add(self, amount: Decimal, txn_id: int) -> None:
         self.amount += amount
-        self.count += 1
+        self.ids.add(txn_id)
 
 
 @dataclass
@@ -244,9 +248,9 @@ def sums(
                 s.coverage.categorized += first
                 s.coverage.categorized_amount -= amount
         if r["category_id"] is None:
-            (s.unc_out if amount < 0 else s.unc_in).add(abs(amount))
+            (s.unc_out if amount < 0 else s.unc_in).add(abs(amount), r["id"])
         else:
-            s.by_leaf[int(r["category_id"])].add(amount)
+            s.by_leaf[int(r["category_id"])].add(amount, r["id"])
     return s
 
 
@@ -325,6 +329,7 @@ def build(conn: sqlite3.Connection, month: date, today: date) -> Month:
 
     for main in taxonomy.tree(conn):
         group = MainLine(main.category)
+        group_ids: set[int] = set()
         for leaf in main.children:
             now, before = cur.by_leaf.get(leaf.id, _Acc()), prev.by_leaf.get(leaf.id, _Acc())
             sign = 1 if leaf.flex_group == "income" else -1  # przychód: +, reszta: wydano
@@ -341,7 +346,8 @@ def build(conn: sqlite3.Connection, month: date, today: date) -> Month:
             else:
                 group.children.append(line)
                 group.amount += line.amount
-                group.count += line.count
+                group_ids |= now.ids
+                group.count = len(group_ids)
                 group.prev += line.prev
         if group.children and (group.count or group.prev):
             group.children = [c for c in group.children if c.count or c.prev]

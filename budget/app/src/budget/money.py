@@ -25,7 +25,10 @@ def parse(value: str | None) -> Decimal | None:
     if not text:
         return None
     try:
-        return Decimal(text).quantize(CENT)
+        amount = Decimal(text)
+        if not amount.is_finite():
+            raise InvalidOperation
+        return amount.quantize(CENT)
     except InvalidOperation as exc:
         raise AmountError(f"niepoprawna kwota: {value!r}") from exc
 

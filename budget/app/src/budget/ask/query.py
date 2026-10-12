@@ -301,6 +301,7 @@ def execute(
             res.link["q"] = plan.text
         amount_total = ZERO
         counted: set[int] = set()  # transakcja z podziałem (M29) liczy się raz
+        counted_in: set[tuple[int, Any]] = set()
         for r in _rows(conn, period.start, period.end, details=True):
             amount = Decimal(r["amount"])
             leaf = cats.get(r["category_id"]) if r["category_id"] is not None else None
@@ -336,7 +337,8 @@ def execute(
             if row is None:
                 row = groups[key] = Row(key, label, [ZERO] * n_periods, [0] * n_periods)
             row.amounts[n] += value
-            row.counts[n] += 1
+            row.counts[n] += (r["id"], key) not in counted_in  # część podziału w tej samej grupie
+            counted_in.add((r["id"], key))
             row.private |= plan.group_by == "merchant" and r["kind"] not in CARD_KINDS
         res.value = _measure(plan.metric, amount_total, res.count, period.months)
         periods.append(res)

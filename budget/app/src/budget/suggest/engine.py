@@ -171,6 +171,7 @@ def known_groups(conn: sqlite3.Connection) -> list[Group]:
         f"SELECT {_COLUMNS} FROM txn t JOIN account a ON a.id = t.account_id "
         "WHERE t.status = 'BOOK' AND t.transfer_group IS NULL AND a.include_in_budget = 1 "
         "AND t.category_source IN ('manual', 'rule', 'dictionary') "
+        "AND NOT EXISTS (SELECT 1 FROM txn_split s WHERE s.txn_id = t.id) "
         "AND coalesce(t.merchant, '') <> ''"
     )
     return _groups(rows)
@@ -192,6 +193,7 @@ def examples(conn: sqlite3.Connection, exclude: set[str], limit: int = EXAMPLES)
         "SELECT t.merchant, t.category_id, count(*) AS n, "
         "max(t.category_source IN ('manual', 'rule')) AS own FROM txn t "
         f"WHERE t.kind IN ({kinds}) AND t.category_source IN ('manual', 'rule', 'dictionary') "
+        "AND NOT EXISTS (SELECT 1 FROM txn_split s WHERE s.txn_id = t.id) "
         "AND coalesce(t.merchant, '') <> '' GROUP BY t.merchant, t.category_id "
         "ORDER BY own DESC, n DESC, t.merchant"
     ).fetchall()

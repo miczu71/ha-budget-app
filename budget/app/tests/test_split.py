@@ -8,9 +8,10 @@ from decimal import Decimal
 
 import pytest
 
-from budget import spending, split
+from budget import ledger, money, spending, split
 from budget.categorize import engine
 from budget.categorize.taxonomy import TaxonomyError
+from budget.suggest import engine as suggest
 
 from .test_categorize_engine import add, conn, sid
 
@@ -44,6 +45,7 @@ def test_save_keeps_parts_and_largest_category(conn: sqlite3.Connection) -> None
         ([("jedzenie", "-30.00"), ("spozywcze", "-70.00")], "podkategori"),
         ([("drogeria", "30.00"), ("spozywcze", "-130.00")], "znak"),
         ([("drogeria", "0.00"), ("spozywcze", "-100.00")], "znak"),
+        ([("spozywcze", "-30.00"), ("spozywcze", "-70.00")], "inną podkategorię"),
     ],
 )
 def test_save_rejects_invalid_parts(
@@ -123,3 +125,52 @@ def test_save_rejects_own_transfer(conn: sqlite3.Connection) -> None:
             t,
             [(sid(conn, "drogeria"), Decimal("-300")), (sid(conn, "spozywcze"), Decimal("-400"))],
         )
+
+
+def test_group_count_counts_split_transaction_once(conn: sqlite3.Connection) -> None:
+    t = add(conn, "-100.00", "card", "LIDL XYZ POL", day="2026-09-02")
+    parts = [(sid(conn, "spozywcze"), Decimal("-60")), (sid(conn, "restauracje"), Decimal("-40"))]
+    split.save(conn, t, parts)
+    m = spending.build(conn, date(2026, 9, 1), date(2026, 9, 20))
+    (food,) = [g for g in m.expense_groups if g.category.slug == "jedzenie"]
+    assert food.count == 1 and [c.count for c in food.children] == [1, 1]
+
+
+def test_split_is_not_ai_example(conn: sqlite3.Connection) -> None:
+    _split_lidl(conn)
+    assert not any("LIDL" in line for line in suggest.examples(conn, set()))
+    assert not suggest.known_groups(conn)
+
+
+def test_release_manual_drops_split(conn: sqlite3.Connection) -> None:
+    t = _split_lidl(conn)
+    assert engine.release_manual(conn, t, sid(conn, "drogeria"))
+    assert split.get(conn, t) == []
+
+
+def test_bank_amount_change_drops_split(conn: sqlite3.Connection) -> None:
+    t = _split_lidl(conn)
+    row = conn.execute("SELECT * FROM txn WHERE id = ?", (t,)).fetchone()
+    ledger._update_changed(conn, t, row, {"description": row["description"]})
+    assert len(split.get(conn, t)) == 2  # bez zmiany kwoty podział zostaje
+    ledger._update_changed(conn, t, row, {"amount": "-98.50"})
+    assert split.get(conn, t) == []
+
+
+def test_csv_successor_keeps_split(conn: sqlite3.Connection) -> None:
+    old = add(conn, "-100.00", "card", "LIDL XYZ POL", day="2026-09-02", source="csv")
+    new = add(conn, "-100.00", "card", "LIDL XYZ POL API", day="2026-09-02")
+    parts = [
+        (sid(conn, "drogeria"), Decimal("-60.00")),
+        (sid(conn, "spozywcze"), Decimal("-40.00")),
+    ]
+    split.save(conn, old, parts)
+    ledger._drop_csv_txn(conn, old, new)
+    assert split.get(conn, new) == parts
+    assert _category(conn, new) == (sid(conn, "drogeria"), "manual")
+
+
+@pytest.mark.parametrize("text", ["nan", "Infinity", "-inf"])
+def test_money_parse_rejects_non_finite(text: str) -> None:
+    with pytest.raises(money.AmountError):
+        money.parse(text)

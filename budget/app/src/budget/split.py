@@ -42,6 +42,8 @@ def _check(conn: sqlite3.Connection, txn_id: int, parts: list[Part]) -> None:
     leaves = taxonomy.leaves(conn)
     if any(cat not in leaves for cat, _ in parts):
         raise TaxonomyError("Każda część musi mieć podkategorię.")
+    if len({cat for cat, _ in parts}) < len(parts):
+        raise TaxonomyError("Każda część musi mieć inną podkategorię.")
     amount = Decimal(row["amount"])
     if any(a == 0 or (a < 0) != (amount < 0) for _, a in parts):
         raise TaxonomyError("Każda część musi mieć kwotę ze znakiem transakcji.")
