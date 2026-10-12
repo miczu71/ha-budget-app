@@ -65,6 +65,48 @@
 </details>
 {% endif %}
 
+{% macro savings_form(a=None) %}
+<form class="rule-form piggy-form" method="post" action="{{ base }}/savings{{ '/' ~ a.id if a }}" hx-boost="false">
+  <div class="inline">
+    <label>Nazwa<input name="name" value="{{ a.name if a }}" maxlength="40" required placeholder="np. Konto oszczędnościowe"></label>
+    <label>Numer konta<input name="account_number" inputmode="numeric" autocomplete="off" {% if a %}placeholder="{{ a.masked }} — bez zmiany"{% else %}required placeholder="26 cyfr"{% endif %}></label>
+  </div>
+  <div class="inline">
+    <label>Saldo<input name="opening_balance" inputmode="decimal" size="10" value="{{ a.opening_balance if a }}" required placeholder="z aplikacji banku"></label>
+    <label>Na dzień<input type="date" name="opening_date" value="{{ (a.opening_date if a else today).isoformat() }}" required></label>
+  </div>
+  <p class="small muted">Panel nie widzi tego konta w banku: saldo = wpisane saldo + przelewy na konto i z konta po tej dacie. Gdy różni się od banku, wpisz nowe saldo na nowy dzień.</p>
+  <p class="actions-row">
+    <button type="submit">{{ "Zapisz" if a else "Dodaj konto" }}</button>
+    {% if a %}<a class="tap" href="{{ base }}/piggy">Anuluj</a>{% endif %}
+  </p>
+</form>
+{% endmacro %}
+<h2 id="savings">Konto oszczędnościowe</h2>
+{% for a, bal in accounts %}
+<section class="card piggy" id="savings-{{ a.id }}">
+  <h2>{{ a.name }} <span class="small muted">{{ a.masked }}</span></h2>
+  <div class="stats">
+    <div class="stat"><span class="stat-label">Saldo</span><span class="stat-value">{{ bal | money("PLN") }}</span><span class="small muted">od {{ a.opening_date.isoformat() | pldate }}: {{ a.opening_balance | money("PLN") }}</span></div>
+  </div>
+  <form class="actions-row small" method="post" action="{{ base }}/savings/{{ a.id }}/archive">
+    <a class="tap" href="{{ base }}/piggy?edit_savings={{ a.id }}#edit-savings">Zmień</a>
+    <button class="link">Archiwizuj</button>
+  </form>
+</section>
+{% endfor %}
+{% if edit_savings %}
+<section class="card" id="edit-savings">
+  <h2>Zmień: {{ edit_savings.name }}</h2>
+  {{ savings_form(edit_savings) }}
+</section>
+{% else %}
+<details class="card piggy-new" {{ "open" if not accounts }}>
+  <summary>Nowe konto oszczędnościowe</summary>
+  {{ savings_form() }}
+</details>
+{% endif %}
+
 {% if archived %}
 <section class="card">
   <h2>Zarchiwizowane</h2>

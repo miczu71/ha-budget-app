@@ -52,13 +52,14 @@ class Snapshot:
         return found
 
     def piggy_ids(self) -> set[int]:
-        """Transakcje skarbonek poza pulą Flex (`piggy.txn_ids`, M10 E1), do pierwszego zapisu."""
-        from budget import piggy  # piggy korzysta z harmonogramu serii, który zna Snapshot
+        """Transakcje skarbonek i konta oszczędnościowego poza pulą Flex (`piggy.txn_ids`,
+        `savings.txn_ids`; M10), do pierwszego zapisu."""
+        from budget import piggy, savings  # piggy korzysta z harmonogramu serii, który zna Snapshot
 
         key = self.signature()
         if key == self._piggy_key:
             return self._piggy_ids
-        found = piggy.txn_ids(self.conn)
+        found = piggy.txn_ids(self.conn) | savings.txn_ids(self.conn)
         if not self.conn.in_transaction:
             self._piggy_key, self._piggy_ids = key, found
         return found

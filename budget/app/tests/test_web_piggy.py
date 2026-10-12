@@ -63,3 +63,45 @@ async def test_assign_expense_from_transactions(
     r = await client.post(f"/transactions/{txn}/piggy", data={"piggy_id": "1"})
     assert "selected>ze skarbonki: Wakacje" in r.text
     assert "Wydane ze skarbonki: 300,00" in (await client.get("/piggy")).text
+
+
+async def test_recurring_marks_series_with_piggy(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    from .test_flex import serie
+
+    with_piggy, without = serie(service.conn, "f1", "40"), serie(service.conn, "f2", "50")
+    await client.post(
+        "/piggy", data={"name": "Wakacje", "account_number": NUMBER, "series_id": str(with_piggy)}
+    )
+    page = (await client.get("/recurring")).text
+    assert page.count("Skarbonka: Wakacje") == 1
+    assert f'href="{INGRESS}/piggy#piggy-' in page
+    assert f"/recurring/{without}" in page  # druga seria jest na liście, bez znacznika
+
+
+async def test_savings_account_balance_and_masked_number(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    form = {
+        "name": "Oszczędnościowe",
+        "account_number": NUMBER,
+        "opening_balance": "1000",
+        "opening_date": "2026-09-01",
+    }
+    assert (await client.post("/savings", data=form)).status_code == 303
+    add(
+        service.conn,
+        "-250",
+        "transfer_out",
+        "wpłata",
+        "JA",
+        day="2026-09-10",
+        counterparty_account="PL" + NUMBER.replace(" ", ""),
+    )
+    page = (await client.get("/piggy")).text
+    assert "Oszczędnościowe" in page and "PL** **** … 7777" in page
+    assert "1\u202f250,00" in page
+    assert "22223333" not in page.replace(" ", "")
+    await client.post("/savings/1/archive")
+    assert "PL** **** … 7777" not in (await client.get("/piggy")).text
