@@ -100,9 +100,9 @@
   ],
   "lastChange": {
     "by": "Claude",
-    "at": "2026-10-07T15:00:00Z",
-    "via": "Claude Code · ha-budget-app@7ef9117",
-    "note": "re-sync bundle.css: reguła .row-title > .badge (poprawka rozciągniętej plakietki)"
+    "at": "2026-10-12T08:30:00Z",
+    "via": "Claude Code · ha-budget-app@4d572d3",
+    "note": "re-sync M21 E5 + M10 E1: bundle.css (hero-unit, fc-weeks, fc-payday, skarbonki), nowe komponenty PaydayHero i Piggy"
   },
   "layout": "files",
   "libraries": [],

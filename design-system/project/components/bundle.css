@@ -502,6 +502,7 @@ label.search input {
 }
 .hero-amount.pos { color: var(--text); }
 .flex-hero > p { margin: 4px 0 10px; }
+.hero-unit { font: 400 16px var(--font-ui); letter-spacing: 0; color: var(--muted); }
 .flex-bar { position: relative; height: 12px; background: var(--line); border-radius: 6px; margin: 6px 0 12px; }
 .flex-bar .fill { display: block; height: 100%; background: var(--ok); border-radius: 6px; }
 .flex-bar.over .fill { background: var(--error); }
@@ -703,6 +704,10 @@ a.row:hover .row-title { text-decoration: underline; }
 .row-title { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 .row-title > .badge { align-self: flex-start; }
 .row-amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fc-weeks .row { grid-template-columns: 1fr auto; row-gap: 6px; }  /* M21 E4 */
+.fc-weeks .flex-bar { grid-column: 1 / -1; height: 8px; margin: 0; }
+.fc-weeks .week-now .row-date { color: var(--text); font-weight: 600; }
+.week-line { margin-bottom: 0; }
 .bars { display: block; width: 100%; max-width: 520px; height: auto; }
 .bars .grid-line { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 3; }
 .bars .axis { fill: var(--text-3); font-size: 11px; }
@@ -848,6 +853,7 @@ a.row { min-height: var(--tap); align-content: center; }
 .fc-line .fc-end { fill: var(--text); }
 .fc-foot { margin-top: 8px; }
 .fc-foot p { margin: 0; }
+.fc-payday { margin-top: 8px; }
 label.switch { gap: 10px; }
 label.switch input[type="checkbox"] { appearance: none; width: 36px; height: 20px; border-radius: 10px; background: var(--surface-3); border: 1px solid var(--control-border); position: relative; cursor: pointer; }
 label.switch input[type="checkbox"]::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--text-2); transition: transform 0.15s; }
@@ -880,3 +886,14 @@ label.switch input[type="checkbox"]:checked::after { transform: translateX(16px)
 #ask-out .msg.error { margin-bottom: 12px; }
 .chat-log li { padding: 8px 0; }
 .chat-log li p { margin: 2px 0 0; overflow-wrap: anywhere; }
+/* M10 E1: skarbonki */
+.piggy h2 .small { font-weight: 400; margin-left: 6px; }
+.piggy .stats { margin-top: 4px; }
+.piggy-form .inline { flex-wrap: wrap; }
+.piggy-pick { display: inline-block; }
+.piggy-new > summary { line-height: var(--tap); cursor: pointer; font-weight: 600; }
+.piggy-pick select { min-height: var(--tap); }
+.piggy-tile .row { grid-template-columns: 1fr auto; row-gap: 6px; }
+.piggy-tile .flex-bar { grid-column: 1 / -1; height: 6px; margin: 0; }
+.fc-strip > div:nth-child(5):last-child { grid-column: 1 / -1; }
+@media (min-width: 720px) { .fc-strip:has(> div:nth-child(5)) { grid-template-columns: repeat(5, 1fr); } .fc-strip > div:nth-child(5):last-child { grid-column: auto; } }
