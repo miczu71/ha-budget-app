@@ -21,22 +21,15 @@
 </head>
 <body hx-boost="true" hx-headers='{"X-Panel-Version": "{{ version }}"}'>
   {# Ikony: Lucide (ISC, https://github.com/lucide-icons/lucide) przez iconify.design, zawsze SVG #}
-  {% set more_pages = ('review', 'rules', 'rule_form', 'dictionary', 'categories', 'accounts', 'import', 'bank', 'status') %}
+  {% set more_pages = ('review', 'rules', 'rule_form', 'dictionary', 'categories', 'accounts', 'import', 'bank', 'status', 'tabs') %}
   <header class="top">
     <nav aria-label="Główna nawigacja">
-      <a href="{{ base }}/" class="{{ 'on' if page == 'home' }}">Podsumowanie</a>
-      <a href="{{ base }}/budget" class="{{ 'on' if page == 'budget' }}">Budżet</a>
-      <a href="{{ base }}/piggy" class="{{ 'on' if page == 'piggy' }}">Oszczędności</a>
-      <a href="{{ base }}/loan" class="{{ 'on' if page == 'loan' }}">Kredyt</a>
-      <a href="{{ base }}/spending" class="{{ 'on' if page == 'spending' }}">Wydatki</a>
-      <a href="{{ base }}/card" class="{{ 'on' if page == 'card' }}">Karta</a>
-      <a href="{{ base }}/ask" class="{{ 'on' if page == 'ask' }}">Zapytaj</a>
-      <a href="{{ base }}/recurring" class="{{ 'on' if page in ('recurring', 'series') }}">Cykliczne</a>
-      <a href="{{ base }}/transactions" class="{{ 'on' if page == 'transactions' }}">Transakcje</a>
+      {% for t in tabs %}{% set d = tab_defs[t.key] %}
+      <a href="{{ base }}{{ d.path }}" class="{{ 'on' if page in d.pages }}">{{ d.label }}</a>{% endfor %}
     </nav>
     {% include "_bell.html" %}
     <details class="more{{ ' on' if page in more_pages }}">
-      <summary aria-label="Więcej: reguły, konta, import, bank, status">
+      <summary aria-label="Więcej: reguły, konta, import, bank, zakładki, status">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0a2.34 2.34 0 0 0 3.319 1.915a2.34 2.34 0 0 1 2.33 4.033a2.34 2.34 0 0 0 0 3.831a2.34 2.34 0 0 1-2.33 4.033a2.34 2.34 0 0 0-3.319 1.915a2.34 2.34 0 0 1-4.659 0a2.34 2.34 0 0 0-3.32-1.915a2.34 2.34 0 0 1-2.33-4.033a2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></g></svg>
       </summary>
       <div class="more-panel">
@@ -45,6 +38,7 @@
         <a href="{{ base }}/accounts" class="{{ 'on' if page == 'accounts' }}">Konta</a>
         <a href="{{ base }}/import" class="{{ 'on' if page == 'import' }}">Import CSV</a>
         <a href="{{ base }}/bank" class="{{ 'on' if page == 'bank' }}">Bank</a>
+        <a href="{{ base }}/tabs" class="{{ 'on' if page == 'tabs' }}">Zakładki</a>
         <div class="sep" role="separator"></div>
         <a href="{{ base }}/status" class="{{ 'on' if page == 'status' }}">Status</a>
       </div>

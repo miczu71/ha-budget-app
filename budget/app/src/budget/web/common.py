@@ -10,7 +10,7 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from budget import __version__, money, summary
+from budget import __version__, money, nav_layout, summary
 from budget.categorize.rules import OPS as RULE_OPS
 from budget.logging_utils import mask_iban
 from budget.service import Service
@@ -106,6 +106,8 @@ class Panel:
                 "page": name.removesuffix(".html"),
                 "inbox_items": inbox_items,
                 "inbox_count": len(inbox_items),
+                "tabs": [t for t in nav_layout.layout.load(self.conn) if not t.hidden],
+                "tab_defs": nav_layout.TABS,
                 **ctx,
             },
         )
