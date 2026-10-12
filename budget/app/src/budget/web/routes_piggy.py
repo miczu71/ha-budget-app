@@ -38,6 +38,7 @@ def router(panel: Panel) -> APIRouter:
             series=[s for s in S.all_series(conn, ("active",)) if s.direction == "out"],
             edit=next((s.piggy for s in rows if s.piggy.id == edit), None),
             accounts=[(a, savings.estimate(conn, a, today)) for a in accts],
+            rates=savings.monthly_rates(conn, today) if accts else [],
             edit_savings=next((a for a in accts if a.id == edit_savings), None),
         )
 

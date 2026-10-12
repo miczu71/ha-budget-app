@@ -14,8 +14,10 @@ from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from budget import money, piggy
+from budget.categorize import taxonomy
 from budget.logging_utils import mask_iban
 from budget.piggy import PiggyError
+from budget.spending import add_months, month_start, sums, totals
 from budget.storage.db import now_iso
 
 ZERO = money.ZERO
@@ -229,3 +231,54 @@ def estimate(conn: sqlite3.Connection, acc: Account, today: date) -> Interest:
             capital = _net(gross)
             bal, earned, gross = bal + capital, earned + capital, ZERO
     return Interest(bal, earned, _net(gross))
+
+
+@dataclass(frozen=True)
+class MonthRate:
+    month: date
+    saved: Decimal  # wpłaty na konta oszczędnościowe minus wypłaty z nich (skarbonki się nie liczą)
+    income: Decimal  # wpływy miesiąca wg `spending.totals`
+
+    @property
+    def rate(self) -> Decimal | None:
+        return self.saved / self.income if self.income > 0 else None
+
+    @property
+    def frac(self) -> float:
+        """Udział do paska: 0–1 (ujemny albo brak wpływów = pusty pasek)."""
+        return max(0.0, min(1.0, float(self.rate or 0)))
+
+
+def monthly_rates(conn: sqlite3.Connection, today: date, n: int = 12) -> list[MonthRate]:
+    """Stopa oszczędności ostatnich `n` miesięcy do bieżącego włącznie, od najstarszego. Wpływy
+    bez przelewów z kont oszczędnościowych i skarbonek — wypłata z nich nie jest dochodem."""
+    numbers = [r[0] for r in conn.execute("SELECT account_number FROM savings_account")]
+    saved: dict[date, Decimal] = defaultdict(Decimal)
+    for r in piggy.transfers(conn, numbers):
+        saved[month_start(date.fromisoformat(r["day"]))] -= Decimal(r["amount"])
+    skip = txn_ids(conn) | piggy.txn_ids(conn)
+    leaves, current = taxonomy.leaves(conn), month_start(today)
+    out = []
+    for back in range(n - 1, -1, -1):
+        month = add_months(current, -back)
+        income, _ = totals(leaves, sums(conn, month, add_months(month, 1), skip))
+        out.append(MonthRate(month, saved[month], income))
+    return out
+
+
+@dataclass(frozen=True)
+class Overview:
+    total: Decimal  # saldo wszystkich kont z odsetkami
+    rates: list[MonthRate]
+
+    @property
+    def current(self) -> MonthRate:
+        return self.rates[-1]
+
+
+def overview(conn: sqlite3.Connection, today: date) -> Overview | None:
+    accts = all_accounts(conn)
+    if not accts:
+        return None
+    total = sum((estimate(conn, a, today).total for a in accts), ZERO)
+    return Overview(total, monthly_rates(conn, today))

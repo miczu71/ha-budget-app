@@ -10,7 +10,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import card, flex, forecast, home_layout, sessions, spending, sync_service
+from budget import card, flex, forecast, home_layout, savings, sessions, spending, sync_service
 from budget.recurring import schedule
 from budget.spending import MONTHS, MONTHS_GEN, add_months, month_label, month_start, parse_month
 from budget.storage import db
@@ -116,6 +116,7 @@ def router(panel: Panel) -> APIRouter:
             ),
             bars=charts.month_bars(spending.monthly_totals(conn, today), start),
             mv=mv,
+            sv=savings.overview(conn, today),
             upcoming=upcoming[:5],
             upcoming_more=max(len(upcoming) - 5, 0),
             recent=spending.recent(conn, start, nxt),

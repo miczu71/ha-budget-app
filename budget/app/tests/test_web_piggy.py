@@ -124,3 +124,30 @@ async def test_savings_page_shows_interest_and_promo(client: httpx.AsyncClient) 
     bad = await client.post("/savings", data={**form, "name": "Inne", "promo_until": ""})
     assert bad.status_code == 303
     assert "datę końca promocji" in (await client.get("/piggy")).text
+
+
+async def test_savings_rate_on_screen_and_home_tile(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    month = service.now().strftime("%Y-%m")
+    form = {
+        "name": "Oszczędnościowe",
+        "account_number": NUMBER,
+        "opening_balance": "1000",
+        "opening_date": f"{month}-01",
+    }
+    await client.post("/savings", data=form)
+    add(service.conn, "4000", "transfer_in", "wypłata", "PRACODAWCA", day=f"{month}-02")
+    add(
+        service.conn,
+        "-1000",
+        "transfer_out",
+        "wpłata",
+        "JA",
+        day=f"{month}-03",
+        counterparty_account="PL" + NUMBER.replace(" ", ""),
+    )
+    page = (await client.get("/piggy")).text
+    assert "Stopa oszczędności" in page and "25%" in page
+    home = (await client.get("/")).text
+    assert "savings-tile" in home and "Stopa w tym miesiącu" in home and "25%" in home

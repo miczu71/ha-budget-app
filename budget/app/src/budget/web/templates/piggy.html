@@ -25,7 +25,7 @@
 </form>
 {% endmacro %}
 {% block content %}
-<h1>Skarbonki</h1>
+<h1>Oszczędności i skarbonki</h1>
 {% if rows %}
 <section class="card piggy-sum">
   <p>{% if to_transfer > 0 %}Od wypłaty {{ period_start.strftime('%d.%m') }} odłóż jeszcze <strong>{{ to_transfer | money("PLN") }}</strong> — przelewem na konta-cele.{% else %}<span class="pos"><strong>Odłożone</strong></span> — w tym okresie (od {{ period_start.strftime('%d.%m') }}) wszystko przelane.{% endif %}</p>
@@ -103,6 +103,15 @@
   </form>
 </section>
 {% endfor %}
+{% if rates %}
+<section class="card">
+  <h2>Stopa oszczędności</h2>
+  <p class="small muted">Wpłaty na konto oszczędnościowe (netto) w stosunku do wpływów miesiąca; skarbonki się nie liczą.</p>
+  <ul class="rows bar-rows">{% for m in rates | reverse %}
+    <li><div class="row"><span class="row-title">{{ m.month.strftime('%m.%Y') }}</span><span class="row-amount">{{ pct(m.rate) if m.rate is not none else "—" }} <span class="small muted">{{ m.saved | money("PLN") }}{% if m.income > 0 %} z {{ m.income | money("PLN") }}{% endif %}</span></span>{{ bar(m.frac, "stopa oszczędności " ~ (pct(m.rate) if m.rate is not none else "brak wpływów")) }}</div></li>
+  {% endfor %}</ul>
+</section>
+{% endif %}
 {% if edit_savings %}
 <section class="card" id="edit-savings">
   <h2>Zmień: {{ edit_savings.name }}</h2>

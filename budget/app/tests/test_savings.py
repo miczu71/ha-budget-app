@@ -137,3 +137,23 @@ def test_promo_bell_and_push(conn: sqlite3.Connection) -> None:
     assert not [
         i for i in inbox.items(snap, later, inbox.BalanceMemo()) if i.kind == "savings_promo"
     ]
+
+
+def test_monthly_rates_use_transfers_and_income(conn: sqlite3.Connection) -> None:
+    make(conn)
+    add(conn, "5000", "transfer_in", "wypłata", "PRACODAWCA", day="2026-09-05")
+    move(conn, "-1000", "2026-09-10")  # wpłata
+    move(conn, "250", "2026-09-20")  # wypłata
+    rates = savings.monthly_rates(conn, date(2026, 10, 12))
+    sep = next(m for m in rates if m.month == date(2026, 9, 1))
+    assert (sep.saved, sep.income) == (Decimal(750), Decimal(5000))
+    assert sep.rate == Decimal("0.15") and sep.frac == 0.15
+    assert rates[-1].month == date(2026, 10, 1) and rates[-1].rate is None  # brak wpływów
+    assert rates[-1].frac == 0.0 and len(rates) == 12
+
+
+def test_overview_none_without_accounts(conn: sqlite3.Connection) -> None:
+    assert savings.overview(conn, date(2026, 10, 12)) is None
+    make(conn)
+    ov = savings.overview(conn, date(2026, 10, 12))
+    assert ov is not None and ov.total == Decimal(1000) and ov.current.month == date(2026, 10, 1)
