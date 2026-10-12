@@ -141,7 +141,7 @@
   <p class="small muted">Wpłaty na konto oszczędnościowe (netto) w stosunku do wpływów miesiąca; skarbonki się nie liczą.</p>
   <ul class="cats">{% for m in rates | reverse %}
     <li><details>
-      <summary><span class="cat-name">{{ m.month.strftime('%m.%Y') }}</span><span class="cat-amount">{{ pct(m.rate) if m.rate is not none else "—" }} <span class="small muted">{{ m.saved | money("PLN") }}{% if m.income > 0 %} z {{ m.income | money("PLN") }}{% endif %}</span></span><span class="cat-meta">{{ bar(m.frac, "stopa oszczędności " ~ (pct(m.rate) if m.rate is not none else "brak wpływów")) }}</span></summary>
+      <summary><span class="cat-name">{{ m.month.strftime('%m.%Y') }}</span><span class="cat-amount">{{ pct(m.rate) if m.rate is not none else "—" }} <span class="small muted">{{ m.saved | money("PLN") }}{% if m.income > 0 %} z {{ m.income | money("PLN") }}{% endif %}</span></span><div class="cat-meta">{{ bar(m.frac, "stopa oszczędności " ~ (pct(m.rate) if m.rate is not none else "brak wpływów"), tag="div") }}</div></summary>
       <ul class="subcats">
         {% for name, net, rows in m.by_account %}
         <li><strong>{{ name }}</strong><span class="cat-amount">{{ net | money("PLN") }}</span></li>
