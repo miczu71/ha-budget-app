@@ -244,6 +244,18 @@ def forecast_low(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> l
     return [Item("forecast_low", title, 1, "/", "warn", detail)]
 
 
+PIGGY_REMIND_DAYS = 5  # przypomnienie o odłożeniu do skarbonek tyle dni przed wypłatą (M10 E1)
+
+
+def piggy_transfer(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Nieprzelane odłożenie do skarbonek, gdy do wypłaty zostało mniej niż `PIGGY_REMIND_DAYS`."""
+    fc = ctx.forecast
+    if fc is None or fc.payday is None or not fc.piggy_out or fc.days_left >= PIGGY_REMIND_DAYS:
+        return []
+    detail = f"Do wypłaty {fc.payday:%d.%m} przelej na konta-cele {summary.zl(fc.piggy_out)}."
+    return [Item("piggy_transfer", "Odłóż do skarbonek", 1, "/piggy", "info", detail)]
+
+
 Provider = Callable[[sqlite3.Connection, Context, BalanceMemo], list[Item]]
 PROVIDERS: tuple[Provider, ...] = (
     operational,
@@ -253,6 +265,7 @@ PROVIDERS: tuple[Provider, ...] = (
     card_payments,
     card_due,
     forecast_low,
+    piggy_transfer,
 )
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
 

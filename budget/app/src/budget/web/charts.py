@@ -282,7 +282,7 @@ def forecast_line(
             y_at(values[index[e.day]]),
             "in" if e.amount > 0 else "out",
             e.day,
-            e.due.series.name,
+            e.label,
             e.amount,
         )
         for e in events

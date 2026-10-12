@@ -525,3 +525,83 @@ def test_memo_settles_after_period_plan_write(
     for _ in range(4):
         memo.get(snap, TODAY, at(3), Decimal(0))
     assert len(calls) == 2  # zapis `period_plan` zmienia sygnaturę raz
+
+
+# --- skarbonki w prognozie (M10 E1b) --------------------------------------------------------
+
+GOAL = "11" + "2222" * 6  # fikcyjny numer konta-celu
+
+
+def piggy_of(c: sqlite3.Connection, **kw: object) -> int:
+    from budget import piggy
+
+    args: dict[str, object] = {
+        "piggy_id": None,
+        "name": "Wakacje",
+        "account_number": GOAL,
+        "target": "1200",
+        "due_date": "2026-12-15",
+        "series_id": None,
+        "opening_balance": None,
+    }
+    args.update(kw)
+    return piggy.save(c, **args)  # type: ignore[arg-type]
+
+
+def test_project_takes_piggy_transfer_today() -> None:
+    dues = [due(1, date(2026, 10, 10), "5000", "in")]
+    plain = run(dues)
+    p = forecast.project(
+        free_now=Decimal(1000), today=TODAY, dues=dues, per_day=Decimal(10), piggy_out=Decimal(300)
+    )
+    assert p.days[0] == (TODAY, Decimal("700.00")) and p.at_payday == plain.at_payday - 300
+    assert [(e.label, e.amount) for e in p.events] == [("Do skarbonek", Decimal(-300))]
+
+
+def test_project_covered_series_costs_nothing() -> None:
+    dues = [due(1, date(2026, 10, 5), "480", "out"), due(2, date(2026, 10, 10), "5000", "in")]
+    p = forecast.project(
+        free_now=Decimal(1000), today=TODAY, dues=dues, per_day=Decimal(0), covered=frozenset({1})
+    )
+    assert p.outflows == [] and [d.series.id for d in p.covered] == [1]
+    assert p.at_payday == Decimal(1000) and p.events[0].covered and p.events[0].amount == 0
+
+
+def test_build_reserves_piggy_until_transferred(conn: sqlite3.Connection) -> None:
+    seeded(conn)
+    mine = serie(conn, "pensja", "9000.00", direction="in")  # termin 7.
+    before = build(conn, payday_id=mine)
+    piggy_of(conn)  # 1200 do 15.12 → paź + lis po 600
+    fc = build(conn, payday_id=mine)
+    assert before is not None and fc is not None and fc.piggy_out == Decimal(600)
+    assert fc.at_payday == before.at_payday - 600
+    assert fc.safe_per_day is not None and before.safe_per_day is not None
+    assert fc.safe_per_day < before.safe_per_day
+    add(conn, "-600.00", "transfer_out", "cel", "JA", day="2026-10-02", counterparty_account=GOAL)
+    fc = build(conn, payday_id=mine)
+    assert fc is not None and fc.piggy_out == 0
+
+
+def test_build_series_paid_from_full_piggy(conn: sqlite3.Connection) -> None:
+    seeded(conn)
+    mine = serie(conn, "pensja", "9000.00", direction="in")
+    f1 = serie(conn, "f1", "480.00", cadence="Y")
+    add(conn, "-480.00", "card", "F1", "ODBIORCA f1", day="2025-10-05")
+    piggy_of(conn, target="", due_date="", series_id=f1, opening_balance="500")
+    fc = build(conn, payday_id=mine)
+    assert fc is not None and [d.series.id for d in fc.covered] == [f1]
+    assert fc.series_out == 0 and fc.piggy_out == 0
+
+
+def test_inbox_reminds_about_piggy_before_payday(conn: sqlite3.Connection) -> None:
+    seeded(conn)
+    mine = serie(conn, "pensja", "9000.00", direction="in")  # za 4 dni
+    piggy_of(conn)
+    fc = build(conn, payday_id=mine)
+    items = inbox.items(Snapshot(conn), at(3), inbox.BalanceMemo(), fc)
+    [item] = [i for i in items if i.kind == "piggy_transfer"]
+    assert item.link == "/piggy" and "600\xa0zł" in item.detail
+    far = build(conn, payday_id=mine, today=date(2026, 10, 1))  # 6 dni do wypłaty
+    assert "piggy_transfer" not in [
+        i.kind for i in inbox.items(Snapshot(conn), at(1), inbox.BalanceMemo(), far)
+    ]

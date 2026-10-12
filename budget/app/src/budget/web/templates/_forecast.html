@@ -3,7 +3,7 @@
 {% from "_macros.html" import pct %}
 {% set b = fc.balances %}
 {% macro tl_row(r) %}
-<li{% if r.low %} class="fc-low-row"{% endif %}>{% if r.event %}<a class="row" href="{{ base }}/recurring/{{ r.event.due.series.id }}">{% else %}<div class="row">{% endif %}<span class="row-date">{{ r.day.strftime('%d.%m') }}</span><span class="row-title">{% if r.event %}{{ r.event.due.series.name }}{% if r.event.due.status == 'late' %} <span class="badge warn">spóźniona</span>{% endif %}{% else %}Najniższy punkt{% endif %}{% if r.low and r.event %}<span class="small fc-low-tag">najniższy punkt</span>{% endif %}</span><span class="row-amount">{% if r.event %}<span class="{{ 'pos' if r.event.amount > 0 }}">{{ '+ ' if r.event.amount > 0 }}{{ r.event.amount | money("PLN") }}</span>{% endif %}{% if r.balance is not none %}<span class="row-bal small muted">saldo {{ r.balance | money("PLN") }}</span>{% endif %}</span>{% if r.event %}</a>{% else %}</div>{% endif %}</li>
+<li{% if r.low %} class="fc-low-row"{% endif %}>{% if r.event %}<a class="row" href="{{ base }}{{ '/recurring/' ~ r.event.due.series.id if r.event.due else '/piggy' }}">{% else %}<div class="row">{% endif %}<span class="row-date">{{ r.day.strftime('%d.%m') }}</span><span class="row-title">{% if r.event %}{{ r.event.label }}{% if r.event.due and r.event.due.status == 'late' %} <span class="badge warn">spóźniona</span>{% endif %}{% if r.event.covered %} <span class="small muted">ze skarbonki {{ r.event.due.series.expected_amount | money("PLN") }} — przelej z konta-celu</span>{% endif %}{% else %}Najniższy punkt{% endif %}{% if r.low and r.event %}<span class="small fc-low-tag">najniższy punkt</span>{% endif %}</span><span class="row-amount">{% if r.event %}<span class="{{ 'pos' if r.event.amount > 0 }}">{{ '+ ' if r.event.amount > 0 }}{{ r.event.amount | money("PLN") }}</span>{% endif %}{% if r.balance is not none %}<span class="row-bal small muted">saldo {{ r.balance | money("PLN") }}</span>{% endif %}</span>{% if r.event %}</a>{% else %}</div>{% endif %}</li>
 {% endmacro %}
 <section class="card span2 forecast" id="fc">
   <h2>Prognoza do {% if fc.payday %}wypłaty {{ fc.payday.strftime('%d.%m') }}{% else %}końca miesiąca{% endif %}</h2>
@@ -13,6 +13,7 @@
     <div><dt>Serie ({{ fc.outflows | length }})</dt><dd>− {{ fc.series_out | money("PLN") }}</dd></div>
     <div><dt>Flex <span class="small">({{ fc.flex_per_day | money("PLN") }}/dz.)</span></dt><dd>− {{ fc.flex_total | money("PLN") }}</dd></div>
     <div><dt>Wpływy ({{ fc.inflows | length }})</dt><dd class="pos">+ {{ fc.inflows_total | money("PLN") }}</dd></div>
+    {% if fc.piggy_out %}<div><dt>Do skarbonek</dt><dd>− {{ fc.piggy_out | money("PLN") }}</dd></div>{% endif %}
   </dl>
   <p class="fc-result"><span>= {{ fc.at_payday | money("PLN") }}</span> <span class="small muted">{{ fc.horizon_end.strftime('%d.%m') }}{% if fc.payday %}, przed wpływem „{{ fc.payday_series }}”{% endif %}</span></p>
   {% if fc.weeks %}

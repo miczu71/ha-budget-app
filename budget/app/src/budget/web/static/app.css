@@ -908,3 +908,7 @@ label.switch input[type="checkbox"]:checked::after { transform: translateX(16px)
 .piggy-pick { display: inline-block; }
 .piggy-new > summary { min-height: var(--tap); display: flex; align-items: center; cursor: pointer; font-weight: 600; }
 .piggy-pick select { min-height: var(--tap); }
+.piggy-tile .row { grid-template-columns: 1fr auto; row-gap: 6px; }
+.piggy-tile .flex-bar { grid-column: 1 / -1; height: 6px; margin: 0; }
+.fc-strip > div:nth-child(5):last-child { grid-column: 1 / -1; }
+@media (min-width: 720px) { .fc-strip:has(> div:nth-child(5)) { grid-template-columns: repeat(5, 1fr); } .fc-strip > div:nth-child(5):last-child { grid-column: auto; } }

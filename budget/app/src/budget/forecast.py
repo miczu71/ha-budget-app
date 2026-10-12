@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from decimal import ROUND_FLOOR, Decimal
 
-from budget import card, flex, ledger, money
+from budget import card, flex, ledger, money, piggy
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
 from budget.spending import add_months, month_start
@@ -34,6 +34,7 @@ PAYDAY_KEY = "payday_series_id"  # kv: seria przychodów będąca wypłatą uży
 CARD_DEBT_KEY = "forecast_card_debt"  # kv: czy odejmować zadłużenie karty (domyślnie tak)
 PERIOD_PLAN_KEY = "period_plan"  # kv: limit dzienny z początku okresu (M21 E4)
 PAST, NOW, NEXT = "past", "now", "next"  # stan tygodnia okresu
+PIGGY_LABEL = "Do skarbonek"
 
 
 @dataclass
@@ -47,8 +48,13 @@ class Balances:
 @dataclass(frozen=True)
 class Event:
     day: date  # dzień w prognozie: termin serii, a spóźnione liczą się dziś
-    due: schedule.Due
+    due: schedule.Due | None  # None = planowany przelew do skarbonek (M10 E1)
     amount: Decimal  # ze znakiem: wydatek ujemny, wpływ dodatni
+    covered: bool = False  # wydatek serii pokryty saldem skarbonki — w prognozie 0
+
+    @property
+    def label(self) -> str:
+        return self.due.series.name if self.due else PIGGY_LABEL
 
 
 @dataclass(frozen=True)
@@ -91,6 +97,8 @@ class Projection:
     at_payday: Decimal = ZERO
     low: Decimal = ZERO
     low_day: date | None = None
+    piggy_out: Decimal = ZERO  # nieprzelane odłożenie do skarbonek w tym okresie (M10 E1)
+    covered: list[schedule.Due] = field(default_factory=list)  # serie pokryte skarbonką
 
     @property
     def series_out(self) -> Decimal:
@@ -216,9 +224,12 @@ def project(
     dues: Sequence[schedule.Due],
     per_day: Decimal,
     payday_id: int | None = None,
+    piggy_out: Decimal = ZERO,
+    covered: frozenset[int] = frozenset(),
 ) -> Projection:
     """Saldo dzień po dniu od dziś do dnia wypłaty (czysta logika). Wypłata to termin serii
-    `payday_id`, a gdy jej nie ma — seria wpływowa o największej kwocie."""
+    `payday_id`, a gdy jej nie ma — seria wpływowa o największej kwocie. `piggy_out` schodzi
+    dziś (przelew do skarbonek), a wydatki serii z `covered` płaci skarbonka (w prognozie 0)."""
     live = [
         (max(d.due, today), d)
         for d in dues
@@ -244,11 +255,20 @@ def project(
         key=lambda p: p[0],
     )
     inflows = sorted((p for p in paydays if p[0] <= end and p is not first), key=lambda p: p[0])
-    result.outflows, result.inflows = [d for _, d in out], [d for _, d in inflows]
+    result.outflows = [d for _, d in out if d.series.id not in covered]
+    result.covered = [d for _, d in out if d.series.id in covered]
+    result.inflows = [d for _, d in inflows]
+    result.piggy_out = piggy_out
     result.events = sorted(
-        [Event(day, d, -d.series.expected_amount) for day, d in out]
-        + [Event(day, d, d.series.expected_amount) for day, d in inflows],
-        key=lambda e: (e.day, e.amount > 0, e.due.series.name),
+        [
+            Event(day, d, ZERO, True)
+            if d.series.id in covered
+            else Event(day, d, -d.series.expected_amount)
+            for day, d in out
+        ]
+        + [Event(day, d, d.series.expected_amount) for day, d in inflows]
+        + ([Event(today, None, -piggy_out)] if piggy_out > 0 else []),
+        key=lambda e: (e.day, e.amount > 0, e.label),
     )
     delta: defaultdict[date, Decimal] = defaultdict(Decimal)
     for e in result.events:
@@ -334,14 +354,23 @@ def build(
         payday_id = None  # seria zakończona, usunięta albo nie przychodowa
     free_now = balances.account - (balances.card_debt if card_debt_included else ZERO)
     per_day = flex_per_day(f)
+    start = last_payday(snap, payday_id, today)
+    piggies = piggy.statuses(snap, today, start or month_start(today))
     p = project(
         free_now=free_now,
         today=today,
         dues=_dues(snap, today, mv, payday_id),
         per_day=per_day,
         payday_id=payday_id,
+        piggy_out=sum((s.to_transfer for s in piggies), ZERO),
+        covered=frozenset(
+            s.piggy.series_id
+            for s in piggies
+            if s.piggy.series_id is not None and s.target and s.balance >= s.target
+        ),
     )
-    start = last_payday(snap, p.payday_series_id, today)
+    if p.payday_series_id != payday_id:
+        start = last_payday(snap, p.payday_series_id, today)
     safe = safe_per_day(p.days, today, per_day, buffer)
     week_list: list[Week] = []
     if start is not None and p.payday is not None:

@@ -473,7 +473,7 @@ async def test_layout_order_and_hidden_tiles_apply_to_home(client: httpx.AsyncCl
         "Bilans miesiąca",
         "Ostatnie transakcje",
     ]
-    for _ in range(3):  # z pozycji 6 przed „Bilans” (3)
+    for _ in range(4):  # z pozycji 7 przed „Bilans” (3)
         await client.post("/layout/move", data={"key": "recent", "delta": "-1"})
     await client.post("/layout/toggle", data={"key": "inbox"})
     page = (await client.get("/")).text

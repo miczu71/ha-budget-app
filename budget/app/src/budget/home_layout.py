@@ -16,6 +16,7 @@ TILES: dict[str, str] = {  # domyślna kolejność
     "inbox": "Do decyzji",
     "balance": "Bilans miesiąca",
     "card": "Karta kredytowa",
+    "piggy": "Skarbonki",
     "upcoming": "Co jeszcze zejdzie",
     "recent": "Ostatnie transakcje",
     "months": "Ostatnie 12 miesięcy",
