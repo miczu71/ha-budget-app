@@ -100,9 +100,9 @@
   ],
   "lastChange": {
     "by": "Claude",
-    "at": "2026-10-12T09:10:00Z",
-    "via": "Claude Code · ha-budget-app@5179248",
-    "note": "re-sync M21 E5 + M10 E1: bundle.css (hero-unit, fc-weeks, fc-payday, skarbonki), nowe komponenty PaydayHero i Piggy; klasa bar-rows"
+    "at": "2026-10-12T05:55:00Z",
+    "via": "Claude Code · ha-budget-app@bb6e5b8",
+    "note": "re-sync bundle.css 0.39.1: pola formularza skarbonki ograniczone do szerokości kontenera"
   },
   "layout": "files",
   "libraries": [],
