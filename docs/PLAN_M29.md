@@ -47,6 +47,13 @@ Wydania: grupa A (E1–E3) = 0.49.0; grupa C (E4–E6) = 0.50.0 po wydaniu Lidla
 - `impeccable` przed makietą; weryfikacja Playwright na 390 px i desktopie (screenshot + konsola), cache-busting `?v=`.
 - Wydanie 0.49.0: `simplify` → `code-review` → `release`, weryfikacja na żywo (podział jednej transakcji Lidl ręcznie).
 
+**Wynik grupy A (2026-10-12):** 0.49.0 wydane (E1 64e439c, E2 bc698d0, E3 631759a, simplify 07a6122, code-review
+3223fc5: liczenie transakcji w grupach raz, ta sama podkategoria odrzucona, NaN w `money.parse`, podział przechodzi
+CSV → API, zmiana kwoty przez bank i `release_manual` zdejmują podział, podzielone poza przykładami AI). 858 testów,
+CI zielone. Na żywo przez Ingress: v0.49.0, `app.css?v=0.49.0`, podział transakcji Lidl zapisany i usunięty (wróciło
+źródło „słownik”), 390 px bez przewijania w poziomie, konsola czysta. Pominięte świadomie: `category_source='split'`,
+widok `txn_part`, `flex._income_by_source`.
+
 ## E4 — Odczyt paragonów i dopasowanie (commit)
 - `config.yaml`: `map: share:ro`. `lidl_link.py`: odczyt `/share/lidl/receipts.json` przy synchronizacji (brak pliku = nic).
 - Dopasowanie: wydatek (BOOK, nie przelew) z |kwota| = `paid`, `coalesce(tx_date, booking_date)` w `day` ±3 dni; jeden
