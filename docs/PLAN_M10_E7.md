@@ -38,3 +38,12 @@ napędzenia: **kiedy wyprowadzić środki poza Millennium**.
 - Zmiana układu regulaminu → alarm i ręczna data. Nowe połączenie wychodzące (1 plik dziennie).
 - Premia zakładana — odsetki mogą być zawyżone, gdy warunek nie jest spełniony.
 - Prognoza okna z 3 odstępów; potwierdzenie przychodzi po fakcie.
+
+## Wynik (2026-10-12)
+
+E7, E5, E6 wydane razem jako 0.42.0 (użytkownik wybrał „najpierw E5 i E6”, bez osobnego 0.41.0).
+Odchylenia od planu: (1) zamiast ręcznej korekty daty badania jest przycisk „Sprawdź teraz”;
+(2) preset E6 to formularz aktywacji bez parsowania stawek z regulaminu — stawka łączna wpisywana ręcznie
+(5,25% lub 4,25% zależnie od daty otwarcia konta), 91 dni bierze się z odczytanego regulaminu;
+(3) okno prognozy sprawdza się po fakcie (luka badania względem końca poprzedniej edycji → log i uwaga
+w push). Znane ograniczenie: warunek 5 płatności miesięcznie zakładany jako spełniony.

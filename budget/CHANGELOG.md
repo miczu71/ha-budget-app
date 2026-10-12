@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.42.0
+
+**Konto Profit: monitor edycji promocji, szczegóły miesięcy, aktywacja promocji** (M10 E5–E7, `docs/PLAN_M10_E7.md`, decyzja 27).
+
+- Monitor promocji „Nowe środki na Koncie Oszczędnościowym Profit” (Bank Millennium): raz dziennie
+  (i po kliknięciu „Sprawdź teraz”) add-on czyta regulamin (publiczny PDF) i zapisuje ostatnią
+  edycję: dzień badania sald, termin przystępowania, długość okresu promocyjnego. Działa tylko, gdy
+  jest konto oszczędnościowe. Sekcja „Promocja Profit w Millennium” na ekranie Oszczędności.
+- Prognoza okna badania sald następnej edycji: od końca przystępowania obecnej minus 6 dni do tego
+  końca (bank podaje datę badania dopiero po fakcie). Dzwonek i push „wyzeruj Millennium”: 3, 1
+  i 0 dni przed początkiem okna; push o nowej edycji z potwierdzoną datą (z uwagą, gdy badanie
+  wypadło wcześniej niż zakładała prognoza); karta, gdy regulaminu nie da się odczytać przez 3 dni.
+- „Stopa oszczędności”: każdy miesiąc rozwija się do przelewów (data, wpłata/wypłata, kwota)
+  pogrupowanych per konto oszczędnościowe.
+- Karta konta: „Aktywuj promocję „Nowe środki” (Profit)” — nowe środki (do 200 000 zł), data
+  przystąpienia, stawka łączna i bazowa; odsetki liczą się przez 91 dni od przystąpienia (z
+  regulaminu), potem po stawce bazowej. Zakłada spełniony warunek 5 płatności miesięcznie.
+- Nowa zależność: `pypdf` (czysty Python). Bez migracji bazy.
+
 ## 0.40.0
 
 **Konto oszczędnościowe, odsetki i stopa oszczędności** (M10 E2–E4, `docs/PLAN_M10_E2.md`, decyzja 26).
