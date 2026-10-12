@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import piggy, savings
+from budget import piggy, promo_watch, savings
 from budget.recurring import series as S
 from budget.spending import month_start
 from budget.web.common import Panel
@@ -39,6 +39,7 @@ def router(panel: Panel) -> APIRouter:
             edit=next((s.piggy for s in rows if s.piggy.id == edit), None),
             accounts=[(a, savings.estimate(conn, a, today)) for a in accts],
             rates=savings.monthly_rates(conn, today) if accts else [],
+            watch=promo_watch.load(conn) if accts else None,
             edit_savings=next((a for a in accts if a.id == edit_savings), None),
         )
 
@@ -97,6 +98,15 @@ def router(panel: Panel) -> APIRouter:
             back = f"/piggy?edit_savings={account_id}" if account_id else "/piggy"
             return panel.redirect(request, back, str(exc), "error")
         return panel.redirect(request, "/piggy", "Zapisano konto oszczędnościowe.")
+
+    @r.post("/promo/refresh")
+    async def refresh_promo(request: Request) -> Response:
+        await panel.service.watch_promo()
+        watch = promo_watch.load(conn)
+        if watch is None or watch.error:
+            msg = f"Nie udało się odczytać regulaminu: {watch.error if watch else 'brak konta'}"
+            return panel.redirect(request, "/piggy#promo", msg, "error")
+        return panel.redirect(request, "/piggy#promo", "Regulamin odczytany.")
 
     @r.post("/savings")
     async def add_savings(request: Request) -> Response:

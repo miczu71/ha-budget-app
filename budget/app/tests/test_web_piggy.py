@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 import pytest
+import respx
 
 from budget.service import Service
 from budget.storage.db import now_iso
@@ -151,3 +152,54 @@ async def test_savings_rate_on_screen_and_home_tile(
     assert "Stopa oszczędności" in page and "25%" in page
     home = (await client.get("/")).text
     assert "savings-tile" in home and "Stopa w tym miesiącu" in home and "25%" in home
+
+
+PDF_URL = "https://www.bankmillennium.pl/delegate/managedfiles/591/latest"
+REGULATION = (
+    "edycja 77 3. Do promocji możesz przystąpić od 11 września 2026 r. do 21 października 2026 r. "
+    "4. Okres promocyjny trwa przez 91 dni od dnia. "
+    "7. 4 września 2026 roku (dzień badania sald) obliczamy"
+)
+
+
+@respx.mock
+async def test_promo_refresh_route_and_section(
+    client: httpx.AsyncClient, service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from budget import promo_watch
+
+    route = respx.get(PDF_URL).mock(return_value=httpx.Response(200, content=b"%PDF"))
+    monkeypatch.setattr(promo_watch, "pdf_text", lambda data: REGULATION)
+    await client.post("/promo/refresh")
+    assert not route.called  # bez konta oszczędnościowego nic nie pobieramy
+    await client.post(
+        "/savings",
+        data={
+            "name": "Profit",
+            "account_number": NUMBER,
+            "opening_balance": "0",
+            "opening_date": "2026-10-01",
+        },
+    )
+    r = await client.post("/promo/refresh")
+    assert r.status_code == 303 and route.call_count == 1
+    page = (await client.get("/piggy")).text
+    assert "Promocja Profit w Millennium" in page and "Edycja 77" in page
+    assert "15.10–21.10" in page and "04.09.2026" in page
+
+
+@respx.mock
+async def test_promo_refresh_failure_is_shown(client: httpx.AsyncClient) -> None:
+    respx.get(PDF_URL).mock(return_value=httpx.Response(503))
+    await client.post(
+        "/savings",
+        data={
+            "name": "Profit",
+            "account_number": NUMBER,
+            "opening_balance": "0",
+            "opening_date": "2026-10-01",
+        },
+    )
+    await client.post("/promo/refresh")
+    page = (await client.get("/piggy")).text
+    assert "Błąd odczytu regulaminu" in page and "503" in page

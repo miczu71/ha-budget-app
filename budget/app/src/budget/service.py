@@ -17,7 +17,16 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from budget import forecast as forecast_mod
-from budget import ha_publisher, inbox, notifications, sessions, summary, sync_service
+from budget import (
+    ha_publisher,
+    inbox,
+    notifications,
+    promo_watch,
+    savings,
+    sessions,
+    summary,
+    sync_service,
+)
 from budget.eb_client import EBClient, EBError, PsuHeaders
 from budget.ha_client import HAClient, HAError
 from budget.recurring import detect
@@ -214,9 +223,24 @@ class Service:
         except Exception:
             log.exception("Błąd podsumowania")
 
+    async def watch_promo(self) -> None:
+        """Odczyt regulaminu promocji Profit (M10 E7) — tylko gdy jest konto oszczędnościowe."""
+        if not savings.all_accounts(self.conn):
+            return
+
+        async def get_text() -> str:
+            headers = {"User-Agent": "ha-budget-app"}
+            async with httpx.AsyncClient(timeout=20, headers=headers, follow_redirects=True) as c:
+                resp = await c.get(promo_watch.URL)
+                resp.raise_for_status()
+                return promo_watch.pdf_text(resp.content)
+
+        await promo_watch.refresh(self.conn, self.now(), get_text)
+
     async def summaries(self) -> None:
         """Podsumowania o `summary.SEND_AT`; zaległe z dzisiaj zaraz po starcie."""
         while True:
+            await self.watch_promo()
             await self.send_due_summaries()
             now = self.now()
             await asyncio.sleep(max(summary.next_send(now).timestamp() - now.timestamp(), 1))

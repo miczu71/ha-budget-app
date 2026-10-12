@@ -9,6 +9,7 @@ httpx==0.28.1
 Jinja2==3.1.6
 pydantic==2.13.5
 PyJWT==2.15.1
+pypdf==6.20.0
 python-dotenv==1.2.4
 python-multipart==0.0.32
 uvicorn==0.54.0

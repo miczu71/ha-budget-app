@@ -22,6 +22,7 @@ from budget import (
     ledger,
     money,
     notifications,
+    promo_watch,
     review,
     savings,
     sessions,
@@ -284,6 +285,61 @@ def savings_promo(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> 
     return out
 
 
+PROMO_BELL_DAYS = 10  # karta „wyzeruj Millennium” od tylu dni przed początkiem okna badania (E7)
+
+
+def promo_cards(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Monitor edycji promocji Profit: okno badania sald, otwarte przystępowanie, błąd odczytu."""
+    watch = promo_watch.load(conn)
+    if watch is None:
+        return []
+    out = []
+    link = "/piggy#promo"
+    if watch.error_since and (ctx.now - watch.error_since).days >= promo_watch.ERROR_ALERT_DAYS:
+        since = f"{watch.error_since:%d.%m}"
+        detail = f"Od {since}: {watch.error}. Sprawdź datę badania sald na stronie banku."
+        out.append(
+            Item(
+                "promo_error",
+                "Nie mogę odczytać regulaminu promocji Profit",
+                1,
+                link,
+                "warn",
+                detail,
+            )
+        )
+    ed, today = watch.edition, ctx.today
+    if ed is None:
+        return out
+    start, end = ed.window()
+    if today > ed.deadline:
+        detail = (
+            f"Badanie sald mogło już być ({start:%d.%m}–{end:%d.%m}); sprawdzę regulamin jutro."
+        )
+        out.append(
+            Item(
+                "promo_wait",
+                f"Profit: czekam na regulamin edycji {ed.number + 1}",
+                1,
+                link,
+                "info",
+                detail,
+            )
+        )
+        return out
+    if ed.baseline < today:
+        title = f"Profit, edycja {ed.number}: wpłać nowe środki do {ed.deadline:%d.%m}"
+        out.append(Item("promo_intake", title, 1, link, "info", "Dzień badania sald już minął."))
+    days = (start - today).days
+    if days <= PROMO_BELL_DAYS:
+        title = f"Profit: wyzeruj Millennium przed badaniem sald edycji {ed.number + 1}"
+        detail = (
+            f"Badanie wypadnie prawdopodobnie {start:%d.%m}–{end:%d.%m} (bank poda datę po fakcie)."
+        )
+        out.append(Item("promo_window", title, 1, link, "warn" if days <= 3 else "info", detail))
+    return out
+
+
 Provider = Callable[[sqlite3.Connection, Context, BalanceMemo], list[Item]]
 PROVIDERS: tuple[Provider, ...] = (
     operational,
@@ -295,6 +351,7 @@ PROVIDERS: tuple[Provider, ...] = (
     forecast_low,
     piggy_transfer,
     savings_promo,
+    promo_cards,
 )
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
 

@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-from budget import card, flex, money, review, savings
+from budget import card, flex, money, promo_watch, review, savings
 from budget.categorize import taxonomy
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
@@ -30,6 +30,8 @@ SEND_AT = time(7, 0)
 SENT_KEY = "summary_sent"
 WEEKLY, MONTHLY, CARD, CARD_DUE = "weekly", "monthly", "card", "card_due"
 PROMO = "savings_promo"
+PROMO_WINDOW, PROMO_CONFIRM = "promo_window", "promo_confirm"
+PROMO_PUSH_DAYS = (3, 1, 0)  # dni do początku okna badania sald, w które idzie push
 UPCOMING_DAYS = 7
 TOP = 3
 MONTH_NAMES = (
@@ -224,6 +226,40 @@ def promo_reminder(acc: savings.Account, days: int) -> Message:
     )
 
 
+def promo_messages(watch: promo_watch.Watch, today: date) -> list[Message]:
+    """Push o oknie badania sald następnej edycji Profit i o nowej edycji regulaminu (M10 E7)."""
+    ed = watch.edition
+    if ed is None:
+        return []
+    out = []
+    start, end = ed.window()
+    days = (start - today).days
+    if days in PROMO_PUSH_DAYS:
+        out.append(
+            Message(
+                PROMO_WINDOW,
+                f"{ed.number}-{days}",
+                "Millennium Profit — wyzeruj konto przed badaniem sald",
+                f"Dzień badania sald edycji {ed.number + 1} wypadnie prawdopodobnie między "
+                f"{_short(start)} a {_short(end)} (bank poda go dopiero po fakcie). Wyprowadź "
+                f"środki z Millennium — z KOP i z rachunków PLN — przed {_short(start)} i trzymaj "
+                f"0 do {_short(end)}.",
+            )
+        )
+    if watch.pending_confirm == ed.number:
+        out.append(
+            Message(
+                PROMO_CONFIRM,
+                str(ed.number),
+                f"Millennium Profit — edycja {ed.number}",
+                f"Bank opublikował regulamin: dzień badania sald {_short(ed.baseline)}, "
+                f"nowe środki wpłać po tym dniu, najpóźniej {_short(ed.deadline)} "
+                f"(okres promocyjny {ed.days} dni).",
+            )
+        )
+    return out
+
+
 def build(snap: Snapshot, kind: str, today: date) -> Message:
     return weekly(snap, today) if kind == WEEKLY else monthly(snap, today)
 
@@ -248,6 +284,10 @@ def due(snap: Snapshot, now: datetime) -> list[Message]:
     if cd and cd.left and cd.days_left in card.DUE_REMIND_DAYS:
         msg = due_reminder(cd)
         if sent.get(CARD_DUE) != msg.period:
+            out.append(msg)
+    watch = promo_watch.load(snap.conn)
+    for msg in promo_messages(watch, today) if watch else []:
+        if sent.get(msg.kind) != msg.period:
             out.append(msg)
     for acc in savings.all_accounts(snap.conn):
         days = acc.promo_days_left(today)
