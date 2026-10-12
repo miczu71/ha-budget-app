@@ -95,3 +95,28 @@ async def test_forecast_shows_after_reset_date_and_quote(
     page = (await client.get("/loan")).text
     assert "rata ≈" in page and "WIBOR 3M 5.50% z 02.01" in page and "wyższa o" in page
     assert 'name="rate_reset_date"' in page
+
+
+async def test_series_is_set_in_the_form_not_on_the_card(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    from decimal import Decimal
+
+    from budget.categorize.rules import Conditions
+    from budget.recurring import series as S
+
+    sid = S.insert(
+        service.conn, name="Rata hipoteki", direction="out", cadence="M", conditions=Conditions(),
+        expected=Decimal("100"), tolerance=Decimal("10"), anchor_day=20, status="active",
+        origin="manual", key=None,
+    )  # fmt: skip
+    await client.post("/loan", data=NEW)
+    page = (await client.get("/loan")).text
+    assert "Powiąż serię rat" in page and "Seria rat w księdze" not in page.split("Nowy kredyt")[0]
+    await client.post("/loan/1", data={**NEW, "series_id": str(sid)})
+    page = (await client.get("/loan")).text
+    assert "Powiąż serię rat" not in page
+    assert 'action="' + INGRESS + '/loan/1/series"' not in page
+    assert (await client.get("/loan?edit=1")).text.count(f'value="{sid}" selected') == 1
+    await client.post("/loan/1", data=NEW)  # puste pole = odpięcie
+    assert "Powiąż serię rat" in (await client.get("/loan")).text

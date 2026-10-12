@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget import loan, loan_sim, money, savings
@@ -43,7 +43,7 @@ def router(panel: Panel) -> APIRouter:
     async def save(request: Request, loan_id: int | None) -> Response:
         field = {k: str(v) for k, v in (await request.form()).items()}
         try:
-            loan.save(
+            saved_id = loan.save(
                 conn,
                 loan_id=loan_id,
                 name=field.get("name", ""),
@@ -57,7 +57,9 @@ def router(panel: Panel) -> APIRouter:
                 installment=field.get("installment"),
                 rate_reset_date=field.get("rate_reset_date"),
             )
-        except loan.LoanError as exc:
+            sid = field.get("series_id", "")
+            loan.set_series(conn, saved_id, int(sid) if sid.isdigit() else None)
+        except (loan.LoanError, S.SeriesError) as exc:
             back = f"/loan?edit={loan_id}" if loan_id else "/loan"
             return panel.redirect(request, back, str(exc), "error")
         return panel.redirect(request, "/loan", "Zapisano kredyt.")
@@ -69,14 +71,6 @@ def router(panel: Panel) -> APIRouter:
     @r.post("/loan/{loan_id}")
     async def change(request: Request, loan_id: int) -> Response:
         return await save(request, loan_id)
-
-    @r.post("/loan/{loan_id}/series")
-    async def link_series(request: Request, loan_id: int, series_id: str = Form("")) -> Response:
-        try:
-            loan.set_series(conn, loan_id, int(series_id) if series_id.isdigit() else None)
-        except (loan.LoanError, S.SeriesError) as exc:
-            return panel.redirect(request, "/loan", str(exc), "error")
-        return panel.redirect(request, "/loan", "Zapisano powiązanie z serią rat.")
 
     @r.get("/loan/{loan_id}/calc", response_class=HTMLResponse)
     async def calc(request: Request, loan_id: int) -> HTMLResponse:

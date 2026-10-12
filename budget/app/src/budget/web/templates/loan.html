@@ -28,7 +28,15 @@
     <label>Rata wg banku (opcjonalnie, raty równe)<input name="installment" inputmode="decimal" size="10" value="{{ lo.installment if lo and lo.installment }}" placeholder="z harmonogramu banku"></label>
     <label>Ostatnia zmiana oprocentowania (opcjonalnie)<input type="date" name="rate_reset_date" value="{{ lo.rate_reset_date.isoformat() if lo and lo.rate_reset_date }}"></label>
   </div>
-  <p class="small muted">Harmonogram liczy panel przy stałej bieżącej stopie, odsetki jak bank (30/360). Podaj kapitał na dzień ostatniej zapłaconej raty — wtedy pierwszy okres jest pełny. Gdy rata w banku się zmieni (nowy WIBOR, nadpłata), wpisz nowy kapitał, stopę i ratę.</p>
+  <div class="inline">
+    <label>Seria rat w księdze (opcjonalnie)
+      <select name="series_id">
+        <option value="">— bez serii —</option>{% for s in series %}
+        <option value="{{ s.id }}" {{ "selected" if lo and lo.series_id == s.id }}>{{ s.name }}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+  <p class="small muted">Powiązana seria pozwala wykryć zmianę raty (stopy) w księdze. Harmonogram liczy panel przy stałej bieżącej stopie, odsetki jak bank (30/360). Podaj kapitał na dzień ostatniej zapłaconej raty — wtedy pierwszy okres jest pełny. Gdy rata w banku się zmieni (nowy WIBOR, nadpłata), wpisz nowy kapitał, stopę i ratę.</p>
   <p class="actions-row">
     <button type="submit">{{ "Zapisz" if lo else "Dodaj kredyt" }}</button>
     {% if lo %}<a class="tap" href="{{ base }}/loan">Anuluj</a>{% endif %}
@@ -69,16 +77,8 @@
     </details>
     {% endif %}
   </details>
-  <form class="actions-row small" method="post" action="{{ base }}/loan/{{ lo.id }}/series" hx-boost="false">
-    <label>Seria rat w księdze
-      <select name="series_id" onchange="this.form.submit()">
-        <option value="">— bez serii —</option>{% for s in series %}
-        <option value="{{ s.id }}" {{ "selected" if lo.series_id == s.id }}>{{ s.name }}</option>{% endfor %}
-      </select>
-    </label>
-    <noscript><button>Zapisz</button></noscript>
-  </form>
-  <p class="small muted">Wpisano {{ lo.principal | money("PLN") }} na {{ lo.principal_date.isoformat() | pldate }}. Powiązana seria pozwala wykryć zmianę raty (stopy) w księdze.</p>
+  <p class="small muted">Wpisano {{ lo.principal | money("PLN") }} na {{ lo.principal_date.isoformat() | pldate }}.</p>
+  {% if lo.series_id is none %}<p class="small muted">Powiąż serię rat, żeby panel wykrył zmianę raty w księdze. <a class="tap" href="{{ base }}/loan?edit={{ lo.id }}#edit-loan">Zmień</a></p>{% endif %}
   <form class="actions-row small" method="post" action="{{ base }}/loan/{{ lo.id }}/archive">
     <a class="tap" href="{{ base }}/loan?edit={{ lo.id }}#edit-loan">Zmień</a>
     <button class="link">Archiwizuj</button>
@@ -109,8 +109,9 @@
       <label>Zmiany od<input type="date" name="since" value="{{ today.isoformat() }}"></label>
     </div>
     <div class="inline">
-      <label>Stopa oszczędności (% rocznie)<input name="savings_rate" inputmode="decimal" size="6" placeholder="{{ 'z konta ' ~ account.name if account else 'np. 4,5' }}"></label>
+      <label>Oprocentowanie oszczędności (% rocznie)<input name="savings_rate" inputmode="decimal" size="6" placeholder="{{ 'z konta ' ~ account.name if account else 'np. 4,5' }}"></label>
     </div>
+    <p class="small muted">Z tym oprocentowaniem porównujemy nadpłatę (zysk po podatku Belki). Puste = {{ 'konto „' ~ account.name ~ '” (z promocją, jeśli ją ma)' if account else '0%' }}.</p>
     <input type="hidden" name="table" value="0"><input type="hidden" name="wibor_step" value="1">
     {% if account and account.promo_rate is not none %}<label class="check"><input type="checkbox" name="always_promo" value="1"> Zakładam, że zawsze załapię promocję ({{ account.promo_rate }}% przez cały horyzont, do limitu kwoty)</label>{% endif %}
   </form>
