@@ -15,13 +15,14 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import replace
 from datetime import date
+from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from starlette.datastructures import FormData
 
-from budget import ledger, piggy
+from budget import ledger, money, piggy, split
 from budget.categorize import engine, rules, taxonomy
 from budget.categorize.rules import Conditions, Rule, RuleError, TextCondition
 from budget.categorize.taxonomy import TaxonomyError
@@ -64,6 +65,20 @@ def txn_row(conn: sqlite3.Connection, txn_id: int) -> sqlite3.Row | None:
         (txn_id,),
     ).fetchone()
     return row
+
+
+def split_parts(conn: sqlite3.Connection, ids: list[int]) -> dict[int, list[sqlite3.Row]]:
+    """Części podziału (M29) do podpisu w liście: {txn_id: [(name, amount)]}."""
+    out: dict[int, list[sqlite3.Row]] = {}
+    marks = ",".join("?" * len(ids))
+    for row in conn.execute(
+        "SELECT s.txn_id, c.name, s.amount FROM txn_split s "
+        f"JOIN category c ON c.id = s.category_id WHERE s.txn_id IN ({marks}) "
+        "ORDER BY s.txn_id, s.line",
+        ids,
+    ):
+        out.setdefault(int(row["txn_id"]), []).append(row)
+    return out
 
 
 def router(panel: Panel) -> APIRouter:
@@ -150,6 +165,7 @@ def router(panel: Panel) -> APIRouter:
             "transactions.html",
             rows=rows,
             series_of=belongs,
+            splits=split_parts(conn, [int(t["id"]) for t in rows]),
             repeatable={c.id for c in page_txns},
             total=total,
             page_no=page,  # `page` = nazwa ekranu w base.html (aktywna zakładka)
@@ -223,7 +239,9 @@ def router(panel: Panel) -> APIRouter:
         if t is None:
             return HTMLResponse("Nie ma takiej transakcji.", 404)
         if cancel:
-            return panel.partial(request, "_txn_category.html", t=t, editing=False)
+            return shown(request, t)
+        if split.get(conn, txn_id):  # podzieloną edytuje się podziałem
+            return split_editor(request, t)
         return editor(request, t)
 
     @r.post("/transactions/{txn_id}/rule-preview", response_class=HTMLResponse)
@@ -277,6 +295,76 @@ def router(panel: Panel) -> APIRouter:
         t = txn_row(conn, txn_id)
         if t is None:
             return HTMLResponse("Nie ma takiej transakcji.", 404)
-        return panel.partial(request, "_txn_category.html", t=t, editing=False, error=error)
+        return shown(request, t, error)
+
+    def shown(request: Request, t: sqlite3.Row, error: str | None = None) -> HTMLResponse:
+        parts = split_parts(conn, [int(t["id"])]).get(int(t["id"]))
+        return panel.partial(
+            request, "_txn_category.html", t=t, editing=False, error=error, parts=parts
+        )
+
+    def split_editor(
+        request: Request,
+        t: sqlite3.Row,
+        rows: list[tuple[str, str]] | None = None,
+        error: str | None = None,
+    ) -> HTMLResponse:
+        """Wiersze (podkategoria, kwota bez znaku); nowy = obecna kategoria + pusty wiersz."""
+        saved = split.get(conn, int(t["id"]))
+        if rows is None:
+            rows = [(str(c), str(abs(a)).replace(".", ",")) for c, a in saved] or [
+                (str(t["category_id"] or ""), str(abs(Decimal(t["amount"]))).replace(".", ",")),
+                ("", ""),
+            ]
+        cents = int(abs(Decimal(t["amount"])) * 100)
+        return panel.partial(
+            request,
+            "_txn_split.html",
+            t=t,
+            rows=rows,
+            total_cents=cents,
+            saved=bool(saved),
+            error=error,
+            tree=taxonomy.tree(conn),
+        )
+
+    @r.get("/transactions/{txn_id}/split", response_class=HTMLResponse)
+    async def split_form(request: Request, txn_id: int) -> HTMLResponse:
+        t = txn_row(conn, txn_id)
+        if t is None:
+            return HTMLResponse("Nie ma takiej transakcji.", 404)
+        return split_editor(request, t)
+
+    @r.post("/transactions/{txn_id}/split", response_class=HTMLResponse)
+    async def save_split(request: Request, txn_id: int) -> HTMLResponse:
+        t = txn_row(conn, txn_id)
+        if t is None:
+            return HTMLResponse("Nie ma takiej transakcji.", 404)
+        form = await request.form()
+        if form.get("action") == "clear":
+            with ledger.transaction(conn):
+                split.clear(conn, txn_id)
+                engine.recategorize(conn)
+            return shown(request, txn_row(conn, txn_id) or t)
+        rows = [
+            (str(c), str(a).strip())
+            for c, a in zip(form.getlist("category_id"), form.getlist("amount"), strict=False)
+            if str(c) or str(a).strip()
+        ]
+        sign = -1 if str(t["amount"]).startswith("-") else 1
+        try:
+            parts = []
+            for c, a in rows:
+                amount = money.parse(a)
+                if not c or amount is None:
+                    raise TaxonomyError("Każdy wiersz potrzebuje podkategorii i kwoty.")
+                parts.append((int(c), sign * abs(amount)))
+            with ledger.transaction(conn):
+                split.save(conn, txn_id, parts)
+                engine.recategorize(conn)
+        except (TaxonomyError, ValueError) as exc:  # AmountError dziedziczy po ValueError
+            message = str(exc) if isinstance(exc, TaxonomyError) else "Niepoprawna kwota."
+            return split_editor(request, t, rows, message)
+        return shown(request, txn_row(conn, txn_id) or t)
 
     return r

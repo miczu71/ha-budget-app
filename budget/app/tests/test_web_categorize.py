@@ -337,3 +337,53 @@ async def test_transactions_category_filter_matches_split_parts(
     for category in (drogeria, 5):  # podkategoria części i jej kategoria główna (Zdrowie i uroda)
         page = (await client.get(f"/transactions?category={category}")).text
         assert "LIDL UL. X" in page and "KEBAB" not in page, category
+
+
+async def test_split_form_save_and_clear(client: httpx.AsyncClient, service: Service) -> None:
+    conn = service.conn
+    ids = _seed(conn)
+    drogeria = taxonomy.by_slug(conn)["drogeria"].id
+    spozywcze = taxonomy.by_slug(conn)["spozywcze"].id
+    url = f"/transactions/{ids['lidl']}/split"
+
+    editor = (await client.get(f"/transactions/{ids['lidl']}/category")).text
+    assert f'hx-get="{INGRESS}{url}"' in editor and "Podziel na kategorie" in editor
+    form = (await client.get(url)).text
+    assert 'data-total="5000"' in form and "Zostało do przydzielenia" in form
+    assert form.count('name="amount"') == 2 and "Usuń podział" not in form
+
+    # kwoty bez znaku, z przecinkiem; pusty wiersz pomijany; reszta ≠ 0 → błąd i wiersze zostają
+    bad = {"category_id": [str(drogeria), str(spozywcze), ""], "amount": ["12,50", "30", ""]}
+    r = await client.post(url, data=bad)
+    assert "Zostało do przydzielenia: 7,50" in r.text and 'value="12,50"' in r.text
+    assert split.get(conn, ids["lidl"]) == []
+
+    r = await client.post(
+        url, data={"category_id": [str(drogeria), str(spozywcze)], "amount": ["12,50", "37.50"]}
+    )
+    assert split.get(conn, ids["lidl"]) == [
+        (drogeria, Decimal("-12.50")),
+        (spozywcze, Decimal("-37.50")),
+    ]
+    assert "2 kategorie" in r.text and "Drogeria" in r.text and "12,50" in r.text
+
+    # lista: znacznik i części w podpisie; edytor podzielonej transakcji = formularz podziału
+    page = (await client.get("/transactions")).text
+    assert "2 kategorie" in page and "Spożywcze" in page
+    again = (await client.get(f"/transactions/{ids['lidl']}/category")).text
+    assert "Usuń podział" in again and 'value="12,50"' in again
+
+    r = await client.post(url, data={"action": "clear"})
+    assert split.get(conn, ids["lidl"]) == [] and "2 kategorie" not in r.text
+    row = conn.execute("SELECT category_source FROM txn WHERE id = ?", (ids["lidl"],)).fetchone()
+    assert row[0] != "manual"
+
+
+async def test_split_rejects_own_transfer(client: httpx.AsyncClient, service: Service) -> None:
+    ids = _seed(service.conn)
+    leaf = taxonomy.by_slug(service.conn)["drogeria"].id
+    r = await client.post(
+        f"/transactions/{ids['own']}/split",
+        data={"category_id": [str(leaf), str(leaf)], "amount": ["300", "400"]},
+    )
+    assert "własnymi kontami" in r.text and split.get(service.conn, ids["own"]) == []

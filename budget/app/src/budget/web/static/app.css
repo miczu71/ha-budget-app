@@ -932,3 +932,57 @@ label.switch input[type="checkbox"]:checked::after { transform: translateX(16px)
 .loan-table th { font-size: 12px; }
 .loan-table th.num { white-space: normal; }
 .loan-table td.num { font-size: 12px; }  /* trzy kolumny wariantów mieszczą się na 360 px */
+
+/* M29 E3: podział transakcji na podkategorie (karta kategorii w Transakcjach) */
+.cat-chip.split svg { margin-right: 6px; flex: none; }
+.split-parts { display: block; margin-top: 2px; }
+td.cat:has(.split-form) { min-width: 440px; }
+.split-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-input);
+}
+.split-head { margin: 0; font-size: 13px; color: var(--text-2); }
+.split-head strong { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+.split-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.split-row { display: grid; grid-template-columns: minmax(0, 1fr) 7rem var(--tap); gap: 8px; align-items: center; }
+.split-row select { width: 100%; min-width: 0; }
+.split-row input { width: 100%; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.split-row input[data-auto] { background: transparent; color: var(--text-2); border-style: dashed; }
+button.split-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  padding: 0;
+  background: none;
+  color: var(--text-3);
+}
+button.split-x:hover { color: var(--neg); filter: none; }
+button.split-x:disabled { visibility: hidden; }
+button.split-add { justify-self: start; display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); }
+.split-rest {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+}
+.split-rest output { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.split-rest[data-state="over"], .split-rest[data-state="over"] output { color: var(--neg); }
+.split-rest[data-state="done"] output { color: var(--pos); }
+.split-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.split-form button:disabled { cursor: not-allowed; }
+button.split-clear { margin-left: auto; min-height: var(--tap); color: var(--neg); }
+@media (max-width: 640px) {
+  td.cat:has(.split-form) { min-width: 0; }
+  .split-form { padding: 12px; }
+  .split-row { grid-template-columns: minmax(0, 1fr) 5.25rem var(--tap); gap: 4px; }
+  .split-row input { padding: 9px 10px; }
+}

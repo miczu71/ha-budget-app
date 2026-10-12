@@ -69,6 +69,13 @@ dwuwarstwowy cień (`--elev`). Siatka 4 px, padding karty 20 px (16 na telefonie
   `li` (`week-past`, `week-now` z pogrubioną datą, `week-next` bez paska, z „plan”). Przekroczenie = `flex-bar.over`.
 - `dl.fc-strip` z piątą komórką („Do skarbonek”): na telefonie na cały wiersz, od 720 px pięć kolumn.
 
+### Podział transakcji (M29 E3)
+- `form.split-form` w komórce kategorii (`_txn_split.html`): wiersze `li.split-row` (select podkategorii, kwota bez znaku,
+  przycisk `split-x` 44 px, ukryty przy dwóch wierszach), „Dodaj wiersz”, `p.split-rest` z `output` (stan `left`/`over`/`done`
+  w `data-state`: Ink / `--neg` / `--pos`). Licznik i blokada „Zapisz” w skrypcie `base.html`; pierwszy wiersz (`data-auto`,
+  przerywana ramka) bierze resztę, dopóki nie wpisze się go ręcznie.
+- Na liście: `cat-chip.split` („N kategorie”, źródło „podział”) i podpis `split-parts` z częściami.
+
 ### Skarbonki (M10 E1)
 - `section.piggy`: nazwa i zamaskowany numer konta-celu w `h2 .small`, pasek saldo/cel, trzy `stat` (saldo, termin,
   „w tym okresie” z podpisem `warn-text`/`pos`); akcje w `form.actions-row`. Pełny numer konta nigdy nie trafia do HTML.

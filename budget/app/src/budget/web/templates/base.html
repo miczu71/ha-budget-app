@@ -17,6 +17,61 @@
     }
     document.addEventListener("DOMContentLoaded", showActiveTab);
     document.addEventListener("htmx:afterSettle", showActiveTab);
+
+    // Podział transakcji (M29 E3): reszta do przydzielenia liczona tu, „Zapisz” dopiero przy 0,00 zł.
+    // Pierwszy wiersz (data-auto) bierze resztę, dopóki nie wpisze się go ręcznie; serwer waliduje to samo.
+    function splitCents(v) {
+      var n = parseFloat(String(v).replace(/[\s  ]/g, "").replace(",", "."));
+      return isFinite(n) ? Math.round(Math.abs(n) * 100) : 0;
+    }
+    function splitText(c) { return (c / 100).toFixed(2).replace(".", ","); }
+    function splitSync(form) {
+      var rows = form.querySelectorAll(".split-row"), auto = form.querySelector("input[data-auto]");
+      var total = +form.dataset.total, others = 0, sum = 0, ok = true;
+      rows.forEach(function (r, i) {
+        var a = r.querySelector("input");
+        if (a !== auto) others += splitCents(a.value);
+        a.setAttribute("aria-label", "kwota części " + (i + 1) + " w zł");
+        r.querySelector("select").setAttribute("aria-label", "podkategoria części " + (i + 1));
+        r.querySelector("[data-split=remove]").disabled = rows.length <= 2;
+      });
+      if (auto) auto.value = splitText(Math.max(total - others, 0));
+      rows.forEach(function (r) {
+        var c = splitCents(r.querySelector("input").value);
+        sum += c;
+        if (!c || !r.querySelector("select").value) ok = false;
+      });
+      var rest = total - sum, p = form.querySelector(".split-rest");
+      p.dataset.state = rest < 0 ? "over" : rest > 0 ? "left" : "done";
+      p.querySelector("span").textContent = rest < 0 ? "Przydzielono za dużo o" : "Zostało do przydzielenia";
+      p.querySelector("output").textContent = splitText(Math.abs(rest)) + " zł";
+      form.querySelector("button[type=submit]:not([name])").disabled = !ok || rest !== 0;
+    }
+    document.addEventListener("input", function (e) {
+      var form = e.target.closest(".split-form");
+      if (!form) return;
+      e.target.removeAttribute("data-auto");  // wpisany ręcznie wiersz przestaje brać resztę
+      splitSync(form);
+    });
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-split]"), form = b && b.closest(".split-form");
+      if (!form) return;
+      if (b.dataset.split === "add") {
+        var last = form.querySelector(".split-row:last-child"), row = last.cloneNode(true);
+        row.querySelector("select").value = "";
+        row.querySelector("input").value = "";
+        row.querySelector("input").removeAttribute("data-auto");
+        last.after(row);
+        splitSync(form);
+        row.querySelector("select").focus();
+      } else if (form.querySelectorAll(".split-row").length > 2) {
+        b.closest(".split-row").remove();
+        splitSync(form);
+      }
+    });
+    document.addEventListener("htmx:load", function (e) {
+      document.querySelectorAll(".split-form").forEach(splitSync);
+    });
   </script>
 </head>
 <body hx-boost="true" hx-headers='{"X-Panel-Version": "{{ version }}"}'>

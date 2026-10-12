@@ -1,0 +1,24 @@
+{% from "_macros.html" import category_options %}
+{# Podział transakcji (M29 E3): kwoty bez znaku; licznik reszty i „Zapisz” liczy skrypt w base.html (splitSync) #}
+{% set url = base ~ "/transactions/" ~ t.id ~ "/split" %}
+{% set back = base ~ "/transactions/" ~ t.id ~ "/category?cancel=1" %}
+<form class="split-form" hx-post="{{ url }}" hx-target="#cat-{{ t.id }}" hx-swap="innerHTML" data-total="{{ total_cents }}">
+  <p class="split-head">Podział <strong>{{ t.amount | money(t.currency) }}</strong></p>
+  {% if error %}<div class="msg error" role="alert">{{ error }}</div>{% endif %}
+  <ol class="split-rows">
+    {% for cid, amount in rows %}
+    <li class="split-row">
+      <select name="category_id" aria-label="podkategoria części {{ loop.index }}">{{ category_options(tree, cid | int if cid else None, "— podkategoria —") }}</select>
+      <input name="amount" value="{{ amount }}" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="kwota części {{ loop.index }} w zł"{% if loop.first and not saved and not error %} data-auto{% endif %}>
+      <button type="button" class="split-x" data-split="remove" aria-label="usuń część {{ loop.index }}"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </li>
+    {% endfor %}
+  </ol>
+  <button type="button" class="link split-add" data-split="add"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-7-7v14"/></svg>Dodaj wiersz</button>
+  <p class="split-rest" aria-live="polite"><span>Zostało do przydzielenia</span> <output></output></p>
+  <div class="split-actions">
+    <button type="submit">Zapisz podział</button>
+    <button type="button" class="secondary" hx-get="{{ back }}" hx-target="#cat-{{ t.id }}" hx-swap="innerHTML">Anuluj</button>
+    {% if saved %}<button type="submit" name="action" value="clear" class="link danger split-clear" formnovalidate>Usuń podział</button>{% endif %}
+  </div>
+</form>

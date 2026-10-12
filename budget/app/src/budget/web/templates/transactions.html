@@ -53,7 +53,7 @@
         <td class="date">{{ t.day | pldate }}</td>
         <td class="tx-desc"><strong>{{ t.merchant or t.counterparty_name or "" }}</strong>{% if t.description %}<br><span class="muted small">{{ t.description }}</span>{% endif %}</td>
         <td class="num {{ 'neg' if t.amount.startswith('-') else 'pos' }}">{{ t.amount | money(t.currency) }}</td>
-        <td class="cat" id="cat-{{ t.id }}">{% with editing=False %}{% include "_txn_category.html" %}{% endwith %}</td>
+        <td class="cat" id="cat-{{ t.id }}">{% with editing=False, parts=splits.get(t.id) %}{% include "_txn_category.html" %}{% endwith %}</td>
         <td class="meta small">
           {{ t.display_name or account_kinds.get(t.account_kind, t.account_kind) }} · {{ kind_labels.get(t.kind, t.kind) }}
           {% if t.counterparty_name and t.counterparty_name != t.merchant %} · {{ t.counterparty_name }}{% endif %}
