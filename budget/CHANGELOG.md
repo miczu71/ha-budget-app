@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.39.1
+
+- Skarbonki: formularz nie rozpycha ekranu na telefonie przy długich nazwach serii w liście
+  „Seria (opcjonalnie)”.
+
 ## 0.39.0
 
 **Skarbonki i tygodnie w „Do wypłaty”** (M10 E1, M21 E4–E5, `docs/PLAN_M10_E1.md`, `docs/PLAN_M21.md`).
