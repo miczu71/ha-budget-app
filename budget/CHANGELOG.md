@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.40.0
+
+**Konto oszczędnościowe, odsetki i stopa oszczędności** (M10 E2–E4, `docs/PLAN_M10_E2.md`, decyzja 26).
+
+- Ekran „Skarbonki” zmienia nazwę na „Oszczędności i skarbonki”. Nowa sekcja „Konto oszczędnościowe”
+  (konto spoza Enable Banking): saldo = wpisane saldo na dzień + przelewy na konto i z konta
+  (po numerze, jak skarbonki; numer tylko w bazie, w panelu maskowany). Przelewy na konto nie liczą się
+  do puli Flex. Gdy saldo różni się od banku, wpisz nowe na nowy dzień.
+- Odsetki (szacunek): stopa bazowa i opcjonalna promocja (stopa, limit kwoty, data końca),
+  kapitalizacja miesięczna, podatek 19%. W dzwonku i jako powiadomienie push przypomnienie
+  14 i 3 dni przed końcem promocji.
+- Stopa oszczędności = wpłaty netto na konto oszczędnościowe / wpływy miesiąca (skarbonki się nie
+  liczą; wpływy bez przelewów z kont oszczędnościowych i skarbonek). Wykres 12 miesięcy na ekranie
+  i nowy kafelek „Oszczędności” na Podsumowaniu (można go ukryć w układzie).
+- Cykliczne: na liście aktywnych serii widać, która seria ma skarbonkę, z linkiem do niej.
+- Migracja 014 jest addytywna (starsza wersja ją ignoruje).
+
 ## 0.39.1
 
 - Skarbonki: formularz nie rozpycha ekranu na telefonie przy długich nazwach serii w liście
