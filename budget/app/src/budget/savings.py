@@ -239,7 +239,7 @@ class Interest:
         return self.earned + self.accrued
 
 
-def _daily(acc: Account, bal: Decimal, day: date) -> Decimal:
+def daily(acc: Account, bal: Decimal, day: date) -> Decimal:
     """Brutto odsetki za dzień: saldo do limitu po stopie promocyjnej (do daty końca), reszta po
     bazowej; rok = 365 dni."""
     bal = max(bal, ZERO)
@@ -250,7 +250,7 @@ def _daily(acc: Account, bal: Decimal, day: date) -> Decimal:
     return (promo + (bal - promo_part) * (acc.base_rate or ZERO)) / 100 / 365
 
 
-def _net(gross: Decimal) -> Decimal:
+def net(gross: Decimal) -> Decimal:
     return (gross * (1 - BELKA)).quantize(money.CENT, ROUND_HALF_UP)
 
 
@@ -265,11 +265,11 @@ def estimate(conn: sqlite3.Connection, acc: Account, today: date) -> Interest:
     while day < today:
         day += timedelta(days=1)
         bal += flows.get(day, ZERO)
-        gross += _daily(acc, bal, day)
+        gross += daily(acc, bal, day)
         if (day + timedelta(days=1)).month != day.month:
-            capital = _net(gross)
+            capital = net(gross)
             bal, earned, gross = bal + capital, earned + capital, ZERO
-    return Interest(bal, earned, _net(gross))
+    return Interest(bal, earned, net(gross))
 
 
 @dataclass(frozen=True)

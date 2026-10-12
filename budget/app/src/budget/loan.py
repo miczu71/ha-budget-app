@@ -9,6 +9,7 @@ grosza inaczej — stąd ręczna korekta kapitału i stopy.
 from __future__ import annotations
 
 import calendar
+import math
 import sqlite3
 from dataclasses import dataclass
 from datetime import date
@@ -51,7 +52,8 @@ class Installment:
     day: date
     interest: Decimal
     principal: Decimal
-    balance: Decimal  # kapitał po racie
+    balance: Decimal  # kapitał po racie (i po nadpłacie miesięcznej)
+    extra: Decimal = ZERO  # nadpłata miesięczna dołożona do raty (scenariusz)
 
     @property
     def payment(self) -> Decimal:
@@ -205,30 +207,108 @@ def _annuity(principal: Decimal, rate: Decimal, n: int) -> Decimal:
     return (principal * r / (1 - (1 + r) ** -n)).quantize(money.CENT, ROUND_HALF_UP)
 
 
-def schedule(loan: Loan) -> list[Installment]:
-    """Harmonogram od dnia kapitału: raty po `principal_date` do `last_payment_date`."""
-    days = payment_dates(loan.principal_date, loan.last_payment_date, loan.payment_day)
-    if not days:
-        return []
-    n, rate, balance = len(days), loan.rate, loan.principal
-    level = _annuity(balance, rate, n) if loan.installment_kind == "equal" else ZERO
-    part = (loan.principal / n).quantize(money.CENT, ROUND_HALF_UP)
+@dataclass(frozen=True)
+class Scenario:
+    """Zmiany względem harmonogramu: nadpłata dziś i co miesiąc, WIBOR/marża od daty."""
+
+    lump: Decimal = ZERO  # nadpłata jednorazowa dziś
+    monthly: Decimal = ZERO  # nadpłata dokładana do każdej raty
+    variant: str = "shorten"  # po nadpłacie: "shorten" (krótszy okres) | "lower" (niższa rata)
+    wibor_delta: Decimal = ZERO  # zmiana stawki referencyjnej, p.p.
+    wibor_from: date | None = None  # od kiedy (None = od dziś)
+    margin: Decimal | None = None  # nowa marża, % (None = bez zmiany)
+    margin_from: date | None = None
+
+    def rate(self, lo: Loan, day: date, today: date) -> Decimal:
+        ref = lo.reference_rate
+        if self.wibor_delta and day >= (self.wibor_from or today):
+            ref += self.wibor_delta
+        margin = lo.margin
+        if self.margin is not None and day >= (self.margin_from or today):
+            margin = self.margin
+        return ref + margin
+
+
+def _nper(balance: Decimal, rate: Decimal, level: Decimal) -> int | None:
+    """Ile rat równych `level` spłaci `balance` przy stopie `rate` (None: nie pokrywa odsetek)."""
+    r = float(rate) / 100 / 12
+    if r == 0:
+        return max(1, math.ceil(balance / level))
+    x = 1 - float(balance) * r / float(level)
+    return None if x <= 0 else max(1, math.ceil(-math.log(x) / math.log(1 + r)))
+
+
+def run(
+    lo: Loan,
+    balance: Decimal,
+    prev: date,
+    today: date,
+    scen: Scenario | None = None,
+    seed: Installment | None = None,
+) -> list[Installment]:
+    """Raty po `prev` dla kapitału `balance` na dzień `today` (≥ `prev`): nadpłata dziś dzieli
+    pierwszy okres odsetkowy na przed i po niej. `seed` = rata z harmonogramu bazowego, żeby
+    przebieg bez zmian dawał te same kwoty; rata jest przeliczana przy zmianie stopy i nadpłacie."""
+    scen = scen or Scenario()
+    days = payment_dates(prev, lo.last_payment_date, lo.payment_day)
+    equal = lo.installment_kind == "equal"
+    n_left, prev_rate = len(days), lo.rate
+    level = seed.payment if seed and equal else None
+    part = seed.principal if seed and not equal else None
     out: list[Installment] = []
-    prev = loan.principal_date
+
+    def reprice(rate: Decimal) -> None:
+        nonlocal level, part
+        if equal:
+            level = _annuity(balance, rate, n_left)
+        else:
+            part = (balance / n_left).quantize(money.CENT, ROUND_HALF_UP)
+
+    def overpay(amount: Decimal, rate: Decimal) -> None:
+        nonlocal balance, n_left
+        balance -= amount
+        if balance <= ZERO or n_left <= 1:
+            return
+        if scen.variant == "lower":
+            reprice(rate)
+        elif equal and level:
+            n_left = min(n_left, _nper(balance, rate, level) or n_left)
+        elif part:
+            n_left = min(n_left, max(1, math.ceil(balance / part)))
+
     for i, day in enumerate(days):
-        interest = (balance * rate / 100 * (day - prev).days / 365).quantize(
+        if balance <= ZERO:
+            break
+        rate = scen.rate(lo, day, today)  # stopa z dnia raty obowiązuje za cały okres
+        if (level if equal else part) is None or rate != prev_rate:
+            reprice(rate)
+        weights = balance * (today - prev).days if i == 0 and today > prev else ZERO
+        if i == 0 and scen.lump > ZERO:
+            overpay(min(scen.lump, balance), rate)
+        span = (day - max(prev, today)).days if i == 0 else (day - prev).days
+        interest = ((weights + balance * span) * rate / 100 / 365).quantize(
             money.CENT, ROUND_HALF_UP
         )
-        if i == n - 1:
+        if n_left <= 1:
             principal = balance
-        elif loan.installment_kind == "equal":
-            principal = min(balance, max(level - interest, ZERO))
+        elif equal:
+            principal = min(balance, max((level or ZERO) - interest, ZERO))
         else:
-            principal = min(balance, part)
+            principal = min(balance, part or ZERO)
         balance -= principal
-        out.append(Installment(day, interest, principal, balance))
-        prev = day
+        n_left -= 1
+        extra = ZERO
+        if scen.monthly > ZERO and balance > ZERO:
+            extra = min(scen.monthly, balance)
+            overpay(extra, rate)
+        out.append(Installment(day, interest, principal, balance, extra))
+        prev, prev_rate = day, rate
     return out
+
+
+def schedule(loan: Loan) -> list[Installment]:
+    """Harmonogram od dnia kapitału: raty po `principal_date` do `last_payment_date`."""
+    return run(loan, loan.principal, loan.principal_date, loan.principal_date)
 
 
 def summary(lo: Loan, rows: list[Installment], today: date) -> Summary:
