@@ -20,12 +20,14 @@ from budget import forecast as forecast_mod
 from budget import (
     ha_publisher,
     inbox,
+    loan,
     notifications,
     promo_watch,
     savings,
     sessions,
     summary,
     sync_service,
+    wibor,
 )
 from budget.eb_client import EBClient, EBError, PsuHeaders
 from budget.ha_client import HAClient, HAError
@@ -228,10 +230,16 @@ class Service:
         if savings.all_accounts(self.conn):
             await promo_watch.refresh(self.conn, self.now())
 
+    async def watch_wibor(self) -> None:
+        """Odczyt notowań WIBOR 3M (M9 E4) — tylko gdy jest kredyt."""
+        if loan.all_loans(self.conn):
+            await wibor.refresh(self.conn, self.now())
+
     async def summaries(self) -> None:
         """Podsumowania o `summary.SEND_AT`; zaległe z dzisiaj zaraz po starcie."""
         while True:
             await self.watch_promo()
+            await self.watch_wibor()
             await self.send_due_summaries()
             now = self.now()
             await asyncio.sleep(max(summary.next_send(now).timestamp() - now.timestamp(), 1))

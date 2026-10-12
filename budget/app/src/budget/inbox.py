@@ -29,6 +29,7 @@ from budget import (
     sessions,
     summary,
     sync_service,
+    wibor,
 )
 from budget.forecast import Forecast
 from budget.recurring import changes, series
@@ -377,6 +378,15 @@ def loan_rate(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list
     return out
 
 
+def wibor_error(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Odczyt notowań WIBOR nie działa od kilku dni (M9 E4): prognoza raty jest nieaktualna."""
+    err = wibor.error(conn)
+    if err is None or (ctx.now - err[1]).days < wibor.ERROR_ALERT_DAYS:
+        return []
+    detail = f"Od {err[1]:%d.%m}: {err[0]}. Prognoza raty kredytu korzysta ze starych notowań."
+    return [Item("wibor_error", "Nie mogę odczytać WIBOR 3M", 1, "/loan", "warn", detail)]
+
+
 Provider = Callable[[sqlite3.Connection, Context, BalanceMemo], list[Item]]
 PROVIDERS: tuple[Provider, ...] = (
     operational,
@@ -390,6 +400,7 @@ PROVIDERS: tuple[Provider, ...] = (
     savings_promo,
     promo_cards,
     loan_rate,
+    wibor_error,
 )
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
 
