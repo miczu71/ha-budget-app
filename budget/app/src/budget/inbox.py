@@ -267,11 +267,11 @@ def piggy_transfer(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) ->
 
 
 def savings_promo(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
-    """Promocyjna stopa konta oszczędnościowego kończy się za `PROMO_BELL_DAYS` dni lub mniej."""
+    """Promocyjna stopa konta oszczędnościowego kończy się za `PROMO_REMIND_DAYS[0]` dni."""
     out = []
     for acc in savings.all_accounts(conn):
-        days = (acc.promo_until - ctx.today).days if acc.promo_until and acc.promo_rate else -1
-        if not 0 <= days <= savings.PROMO_BELL_DAYS:
+        days = acc.promo_days_left(ctx.today)
+        if days is None or days > savings.PROMO_REMIND_DAYS[0]:
             continue
         detail = f"Stopa {acc.promo_rate}% do {acc.promo_until:%d.%m}"
         detail += f", potem {acc.base_rate or 0}% — rozważ przeniesienie środków."

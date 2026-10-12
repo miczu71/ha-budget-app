@@ -116,7 +116,7 @@ def router(panel: Panel) -> APIRouter:
             ),
             bars=charts.month_bars(spending.monthly_totals(conn, today), start),
             mv=mv,
-            sv=savings.overview(conn, today),
+            sv=savings.overview(conn, today, 1),
             upcoming=upcoming[:5],
             upcoming_more=max(len(upcoming) - 5, 0),
             recent=spending.recent(conn, start, nxt),

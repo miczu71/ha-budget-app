@@ -49,7 +49,7 @@ def test_balance_from_opening_and_transfers(conn: sqlite3.Connection) -> None:
     move(conn, "-200", "2026-08-20")  # przed datą salda — już w nim
     move(conn, "-300", "2026-09-10")  # wpłata
     move(conn, "100", "2026-09-20")  # wypłata
-    assert savings.balance(conn, acc) == Decimal(1200)
+    assert savings.estimate(conn, acc, date(2026, 9, 30)).total == Decimal(1200)  # bez stóp
 
 
 def test_transfers_are_outside_flex_pool(conn: sqlite3.Connection) -> None:

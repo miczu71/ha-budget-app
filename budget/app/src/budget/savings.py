@@ -14,16 +14,14 @@ from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from budget import money, piggy
-from budget.categorize import taxonomy
 from budget.logging_utils import mask_iban
 from budget.piggy import PiggyError
-from budget.spending import add_months, month_start, sums, totals
+from budget.spending import month_start, monthly_totals
 from budget.storage.db import now_iso
 
 ZERO = money.ZERO
 BELKA = Decimal("0.19")  # podatek od odsetek, potrącany przy kapitalizacji
-PROMO_REMIND_DAYS = (14, 3)  # przypomnienie o końcu promocji tyle dni przed (push)
-PROMO_BELL_DAYS = 14  # karta w dzwonku od tylu dni przed końcem promocji
+PROMO_REMIND_DAYS = (14, 3)  # push o końcu promocji tyle dni przed; dzwonek od pierwszego z nich
 
 
 class SavingsError(PiggyError):
@@ -45,6 +43,12 @@ class Account:
     @property
     def masked(self) -> str:
         return mask_iban("PL" + self.account_number)
+
+    def promo_days_left(self, today: date) -> int | None:
+        """Dni do końca promocyjnej stopy (0 = dziś); None bez promocji albo po jej końcu."""
+        if self.promo_rate is None or self.promo_until is None or self.promo_until < today:
+            return None
+        return (self.promo_until - today).days
 
 
 def _row(r: sqlite3.Row) -> Account:
@@ -75,6 +79,13 @@ def get(conn: sqlite3.Connection, account_id: int) -> Account:
     if row is None:
         raise SavingsError("Nie ma takiego konta oszczędnościowego.")
     return _row(row)
+
+
+def _date(value: str | None, message: str) -> date:
+    try:
+        return date.fromisoformat(value or "")
+    except ValueError as exc:
+        raise SavingsError(message) from exc
 
 
 def _rate(value: str | None, what: str) -> Decimal | None:
@@ -112,19 +123,11 @@ def save(
         number = get(conn, account_id).account_number
     else:
         number = piggy.normalize_number(account_number)
-    try:
-        day = date.fromisoformat(opening_date or "")
-    except ValueError as exc:
-        raise SavingsError("Podaj datę salda.") from exc
-    opening = piggy._amount(opening_balance, "saldo konta", allow_zero=True) or ZERO
+    day = _date(opening_date, "Podaj datę salda.")
+    opening = piggy.parse_amount(opening_balance, "saldo konta", allow_zero=True) or ZERO
     base, promo = _rate(base_rate, "stopę bazową"), _rate(promo_rate, "stopę promocyjną")
-    limit = piggy._amount(promo_limit, "limit promocji")
-    until = None
-    if promo_until:
-        try:
-            until = date.fromisoformat(promo_until)
-        except ValueError as exc:
-            raise SavingsError("Podaj datę końca promocji.") from exc
+    limit = piggy.parse_amount(promo_limit, "limit promocji")
+    until = _date(promo_until, "Podaj datę końca promocji.") if promo_until else None
     if promo is not None and until is None:
         raise SavingsError("Do stopy promocyjnej podaj datę końca promocji.")
     rates = (base, promo, limit, until.isoformat() if until else None)
@@ -174,15 +177,14 @@ def movements(conn: sqlite3.Connection, acc: Account) -> list[sqlite3.Row]:
     ]
 
 
-def balance(conn: sqlite3.Connection, acc: Account) -> Decimal:
-    return acc.opening_balance - sum((Decimal(r["amount"]) for r in movements(conn, acc)), ZERO)
+def _numbers(conn: sqlite3.Connection) -> list[str]:
+    return [r[0] for r in conn.execute("SELECT account_number FROM savings_account")]
 
 
 def txn_ids(conn: sqlite3.Connection) -> set[int]:
     """Przelewy na konta oszczędnościowe i z nich (poza pulą Flex — cała historia, nie tylko
     po dacie salda)."""
-    numbers = [r[0] for r in conn.execute("SELECT account_number FROM savings_account")]
-    return {r["id"] for r in piggy.transfers(conn, numbers)}
+    return {r["id"] for r in piggy.transfers(conn, _numbers(conn))}
 
 
 @dataclass(frozen=True)
@@ -252,18 +254,14 @@ class MonthRate:
 def monthly_rates(conn: sqlite3.Connection, today: date, n: int = 12) -> list[MonthRate]:
     """Stopa oszczędności ostatnich `n` miesięcy do bieżącego włącznie, od najstarszego. Wpływy
     bez przelewów z kont oszczędnościowych i skarbonek — wypłata z nich nie jest dochodem."""
-    numbers = [r[0] for r in conn.execute("SELECT account_number FROM savings_account")]
+    transfers = piggy.transfers(conn, _numbers(conn))
     saved: dict[date, Decimal] = defaultdict(Decimal)
-    for r in piggy.transfers(conn, numbers):
+    for r in transfers:
         saved[month_start(date.fromisoformat(r["day"]))] -= Decimal(r["amount"])
-    skip = txn_ids(conn) | piggy.txn_ids(conn)
-    leaves, current = taxonomy.leaves(conn), month_start(today)
-    out = []
-    for back in range(n - 1, -1, -1):
-        month = add_months(current, -back)
-        income, _ = totals(leaves, sums(conn, month, add_months(month, 1), skip))
-        out.append(MonthRate(month, saved[month], income))
-    return out
+    skip = {r["id"] for r in transfers} | piggy.txn_ids(conn)
+    return [
+        MonthRate(t.month, saved[t.month], t.income) for t in monthly_totals(conn, today, n, skip)
+    ]
 
 
 @dataclass(frozen=True)
@@ -276,9 +274,10 @@ class Overview:
         return self.rates[-1]
 
 
-def overview(conn: sqlite3.Connection, today: date) -> Overview | None:
+def overview(conn: sqlite3.Connection, today: date, n: int = 12) -> Overview | None:
+    """Saldo i stopa oszczędności z ostatnich `n` miesięcy; None bez kont."""
     accts = all_accounts(conn)
     if not accts:
         return None
     total = sum((estimate(conn, a, today).total for a in accts), ZERO)
-    return Overview(total, monthly_rates(conn, today))
+    return Overview(total, monthly_rates(conn, today, n))

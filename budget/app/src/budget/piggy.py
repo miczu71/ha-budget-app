@@ -109,7 +109,7 @@ def normalize_number(value: str) -> str:
     return compact
 
 
-def _amount(value: str | None, what: str, *, allow_zero: bool = False) -> Decimal | None:
+def parse_amount(value: str | None, what: str, *, allow_zero: bool = False) -> Decimal | None:
     if value is None or not value.strip():
         return None
     try:
@@ -142,7 +142,7 @@ def save(
         number = get(conn, piggy_id).account_number
     else:
         number = normalize_number(account_number)
-    goal = _amount(target, "kwotę celu")
+    goal = parse_amount(target, "kwotę celu")
     due = None
     if due_date:
         try:
@@ -153,7 +153,7 @@ def save(
         S.get(conn, series_id)  # SeriesError, gdy nie ma
     elif goal is None or due is None:
         raise PiggyError("Bez serii podaj kwotę celu i termin.")
-    opening = _amount(opening_balance, "saldo początkowe", allow_zero=True) or ZERO
+    opening = parse_amount(opening_balance, "saldo początkowe", allow_zero=True) or ZERO
     values = (clean, number, str(goal) if goal else None, due.isoformat() if due else None)
     params = (*values, series_id, str(opening))
     try:

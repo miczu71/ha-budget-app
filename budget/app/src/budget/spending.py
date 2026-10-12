@@ -272,13 +272,16 @@ def totals(leaves: Mapping[int, Category], s: Sums) -> tuple[Decimal, Decimal]:
     return income, expenses
 
 
-def monthly_totals(conn: sqlite3.Connection, today: date, n: int = 12) -> list[MonthTotals]:
-    """Wpływy i wydatki ostatnich `n` miesięcy do bieżącego włącznie, od najstarszego."""
+def monthly_totals(
+    conn: sqlite3.Connection, today: date, n: int = 12, skip: Collection[int] = ()
+) -> list[MonthTotals]:
+    """Wpływy i wydatki ostatnich `n` miesięcy do bieżącego włącznie, od najstarszego
+    (transakcje z `skip` pomijane, jak w `sums`)."""
     leaves, current = taxonomy.leaves(conn), month_start(today)
     out = []
     for back in range(n - 1, -1, -1):
         month = add_months(current, -back)
-        income, expenses = totals(leaves, sums(conn, month, add_months(month, 1)))
+        income, expenses = totals(leaves, sums(conn, month, add_months(month, 1), skip))
         out.append(MonthTotals(month, income, expenses, month == current))
     return out
 

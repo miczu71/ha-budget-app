@@ -50,7 +50,7 @@ MONTH_NAMES = (
 
 @dataclass(frozen=True)
 class Message:
-    kind: str  # WEEKLY | MONTHLY | CARD | CARD_DUE | PROMO
+    kind: str  # WEEKLY | MONTHLY | CARD | CARD_DUE | f"{PROMO}_<id konta>"
     period: str  # znacznik wysłanego okresu: dzień poniedziałku, RRRR-MM albo RRRR-MM-<dni>
     title: str
     text: str
@@ -250,7 +250,7 @@ def due(snap: Snapshot, now: datetime) -> list[Message]:
         if sent.get(CARD_DUE) != msg.period:
             out.append(msg)
     for acc in savings.all_accounts(snap.conn):
-        days = (acc.promo_until - today).days if acc.promo_until and acc.promo_rate else -1
+        days = acc.promo_days_left(today)
         if days in savings.PROMO_REMIND_DAYS:
             msg = promo_reminder(acc, days)
             if sent.get(msg.kind) != msg.period:
