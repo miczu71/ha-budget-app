@@ -78,3 +78,19 @@ hook pre-commit (skaner prywatności — fixtures z „Osoba 1”, „Konto A”
   (po 2 na źródło) porównane z ekranami → odsetek trafień w `PLAN_M12_E3b.md` § Wynik (bez kwot w repo);
   karta „Czat — ostatnie pytania” na Status pokazuje źródło.
 - Po wszystkim: ROADMAP (M12 E3b), notatka pamięci `project_budget_app`.
+
+## Wynik (2026-10-12)
+- **0.46.0 wydane i zainstalowane** (tag v0.46.0 na b14aa09, release opublikowany; backup add-onu przy
+  aktualizacji; `update.budzet_domowy_update` = 0.46.0, stan `started`). 824 testy, ruff i mypy czyste.
+- Zakres jak w planie: rejestr `ask/sources.py` (payday, card, budget, recurring, savings, loan), pola
+  `source`/`month` w schemacie planu, gałąź źródła w silniku i szablonie `_ask_turn.html`; brak danych źródła
+  → odpowiedź bez drugiego wywołania modelu. Po `simplify`: wspólny `_answer` w `engine.py`.
+- Dev (kopia księgi, atrapa routera): 4 pytania, tabela faktów, „Jak policzono”, link do ekranu; 390 px i 1280 px
+  bez przewijania w poziomie, cele dotyku ≥ 44 px, 0 błędów konsoli.
+- Na żywo (Ingress, prawdziwy model): `/ask` `no-store`, stopka v0.46.0. 6 pytań, po jednym na źródło:
+  5 trafiło we właściwe źródło za pierwszym razem; pytanie złożone („ile płatności kartą i ile do spłaty”)
+  model uznał za „nie umiem” — po rozbiciu na proste źródło Karta odpowiedziało. Etykiety `[…]` nie
+  wyciekły do odpowiedzi. 0 błędów konsoli (jedyny 404 pochodził z mojego skryptu pomiarowego).
+- **Checkpoint (czeka na usera):** 12 prawdziwych pytań (po 2 na źródło), cel ≥ 80% liczb zgodnych z ekranem
+  źródła; porównanie liczb z ekranami robi user na telefonie, ja nie zestawiałem kwot. Do przejrzenia po
+  nim: czy pytania złożone (dwa źródła naraz) są potrzebne — dziś plan ma jedno źródło na pytanie.
