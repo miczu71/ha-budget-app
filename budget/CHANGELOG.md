@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.48.0
+
+**Kredyt bez zbędnego pola i edytowalne zakładki** (M28, `docs/PLAN_M28.md`).
+
+- Kredyt: „Seria rat w księdze” przeniesiona do formularza „Zmień”; na karcie, gdy serii brak, jedna
+  linia z odnośnikiem. Pole kalkulatora nazwane „Oprocentowanie oszczędności (% rocznie)” z podpisem,
+  z czym porównujemy nadpłatę i co znaczy puste pole.
+- Zakładki u góry: menu ⚙ → „Zakładki” — kolejność strzałkami i ukrywanie; „Podsumowanie” zawsze
+  pierwsze. Układ wspólny dla urządzeń; ukryta zakładka nadal działa pod swoim adresem.
+- Podsumowanie: „ponad plan” w osobnej linii — nie poszerza karty prognozy na 390 px.
+  Bez migracji schematu.
+
 ## 0.47.0
 
 **Kalkulator kredytu i tygodnie okresu czytelniejsze** (M27, `docs/PLAN_M9_M21_poprawki.md`).
