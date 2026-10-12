@@ -5,11 +5,12 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import AsyncIterator
 from datetime import date
+from decimal import Decimal
 
 import httpx
 import pytest
 
-from budget import __version__
+from budget import __version__, split
 from budget.categorize import engine, rules, taxonomy
 from budget.service import Service
 from budget.storage.db import now_iso
@@ -324,3 +325,15 @@ async def test_txn_rule_errors(client: httpx.AsyncClient, service: Service) -> N
     assert rules.all_rules(conn) == []
     row = conn.execute("SELECT category_id FROM txn WHERE id = ?", (ids["salary"],)).fetchone()
     assert row[0] is None
+
+
+async def test_transactions_category_filter_matches_split_parts(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    ids = _seed(service.conn)
+    drogeria = taxonomy.by_slug(service.conn)["drogeria"].id
+    spozywcze = taxonomy.by_slug(service.conn)["spozywcze"].id
+    split.save(service.conn, ids["lidl"], [(drogeria, Decimal("-10")), (spozywcze, Decimal("-40"))])
+    for category in (drogeria, 5):  # podkategoria części i jej kategoria główna (Zdrowie i uroda)
+        page = (await client.get(f"/transactions?category={category}")).text
+        assert "LIDL UL. X" in page and "KEBAB" not in page, category

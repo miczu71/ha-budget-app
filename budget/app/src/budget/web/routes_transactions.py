@@ -79,8 +79,12 @@ def router(panel: Panel) -> APIRouter:
             cid = int(value)
         except ValueError:
             return
-        where.append("(t.category_id = ? OR c.parent_id = ?)")
-        params += [cid, cid]
+        where.append(
+            "(t.category_id = ? OR c.parent_id = ? OR EXISTS (SELECT 1 FROM txn_split s "
+            "JOIN category sc ON sc.id = s.category_id WHERE s.txn_id = t.id "
+            "AND (s.category_id = ? OR sc.parent_id = ?)))"  # części podziału (M29)
+        )
+        params += [cid, cid, cid, cid]
 
     @r.get("/transactions", response_class=HTMLResponse)
     async def transactions(

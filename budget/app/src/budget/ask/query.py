@@ -300,6 +300,7 @@ def execute(
         if plan.text:
             res.link["q"] = plan.text
         amount_total = ZERO
+        counted: set[int] = set()  # transakcja z podziałem (M29) liczy się raz
         for r in _rows(conn, period.start, period.end, details=True):
             amount = Decimal(r["amount"])
             leaf = cats.get(r["category_id"]) if r["category_id"] is not None else None
@@ -320,12 +321,14 @@ def execute(
                 words,
             ):
                 continue
+            first = r["id"] not in counted
+            counted.add(r["id"])
             if r["currency"] != BASE_CURRENCY:
-                other_currency += 1
+                other_currency += first
                 continue
             value = amount if sec == "income" else -amount
             amount_total += value
-            res.count += 1
+            res.count += first
             key, label = _key(plan.group_by, r, leaf, cats, period)
             if key is None:
                 continue

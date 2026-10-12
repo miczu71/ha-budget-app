@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from budget import spending
+from budget import spending, split
 from budget.ask import query
 from budget.ask.query import PlanError
 from budget.categorize import engine, taxonomy
@@ -175,3 +175,15 @@ def test_exclude_categories(month: sqlite3.Connection) -> None:
     assert "Bez kategorii: Jedzenie" in res.filters
     with pytest.raises(PlanError):
         plan(month, exclude_categories=[99999])
+
+
+def test_split_parts_in_categories_counted_once(conn: sqlite3.Connection) -> None:
+    t = add(conn, "-100.00", "card", "LIDL XYZ POL", day="2026-09-02")
+    engine.recategorize(conn)
+    split.save(
+        conn, t, [(sid(conn, "drogeria"), Decimal("-60")), (sid(conn, "spozywcze"), Decimal("-40"))]
+    )
+    total = run(conn).periods[0]
+    assert (total.value, total.count) == (Decimal("100.00"), 1)
+    drug = run(conn, categories=[sid(conn, "drogeria")]).periods[0]
+    assert (drug.value, drug.count) == (Decimal("60.00"), 1)

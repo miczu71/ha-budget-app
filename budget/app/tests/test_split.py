@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
 from decimal import Decimal
 
 import pytest
 
-from budget import split
+from budget import spending, split
 from budget.categorize import engine
 from budget.categorize.taxonomy import TaxonomyError
 
@@ -95,6 +96,23 @@ def test_split_does_not_teach_merchant_memory(conn: sqlite3.Connection) -> None:
     )
     engine.recategorize(conn)
     assert _category(conn, other) == (None, None)
+
+
+def test_month_counts_each_part_in_its_category(conn: sqlite3.Connection) -> None:
+    t = _split_lidl(conn)  # −100: Drogeria −60, Spożywcze −40
+    add(conn, "-50.00", "card", "LIDL XYZ POL", day="2026-09-03")
+    engine.recategorize(conn)
+    before = spending.sums(conn, date(2026, 9, 1), date(2026, 10, 1))
+    m = spending.build(conn, date(2026, 9, 1), date(2026, 9, 20))
+
+    groups = {g.category.slug: g.amount for g in m.expense_groups}
+    assert groups == {"jedzenie": Decimal("90.00"), "zdrowie": Decimal("60.00")}
+    assert m.expenses == Decimal("150.00")
+    assert (m.coverage.txns, m.coverage.categorized) == (2, 2)
+    split.clear(conn, t)
+    engine.recategorize(conn)
+    after = spending.sums(conn, date(2026, 9, 1), date(2026, 10, 1))
+    assert before.balance == after.balance == Decimal("-150.00")
 
 
 def test_save_rejects_own_transfer(conn: sqlite3.Connection) -> None:

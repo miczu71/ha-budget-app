@@ -195,7 +195,10 @@ def section(leaf: Category | None, amount: Decimal) -> str:
 def _rows(
     conn: sqlite3.Connection, start: date | None, end: date | None, details: bool = False
 ) -> list[sqlite3.Row]:
-    """Transakcje liczone w budżecie; `details` dokłada pola opisowe (`DETAILS`, czat M12)."""
+    """Transakcje liczone w budżecie; `details` dokłada pola opisowe (`DETAILS`, czat M12).
+
+    Transakcja z podziałem (M29) daje wiersz na część: kwota i podkategoria części, `part` > 0
+    dla kolejnych części (ten sam `id`)."""
     where = [
         "t.status = 'BOOK'",
         "t.transfer_group IS NULL",
@@ -209,8 +212,10 @@ def _rows(
         where.append("coalesce(t.tx_date, t.booking_date) < ?")
         params.append(end.isoformat())
     return conn.execute(
-        f"SELECT t.id, t.amount, t.currency, t.category_id{DETAILS if details else ''} FROM txn t "
-        f"JOIN account a ON a.id = t.account_id WHERE {' AND '.join(where)}",
+        "SELECT t.id, coalesce(s.amount, t.amount) AS amount, t.currency, "
+        "coalesce(s.category_id, t.category_id) AS category_id, coalesce(s.line, 0) AS part"
+        f"{DETAILS if details else ''} FROM txn t JOIN account a ON a.id = t.account_id "
+        f"LEFT JOIN txn_split s ON s.txn_id = t.id WHERE {' AND '.join(where)}",
         params,
     ).fetchall()
 
@@ -226,16 +231,17 @@ def sums(
     for r in _rows(conn, start, end):
         if r["id"] in skip:
             continue
+        first = r["part"] == 0  # transakcja z podziałem liczy się raz
         if r["currency"] != BASE_CURRENCY:
-            s.other_currency += 1
+            s.other_currency += first
             continue
         amount = Decimal(r["amount"])
         s.balance += amount
         if amount < 0:
-            s.coverage.txns += 1
+            s.coverage.txns += first
             s.coverage.amount -= amount
             if r["category_id"] is not None:
-                s.coverage.categorized += 1
+                s.coverage.categorized += first
                 s.coverage.categorized_amount -= amount
         if r["category_id"] is None:
             (s.unc_out if amount < 0 else s.unc_in).add(abs(amount))
