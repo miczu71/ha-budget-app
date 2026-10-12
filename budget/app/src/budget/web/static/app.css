@@ -906,7 +906,7 @@ label.switch input[type="checkbox"]:checked::after { transform: translateX(16px)
 .piggy .stats { margin-top: 4px; }
 .piggy-form .inline { flex-wrap: wrap; }
 .piggy-pick { display: inline-block; }
-.piggy-new > summary { min-height: var(--tap); display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.piggy-new > summary { line-height: var(--tap); cursor: pointer; font-weight: 600; }
 .piggy-pick select { min-height: var(--tap); }
 .piggy-tile .row { grid-template-columns: 1fr auto; row-gap: 6px; }
 .piggy-tile .flex-bar { grid-column: 1 / -1; height: 6px; margin: 0; }

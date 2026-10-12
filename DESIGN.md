@@ -61,9 +61,23 @@ dwuwarstwowy cień (`--elev`). Siatka 4 px, padding karty 20 px (16 na telefonie
 - Etykieta „najniżej dd.mm” przy dnie, kotwica start/middle/end zależnie od położenia; oś X: „dziś” i „wypłata dd.mm”.
 - Lista pod wykresem (`ul.rows.fc-list`): jedna chronologiczna, „saldo” w ostatnim wierszu dnia, wiersz dna na `--surface-2`.
 
+### Hero „Do wypłaty” i tygodnie okresu (M21, M21 E4)
+- `section.payday-hero` (na bazie `flex-hero`): limit dzienny w `hero-amount` z `span.hero-unit` („dziennie”), werdykt,
+  pasek upływu okresu, potem `p.week-line` z paskiem bieżącego tygodnia (wydane z limitu, zostało).
+- `ul.rows.fc-weeks` w kafelku prognozy: data i kwota w jednym wierszu, pasek 8 px pod nimi na całą szerokość; stan w klasie
+  `li` (`week-past`, `week-now` z pogrubioną datą, `week-next` bez paska, z „plan”). Przekroczenie = `flex-bar.over`.
+- `dl.fc-strip` z piątą komórką („Do skarbonek”): na telefonie na cały wiersz, od 720 px pięć kolumn.
+
+### Skarbonki (M10 E1)
+- `section.piggy`: nazwa i zamaskowany numer konta-celu w `h2 .small`, pasek saldo/cel, trzy `stat` (saldo, termin,
+  „w tym okresie” z podpisem `warn-text`/`pos`); akcje w `form.actions-row`. Pełny numer konta nigdy nie trafia do HTML.
+- `details.piggy-new > summary`: `line-height: var(--tap)` zamiast flexa, żeby została strzałka rozwijania.
+- `section.piggy-tile` (kafelek Podsumowania): wiersze jak `fc-weeks` (pasek 6 px pod wierszem). `form.piggy-pick` w Transakcjach:
+  `select` o wysokości `--tap`, zapis po zmianie.
+
 ## System designu w Claude Design (M20)
 Przeglądalne lustro tego pliku i `app.css`: https://claude.ai/artifact/GgbLCb6vkcwtvKAEQ3wwzr (prywatny artefakt typu
-Design System: tokeny, fonty, ikony, README, 36 komponentów z podglądami). Służy do makiet nowych ekranów i planowania
+Design System: tokeny, fonty, ikony, README, 38 komponentów z podglądami). Służy do makiet nowych ekranów i planowania
 refaktorów. **Kod jest źródłem prawdy** (`app.css`, ten plik), artefakt nie dyktuje stylu. Źródła artefaktu leżą w
 `design-system/project/` (poza kontekstem builda add-onu); plan i historia etapów: `docs/PLAN_M20.md`.
 
