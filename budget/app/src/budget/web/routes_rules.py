@@ -231,7 +231,7 @@ def router(panel: Panel) -> APIRouter:
             groups=taxonomy.FLEX_LABELS,
             tab="categories",
             lidl_map=lidl_link.category_map(conn),
-            lidl_labels=lidl_link.LABELS,
+            lidl_labels={k: label for k, (label, _) in lidl_link.CATEGORIES.items()},
         )
 
     @r.post("/categories/lidl")
@@ -239,7 +239,7 @@ def router(panel: Panel) -> APIRouter:
         """Mapa kategorii produktów Lidl → podkategorie (M29); działa dla kolejnych dopasowań."""
         form = await request.form()
         try:
-            mapping = {k: int(str(form.get(k) or "")) for k in lidl_link.LABELS}
+            mapping = {k: int(str(form.get(k) or "")) for k in lidl_link.CATEGORIES}
             with ledger.transaction(conn):
                 lidl_link.set_category_map(conn, mapping)
         except (TaxonomyError, ValueError) as exc:

@@ -22,7 +22,7 @@
     <div id="rp-{{ t.id }}" class="small" aria-live="polite"><p class="muted">Reguła obejmie też przyszłe transakcje; ręczna kategoria tej transakcji zostanie zastąpiona regułą.</p></div>
   </div>
   {% if lidl_choices %}<div class="lidl-pick"><span class="small muted">Paragon Lidl pasuje do kilku płatności — który to?</span>
-    {% for r in lidl_choices %}<button type="button" class="chip" name="ticket_id" value="{{ r.id }}" hx-post="{{ base }}/transactions/{{ t.id }}/lidl" hx-vals='{"ticket_id": "{{ r.id }}"}' hx-target="#cat-{{ t.id }}" hx-swap="innerHTML">{{ r.day.isoformat() | pldate }} · {{ r.paid | money("PLN") }}</button>{% endfor %}
+    {% for r in lidl_choices %}<button type="button" class="chip" hx-post="{{ base }}/transactions/{{ t.id }}/lidl" hx-vals='{"ticket_id": "{{ r.id }}"}' hx-target="#cat-{{ t.id }}" hx-swap="innerHTML">{{ r.day.isoformat() | pldate }} · {{ r.paid | money("PLN") }}</button>{% endfor %}
   </div>{% endif %}
   <div hidden hx-post="{{ base }}/transactions/{{ t.id }}/rule-preview" hx-include="#cf-{{ t.id }}" hx-target="#rp-{{ t.id }}" hx-swap="innerHTML" hx-trigger="input delay:300ms from:#cf-{{ t.id }}" hx-sync="this:replace"></div>
 </form>

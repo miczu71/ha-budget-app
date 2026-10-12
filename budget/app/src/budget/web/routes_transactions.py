@@ -167,7 +167,7 @@ def router(panel: Panel) -> APIRouter:
             rows=rows,
             series_of=belongs,
             splits=split_parts(conn, [int(t["id"]) for t in rows]),
-            receipts={k: v[0] for k, v in lidl_link.links(conn).items()},
+            receipts=lidl_link.links(conn, [int(t["id"]) for t in rows]),
             repeatable={c.id for c in page_txns},
             total=total,
             page_no=page,  # `page` = nazwa ekranu w base.html (aktywna zakładka)
@@ -231,10 +231,8 @@ def router(panel: Panel) -> APIRouter:
 
     def lidl_choices(txn_id: int) -> list[lidl_link.Receipt]:
         """Paragony Lidl do wyboru, gdy dopasowanie nie było jednoznaczne (M29 E5)."""
-        if txn_id in lidl_link.links(conn):
-            return []
-        receipts = lidl_link.load(panel.service.settings.lidl_receipts_path)
-        return lidl_link.receipts_for_txn(conn, receipts, txn_id)
+        path = panel.service.settings.lidl_receipts_path
+        return lidl_link.receipts_for_txn(conn, path, txn_id)
 
     def leaf(form: FormData) -> int | None:
         try:
@@ -316,7 +314,7 @@ def router(panel: Panel) -> APIRouter:
             editing=False,
             error=error,
             parts=split_parts(conn, [tid]).get(tid),
-            receipt=lidl_link.links(conn).get(tid, (None,))[0],
+            receipt=lidl_link.links(conn, [tid]).get(tid),
         )
 
     @r.post("/transactions/{txn_id}/lidl", response_class=HTMLResponse)

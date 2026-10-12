@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+from collections import Counter
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
@@ -25,22 +26,20 @@ from budget.storage.db import kv_get, kv_set
 log = logging.getLogger(__name__)
 
 WINDOW = timedelta(days=3)
-LIDL_PANEL = (
-    "/app/f0987e0f_lidl"  # panel add-onu Lidl w HA; otwiera paragon z `url_path` (Lidl ≥ 0.19.1)
-)
+# panel add-onu Lidl w HA; `/paragony/<id>` otwiera paragon (Lidl ≥ 0.19.1)
+LIDL_PANEL = "/app/f0987e0f_lidl"
 MAP_KEY = "lidl_category_map"
-DEFAULT_MAP = {
-    "food": "spozywcze",
-    "drugstore": "drogeria",
-    "kids": "dzieci-zakupy",
-    "nonfood": "zakupy-inne",
+# kategoria produktu Lidla → (etykieta, domyślna podkategoria Budżetu)
+CATEGORIES = {
+    "food": ("Spożywcze", "spozywcze"),
+    "drugstore": ("Drogeria", "drogeria"),
+    "kids": ("Dla dzieci", "dzieci-zakupy"),
+    "nonfood": ("Inne", "zakupy-inne"),
 }
-LABELS = {"food": "Spożywcze", "drugstore": "Drogeria", "kids": "Dla dzieci", "nonfood": "Inne"}
-_EXPENSES = (
-    "SELECT id, amount, coalesce(tx_date, booking_date) AS day FROM txn WHERE status = 'BOOK' "
-    "AND transfer_group IS NULL AND amount LIKE '-%' "
-    "AND upper(coalesce(merchant, '') || ' ' || description) LIKE '%LIDL%' "
-    "AND coalesce(tx_date, booking_date) BETWEEN ? AND ?"
+# wydatek w Lidlu: tekst jak w wyszukiwaniu Transakcji (`fold` bez ogonków, z kontrahentem)
+_EXPENSE = (
+    "status = 'BOOK' AND transfer_group IS NULL AND amount LIKE '-%' AND fold(description || ' ' "
+    "|| coalesce(counterparty_name, '') || ' ' || coalesce(merchant, '')) LIKE '%lidl%'"
 )
 
 
@@ -50,7 +49,6 @@ class Receipt:
     day: date
     paid: Decimal
     parts: dict[str, Decimal]
-    url_path: str
 
 
 @dataclass(frozen=True)
@@ -58,9 +56,8 @@ class MatchResult:
     linked: int
     ambiguous: int
     unmatched: int
-    moved: Decimal = Decimal(
-        0
-    )  # zł przesunięte z podkategorii spożywczej do innych (raport M29 E6)
+    # zł przesunięte z podkategorii spożywczej do innych (raport M29 E6)
+    moved: Decimal = Decimal(0)
 
 
 def load(path: Path) -> list[Receipt]:
@@ -79,78 +76,65 @@ def load(path: Path) -> list[Receipt]:
             parts = {str(k): money.parse(str(v)) or Decimal(0) for k, v in r["parts"].items()}
             if paid is None:
                 continue
-            out.append(
-                Receipt(
-                    str(r["id"]),
-                    date.fromisoformat(r["day"]),
-                    paid,
-                    parts,
-                    str(r.get("url_path", "")),
-                )
-            )
+            out.append(Receipt(str(r["id"]), date.fromisoformat(r["day"]), paid, parts))
         except (KeyError, TypeError, AttributeError, ValueError):  # AmountError to ValueError
             continue
     return out
 
 
-def links(conn: sqlite3.Connection) -> dict[int, tuple[str, str]]:
-    """Transakcja → (paragon, status)."""
-    return {
-        int(r[0]): (str(r[1]), str(r[2]))
-        for r in conn.execute("SELECT txn_id, ticket_id, status FROM txn_lidl")
-    }
+def links(conn: sqlite3.Connection, txn_ids: list[int] | None = None) -> dict[int, str]:
+    """Transakcja → paragon (wszystkie albo tylko `txn_ids`)."""
+    sql, args = "SELECT txn_id, ticket_id FROM txn_lidl", list(txn_ids or [])
+    if txn_ids is not None:
+        sql += f" WHERE txn_id IN ({','.join('?' * len(args))})"
+    return {int(t): str(r) for t, r in conn.execute(sql, args)}
 
 
-def _expenses(
-    conn: sqlite3.Connection, receipts: list[Receipt]
-) -> dict[Decimal, list[tuple[int, date]]]:
-    if not receipts:
-        return {}
-    lo, hi = min(r.day for r in receipts) - WINDOW, max(r.day for r in receipts) + WINDOW
-    linked = set(links(conn))
-    out: dict[Decimal, list[tuple[int, date]]] = {}
-    for tid, amount, day in conn.execute(
-        _EXPENSES + " ORDER BY day, id", (lo.isoformat(), hi.isoformat())
-    ):
-        if tid not in linked:
-            out.setdefault(-Decimal(amount), []).append((int(tid), date.fromisoformat(day)))
-    return out
+def _free(conn: sqlite3.Connection, receipts: list[Receipt]) -> list[Receipt]:
+    used = set(links(conn).values())
+    return [r for r in receipts if r.id not in used and r.paid > 0]
 
 
-def _candidates(by_amount: dict[Decimal, list[tuple[int, date]]], receipt: Receipt) -> list[int]:
-    return [tid for tid, day in by_amount.get(receipt.paid, []) if abs(day - receipt.day) <= WINDOW]
-
-
-def candidates(conn: sqlite3.Connection, receipt: Receipt) -> list[int]:
-    """Niepołączone wydatki pasujące do paragonu (kwota, data ±3 dni)."""
-    return _candidates(_expenses(conn, [receipt]), receipt)
+def _close(receipt: Receipt, amount: str, day: str) -> bool:
+    return -Decimal(amount) == receipt.paid and abs(date.fromisoformat(day) - receipt.day) <= WINDOW
 
 
 def match(conn: sqlite3.Connection, receipts: list[Receipt]) -> MatchResult:
     """Łączy pary jednoznaczne po obu stronach; paragon i transakcja najwyżej raz."""
-    used = {ticket for ticket, _ in links(conn).values()}
-    pending = [r for r in receipts if r.id not in used and r.paid > 0]
-    by_amount = _expenses(conn, pending)
-    found = {r.id: _candidates(by_amount, r) for r in pending}
-    claims: dict[int, int] = {}
-    for tids in found.values():
-        for tid in tids:
-            claims[tid] = claims.get(tid, 0) + 1
-    pairs = [(t[0], r) for r in pending if len(t := found[r.id]) == 1 and claims[t[0]] == 1]
+    pending = _free(conn, receipts)
+    found: dict[str, list[int]] = {r.id: [] for r in pending}
+    if pending:
+        lo = min(r.day for r in pending) - WINDOW
+        hi = max(r.day for r in pending) + WINDOW
+        expenses = conn.execute(
+            f"SELECT id, amount, coalesce(tx_date, booking_date) FROM txn WHERE {_EXPENSE} "
+            "AND coalesce(tx_date, booking_date) BETWEEN ? AND ? "
+            "AND id NOT IN (SELECT txn_id FROM txn_lidl) ORDER BY 3, id",
+            (lo.isoformat(), hi.isoformat()),
+        ).fetchall()
+        for r in pending:
+            found[r.id] = [int(t) for t, amount, day in expenses if _close(r, amount, day)]
+    claims = Counter(t for tids in found.values() for t in tids)
+    pairs = []
+    for r in pending:
+        tids = found[r.id]
+        if len(tids) == 1 and claims[tids[0]] == 1:
+            pairs.append((tids[0], r))
     cmap = category_map(conn) if pairs else {}
     moved = sum((_link(conn, tid, r, "auto", cmap) for tid, r in pairs), Decimal(0))
     unmatched = sum(1 for tids in found.values() if not tids)
     return MatchResult(len(pairs), len(found) - len(pairs) - unmatched, unmatched, moved)
 
 
-def receipts_for_txn(
-    conn: sqlite3.Connection, receipts: list[Receipt], txn_id: int
-) -> list[Receipt]:
-    """Wolne paragony pasujące do tej transakcji (do wyboru przy niejednoznacznych, E5)."""
-    used = {ticket for ticket, _ in links(conn).values()}
-    free = [r for r in receipts if r.id not in used and r.paid > 0]
-    by_amount = _expenses(conn, free)
-    return [r for r in free if txn_id in _candidates(by_amount, r)]
+def receipts_for_txn(conn: sqlite3.Connection, path: Path, txn_id: int) -> list[Receipt]:
+    """Wolne paragony pasujące do tej (niepołączonej) transakcji — wybór przy niejednoznacznych.
+    Plik czytamy tylko dla wydatku w Lidlu."""
+    row = conn.execute(
+        f"SELECT amount, coalesce(tx_date, booking_date) FROM txn WHERE id = ? AND {_EXPENSE} "
+        "AND id NOT IN (SELECT txn_id FROM txn_lidl)",
+        (txn_id,),
+    ).fetchone()
+    return [r for r in _free(conn, load(path)) if _close(r, row[0], row[1])] if row else []
 
 
 def choose(conn: sqlite3.Connection, txn_id: int, receipt: Receipt) -> None:
@@ -200,11 +184,11 @@ def category_map(conn: sqlite3.Connection) -> dict[str, int]:
     Inne zakupy)."""
     saved = kv_get(conn, MAP_KEY) or {}
     slugs = taxonomy.by_slug(conn)
-    return {k: int(saved.get(k) or slugs[slug].id) for k, slug in DEFAULT_MAP.items()}
+    return {k: int(saved.get(k) or slugs[slug].id) for k, (_, slug) in CATEGORIES.items()}
 
 
 def set_category_map(conn: sqlite3.Connection, mapping: dict[str, int]) -> None:
     leaves = taxonomy.leaves(conn)
-    if set(mapping) != set(DEFAULT_MAP) or any(c not in leaves for c in mapping.values()):
+    if set(mapping) != set(CATEGORIES) or any(c not in leaves for c in mapping.values()):
         raise TaxonomyError("Każda kategoria Lidla potrzebuje podkategorii.")
     kv_set(conn, MAP_KEY, mapping)

@@ -770,7 +770,7 @@ a.tap {
   display: inline-flex;
   align-items: center;
 }
-.cat-form .rv-ai button.chip { min-height: var(--tap); display: inline-flex; align-items: center; }
+.cat-form .rv-ai button.chip, .lidl-pick button.chip { min-height: var(--tap); display: inline-flex; align-items: center; }
 .pager a { padding: 0 8px; }
 
 /* M13 E3: ekran „Reguły” — pola wyboru formularza, tabela na telefonie */
@@ -989,6 +989,5 @@ button.split-clear { margin-left: auto; min-height: var(--tap); color: var(--neg
 /* M29 E5: paragony Lidl — link w komórce kategorii, wybór paragonu, mapa kategorii */
 a.lidl-link { display: inline-flex; align-items: center; min-height: var(--tap); margin-right: 6px; color: var(--link); }
 .lidl-pick { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.lidl-pick button.chip { min-height: var(--tap); display: inline-flex; align-items: center; }
 form.lidl-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; }
 form.lidl-map select { width: 100%; }

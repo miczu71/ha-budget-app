@@ -410,7 +410,7 @@ async def test_lidl_receipt_link_choice_and_category_map(
     assert "Paragon Lidl pasuje do kilku płatności" in editor and '"ticket_id": "p1"' in editor
     r = await client.post(f"/transactions/{ids['lidl']}/lidl", data={"ticket_id": "p1"})
     assert "2 kategorie" in r.text and "/app/f0987e0f_lidl/paragony/p1" in r.text
-    assert lidl_link.links(conn) == {ids["lidl"]: ("p1", "chosen")}
+    assert lidl_link.links(conn) == {ids["lidl"]: "p1"}
     assert "Paragon Lidl pasuje" not in (await client.get(f"/transactions/{twin}/category")).text
     page = (await client.get("/transactions")).text
     assert 'target="_top">paragon Lidl</a>' in page

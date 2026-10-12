@@ -21,6 +21,12 @@ def _file(tmp_path: Path, *receipts: dict[str, object]) -> Path:
     return path
 
 
+def _status(conn: sqlite3.Connection, txn_id: int) -> str:
+    return str(
+        conn.execute("SELECT status FROM txn_lidl WHERE txn_id = ?", (txn_id,)).fetchone()[0]
+    )
+
+
 def _r(rid: str, day: str, paid: float, **parts: float) -> dict[str, object]:
     return {
         "id": rid,
@@ -60,10 +66,12 @@ def test_match_links_unique_amount_and_date(conn: sqlite3.Connection, tmp_path: 
     )
     result = lidl_link.match(conn, receipts)
     assert (result.linked, result.ambiguous, result.unmatched) == (1, 1, 2)
-    assert lidl_link.links(conn) == {hit: ("a", "auto")}
-    assert lidl_link.candidates(conn, receipts[2]) == [twin_a, twin_b]
+    assert lidl_link.links(conn) == {hit: "a"} and _status(conn, hit) == "auto"
+    path = tmp_path / "receipts.json"
+    assert [r.id for r in lidl_link.receipts_for_txn(conn, path, twin_a)] == ["c"]
+    assert [r.id for r in lidl_link.receipts_for_txn(conn, path, twin_b)] == ["c"]
     again = lidl_link.match(conn, receipts)  # paragon użyty raz; ponowny przebieg nic nie dubluje
-    assert again.linked == 0 and lidl_link.links(conn) == {hit: ("a", "auto")}
+    assert again.linked == 0 and lidl_link.links(conn) == {hit: "a"}
 
 
 def test_two_receipts_same_amount_stay_unlinked(conn: sqlite3.Connection, tmp_path: Path) -> None:
@@ -145,7 +153,9 @@ def test_choose_links_ambiguous_receipt(conn: sqlite3.Connection, tmp_path: Path
     b = add(conn, "-7.00", "card", "LIDL SKLEP X POL", day="2026-09-06")
     receipts = lidl_link.load(_file(tmp_path, _r("c", "2026-09-05", 7.0, food=4.0, kids=3.0)))
     assert lidl_link.match(conn, receipts).ambiguous == 1
-    assert [r.id for r in lidl_link.receipts_for_txn(conn, receipts, b)] == ["c"]
+    path = tmp_path / "receipts.json"
+    assert [r.id for r in lidl_link.receipts_for_txn(conn, path, b)] == ["c"]
     lidl_link.choose(conn, b, receipts[0])
-    assert lidl_link.links(conn) == {b: ("c", "chosen")} and len(split.get(conn, b)) == 2
-    assert lidl_link.receipts_for_txn(conn, receipts, a) == []  # paragon już użyty
+    assert lidl_link.links(conn) == {b: "c"} and _status(conn, b) == "chosen"
+    assert len(split.get(conn, b)) == 2
+    assert lidl_link.receipts_for_txn(conn, path, a) == []  # paragon już użyty
