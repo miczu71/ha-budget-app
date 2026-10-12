@@ -29,6 +29,8 @@ def router(panel: Panel) -> APIRouter:
             request,
             "loan.html",
             today=today,
+            forecasts={lo.id: loan_sim.forecast(conn, lo, today) for lo in loans},
+            pendings={lo.id: loan_sim.pending(conn, lo, today) for lo in loans},
             rows=[
                 (lo, loan.summary(lo, schedules[lo.id], today), schedules[lo.id]) for lo in loans
             ],
@@ -53,6 +55,7 @@ def router(panel: Panel) -> APIRouter:
                 last_payment_date=field.get("last_payment_date"),
                 payment_day=field.get("payment_day"),
                 installment=field.get("installment"),
+                rate_reset_date=field.get("rate_reset_date"),
             )
         except loan.LoanError as exc:
             back = f"/loan?edit={loan_id}" if loan_id else "/loan"

@@ -26,6 +26,7 @@
   </div>
   <div class="inline">
     <label>Rata wg banku (opcjonalnie, raty równe)<input name="installment" inputmode="decimal" size="10" value="{{ lo.installment if lo and lo.installment }}" placeholder="z harmonogramu banku"></label>
+    <label>Ostatnia zmiana oprocentowania (opcjonalnie)<input type="date" name="rate_reset_date" value="{{ lo.rate_reset_date.isoformat() if lo and lo.rate_reset_date }}"></label>
   </div>
   <p class="small muted">Harmonogram liczy panel przy stałej bieżącej stopie, odsetki jak bank (30/360). Podaj kapitał na dzień ostatniej zapłaconej raty — wtedy pierwszy okres jest pełny. Gdy rata w banku się zmieni (nowy WIBOR, nadpłata), wpisz nowy kapitał, stopę i ratę.</p>
   <p class="actions-row">
@@ -45,6 +46,15 @@
     <div class="stat"><span class="stat-label">Oprocentowanie</span><span class="stat-value">{{ lo.rate }}%</span><span class="small muted">{{ lo.reference_rate }}% + marża {{ lo.margin }}%</span></div>
     <div class="stat"><span class="stat-label">Spłata</span><span class="stat-value">{{ sm.payoff.strftime('%m.%Y') if sm.payoff }}</span><span class="small muted">odsetki do końca: {{ sm.interest_left | money("PLN") }}</span></div>
   </div>
+  {% set pd = pendings[lo.id] %}{% set fc = forecasts[lo.id] %}
+  {% if pd %}
+  <p><strong>Od {{ pd.reset.strftime('%d.%m') }} nowe oprocentowanie {{ pd.rate }}%</strong> (WIBOR 3M {{ pd.wibor }}% z {{ pd.quote_day.strftime('%d.%m') }}): rata ≈ {{ pd.installment | money("PLN") }} zamiast {{ pd.current | money("PLN") }}. <a class="tap" href="{{ base }}/loan?edit={{ lo.id }}#edit-loan">Zaktualizuj kredyt</a> o nowy kapitał, stopę i ratę z banku.</p>
+  {% elif fc %}
+  <p><strong>Od {{ fc.reset.strftime('%d.%m') }} rata ≈ {{ fc.installment | money("PLN") }}</strong>
+    ({{ "wyższa" if fc.delta > 0 else "niższa" if fc.delta < 0 else "bez zmiany" }}{{ " o " ~ (fc.delta | abs | money("PLN")) if fc.delta }}).
+    <span class="small muted">WIBOR 3M {{ fc.wibor }}% z {{ fc.quote_day.strftime('%d.%m') }}, oprocentowanie {{ fc.rate }}%.
+    {{ "Stawka ustalona, bank użyje tego notowania." if fc.final else "Prognoza; bank ustali stawkę z notowania z " ~ fc.fixing.strftime('%d.%m') ~ "." }}</span></p>
+  {% endif %}
   <details class="piggy-new">
     <summary>Harmonogram</summary>
     <ul class="rows loan-rows">{% for i in sched[:12] %}

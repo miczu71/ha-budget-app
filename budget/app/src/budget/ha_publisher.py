@@ -22,7 +22,18 @@ from typing import Any
 
 import aiomqtt
 
-from budget import __version__, card, flex, inbox, ledger, loan, money, sessions, sync_service
+from budget import (
+    __version__,
+    card,
+    flex,
+    inbox,
+    ledger,
+    loan,
+    loan_sim,
+    money,
+    sessions,
+    sync_service,
+)
 from budget import forecast as forecast_mod
 from budget.logging_utils import mask_iban
 from budget.recurring import schedule
@@ -407,6 +418,7 @@ def loan_entities(conn: sqlite3.Connection, today: date) -> list[Entity]:
     out = []
     for n, lo in enumerate(loan.all_loans(conn)):
         sm = loan.summary(lo, loan.schedule(lo), today)
+        fc = loan_sim.forecast(conn, lo, today) or loan_sim.pending(conn, lo, today)
         out.append(
             _flex_sensor(
                 "loan_principal" if n == 0 else f"loan_principal_{lo.id}",
@@ -418,6 +430,10 @@ def loan_entities(conn: sqlite3.Connection, today: date) -> list[Entity]:
                 installments_left=sm.count,
                 payoff_date=sm.payoff.isoformat() if sm.payoff else None,
                 interest_left=_amount(sm.interest_left),
+                wibor=str(fc.wibor) if fc else None,
+                wibor_date=fc.quote_day.isoformat() if fc else None,
+                next_reset=fc.reset.isoformat() if fc else None,
+                forecast_installment=_amount(fc.installment) if fc else None,
             )
         )
     return out

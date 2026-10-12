@@ -8,10 +8,11 @@ from decimal import Decimal
 
 import pytest
 
-from budget import ha_publisher, inbox, loan
+from budget import ha_publisher, inbox, loan, loan_sim
 from budget.categorize.rules import Conditions
 from budget.recurring import series as S
 from budget.snapshot import Snapshot
+from budget.storage import db
 
 from .test_categorize_engine import add, conn
 
@@ -208,4 +209,70 @@ def test_inbox_card_and_entity(conn: sqlite3.Connection) -> None:
     assert card.link == f"/loan?edit={lid}#edit-loan" and "harmonogramie" in card.detail
     (ent,) = ha_publisher.loan_entities(conn, date(2026, 3, 25))
     assert ent.key == "loan_principal" and ent.state == str(rows[1].balance)
+    assert ent.attributes["wibor"] is None  # bez daty zmiany oprocentowania nie ma prognozy
     assert ent.attributes["installments_left"] == 10 and ent.attributes["rate"] == "6.00"
+
+
+def test_resets_cycle_every_three_months_from_one_known_date() -> None:
+    anchor = date(2026, 9, 9)
+    assert loan.resets(anchor, date(2026, 10, 12)) == (date(2026, 9, 9), date(2026, 12, 9))
+    assert loan.resets(anchor, date(2026, 12, 9)) == (date(2026, 12, 9), date(2027, 3, 9))
+    assert loan.resets(anchor, date(2026, 12, 8)) == (date(2026, 9, 9), date(2026, 12, 9))
+    assert loan.resets(anchor, date(2026, 8, 1)) == (date(2026, 6, 9), date(2026, 9, 9))
+
+
+def quotes(conn: sqlite3.Connection, by_day: dict[str, str]) -> None:
+    db.kv_set(conn, "wibor", {"quotes": by_day})
+
+
+def test_forecast_reprices_first_installment_after_reset(conn: sqlite3.Connection) -> None:
+    lo = loan.get(conn, make(conn, rate_reset_date="2026-03-09"))
+    quotes(conn, {"2026-04-14": "5.00"})
+    today = date(2026, 4, 15)
+    fc = loan_sim.forecast(conn, lo, today)
+    assert fc is not None and not fc.final and fc.reset == date(2026, 6, 9)
+    rows = loan.schedule(lo)
+    may = next(r for r in rows if r.day == date(2026, 5, 20))
+    assert fc.rate == Decimal(7) and fc.current == rows[3].payment
+    assert fc.installment == loan._annuity(may.balance, Decimal(7), 8)  # raty VI–I
+    assert fc.delta > 0
+
+
+def test_forecast_is_final_once_fixing_day_passed(conn: sqlite3.Connection) -> None:
+    lo = loan.get(conn, make(conn, rate_reset_date="2026-03-09"))
+    quotes(conn, {"2026-06-04": "5.50", "2026-06-05": "4.00"})  # 4.06 = 3 dni robocze przed 9.06
+    fc = loan_sim.forecast(conn, lo, date(2026, 6, 5))
+    assert fc is not None and fc.final and fc.wibor == Decimal("5.50")
+    assert fc.quote_day == date(2026, 6, 4)
+
+
+def test_pending_until_loan_is_updated_after_reset(conn: sqlite3.Connection) -> None:
+    make_id = make(conn, rate_reset_date="2026-03-09")
+    quotes(conn, {"2026-06-04": "5.50"})
+    today = date(2026, 6, 12)
+    p = loan_sim.pending(conn, loan.get(conn, make_id), today)
+    assert p is not None and p.final and p.reset == date(2026, 6, 9) and p.rate == Decimal("7.5")
+    assert loan_sim.forecast(conn, loan.get(conn, make_id), today) is None  # czeka na korektę
+    make(
+        conn,
+        loan_id=make_id,
+        principal_date="2026-06-10",
+        principal="90000",
+        reference_rate="5.5",
+        rate_reset_date="2026-03-09",
+    )
+    assert loan_sim.pending(conn, loan.get(conn, make_id), today) is None
+
+
+def test_no_forecast_without_reset_date_or_quotes(conn: sqlite3.Connection) -> None:
+    assert loan_sim.forecast(conn, loan.get(conn, make(conn)), date(2026, 4, 15)) is None
+    lo = loan.get(conn, make(conn, name="B", rate_reset_date="2026-03-09"))
+    assert loan_sim.forecast(conn, lo, date(2026, 4, 15)) is None
+
+
+def test_entity_carries_wibor_forecast(conn: sqlite3.Connection) -> None:
+    make(conn, rate_reset_date="2026-03-09")
+    quotes(conn, {"2026-04-14": "5.00"})
+    (ent,) = ha_publisher.loan_entities(conn, date(2026, 4, 15))
+    assert ent.attributes["wibor"] == "5.00" and ent.attributes["next_reset"] == "2026-06-09"
+    assert ent.attributes["wibor_date"] == "2026-04-14" and ent.attributes["forecast_installment"]

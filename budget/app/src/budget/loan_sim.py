@@ -11,11 +11,12 @@ kredytu) pierwszej opcji minus drugiej; konto liczone odsetkami netto (Belka) ja
 from __future__ import annotations
 
 import calendar
+import sqlite3
 from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal
 
-from budget import loan, money, savings
+from budget import loan, money, savings, wibor
 from budget.loan import Installment, Loan, Scenario
 from budget.spending import add_months
 
@@ -93,6 +94,68 @@ def _start(lo: Loan, today: date) -> tuple[Decimal, date, Installment | None]:
         done[-1].day if done else lo.principal_date,
         rows[k] if k < len(rows) else None,
     )
+
+
+@dataclass(frozen=True)
+class Forecast:
+    """Rata po zmianie oprocentowania przy WIBOR `wibor` z notowania `quote_day`."""
+
+    reset: date  # dzień zmiany oprocentowania (przyszły albo już miniony, gdy kredyt nieaktualny)
+    wibor: Decimal
+    quote_day: date
+    final: bool  # dzień ustalenia stawki już minął — to nie prognoza, tylko stawka banku
+    rate: Decimal  # oprocentowanie po zmianie, % rocznie
+    installment: Decimal  # pierwsza rata po zmianie
+    current: Decimal  # rata przed zmianą
+
+    @property
+    def delta(self) -> Decimal:
+        return self.installment - self.current
+
+    @property
+    def fixing(self) -> date:
+        return wibor.fixing_day(self.reset)
+
+
+def _after_reset(
+    lo: Loan, today: date, quote: tuple[date, Decimal], reset: date, final: bool
+) -> Forecast | None:
+    """Raty kredytu przy nowej stawce od `reset`; None, gdy kredyt jest już spłacony."""
+    balance, prev, seed = _start(lo, today)
+    scen = Scenario(wibor_delta=quote[1] - lo.reference_rate, wibor_from=reset)
+    rows = loan.run(lo, balance, prev, today, scen, seed)
+    before = loan.run(lo, balance, prev, today, None, seed)
+    new = next((r for r in rows if r.day >= reset), None)
+    if not rows or new is None:
+        return None
+    return Forecast(
+        reset, quote[1], quote[0], final, lo.rate + quote[1] - lo.reference_rate,
+        new.payment, before[0].payment,
+    )  # fmt: skip
+
+
+def pending(conn: sqlite3.Connection, lo: Loan, today: date) -> Forecast | None:
+    """Zmiana oprocentowania, która już była, a kredyt w panelu jej nie uwzględnia: stawka z dnia
+    ustalenia inna niż WIBOR w kredycie i kredyt wpisany przed zmianą (`principal_date`)."""
+    if lo.rate_reset_date is None:
+        return None
+    reset = loan.resets(lo.rate_reset_date, today)[0]
+    quote = wibor.at(conn, wibor.fixing_day(reset))
+    if quote is None or quote[1] == lo.reference_rate or lo.principal_date >= reset:
+        return None
+    return _after_reset(lo, today, quote, reset, True)
+
+
+def forecast(conn: sqlite3.Connection, lo: Loan, today: date) -> Forecast | None:
+    """Rata od najbliższej zmiany oprocentowania: z ostatniego notowania, a po dniu ustalenia
+    stawki — z notowania z tego dnia. None: brak daty zmiany lub notowań albo kredyt czeka na
+    korektę."""
+    if lo.rate_reset_date is None or pending(conn, lo, today):
+        return None
+    reset = loan.resets(lo.rate_reset_date, today)[1]
+    fixed = wibor.at(conn, wibor.fixing_day(reset)) if today >= wibor.fixing_day(reset) else None
+    quote = fixed or wibor.at(conn, today)
+    return _after_reset(lo, today, quote, reset, fixed is not None) if quote else None
 
 
 def _grow(

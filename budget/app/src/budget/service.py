@@ -232,8 +232,16 @@ class Service:
 
     async def watch_wibor(self) -> None:
         """Odczyt notowań WIBOR 3M (M9 E4) — tylko gdy jest kredyt."""
-        if loan.all_loans(self.conn):
-            await wibor.refresh(self.conn, self.now())
+        loans = loan.all_loans(self.conn)
+        if loans:
+            today = self.now().date()
+            wanted = [
+                wibor.fixing_day(d)
+                for lo in loans
+                if lo.rate_reset_date
+                for d in loan.resets(lo.rate_reset_date, today)
+            ]
+            await wibor.refresh(self.conn, self.now(), wanted)
 
     async def summaries(self) -> None:
         """Podsumowania o `summary.SEND_AT`; zaległe z dzisiaj zaraz po starcie."""

@@ -23,6 +23,7 @@ from budget.storage.db import now_iso
 ZERO = money.ZERO
 KINDS = {"equal": "równe", "decreasing": "malejące"}
 DRIFT = Decimal("0.01")  # rata w księdze różna od harmonogramu o więcej niż 1% → dzwonek
+RESET_MONTHS = 3  # co tyle miesięcy bank zmienia oprocentowanie (WIBOR 3M)
 DRIFT_DAYS = 7  # rata z księgi należy do wiersza harmonogramu najwyżej tyle dni od jego dnia
 
 
@@ -43,6 +44,7 @@ class Loan:
     payment_day: int
     series_id: int | None = None
     installment: Decimal | None = None  # rata równa wg banku; None = ze wzoru annuitetowego
+    rate_reset_date: date | None = None  # dzień ostatniej zmiany oprocentowania (cykl co 3 mies.)
 
     @property
     def rate(self) -> Decimal:
@@ -84,6 +86,7 @@ def _row(r: sqlite3.Row) -> Loan:
         payment_day=r["payment_day"],
         series_id=r["series_id"],
         installment=Decimal(r["installment"]) if r["installment"] else None,
+        rate_reset_date=date.fromisoformat(r["rate_reset_date"]) if r["rate_reset_date"] else None,
     )
 
 
@@ -132,6 +135,7 @@ def save(
     last_payment_date: str | None,
     payment_day: str | None,
     installment: str | None = None,
+    rate_reset_date: str | None = None,
 ) -> int:
     """Nowy kredyt (`loan_id` None) albo zmiana; nowy kapitał na nowy dzień to korekta."""
     clean = " ".join(name.split())[:40]
@@ -163,6 +167,7 @@ def save(
             fixed = None
         if fixed is None or fixed <= ZERO:
             raise LoanError("Podaj ratę z banku większą od zera albo zostaw puste.")
+    reset = _date(rate_reset_date, "Podaj datę zmiany oprocentowania.") if rate_reset_date else None
     values = (
         clean,
         str(capital),
@@ -173,20 +178,21 @@ def save(
         end.isoformat(),
         day,
         str(fixed) if fixed else None,
+        reset.isoformat() if reset else None,
     )
     try:
         if loan_id is None:
             return conn.execute(
                 "INSERT INTO loan (name, principal, principal_date, reference_rate, margin,"
-                " installment_kind, last_payment_date, payment_day, installment, created_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " installment_kind, last_payment_date, payment_day, installment,"
+                " rate_reset_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (*values, now_iso()),
             ).lastrowid  # type: ignore[return-value]
         get(conn, loan_id)
         conn.execute(
             "UPDATE loan SET name = ?, principal = ?, principal_date = ?, reference_rate = ?,"
             " margin = ?, installment_kind = ?, last_payment_date = ?, payment_day = ?,"
-            " installment = ? WHERE id = ?",
+            " installment = ?, rate_reset_date = ? WHERE id = ?",
             (*values, loan_id),
         )
         return loan_id
@@ -214,6 +220,20 @@ def payment_dates(after: date, last: date, payment_day: int) -> list[date]:
             out.append(d)
         y, m = (y + 1, 1) if m == 12 else (y, m + 1)
     return out
+
+
+def _shift(d: date, months: int) -> date:
+    y, m = divmod(d.year * 12 + d.month - 1 + months, 12)
+    return d.replace(year=y, month=m + 1, day=min(d.day, calendar.monthrange(y, m + 1)[1]))
+
+
+def resets(anchor: date, today: date) -> tuple[date, date]:
+    """Ostatnia zmiana oprocentowania (najpóźniej `today`) i następna; cykl co `RESET_MONTHS` od
+    `anchor`, więc wystarczy znać jedną datę zmiany."""
+    k = ((today.year - anchor.year) * 12 + today.month - anchor.month) // RESET_MONTHS
+    if _shift(anchor, k * RESET_MONTHS) > today:
+        k -= 1
+    return _shift(anchor, k * RESET_MONTHS), _shift(anchor, (k + 1) * RESET_MONTHS)
 
 
 def _days360(a: date, b: date) -> int:

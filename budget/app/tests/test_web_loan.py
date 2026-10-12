@@ -8,6 +8,7 @@ import httpx
 import pytest
 
 from budget.service import Service
+from budget.storage import db
 
 from .test_web import INGRESS, _client
 
@@ -70,3 +71,14 @@ async def test_calc_reports_bad_input_and_unknown_loan(client: httpx.AsyncClient
     assert "skrócenie" in (await client.get("/loan/1/calc?variant=zzz")).text
     assert "niepoprawna kwota" in (await client.get("/loan/1/calc?lump=abc")).text
     assert "Nie ma takiego kredytu" in (await client.get("/loan/9/calc")).text
+
+
+async def test_forecast_shows_after_reset_date_and_quote(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    await client.post("/loan", data={**NEW, "rate_reset_date": "2098-12-09"})
+    assert "rata ≈" not in (await client.get("/loan")).text  # jeszcze bez notowań WIBOR
+    db.kv_set(service.conn, "wibor", {"quotes": {"2026-01-02": "5.50"}})
+    page = (await client.get("/loan")).text
+    assert "rata ≈" in page and "WIBOR 3M 5.50% z 02.01" in page and "wyższa o" in page
+    assert 'name="rate_reset_date"' in page
