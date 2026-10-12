@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.39.0
+
+**Skarbonki i tygodnie w „Do wypłaty”** (M10 E1, M21 E4–E5, `docs/PLAN_M10_E1.md`, `docs/PLAN_M21.md`).
+
+- Nowy ekran „Skarbonki”: skarbonka = nazwa, numer konta-celu w banku, cel i termin (albo seria
+  cykliczna, np. roczna subskrypcja — wtedy cel i termin z serii). Saldo liczy się z przelewów na
+  konto-cel i z niego; panel podpowiada, ile przelać w bieżącym okresie wypłaty. Numer konta jest
+  zapisany tylko w bazie, w panelu widać go zamaskowany.
+- Prognoza „Do wypłaty”: nieprzelane odłożenie do skarbonek schodzi dziś („Do skarbonek”), więc
+  limit dzienny je uwzględnia; wydatek serii pokryty saldem skarbonki liczy się jako 0. Dzwonek
+  przypomina o przelewie na mniej niż 5 dni przed wypłatą.
+- Przelewy na konta-cele i wydatki przypisane do skarbonki (pole „Skarbonka” przy wydatku
+  w Transakcjach) nie liczą się do puli Flex.
+- „Do wypłaty”: bieżący tydzień (pon–nd) w hero — wydane z limitu i ile zostało; w kafelku prognozy
+  paski wszystkich tygodni okresu (minione wobec limitu z początku okresu, bieżący i przyszłe
+  z dzisiejszego limitu dziennego).
+- Nowy kafelek „Skarbonki” na Podsumowaniu (do ukrycia w układzie).
+- Migracja bazy 013 (addytywna).
+
 ## 0.38.1
 
 **Poprawka prognozy: wpływy w dniu wypłaty.**
