@@ -406,14 +406,27 @@ async def test_lidl_receipt_link_choice_and_category_map(
     path.write_text(json.dumps({"version": 1, "receipts": [receipt]}), encoding="utf-8")
     assert service.link_lidl() == lidl_link.MatchResult(0, 1, 0)  # dwie płatności — do wyboru
 
+    print(
+        "DBG",
+        lidl_link.receipts_for_txn(conn, path, ids["lidl"]),
+        conn.execute(
+            "SELECT amount, description, tx_date, booking_date FROM txn WHERE id=?", (ids["lidl"],)
+        ).fetchone()[:],
+    )
     editor = (await client.get(f"/transactions/{ids['lidl']}/category")).text
-    assert "Paragon Lidl pasuje do kilku płatności" in editor and '"ticket_id": "p1"' in editor
+    assert "Pasujący paragon Lidl" in editor and '{"ticket_id": "p1"}' in editor
     r = await client.post(f"/transactions/{ids['lidl']}/lidl", data={"ticket_id": "p1"})
     assert "2 kategorie" in r.text and "/app/f0987e0f_lidl/paragony/p1" in r.text
     assert lidl_link.links(conn) == {ids["lidl"]: "p1"}
-    assert "Paragon Lidl pasuje" not in (await client.get(f"/transactions/{twin}/category")).text
+    assert "Pasujący paragon" not in (await client.get(f"/transactions/{twin}/category")).text
     page = (await client.get("/transactions")).text
-    assert 'target="_top">paragon Lidl</a>' in page
+    assert 'target="_top">paragon Lidl</a>' in page and "to nie ten paragon" in page
+    r = await client.post(f"/transactions/{ids['lidl']}/lidl", data={"action": "unlink"})
+    assert "paragon Lidl" not in r.text and lidl_link.links(conn) == {}
+    assert service.link_lidl() == lidl_link.MatchResult(
+        1, 0, 0, Decimal("20.00")
+    )  # odrzucona para nie wraca
+    assert lidl_link.links(conn) == {twin: "p1"}
 
     cats = (await client.get("/categories")).text
     assert 'action="' + INGRESS + '/categories/lidl"' in cats

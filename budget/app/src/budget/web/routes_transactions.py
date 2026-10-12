@@ -323,7 +323,13 @@ def router(panel: Panel) -> APIRouter:
         t = txn_row(conn, txn_id)
         if t is None:
             return HTMLResponse("Nie ma takiej transakcji.", 404)
-        ticket = str((await request.form()).get("ticket_id") or "")
+        form = await request.form()
+        if form.get("action") == "unlink":  # „To nie ten paragon”
+            with ledger.transaction(conn):
+                lidl_link.unlink(conn, txn_id)
+                engine.recategorize(conn)
+            return shown(request, txn_row(conn, txn_id) or t)
+        ticket = str(form.get("ticket_id") or "")
         receipt = next((r for r in lidl_choices(txn_id) if r.id == ticket), None)
         if receipt is None:
             return editor(request, t, error="Tego paragonu nie można już wybrać.")

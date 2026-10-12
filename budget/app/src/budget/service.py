@@ -31,6 +31,7 @@ from budget import (
     sync_service,
     wibor,
 )
+from budget.categorize import engine as categorize
 from budget.eb_client import EBClient, EBError, PsuHeaders
 from budget.ha_client import HAClient, HAError
 from budget.recurring import detect
@@ -131,6 +132,8 @@ class Service:
             receipts = lidl_link.load(self.settings.lidl_receipts_path)
             with ledger.transaction(self.conn):
                 result = lidl_link.match(self.conn, receipts)
+                if result.linked:  # zwroty dziedziczą kategorię zakupu
+                    categorize.recategorize(self.conn)
         except Exception:
             log.exception("Błąd dopasowania paragonów Lidl")
             return None

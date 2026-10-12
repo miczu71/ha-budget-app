@@ -159,3 +159,18 @@ def test_choose_links_ambiguous_receipt(conn: sqlite3.Connection, tmp_path: Path
     assert lidl_link.links(conn) == {b: "c"} and _status(conn, b) == "chosen"
     assert len(split.get(conn, b)) == 2
     assert lidl_link.receipts_for_txn(conn, path, a) == []  # paragon już użyty
+
+
+def test_cash_receipt_is_skipped_and_unlink_remembers_pair(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    from budget import split
+
+    t = add(conn, "-20.00", "card", "LIDL SKLEP X POL", day="2026-09-03")
+    cash = {**_r("g", "2026-09-02", 20.0, food=20.0), "payment": "Gotówka"}
+    card = {**_r("k", "2026-09-03", 20.0, food=10.0, kids=10.0), "payment": "Karta"}
+    receipts = lidl_link.load(_file(tmp_path, cash, card))
+    assert lidl_link.match(conn, receipts).linked == 1 and lidl_link.links(conn) == {t: "k"}
+    lidl_link.unlink(conn, t)
+    assert lidl_link.links(conn) == {} and split.get(conn, t) == []
+    assert lidl_link.match(conn, receipts).linked == 0  # odrzucona para nie wraca

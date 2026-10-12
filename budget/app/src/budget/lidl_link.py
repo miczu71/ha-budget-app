@@ -49,6 +49,7 @@ class Receipt:
     day: date
     paid: Decimal
     parts: dict[str, Decimal]
+    cash: bool = False  # zapłacony gotówką: bez płatności w banku
 
 
 @dataclass(frozen=True)
@@ -76,7 +77,8 @@ def load(path: Path) -> list[Receipt]:
             parts = {str(k): money.parse(str(v)) or Decimal(0) for k, v in r["parts"].items()}
             if paid is None:
                 continue
-            out.append(Receipt(str(r["id"]), date.fromisoformat(r["day"]), paid, parts))
+            cash = "got" in str(r.get("payment") or "").lower()  # „Gotówka”
+            out.append(Receipt(str(r["id"]), date.fromisoformat(r["day"]), paid, parts, cash))
         except (KeyError, TypeError, AttributeError, ValueError):  # AmountError to ValueError
             continue
     return out
@@ -92,11 +94,17 @@ def links(conn: sqlite3.Connection, txn_ids: list[int] | None = None) -> dict[in
 
 def _free(conn: sqlite3.Connection, receipts: list[Receipt]) -> list[Receipt]:
     used = set(links(conn).values())
-    return [r for r in receipts if r.id not in used and r.paid > 0]
+    return [r for r in receipts if r.id not in used and r.paid > 0 and not r.cash]
 
 
-def _close(receipt: Receipt, amount: str, day: str) -> bool:
-    return -Decimal(amount) == receipt.paid and abs(date.fromisoformat(day) - receipt.day) <= WINDOW
+def _rejected(conn: sqlite3.Connection) -> set[tuple[int, str]]:
+    return {
+        (int(t), str(r)) for t, r in conn.execute("SELECT txn_id, ticket_id FROM txn_lidl_reject")
+    }
+
+
+def _near(receipt: Receipt, day: str) -> bool:
+    return abs(date.fromisoformat(day) - receipt.day) <= WINDOW
 
 
 def match(conn: sqlite3.Connection, receipts: list[Receipt]) -> MatchResult:
@@ -106,14 +114,21 @@ def match(conn: sqlite3.Connection, receipts: list[Receipt]) -> MatchResult:
     if pending:
         lo = min(r.day for r in pending) - WINDOW
         hi = max(r.day for r in pending) + WINDOW
-        expenses = conn.execute(
+        by_amount: dict[Decimal, list[tuple[int, str]]] = {}
+        for t, amount, day in conn.execute(
             f"SELECT id, amount, coalesce(tx_date, booking_date) FROM txn WHERE {_EXPENSE} "
             "AND coalesce(tx_date, booking_date) BETWEEN ? AND ? "
             "AND id NOT IN (SELECT txn_id FROM txn_lidl) ORDER BY 3, id",
             (lo.isoformat(), hi.isoformat()),
-        ).fetchall()
+        ):
+            by_amount.setdefault(-Decimal(amount), []).append((int(t), day))
+        rejected = _rejected(conn)
         for r in pending:
-            found[r.id] = [int(t) for t, amount, day in expenses if _close(r, amount, day)]
+            found[r.id] = [
+                t
+                for t, day in by_amount.get(r.paid, [])
+                if _near(r, day) and (t, r.id) not in rejected
+            ]
     claims = Counter(t for tids in found.values() for t in tids)
     pairs = []
     for r in pending:
@@ -134,7 +149,28 @@ def receipts_for_txn(conn: sqlite3.Connection, path: Path, txn_id: int) -> list[
         "AND id NOT IN (SELECT txn_id FROM txn_lidl)",
         (txn_id,),
     ).fetchone()
-    return [r for r in _free(conn, load(path)) if _close(r, row[0], row[1])] if row else []
+    if row is None:
+        return []
+    rejected = {r for t, r in _rejected(conn) if t == txn_id}
+    return [
+        r
+        for r in _free(conn, load(path))
+        if r.paid == -Decimal(row[0]) and _near(r, row[1]) and r.id not in rejected
+    ]
+
+
+def unlink(conn: sqlite3.Connection, txn_id: int) -> None:
+    """„To nie ten paragon”: odłącza i zapamiętuje parę; podział z paragonu wraca do kategorii
+    automatycznej (ręcznych zmian użytkownika nie ruszamy). Po nim `engine.recategorize`."""
+    ticket = links(conn, [txn_id]).get(txn_id)
+    if ticket is None:
+        return
+    conn.execute("DELETE FROM txn_lidl WHERE txn_id = ?", (txn_id,))
+    conn.execute("INSERT OR IGNORE INTO txn_lidl_reject VALUES (?, ?)", (txn_id, ticket))
+    if conn.execute(
+        "SELECT 1 FROM txn_split WHERE txn_id = ? AND source = 'lidl'", (txn_id,)
+    ).fetchone():
+        split.clear(conn, txn_id)
 
 
 def choose(conn: sqlite3.Connection, txn_id: int, receipt: Receipt) -> None:
@@ -173,6 +209,8 @@ def _apply(
             split.save(conn, txn_id, parts, source="lidl")
         elif parts and parts[0][0] != row["category_id"]:
             engine.set_manual(conn, txn_id, parts[0][0])
+        else:
+            return Decimal(0)  # bez zmiany
     except TaxonomyError as exc:  # np. zwrot kaucji większy niż część: zostaje kategoria transakcji
         log.info("Paragon Lidl %s: bez podziału (%s)", receipt.id, exc)
         return Decimal(0)
