@@ -11,11 +11,12 @@ from decimal import Decimal
 import httpx
 import pytest
 
-from budget import forecast, spending
+from budget import forecast, inbox, spending
 from budget.categorize.rules import Conditions, TextCondition
 from budget.recurring import schedule as sch
 from budget.recurring import series as S
 from budget.service import Service
+from budget.storage import db
 from budget.storage.db import now_iso
 from budget.web.common import fmt_money
 from budget.web.routes_home import compare_label, forecast_timeline
@@ -457,6 +458,34 @@ async def test_bell_and_service_report_forecast_shortfall(
     service.settings = service.settings.model_copy(update={"forecast_buffer": 1_000_000})
     assert "forecast_low" in [i.kind for i in service.inbox()]
     assert "Prognoza: wolne środki poniżej bufora" in (await client.get("/inbox")).text
+
+
+async def test_inbox_dismiss_hides_card_and_restore_brings_it_back(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    service.settings = service.settings.model_copy(update={"forecast_buffer": 1_000_000})
+    card = next(i for i in service.inbox() if i.kind == "forecast_low")
+    assert "/inbox/dismiss" in (await client.get("/inbox")).text
+    resp = await client.post("/inbox/dismiss", data={"key": card.key, "back": "/"})
+    assert resp.status_code == 303
+    assert "forecast_low" not in [i.kind for i in service.inbox()]
+    assert "forecast_low" in [i.kind for i in service.inbox_all()]
+    page = (await client.get("/inbox")).text
+    assert card.title not in page and "Przywróć ukryte (1)" in page
+    await client.post("/inbox/restore")
+    assert "forecast_low" in [i.kind for i in service.inbox()]
+    assert "Przywróć ukryte" not in (await client.get("/inbox")).text
+
+
+def test_inbox_dismiss_is_per_title_and_forgets_gone_cards(service: Service) -> None:
+    old = inbox.Item("promo_wait", "Profit: czekam na regulamin edycji 77", 1, "/piggy")
+    new = inbox.Item("promo_wait", "Profit: czekam na regulamin edycji 78", 1, "/piggy")
+    inbox.dismiss(service.conn, old.key, [old])
+    assert inbox.visible(service.conn, [old]) == []
+    assert inbox.visible(service.conn, [new]) == [new]  # nowy tytuł = nowa karta
+    inbox.dismiss(service.conn, new.key, [new])  # „77” już nie istnieje → wypada z listy
+    assert db.kv_get(service.conn, inbox.DISMISSED_KEY) == [new.key]
 
 
 async def test_service_forecast_is_none_without_balances(service: Service) -> None:

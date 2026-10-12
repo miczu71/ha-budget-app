@@ -1,6 +1,17 @@
 {# Ułamek jako procent (szerokości pasków) #}
 {% macro pct(x) %}{{ "%.0f" | format(x * 100) }}%{% endmacro %}
 
+{# Przycisk „Ukryj” przy karcie Do decyzji; `back` — strona, na którą wracamy po ukryciu #}
+{% macro inbox_dismiss(base, i, back) %}
+<form method="post" action="{{ base }}/inbox/dismiss">
+  <input type="hidden" name="key" value="{{ i.key }}">
+  <input type="hidden" name="back" value="{{ back }}">
+  <button type="submit" class="inbox-x" aria-label="Ukryj: {{ i.title }}" title="Ukryj">
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M18 6 6 18M6 6l12 12"/></svg>
+  </button>
+</form>
+{% endmacro %}
+
 {# Pasek `flex-bar`: `frac` 0–1, `label` = aria-label, `over` = przekroczenie #}
 {% macro bar(frac, label, over=False, tag="span") %}<{{ tag }} class="flex-bar{{ ' over' if over }}" role="img" aria-label="{{ label }}"><span class="fill" style="width: {{ pct(frac) }}"></span></{{ tag }}>{% endmacro %}
 

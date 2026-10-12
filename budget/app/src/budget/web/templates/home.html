@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import bar, change, change_abs, pct %}
+{% from "_macros.html" import bar, change, change_abs, inbox_dismiss, pct %}
 {% from "_charts.html" import donut, month_chart with context %}
 {% set has_upcoming = mv and mv.rows %}
 {% block content %}
@@ -59,7 +59,10 @@
     <ul class="inbox">
       {% for i in inbox_items %}
       <li class="inbox-item {{ i.severity }}">
-        <a href="{{ base }}{{ i.link }}"><span class="inbox-title">{{ i.title }}</span><span class="inbox-count">{{ i.count }}</span></a>
+        <div class="inbox-row">
+          <a href="{{ base }}{{ i.link }}"><span class="inbox-title">{{ i.title }}</span><span class="inbox-count">{{ i.count }}</span></a>
+          {{ inbox_dismiss(base, i, "/") }}
+        </div>
       </li>
       {% endfor %}
     </ul>

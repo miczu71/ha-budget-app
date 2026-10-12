@@ -250,9 +250,13 @@ class Service:
     def manual_sync_needed(self) -> bool:
         return sync_service.manual_sync_needed(self.conn)
 
-    def inbox(self) -> list[inbox.Item]:
-        """Karty dzwonka (panel i encja `sensor.budget_inbox`)."""
+    def inbox_all(self) -> list[inbox.Item]:
+        """Wszystkie karty dzwonka, także ręcznie ukryte."""
         return inbox.items(self.snapshot, self.now(), self.balance_memo, self.forecast())
+
+    def inbox(self) -> list[inbox.Item]:
+        """Karty dzwonka (panel i encja `sensor.budget_inbox`); bez ręcznie ukrytych."""
+        return inbox.visible(self.conn, self.inbox_all())
 
     def forecast(self) -> forecast_mod.Forecast | None:
         """Prognoza do wypłaty dla dzwonka i encji; błąd prognozy nie blokuje reszty."""

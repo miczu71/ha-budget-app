@@ -34,8 +34,10 @@ from budget.forecast import Forecast
 from budget.recurring import changes, series
 from budget.snapshot import Snapshot
 from budget.spending import add_months, month_label, month_start
+from budget.storage import db
 
 Severity = Literal["info", "warn", "error"]
+DISMISSED_KEY = "inbox_dismissed"  # kv: klucze ręcznie ukrytych kart (`Item.key`)
 CONSENT_DAYS = 30  # zgoda kończy się za mniej niż tyle dni → karta (push wg opcji add-onu)
 
 
@@ -47,6 +49,11 @@ class Item:
     link: str  # ścieżka panelu (bez prefiksu Ingress)
     severity: Severity = "info"
     detail: str = ""
+
+    @property
+    def key(self) -> str:
+        """Tożsamość karty przy ukrywaniu: zmiana tytułu (np. nowa edycja) to nowa karta."""
+        return f"{self.kind}|{self.title}"
 
 
 @dataclass(frozen=True)
@@ -390,6 +397,26 @@ SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
 def items(
     snap: Snapshot, now: datetime, memo: BalanceMemo, forecast: Forecast | None = None
 ) -> list[Item]:
+    """Wszystkie bieżące karty, także ręcznie ukryte (te odfiltrowuje `visible`)."""
     ctx = Context(now, snap, forecast)
     out = [item for provider in PROVIDERS for item in provider(snap.conn, ctx, memo)]
     return sorted(out, key=lambda i: SEVERITY_ORDER[i.severity])
+
+
+def _dismissed(conn: sqlite3.Connection) -> set[str]:
+    return set(db.kv_get(conn, DISMISSED_KEY) or [])
+
+
+def visible(conn: sqlite3.Connection, every: list[Item]) -> list[Item]:
+    hidden = _dismissed(conn)
+    return [i for i in every if i.key not in hidden]
+
+
+def dismiss(conn: sqlite3.Connection, key: str, current: list[Item]) -> None:
+    """Ukrywa kartę; z listy wypadają klucze kart, których już nie ma."""
+    keep = _dismissed(conn) & {i.key for i in current}
+    db.kv_set(conn, DISMISSED_KEY, sorted(keep | {key}))
+
+
+def restore(conn: sqlite3.Connection) -> None:
+    db.kv_set(conn, DISMISSED_KEY, None)

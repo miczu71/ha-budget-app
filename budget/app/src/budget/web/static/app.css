@@ -550,6 +550,11 @@ form.move.add-fixed select { max-width: 100%; flex: 1 1 200px; }
 .inbox-item.warn { border-color: var(--warn); }
 .inbox-item.error { border-color: var(--error); }
 .inbox-item a { display: flex; justify-content: space-between; gap: 12px; text-decoration: none; color: var(--text); font-weight: 600; }
+.inbox-row { display: flex; align-items: center; gap: 4px; }
+.inbox-row a { flex: 1; }
+.inbox-row form { margin: 0; }
+button.inbox-x { display: inline-flex; align-items: center; justify-content: center; width: var(--tap); padding: 0; background: none; color: var(--text-3); }
+button.inbox-x:hover { color: var(--text); filter: none; }
 .inbox-item p { margin: 4px 0 0; }
 .inbox-count { font-variant-numeric: tabular-nums; color: var(--link); }
 

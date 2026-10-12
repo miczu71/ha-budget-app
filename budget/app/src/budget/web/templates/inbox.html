@@ -1,14 +1,18 @@
 {% extends "base.html" %}
+{% from "_macros.html" import inbox_dismiss %}
 {% block content %}
 <h1>Do decyzji</h1>
 {% if items %}
 <ul class="inbox">
   {% for i in items %}
   <li class="card inbox-item {{ i.severity }}">
-    <a href="{{ base }}{{ i.link }}">
-      <span class="inbox-title">{{ i.title }}</span>
-      <span class="inbox-count">{{ i.count }}</span>
-    </a>
+    <div class="inbox-row">
+      <a href="{{ base }}{{ i.link }}">
+        <span class="inbox-title">{{ i.title }}</span>
+        <span class="inbox-count">{{ i.count }}</span>
+      </a>
+      {{ inbox_dismiss(base, i, "/inbox") }}
+    </div>
     {% if i.detail %}<p class="small muted">{{ i.detail }}</p>{% endif %}
   </li>
   {% endfor %}
@@ -16,5 +20,8 @@
 {% else %}
 <section class="card"><p class="muted">Nic nie czeka na decyzję.</p></section>
 {% endif %}
-<p class="small muted">Karta znika, gdy sprawa zostanie załatwiona. Ta sama lista jest w Home Assistant jako encja „Do decyzji w panelu”.</p>
+{% if hidden_count %}
+<form method="post" action="{{ base }}/inbox/restore"><button type="submit" class="secondary tap">Przywróć ukryte ({{ hidden_count }})</button></form>
+{% endif %}
+<p class="small muted">Karta znika, gdy sprawa zostanie załatwiona albo gdy ją ukryjesz (wróci, jeśli zmieni się jej tytuł). Ta sama lista jest w Home Assistant jako encja „Do decyzji w panelu”.</p>
 {% endblock %}

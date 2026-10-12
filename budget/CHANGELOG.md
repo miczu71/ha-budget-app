@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.44.0
+
+**„Do decyzji”: ręczne ukrywanie kart** (`docs/PLAN_inbox_dismiss.md`).
+
+- Przy każdej karcie (strona dzwonka i kafelek na stronie głównej) jest przycisk ✕. Ukryta karta znika
+  też z licznika dzwonka i z encji `sensor.budget_inbox`.
+- Ukrywana jest para „rodzaj + tytuł”: karta wraca, gdy zmieni się jej tytuł (np. nowa edycja promocji
+  albo inna kwota spłaty karty).
+- Na stronie dzwonka przycisk „Przywróć ukryte (N)” cofa wszystkie ukrycia.
+
 ## 0.43.0
 
 **Kredyt hipoteczny: ekran „Kredyt” i kalkulator „nadpłacić czy oszczędzać”** (M9, `docs/PLAN_M9.md`, decyzja 28).
