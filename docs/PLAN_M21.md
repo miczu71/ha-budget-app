@@ -61,6 +61,22 @@ Gałąź `main`. Każdy etap kończy się wydaniem przez skill `release`.
 - W hero: „od 25.09 wydane 2 900 zł” + pasek „minęło X% okresu”, styl `.flex-bar`.
 - Ewentualnie atrybut `period_start`/`spent_since_payday` w encji `budget_forecast_at_payday`.
 
+### E4 — tydzień w „Do wypłaty” (wywiad 2026-10-12, wydanie 0.39.0 z M10 E1)
+Cel: patrzeć na wydatki okresu wypłaty w tygodniach, a nie tylko dziennie.
+- Tygodnie kalendarzowe pon–nd (jak poniedziałkowe podsumowanie M6), przycięte do okresu
+  `[period_start, payday)`; pierwszy i ostatni mogą być niepełne.
+- Wydane w tygodniu = ta sama definicja co `spent_since` (`flex.spent_between`).
+- Limit: bieżący tydzień = wydane do wczoraj + `safe_per_day` × dni od dziś do końca tygodnia, więc
+  przekroczenie obniża kolejne tygodnie (jak limit dzienny); przyszłe = `safe_per_day` × dni; minione =
+  `plan_per_day` × dni, gdzie `plan_per_day` to `safe_per_day` z pierwszego policzenia prognozy w okresie
+  (kv `period_plan`, jeden wpis `{period_start: kwota}`, zapisywany tylko gdy brak wpisu dla okresu).
+- Hero: „Ten tydzień: wydane X z Y zł” z paskiem; kafelek „Prognoza do wypłaty”: paski tygodni okresu.
+- Bez `period_start` sekcja ukryta.
+
+### E5 — re-sync systemu designu
+`DESIGN.md` + `design-system/` wg procedury z `PLAN_M20.md`: `.payday-hero`, paski tygodni (E4),
+lista i kafelek skarbonek (M10 E1); republikacja artefaktu „Budżet — Monarch”.
+
 ## Pliki
 `budget/app/src/budget/{forecast.py,recurring/schedule.py,home_layout.py,web/routes_home.py}`,
 `web/templates/{home.html,_forecast.html,_payday_hero.html (nowy)}`, `static/app.css`, testy w
