@@ -5,8 +5,9 @@ from __future__ import annotations
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import forecast, piggy
+from budget import piggy
 from budget.recurring import series as S
+from budget.spending import month_start
 from budget.web.common import Panel
 
 
@@ -16,17 +17,21 @@ def router(panel: Panel) -> APIRouter:
 
     @r.get("/piggy", response_class=HTMLResponse)
     async def piggy_page(request: Request, edit: int | None = None) -> HTMLResponse:
-        snap, today = panel.service.snapshot, panel.service.now().date()
-        start = forecast.period_start(snap, today)
-        rows = piggy.statuses(snap, today, start)
+        today = panel.service.now().date()
+        fc = panel.service.forecast()  # ten sam okres i stan co w prognozie „Do wypłaty”
+        if fc is not None and fc.piggies_from is not None:
+            start, rows = fc.piggies_from, fc.piggies
+        else:  # bez sald nie ma prognozy — okres = miesiąc
+            start = month_start(today)
+            rows = piggy.statuses(panel.service.snapshot, today, start)
         return panel.render(
             request,
             "piggy.html",
             rows=rows,
             today=today,
             period_start=start,
-            to_transfer=sum((s.to_transfer for s in rows), piggy.ZERO),
-            archived=[p for p in piggy.all_piggies(conn, archived=True) if p.archived],
+            to_transfer=piggy.total_to_transfer(rows),
+            archived=piggy.all_piggies(conn, archived=True),
             series=[s for s in S.all_series(conn, ("active",)) if s.direction == "out"],
             edit=next((s.piggy for s in rows if s.piggy.id == edit), None),
         )

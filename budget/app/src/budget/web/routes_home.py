@@ -10,7 +10,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import card, flex, forecast, home_layout, piggy, sessions, spending, sync_service
+from budget import card, flex, forecast, home_layout, sessions, spending, sync_service
 from budget.recurring import schedule
 from budget.spending import MONTHS, MONTHS_GEN, add_months, month_label, month_start, parse_month
 from budget.storage import db
@@ -125,11 +125,6 @@ def router(panel: Panel) -> APIRouter:
             cm=card.month_status(conn, today) if f.is_current else None,
             cd=card.due_status(conn, today) if f.is_current else None,
             fc=fc,
-            piggies=piggy.statuses(
-                panel.service.snapshot, today, forecast.period_start(panel.service.snapshot, today)
-            )
-            if f.is_current
-            else [],
             chart=charts.forecast_line(fc.days, buffer, fc.events, fc.payday) if fc else None,
             timeline=forecast_timeline(fc) if fc else [],
         )

@@ -563,7 +563,7 @@ def test_project_covered_series_costs_nothing() -> None:
     p = forecast.project(
         free_now=Decimal(1000), today=TODAY, dues=dues, per_day=Decimal(0), covered=frozenset({1})
     )
-    assert p.outflows == [] and [d.series.id for d in p.covered] == [1]
+    assert p.outflows == [] and [e.due.series.id for e in p.events if e.covered and e.due] == [1]
     assert p.at_payday == Decimal(1000) and p.events[0].covered and p.events[0].amount == 0
 
 
@@ -589,7 +589,8 @@ def test_build_series_paid_from_full_piggy(conn: sqlite3.Connection) -> None:
     add(conn, "-480.00", "card", "F1", "ODBIORCA f1", day="2025-10-05")
     piggy_of(conn, target="", due_date="", series_id=f1, opening_balance="500")
     fc = build(conn, payday_id=mine)
-    assert fc is not None and [d.series.id for d in fc.covered] == [f1]
+    assert fc is not None
+    assert [e.due.series.id for e in fc.events if e.covered and e.due] == [f1]
     assert fc.series_out == 0 and fc.piggy_out == 0
 
 

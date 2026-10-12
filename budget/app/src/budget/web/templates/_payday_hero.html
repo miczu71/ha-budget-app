@@ -1,5 +1,5 @@
 {# Hero „Do wypłaty” (M21 E2, E3): dzienny limit do wypłaty, werdykt prognozy i okres od ostatniej wypłaty; szczegóły w kafelku „forecast” (`#fc`) #}
-{% from "_macros.html" import pct %}
+{% from "_macros.html" import bar, pct %}
 {% set unit = "bufora" if fc.buffer else "zera" %}
 {% set spd = fc.safe_per_day %}
 <section class="card flex-hero payday-hero">
@@ -10,13 +10,13 @@
   <p class="{{ 'neg' if fc.below_buffer else 'pos' }}"><strong>{% if not fc.below_buffer %}Starczy · zapas {{ fc.low | money("PLN") }}{% elif fc.buffer %}Poniżej bufora o {{ fc.shortfall | money("PLN") }}{% else %}Zabraknie {{ fc.shortfall | money("PLN") }}{% endif %}</strong> przy obecnym tempie ({{ fc.flex_per_day | money("PLN") }} dziennie).</p>
   <p class="small muted">{% if fc.below_buffer %}{{ fc.low_day.strftime('%d.%m') }} saldo spadnie poniżej {{ unit }}{% if fc.buffer %} ({{ fc.buffer | money("PLN") }}){% endif %}.{% else %}Najniżej {{ fc.low_day.strftime('%d.%m') }}.{% endif %}{% if spd is not none and spd <= 0 %} Same płatności cykliczne przekraczają wolne środki.{% endif %}{% if fc.stale %} <span class="warn-text">Salda starsze niż doba.</span>{% endif %}</p>
   {% if fc.period_start and fc.payday %}
-  <div class="flex-bar" role="img" aria-label="minęło {{ pct(fc.period_elapsed) }} okresu od wypłaty"><span class="fill" style="width: {{ pct(fc.period_elapsed) }}"></span></div>
+  {{ bar(fc.period_elapsed, "minęło " ~ pct(fc.period_elapsed) ~ " okresu od wypłaty", tag="div") }}
   <p class="small muted">Od wypłaty {{ fc.period_start.strftime('%d.%m') }} wydane na elastyczne {{ fc.spent_since | money("PLN") }}.</p>
   {% endif %}
   {% set w = fc.this_week %}
   {% if w and w.limit is not none %}
   <p class="small week-line"><strong>Ten tydzień</strong> {{ w.start.strftime('%d.%m') }}–{{ w.end.strftime('%d.%m') }}: wydane {{ w.spent | money("PLN") }} z {{ w.limit | money("PLN") }}{% if w.left > 0 %} · zostało {{ w.left | money("PLN") }}{% endif %}</p>
-  <div class="flex-bar{{ ' over' if w.over }}" role="img" aria-label="wydane {{ pct(w.used) }} limitu tygodnia"><span class="fill" style="width: {{ pct(w.used) }}"></span></div>
+  {{ bar(w.used, "wydane " ~ pct(w.used) ~ " limitu tygodnia", w.over, "div") }}
   {% endif %}
   <p class="small"><a class="tap" href="#fc">Prognoza dzień po dniu{% if fc.payday_series_id %} i data wypłaty{% endif %}</a></p>
 </section>

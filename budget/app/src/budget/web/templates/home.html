@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import change, change_abs, pct %}
+{% from "_macros.html" import bar, change, change_abs, pct %}
 {% from "_charts.html" import donut, month_chart with context %}
 {% set has_upcoming = mv and mv.rows %}
 {% block content %}
@@ -96,11 +96,11 @@
     <p class="small card-link"><a class="tap" href="{{ base }}/card">{{ "Przypisz płatności »" if cm.unassigned else "Karta »" }}</a></p>
   </section>
   {% endif %}
-  {% elif t.key == "piggy" %}{% if piggies %}{% set left = piggies | sum(attribute="to_transfer") %}
+  {% elif t.key == "piggy" %}{% if fc and fc.piggies %}{% set left = fc.piggy_out %}
   <section class="card piggy-tile">
     <h2>Skarbonki</h2>
-    <ul class="rows">{% for s in (piggies | sort(attribute="to_transfer", reverse=True))[:3] %}
-      <li><a class="row" href="{{ base }}/piggy#piggy-{{ s.piggy.id }}"><span class="row-title">{{ s.piggy.name }}</span><span class="row-amount">{{ s.balance | money("PLN") }}{% if s.target %} <span class="small muted">z {{ s.target | money("PLN") }}</span>{% endif %}</span>{% if s.target %}<span class="flex-bar" role="img" aria-label="zebrane {{ pct(s.progress) }} celu"><span class="fill" style="width: {{ pct(s.progress) }}"></span></span>{% endif %}</a></li>
+    <ul class="rows bar-rows">{% for s in (fc.piggies | sort(attribute="to_transfer", reverse=True))[:3] %}
+      <li><a class="row" href="{{ base }}/piggy#piggy-{{ s.piggy.id }}"><span class="row-title">{{ s.piggy.name }}</span><span class="row-amount">{{ s.balance | money("PLN") }}{% if s.target %} <span class="small muted">z {{ s.target | money("PLN") }}</span>{% endif %}</span>{% if s.target %}{{ bar(s.progress, "zebrane " ~ pct(s.progress) ~ " celu") }}{% endif %}</a></li>
     {% endfor %}</ul>
     <p class="small {{ 'warn-text' if left else 'pos' }}">{% if left %}W tym okresie odłóż jeszcze {{ left | money("PLN") }}.{% else %}W tym okresie wszystko odłożone.{% endif %}</p>
     <p class="small"><a class="tap" href="{{ base }}/piggy">Skarbonki »</a></p>

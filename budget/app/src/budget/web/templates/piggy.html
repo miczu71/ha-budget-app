@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import pct %}
+{% from "_macros.html" import bar, pct %}
 {% macro piggy_form(p=None) %}
 <form class="rule-form piggy-form" method="post" action="{{ base }}/piggy{{ '/' ~ p.id if p }}" hx-boost="false">
   <div class="inline">
@@ -10,7 +10,7 @@
     <label>Seria (opcjonalnie)
       <select name="series_id">
         <option value="">— bez serii —</option>
-        {% for s in series %}<option value="{{ s.id }}" {{ "selected" if p and p.series_id == s.id }}>{{ s.name }} · {{ s.expected_amount | money("PLN") }} {{ {"M": "co miesiąc", "Q": "co kwartał", "Y": "co rok"}[s.cadence] }}</option>{% endfor %}
+        {% for s in series %}<option value="{{ s.id }}" {{ "selected" if p and p.series_id == s.id }}>{{ s.name }} · {{ s.expected_amount | money("PLN") }} {{ cadences[s.cadence] }}</option>{% endfor %}
       </select>
     </label>
     <label>Cel<input name="target" inputmode="decimal" size="10" value="{{ p.target if p and p.target }}" placeholder="np. 3000"></label>
@@ -34,7 +34,7 @@
 <section class="card piggy" id="piggy-{{ p.id }}">
   <h2>{{ p.name }} <span class="small muted">{{ p.masked }}</span></h2>
   {% if s.target %}
-  <div class="flex-bar" role="img" aria-label="zebrane {{ pct(s.progress) }} celu"><span class="fill" style="width: {{ pct(s.progress) }}"></span></div>
+  {{ bar(s.progress, "zebrane " ~ pct(s.progress) ~ " celu", tag="div") }}
   {% endif %}
   <div class="stats">
     <div class="stat"><span class="stat-label">Saldo</span><span class="stat-value">{{ s.balance | money("PLN") }}</span>{% if s.target %}<span class="small muted">z {{ s.target | money("PLN") }}</span>{% endif %}</div>

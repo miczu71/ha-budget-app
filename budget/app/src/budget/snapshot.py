@@ -21,6 +21,8 @@ class Snapshot:
         self._candidates: tuple[series.Candidate, ...] = ()
         self._members_key: tuple[int, int] | None = None
         self._members: dict[int, list[series.Candidate]] = {}
+        self._piggy_key: tuple[int, int] | None = None
+        self._piggy_ids: set[int] = set()
 
     def signature(self) -> tuple[int, int]:
         return (self.conn.total_changes, self.conn.execute("PRAGMA data_version").fetchone()[0])
@@ -47,4 +49,16 @@ class Snapshot:
         found = series.assign(live, self.candidates()) if live else {}
         if not self.conn.in_transaction:
             self._members_key, self._members = key, found
+        return found
+
+    def piggy_ids(self) -> set[int]:
+        """Transakcje skarbonek poza pulą Flex (`piggy.txn_ids`, M10 E1), do pierwszego zapisu."""
+        from budget import piggy  # piggy korzysta z harmonogramu serii, który zna Snapshot
+
+        key = self.signature()
+        if key == self._piggy_key:
+            return self._piggy_ids
+        found = piggy.txn_ids(self.conn)
+        if not self.conn.in_transaction:
+            self._piggy_key, self._piggy_ids = key, found
         return found

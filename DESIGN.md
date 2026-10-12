@@ -64,7 +64,8 @@ dwuwarstwowy cień (`--elev`). Siatka 4 px, padding karty 20 px (16 na telefonie
 ### Hero „Do wypłaty” i tygodnie okresu (M21, M21 E4)
 - `section.payday-hero` (na bazie `flex-hero`): limit dzienny w `hero-amount` z `span.hero-unit` („dziennie”), werdykt,
   pasek upływu okresu, potem `p.week-line` z paskiem bieżącego tygodnia (wydane z limitu, zostało).
-- `ul.rows.fc-weeks` w kafelku prognozy: data i kwota w jednym wierszu, pasek 8 px pod nimi na całą szerokość; stan w klasie
+- `ul.rows.fc-weeks.bar-rows` w kafelku prognozy: data i kwota w jednym wierszu, pasek 8 px pod nimi na całą szerokość
+  (wspólna klasa `bar-rows` = wiersz z paskiem pod spodem; pasek z makra `bar` w `_macros.html`); stan w klasie
   `li` (`week-past`, `week-now` z pogrubioną datą, `week-next` bez paska, z „plan”). Przekroczenie = `flex-bar.over`.
 - `dl.fc-strip` z piątą komórką („Do skarbonek”): na telefonie na cały wiersz, od 720 px pięć kolumn.
 
@@ -72,7 +73,7 @@ dwuwarstwowy cień (`--elev`). Siatka 4 px, padding karty 20 px (16 na telefonie
 - `section.piggy`: nazwa i zamaskowany numer konta-celu w `h2 .small`, pasek saldo/cel, trzy `stat` (saldo, termin,
   „w tym okresie” z podpisem `warn-text`/`pos`); akcje w `form.actions-row`. Pełny numer konta nigdy nie trafia do HTML.
 - `details.piggy-new > summary`: `line-height: var(--tap)` zamiast flexa, żeby została strzałka rozwijania.
-- `section.piggy-tile` (kafelek Podsumowania): wiersze jak `fc-weeks` (pasek 6 px pod wierszem). `form.piggy-pick` w Transakcjach:
+- `section.piggy-tile` (kafelek Podsumowania): `ul.rows.bar-rows` z paskiem 6 px pod wierszem. `form.piggy-pick` w Transakcjach:
   `select` o wysokości `--tap`, zapis po zmianie.
 
 ## System designu w Claude Design (M20)

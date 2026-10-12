@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import ROUND_CEILING, Decimal
 
-from budget import money, piggy
+from budget import money
 from budget.categorize import taxonomy
 from budget.categorize.taxonomy import Category
 from budget.recurring import series as S
@@ -256,7 +256,7 @@ def first_month(conn: sqlite3.Connection) -> date | None:
 def pool_series(snap: Snapshot) -> Pool:
     """Aktywne serie wydatkowe liczone w puli (reguła: ostatnia transakcja nie z grup poza pulą)."""
     live = [s for s in S.all_series(snap.conn, ("active",)) if s.direction == "out"]
-    pool = Pool(piggy_ids=piggy.txn_ids(snap.conn))
+    pool = Pool(piggy_ids=snap.piggy_ids())
     if not live:
         return pool
     members = snap.members()
@@ -422,9 +422,11 @@ def _drop(
     return main, float(1 - current.amount / usual)
 
 
-def spent_between(snap: Snapshot, start: date, end: date) -> Decimal:
-    """„Wydane” elastyczne (jak `FlexMonth.spent`) w dowolnym okresie [start, end) — M21 E3."""
-    return _spent(sums(snap.conn, start, end, pool_series(snap).skip), _flexible(snap.conn))
+def spent_between(snap: Snapshot, start: date, end: date, skip: set[int] | None = None) -> Decimal:
+    """„Wydane” elastyczne (jak `FlexMonth.spent`) w dowolnym okresie [start, end) — M21 E3;
+    `skip` = już policzone `pool_series(snap).skip` (kilka okresów naraz, M21 E4)."""
+    skip = pool_series(snap).skip if skip is None else skip
+    return _spent(sums(snap.conn, start, end, skip), _flexible(snap.conn))
 
 
 def build(snap: Snapshot, month: date, today: date) -> FlexMonth:

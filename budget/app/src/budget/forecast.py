@@ -56,6 +56,10 @@ class Event:
     def label(self) -> str:
         return self.due.series.name if self.due else PIGGY_LABEL
 
+    @property
+    def href(self) -> str:
+        return f"/recurring/{self.due.series.id}" if self.due else "/piggy"
+
 
 @dataclass(frozen=True)
 class Week:
@@ -98,7 +102,6 @@ class Projection:
     low: Decimal = ZERO
     low_day: date | None = None
     piggy_out: Decimal = ZERO  # nieprzelane odłożenie do skarbonek w tym okresie (M10 E1)
-    covered: list[schedule.Due] = field(default_factory=list)  # serie pokryte skarbonką
 
     @property
     def series_out(self) -> Decimal:
@@ -124,6 +127,8 @@ class Forecast(Projection):
     period_start: date | None = None  # dzień ostatniej wypłaty (M21 E3); None bez wypłaty w księdze
     spent_since: Decimal = ZERO  # wydane elastyczne od `period_start` do dziś
     weeks: list[Week] = field(default_factory=list)  # tygodnie okresu (M21 E4)
+    piggies: list[piggy.Status] = field(default_factory=list)  # stan skarbonek (M10 E1)
+    piggies_from: date | None = None  # początek okresu, od którego liczy się „odłożone”
 
     @property
     def this_week(self) -> Week | None:
@@ -256,7 +261,6 @@ def project(
     )
     inflows = sorted((p for p in paydays if p[0] <= end and p is not first), key=lambda p: p[0])
     result.outflows = [d for _, d in out if d.series.id not in covered]
-    result.covered = [d for _, d in out if d.series.id in covered]
     result.inflows = [d for _, d in inflows]
     result.piggy_out = piggy_out
     result.events = sorted(
@@ -355,14 +359,15 @@ def build(
     free_now = balances.account - (balances.card_debt if card_debt_included else ZERO)
     per_day = flex_per_day(f)
     start = last_payday(snap, payday_id, today)
-    piggies = piggy.statuses(snap, today, start or month_start(today))
+    piggies_from = start or month_start(today)
+    piggies = piggy.statuses(snap, today, piggies_from)
     p = project(
         free_now=free_now,
         today=today,
         dues=_dues(snap, today, mv, payday_id),
         per_day=per_day,
         payday_id=payday_id,
-        piggy_out=sum((s.to_transfer for s in piggies), ZERO),
+        piggy_out=piggy.total_to_transfer(piggies),
         covered=frozenset(
             s.piggy.series_id
             for s in piggies
@@ -373,15 +378,22 @@ def build(
         start = last_payday(snap, p.payday_series_id, today)
     safe = safe_per_day(p.days, today, per_day, buffer)
     week_list: list[Week] = []
-    if start is not None and p.payday is not None:
-        week_list = weeks(
-            start,
-            p.payday,
-            today,
-            lambda a, b: flex.spent_between(snap, a, b),
-            period_plan(snap.conn, start, safe),
-            safe,
-        )
+    spent_since = ZERO
+    if start is not None:
+        skip = flex.pool_series(snap).skip  # raz na prognozę, nie na każdy tydzień
+        if p.payday is not None:
+            week_list = weeks(
+                start,
+                p.payday,
+                today,
+                lambda a, b: flex.spent_between(snap, a, b, skip),
+                period_plan(snap.conn, start, safe),
+                safe,
+            )
+            # minione i bieżący tydzień pokrywają dokładnie [start, jutro)
+            spent_since = sum((w.spent for w in week_list), ZERO)
+        else:
+            spent_since = flex.spent_between(snap, start, today + timedelta(days=1), skip)
     return Forecast(
         **vars(p),
         balances=balances,
@@ -393,8 +405,10 @@ def build(
         safe_per_day=safe,
         days_left=(p.horizon_end - today).days,
         period_start=start,
-        spent_since=flex.spent_between(snap, start, today + timedelta(days=1)) if start else ZERO,
+        spent_since=spent_since,
         weeks=week_list,
+        piggies=piggies,
+        piggies_from=piggies_from,
     )
 
 
@@ -438,11 +452,6 @@ def weeks(
             result.append(Week(ws, we, NEXT, ZERO, None if safe_day is None else safe_day * days))
         ws = we + timedelta(days=1)
     return result
-
-
-def period_start(snap: Snapshot, today: date) -> date:
-    """Początek bieżącego okresu wypłaty, a bez wypłaty w księdze — 1. dzień miesiąca."""
-    return last_payday(snap, payday_series_id(snap.conn), today) or month_start(today)
 
 
 def last_payday(snap: Snapshot, series_id: int | None, today: date) -> date | None:

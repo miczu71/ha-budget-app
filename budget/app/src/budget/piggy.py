@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -43,7 +44,6 @@ class Piggy:
     due_date: date | None
     series_id: int | None
     opening_balance: Decimal
-    archived: bool
 
     @property
     def masked(self) -> str:
@@ -81,13 +81,16 @@ def _row(r: sqlite3.Row) -> Piggy:
         due_date=date.fromisoformat(r["due_date"]) if r["due_date"] else None,
         series_id=r["series_id"],
         opening_balance=Decimal(r["opening_balance"]),
-        archived=r["archived_at"] is not None,
     )
 
 
 def all_piggies(conn: sqlite3.Connection, archived: bool = False) -> list[Piggy]:
-    where = "" if archived else " WHERE archived_at IS NULL"
-    return [_row(r) for r in conn.execute(f"SELECT * FROM piggy{where} ORDER BY name")]
+    """Aktywne skarbonki, a z `archived` — tylko zarchiwizowane."""
+    where = "IS NOT NULL" if archived else "IS NULL"
+    return [
+        _row(r)
+        for r in conn.execute(f"SELECT * FROM piggy WHERE archived_at {where} ORDER BY name")
+    ]
 
 
 def get(conn: sqlite3.Connection, piggy_id: int) -> Piggy:
@@ -113,8 +116,8 @@ def _amount(value: str | None, what: str, *, allow_zero: bool = False) -> Decima
         amount = money.parse(value)
     except money.AmountError:
         amount = None
-    low_ok = amount is not None and (amount >= 0 if allow_zero else amount > 0)
-    if amount is None or not low_ok or amount >= AMOUNT_MAX:
+    low = ZERO if allow_zero else money.CENT
+    if amount is None or amount < low or amount >= AMOUNT_MAX:
         raise PiggyError(f"Podaj {what}, np. 1200 albo 1 200,00.")
     return amount
 
@@ -227,6 +230,11 @@ def next_due(snap: Snapshot, s: S.Series, today: date) -> date | None:
     return None
 
 
+def total_to_transfer(rows: list[Status]) -> Decimal:
+    """Ile jeszcze przelać na konta-cele w bieżącym okresie (suma po skarbonkach)."""
+    return sum((s.to_transfer for s in rows), ZERO)
+
+
 def months_left(today: date, due: date) -> int:
     """Ile miesięcy odkładania do terminu, z bieżącym (termin w tym miesiącu = 1)."""
     return max((due.year - today.year) * 12 + due.month - today.month, 1)
@@ -238,20 +246,21 @@ def statuses(snap: Snapshot, today: date, period_start: date) -> list[Status]:
     piggies = all_piggies(conn)
     if not piggies:
         return []
-    moves = transfers(conn, [p.account_number for p in piggies])
-    spent_rows = conn.execute(
+    cut = period_start.isoformat()
+    before_by: defaultdict[str, Decimal] = defaultdict(Decimal)  # wpłaty netto przed okresem
+    saved_by: defaultdict[str, Decimal] = defaultdict(Decimal)  # i od początku okresu
+    for r in transfers(conn, [p.account_number for p in piggies]):
+        (before_by if r["day"] < cut else saved_by)[r["number"]] -= Decimal(r["amount"])
+    spent_by: defaultdict[int, Decimal] = defaultdict(Decimal)
+    for r in conn.execute(
         "SELECT piggy_id, amount FROM txn WHERE piggy_id IS NOT NULL AND status = 'BOOK'"
-    ).fetchall()
+    ):
+        spent_by[r["piggy_id"]] -= Decimal(r["amount"])
     series_by_id = {s.id: s for s in S.all_series(conn)}
     out = []
     for p in piggies:
-        mine = [r for r in moves if r["number"] == p.account_number]
-        before = p.opening_balance - sum(
-            (Decimal(r["amount"]) for r in mine if r["day"] < period_start.isoformat()), ZERO
-        )
-        saved = -sum(
-            (Decimal(r["amount"]) for r in mine if r["day"] >= period_start.isoformat()), ZERO
-        )
+        before = p.opening_balance + before_by[p.account_number]
+        saved = saved_by[p.account_number]
         s = series_by_id.get(p.series_id) if p.series_id is not None else None
         target, due = (s.expected_amount, next_due(snap, s, today)) if s else (p.target, p.due_date)
         monthly = ZERO
@@ -265,9 +274,7 @@ def statuses(snap: Snapshot, today: date, period_start: date) -> list[Status]:
                 due=due,
                 monthly=monthly,
                 saved=saved,
-                spent=-sum(
-                    (Decimal(r["amount"]) for r in spent_rows if r["piggy_id"] == p.id), ZERO
-                ),
+                spent=spent_by[p.id],
                 series_name=s.name if s else None,
             )
         )

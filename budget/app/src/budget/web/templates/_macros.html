@@ -1,6 +1,9 @@
 {# Ułamek jako procent (szerokości pasków) #}
 {% macro pct(x) %}{{ "%.0f" | format(x * 100) }}%{% endmacro %}
 
+{# Pasek `flex-bar`: `frac` 0–1, `label` = aria-label, `over` = przekroczenie #}
+{% macro bar(frac, label, over=False, tag="span") %}<{{ tag }} class="flex-bar{{ ' over' if over }}" role="img" aria-label="{{ label }}"><span class="fill" style="width: {{ pct(frac) }}"></span></{{ tag }}>{% endmacro %}
+
 {# Lista podkategorii pogrupowana kategoriami głównymi (transakcja dostaje tylko podkategorię) #}
 {% macro category_options(tree, selected=None, empty=None) %}
 {% if empty %}<option value="">{{ empty }}</option>{% endif %}
