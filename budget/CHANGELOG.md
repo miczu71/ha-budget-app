@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.50.1
+
+- Transakcje: link „paragon Lidl” w aplikacji HA na telefonie otwierał przeglądarkę zamiast panelu
+  Lidla. Teraz przełącza panel routerem HA (bez przeładowania okna); poza HA zostaje zwykły link.
+
 ## 0.50.0
 
 **Paragony Lidl Plus** (M29 E4–E5, `docs/PLAN_M29.md`; wymaga add-onu Lidl Plus ≥ 0.19.1).

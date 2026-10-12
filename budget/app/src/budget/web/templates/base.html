@@ -18,6 +18,20 @@
     document.addEventListener("DOMContentLoaded", showActiveTab);
     document.addEventListener("htmx:afterSettle", showActiveTab);
 
+    // Link do innego panelu HA (np. paragon w panelu sklepu): router HA zamiast przeładowania okna — aplikacja
+    // HA Companion otwiera nawigację `_top` z ramki w przeglądarce. Inny origin / brak HA = zwykły link.
+    document.addEventListener("click", function (e) {
+      var a = e.target.closest("a[data-ha-nav]");
+      if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      try {
+        if (top === self) return;
+        delete top.__lidlDeep;  // panel paragonów przekierowuje raz na adres; okno HA żyje dalej, więc kasujemy znacznik
+        top.history.pushState(null, "", a.getAttribute("href"));
+        top.dispatchEvent(new CustomEvent("location-changed", {detail: {replace: false}}));
+        e.preventDefault();
+      } catch (err) { /* zostaje zwykły link */ }
+    });
+
     // Podział transakcji (M29 E3): reszta do przydzielenia liczona tu, „Zapisz” dopiero przy 0,00 zł.
     // Pierwszy wiersz (data-auto) bierze resztę, dopóki nie wpisze się go ręcznie; serwer waliduje to samo.
     function splitCents(v) {  // jak money.parse: maks. dwa miejsca po przecinku; zły zapis = NaN
