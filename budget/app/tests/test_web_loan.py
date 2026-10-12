@@ -50,3 +50,23 @@ async def test_bad_input_is_an_error_and_edit_updates(client: httpx.AsyncClient)
     assert "5.50%" in (await client.get("/loan")).text
     assert (await client.post("/loan/1/archive")).status_code == 303
     assert "Nowy kredyt" in (await client.get("/loan")).text
+
+
+async def test_calc_verdict_flips_with_savings_rate(client: httpx.AsyncClient) -> None:
+    await client.post("/loan", data=NEW)
+    page = (await client.get("/loan")).text
+    assert 'hx-get="' in page and "/loan/1/calc" in page and "Nadpłata dziś" in page
+    base = "/loan/1/calc?lump=20000&months="
+    low = (await client.get(f"{base}&savings_rate=1")).text
+    assert "Nadpłata wychodzi lepiej" in low and low.count("p.p.</th>") == 4
+    high = (await client.get(f"{base}&savings_rate=30")).text
+    assert "Oszczędności wychodzą lepiej" in high
+    idle = (await client.get("/loan/1/calc")).text
+    assert "Bez nadpłaty:" in idle and "Krótszy okres" in idle
+
+
+async def test_calc_reports_bad_input_and_unknown_loan(client: httpx.AsyncClient) -> None:
+    await client.post("/loan", data=NEW)
+    assert "skrócenie" in (await client.get("/loan/1/calc?variant=zzz")).text
+    assert "niepoprawna kwota" in (await client.get("/loan/1/calc?lump=abc")).text
+    assert "Nie ma takiego kredytu" in (await client.get("/loan/9/calc")).text

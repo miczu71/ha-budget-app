@@ -913,3 +913,16 @@ label.switch input[type="checkbox"]:checked::after { transform: translateX(16px)
 .piggy-tile .flex-bar { height: 6px; }
 .fc-strip > div:nth-child(5):last-child { grid-column: 1 / -1; }
 @media (min-width: 720px) { .fc-strip:has(> div:nth-child(5)) { grid-template-columns: repeat(5, 1fr); } .fc-strip > div:nth-child(5):last-child { grid-column: auto; } }
+
+/* Kalkulator kredytu (M9 E3b) */
+.calc-form { margin-bottom: 12px; }
+.calc-range { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.calc-range-row { display: flex; align-items: center; gap: 12px; min-height: var(--tap); }
+.calc-range-row input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.calc-range-row output { min-width: 5.5em; text-align: right; font-variant-numeric: tabular-nums; }
+.calc-verdict { font: 400 18px / 1.35 var(--font-display); margin: 0 0 12px; text-wrap: balance; }
+.calc-out h3 { margin: 16px 0 4px; font-size: 15px; }
+.loan-table th, .loan-table td { padding: 8px 3px; }
+.loan-table th { font-size: 12px; }
+.loan-table th.num { white-space: normal; }
+.loan-table td.num { font-size: 12px; }  /* trzy kolumny wariantów mieszczą się na 360 px */

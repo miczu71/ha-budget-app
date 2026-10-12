@@ -72,6 +72,37 @@
   </form>
 </section>
 {% endfor %}
+{% for lo, sm, sched in rows %}
+<section class="card" id="calc-{{ lo.id }}">
+  <h2>Nadpłacić czy oszczędzać: {{ lo.name }}</h2>
+  <form class="rule-form piggy-form calc-form" hx-get="{{ base }}/loan/{{ lo.id }}/calc" hx-trigger="load, input delay:500ms, change" hx-target="#calc-out-{{ lo.id }}" hx-push-url="false">
+    <div class="inline">
+      <label>Nadpłata dziś (zł)<input name="lump" inputmode="decimal" size="9" placeholder="np. 20000"></label>
+      <label>Nadpłata co miesiąc (zł)<input name="monthly" inputmode="decimal" size="9" placeholder="np. 1000"></label>
+    </div>
+    <div class="inline">
+      <label>Po nadpłacie
+        <select name="variant"><option value="shorten">Krótszy okres, rata bez zmian</option><option value="lower">Niższa rata, okres bez zmian</option></select>
+      </label>
+      <label>Horyzont porównania
+        <select name="months"><option value="12">12 miesięcy</option><option value="60">5 lat</option><option value="">Do końca kredytu</option></select>
+      </label>
+    </div>
+    <label class="calc-range">Zmiana WIBOR
+      <span class="calc-range-row"><input type="range" name="wibor_delta" min="-3" max="5" step="0.25" value="0" oninput="this.nextElementSibling.textContent=(this.value>0?'+':'')+this.value.replace('.',',')+' p.p.'"><output>0 p.p.</output></span>
+    </label>
+    <div class="inline">
+      <label>Nowa marża (%)<input name="margin" inputmode="decimal" size="6" placeholder="bez zmiany"></label>
+      <label>Zmiany od<input type="date" name="since" value="{{ today.isoformat() }}"></label>
+    </div>
+    <div class="inline">
+      <label>Stopa oszczędności (% rocznie)<input name="savings_rate" inputmode="decimal" size="6" placeholder="{{ 'z konta ' ~ account.name if account else 'np. 4,5' }}"></label>
+    </div>
+    {% if account and account.promo_rate is not none %}<label class="check"><input type="checkbox" name="always_promo" value="1"> Zakładam, że zawsze załapię promocję ({{ account.promo_rate }}% przez cały horyzont, do limitu kwoty)</label>{% endif %}
+  </form>
+  <div id="calc-out-{{ lo.id }}" class="calc-out" aria-live="polite"></div>
+</section>
+{% endfor %}
 {% if edit %}
 <section class="card" id="edit-loan">
   <h2>Zmień: {{ edit.name }}</h2>

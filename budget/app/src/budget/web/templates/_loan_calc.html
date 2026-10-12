@@ -1,0 +1,35 @@
+{% if error %}
+<p class="small warn-text" role="alert">{{ error }}</p>
+{% elif not sim %}
+<p class="muted">Kredyt jest już spłacony, nie ma czego liczyć.</p>
+{% else %}
+{% set idle = not scen.lump and not scen.monthly %}
+<p class="calc-verdict">
+  {% if idle %}Bez nadpłaty: rata {{ sim.base.installment | money("PLN") }}, spłata {{ sim.base.payoff.strftime('%m.%Y') }}, odsetki do końca {{ sim.base.interest | money("PLN") }}.
+  {% elif sim.gain > 1 %}<strong>Nadpłata wychodzi lepiej o {{ sim.gain | money("PLN") }}</strong> niż odłożenie tej kwoty.
+  {% elif sim.gain < -1 %}<strong>Oszczędności wychodzą lepiej o {{ (-sim.gain) | money("PLN") }}</strong> niż nadpłata.
+  {% else %}<strong>Remis:</strong> nadpłata i oszczędności dają ten sam wynik co do złotówki.{% endif %}
+</p>
+<div class="stats">
+  <div class="stat"><span class="stat-label">Rata</span><span class="stat-value">{{ sim.scen.installment | money("PLN") }}</span><span class="small muted">bez nadpłaty {{ sim.base.installment | money("PLN") }}</span></div>
+  <div class="stat"><span class="stat-label">Spłata</span><span class="stat-value">{{ sim.scen.payoff.strftime('%m.%Y') if sim.scen.payoff }}</span><span class="small muted">bez nadpłaty {{ sim.base.payoff.strftime('%m.%Y') }}</span></div>
+  <div class="stat"><span class="stat-label">Odsetki do końca</span><span class="stat-value">{{ sim.scen.interest | money("PLN") }}</span><span class="small muted">mniej o {{ sim.interest_saved | money("PLN") }}</span></div>
+  <div class="stat"><span class="stat-label">Stopa kredytu</span><span class="stat-value">{{ sim.loan_rate }}%</span><span class="small muted">konto netto {{ '%.2f' | format(sim.savings_net) }}%</span></div>
+</div>
+{% if not idle %}
+<p class="small muted">Stan na {{ sim.horizon_end.isoformat() | pldate }}{% if months is none %} (koniec kredytu){% endif %}: kapitał kredytu minus saldo konta to {{ (-sim.wealth_overpay) | money("PLN") }} przy nadpłacie i {{ (-sim.wealth_save) | money("PLN") }} przy oszczędzaniu (mniej = lepiej). W obu wariantach co miesiąc wydajesz tyle samo; co kredyt zabiera mniej, ląduje na koncie.{% if sim.savings_gross == 0 %} Konto bez stopy liczy się jako 0%, wpisz stopę oszczędności.{% endif %}</p>
+{% endif %}
+<h3>Zmiana WIBOR przy tej nadpłacie</h3>
+<p class="small muted">W komórce: rata, miesiąc spłaty, odsetki do końca.</p>
+<div class="table-wrap">
+  <table class="loan-table">
+    <thead><tr><th>WIBOR</th><th class="num">Bez nadpłaty</th><th class="num">Krótszy okres</th><th class="num">Niższa rata</th></tr></thead>
+    <tbody>{% for delta, plain, shorten, lower in table %}
+      <tr>
+        <th scope="row">{{ '%+.0f' | format(delta) if delta else '0' }} p.p.</th>
+        {% for o in (plain, shorten, lower) %}<td class="num"><strong>{{ o.installment | money("PLN") }}</strong><br><span class="small muted">{{ o.payoff.strftime('%m.%Y') if o.payoff }}<br>{{ (o.interest / 1000) | round | int }} tys. zł</span></td>{% endfor %}
+      </tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
