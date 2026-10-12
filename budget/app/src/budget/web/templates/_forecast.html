@@ -18,13 +18,16 @@
   <p class="fc-result"><span>= {{ fc.at_payday | money("PLN") }}</span> <span class="small muted">{{ fc.horizon_end.strftime('%d.%m') }}{% if fc.payday %}, przed wpływem „{{ fc.payday_series }}”{% endif %}</span></p>
   {% if fc.weeks %}
   <h3 class="small">Tygodnie okresu</h3>
+  <p class="small muted">Minione tygodnie mierzy plan z dnia wypłaty{% if fc.plan_per_day is not none %} ({{ fc.plan_per_day | money("PLN") }} dziennie){% endif %}, bieżący i kolejne dzisiejszy limit{% if fc.safe_per_day is not none %} ({{ fc.safe_per_day | money("PLN") }} dziennie){% endif %}. Jeśli wydasz więcej, kolejne tygodnie zmaleją po równo na każdy dzień.</p>
   <ul class="rows fc-weeks bar-rows">{% for w in fc.weeks %}
+    {% set cut_start = w.start.weekday() != 0 and loop.first %}{% set cut_end = w.end.weekday() != 6 and loop.last %}
     <li class="week-{{ w.state }}"><div class="row">
-      <span class="row-date">{{ w.start.strftime('%d.%m') }}–{{ w.end.strftime('%d.%m') }}</span>
+      <span class="row-date">{{ w.start.strftime('%d.%m') }}–{{ w.end.strftime('%d.%m') }}{% if cut_start or cut_end %} <span class="small muted">· {{ "1 dzień" if w.days == 1 else w.days ~ " dni" }} {{ "okresu" if cut_start and cut_end else "od wypłaty" if cut_start else "do wypłaty" }}</span>{% endif %}</span>
       {% if w.state == 'next' %}
       <span class="row-amount">{% if w.limit is not none %}<span class="small muted">plan</span> {{ w.limit | money("PLN") }}{% endif %}</span>
+      {{ bar(0, "plan tygodnia, jeszcze nic nie wydano") }}
       {% else %}
-      <span class="row-amount">{{ w.spent | money("PLN") }}{% if w.limit is not none %} <span class="small muted">z {{ w.limit | money("PLN") }}</span>{% endif %}</span>
+      <span class="row-amount">{{ w.spent | money("PLN") }}{% if w.limit is not none %} <span class="small muted">z {{ w.limit | money("PLN") }}</span>{% endif %}{% if w.over and w.state == 'past' %} <span class="small neg">+{{ (w.spent - w.limit) | money("PLN") }} ponad plan</span>{% endif %}</span>
       {{ bar(w.used, "wydane " ~ pct(w.used) ~ " limitu", w.over) }}
       {% endif %}
     </div></li>

@@ -72,6 +72,10 @@ class Week:
     limit: Decimal | None  # PAST: plan okresu; NOW: wydane + reszta; NEXT: plan
 
     @property
+    def days(self) -> int:
+        return (self.end - self.start).days + 1
+
+    @property
     def left(self) -> Decimal | None:
         return None if self.limit is None else self.limit - self.spent
 
@@ -127,6 +131,7 @@ class Forecast(Projection):
     period_start: date | None = None  # dzień ostatniej wypłaty (M21 E3); None bez wypłaty w księdze
     spent_since: Decimal = ZERO  # wydane elastyczne od `period_start` do dziś
     weeks: list[Week] = field(default_factory=list)  # tygodnie okresu (M21 E4)
+    plan_per_day: Decimal | None = None  # limit dzienny z początku okresu — miara minionych tygodni
     piggies: list[piggy.Status] = field(default_factory=list)  # stan skarbonek (M10 E1)
     piggies_from: date | None = None  # początek okresu, od którego liczy się „odłożone”
 
@@ -378,16 +383,18 @@ def build(
         start = last_payday(snap, p.payday_series_id, today)
     safe = safe_per_day(p.days, today, per_day, buffer)
     week_list: list[Week] = []
+    plan: Decimal | None = None
     spent_since = ZERO
     if start is not None:
         skip = flex.pool_series(snap).skip  # raz na prognozę, nie na każdy tydzień
         if p.payday is not None:
+            plan = period_plan(snap.conn, start, safe)
             week_list = weeks(
                 start,
                 p.payday,
                 today,
                 lambda a, b: flex.spent_between(snap, a, b, skip),
-                period_plan(snap.conn, start, safe),
+                plan,
                 safe,
             )
             # minione i bieżący tydzień pokrywają dokładnie [start, jutro)
@@ -407,6 +414,7 @@ def build(
         period_start=start,
         spent_since=spent_since,
         weeks=week_list,
+        plan_per_day=plan,
         piggies=piggies,
         piggies_from=piggies_from,
     )

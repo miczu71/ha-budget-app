@@ -457,6 +457,7 @@ def test_weeks_split_period_monday_to_sunday() -> None:
         (date(2026, 10, 5), date(2026, 10, 11), forecast.NEXT),
         (date(2026, 10, 12), date(2026, 10, 14), forecast.NEXT),  # dzień wypłaty już poza okresem
     ]
+    assert [w.days for w in ws] == [5, 7, 3]  # pierwszy i ostatni tydzień przycięte do okresu
     now = ws[0]
     assert now.spent == Decimal(80)  # 30.09–3.10 włącznie z dziś
     assert now.limit == Decimal(105) and now.left == Decimal(25)  # + 25 na niedzielę
@@ -493,9 +494,11 @@ def test_build_has_weeks_and_remembers_period_plan(conn: sqlite3.Connection) -> 
     assert fc.weeks[-1].end == date(2026, 10, 6) and fc.this_week is not None
     stored = db.kv_get(conn, forecast.PERIOD_PLAN_KEY)
     assert stored == {"start": "2026-09-07", "per_day": str(fc.safe_per_day)}
+    assert fc.plan_per_day == fc.safe_per_day
     db.kv_set(conn, forecast.PERIOD_PLAN_KEY, {"start": "2026-09-07", "per_day": "1.00"})
     fc = build(conn, payday_id=mine)
     assert fc is not None and fc.weeks[0].limit == Decimal(7)  # 7.09–13.09 × 1 zł
+    assert fc.plan_per_day == Decimal(1)
 
 
 def test_without_period_there_are_no_weeks(conn: sqlite3.Connection) -> None:
