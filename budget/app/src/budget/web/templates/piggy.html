@@ -97,6 +97,21 @@
     {% if a.base_rate is not none or a.promo_rate is not none %}<div class="stat"><span class="stat-label">Odsetki (szac., netto)</span><span class="stat-value">{{ est.interest | money("PLN") }}</span><span class="small muted">po Belce 19%, kapitalizacja co miesiąc</span></div>{% endif %}
     {% if a.promo_rate is not none and a.promo_until %}<div class="stat"><span class="stat-label">Promocja</span><span class="stat-value">{{ a.promo_rate }}%</span><span class="small {{ 'warn-text' if a.promo_until < today else 'muted' }}">{% if a.promo_until < today %}skończyła się {{ a.promo_until.isoformat() | pldate }}{% else %}do {{ a.promo_until.isoformat() | pldate }}{% if a.promo_limit %}, limit {{ a.promo_limit | money("PLN") }}{% endif %}{% endif %}</span></div>{% endif %}
   </div>
+  <details class="piggy-new">
+    <summary>Aktywuj promocję „Nowe środki” (Profit)</summary>
+    <form class="rule-form piggy-form" method="post" action="{{ base }}/savings/{{ a.id }}/promo" hx-boost="false">
+      <div class="inline">
+        <label>Nowe środki (do 200 000 zł)<input name="new_funds" inputmode="decimal" size="10" required value="{{ a.promo_limit if a.promo_limit }}" placeholder="kwota wpłacona po dniu badania"></label>
+        <label>Przystąpienie (data)<input type="date" name="start" value="{{ today.isoformat() }}" required></label>
+      </div>
+      <div class="inline">
+        <label>Stawka łączna (%)<input name="promo_rate" inputmode="decimal" size="6" required value="{{ a.promo_rate if a.promo_rate else '5,25' }}"></label>
+        <label>Stawka bazowa (%)<input name="base_rate" inputmode="decimal" size="6" value="{{ a.base_rate if a.base_rate is not none else '0,5' }}"></label>
+      </div>
+      <p class="small muted">Edycja 77: stawka łączna 5,25% dla kont otwartych od 5.09.2026, 4,25% dla otwartych do 4.09.2026; bazowa 0,5% (Cennik). Promocja trwa {{ promo_days }} dni od przystąpienia, potem liczy się stawka bazowa. Zakładam spełniony warunek 5 płatności kartą/BLIK-iem w miesiącu.</p>
+      <p class="actions-row"><button type="submit">Ustaw promocję</button></p>
+    </form>
+  </details>
   <form class="actions-row small" method="post" action="{{ base }}/savings/{{ a.id }}/archive">
     <a class="tap" href="{{ base }}/piggy?edit_savings={{ a.id }}#edit-savings">Zmień</a>
     <button class="link">Archiwizuj</button>
@@ -124,8 +139,17 @@
 <section class="card">
   <h2>Stopa oszczędności</h2>
   <p class="small muted">Wpłaty na konto oszczędnościowe (netto) w stosunku do wpływów miesiąca; skarbonki się nie liczą.</p>
-  <ul class="rows bar-rows">{% for m in rates | reverse %}
-    <li><div class="row"><span class="row-title">{{ m.month.strftime('%m.%Y') }}</span><span class="row-amount">{{ pct(m.rate) if m.rate is not none else "—" }} <span class="small muted">{{ m.saved | money("PLN") }}{% if m.income > 0 %} z {{ m.income | money("PLN") }}{% endif %}</span></span>{{ bar(m.frac, "stopa oszczędności " ~ (pct(m.rate) if m.rate is not none else "brak wpływów")) }}</div></li>
+  <ul class="cats">{% for m in rates | reverse %}
+    <li><details>
+      <summary><span class="cat-name">{{ m.month.strftime('%m.%Y') }}</span><span class="cat-amount">{{ pct(m.rate) if m.rate is not none else "—" }} <span class="small muted">{{ m.saved | money("PLN") }}{% if m.income > 0 %} z {{ m.income | money("PLN") }}{% endif %}</span></span><span class="cat-meta">{{ bar(m.frac, "stopa oszczędności " ~ (pct(m.rate) if m.rate is not none else "brak wpływów")) }}</span></summary>
+      <ul class="subcats">
+        {% for name, net, rows in m.by_account %}
+        <li><strong>{{ name }}</strong><span class="cat-amount">{{ net | money("PLN") }}</span></li>
+        {% for mv in rows %}<li class="small muted"><span>{{ mv.day.strftime('%d.%m') }} · {{ "wpłata" if mv.amount > 0 else "wypłata" }}</span><span class="cat-amount">{{ mv.amount | money("PLN") }}</span></li>{% endfor %}
+        {% else %}<li class="small muted"><span>Brak przelewów na konta oszczędnościowe.</span></li>{% endfor %}
+        {% if m.income > 0 %}<li class="small muted"><span>Wpływy miesiąca (bez przelewów oszczędnościowych)</span><span class="cat-amount">{{ m.income | money("PLN") }}</span></li>{% endif %}
+      </ul>
+    </details></li>
   {% endfor %}</ul>
 </section>
 {% endif %}

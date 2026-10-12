@@ -157,3 +157,51 @@ def test_overview_none_without_accounts(conn: sqlite3.Connection) -> None:
     make(conn)
     ov = savings.overview(conn, date(2026, 10, 12))
     assert ov is not None and ov.total == Decimal(1000) and ov.current.month == date(2026, 10, 1)
+
+
+def test_month_details_are_split_per_account(conn: sqlite3.Connection) -> None:
+    other = "22 3333 4444 5555 6666 7777 8888"
+    make(conn, name="Profit")
+    make(conn, name="Cel roczny", account_number=other)
+    move(conn, "-1000", "2026-09-10")  # Profit: wpłata
+    move(conn, "250", "2026-09-20")  # Profit: wypłata
+    move(conn, "-300", "2026-09-05", number="PL22333344445555666677778888")  # Cel roczny
+    sep = next(m for m in savings.monthly_rates(conn, date(2026, 10, 12)) if m.month.month == 9)
+    assert sep.saved == Decimal(1050)
+    names = [
+        (name, net, [(m.day.day, m.amount) for m in rows]) for name, net, rows in sep.by_account
+    ]
+    assert names == [
+        ("Cel roczny", Decimal(300), [(5, Decimal(300))]),
+        ("Profit", Decimal(750), [(10, Decimal(1000)), (20, Decimal(-250))]),
+    ]
+
+
+def test_activate_promo_sets_rates_and_ends_after_91_days(conn: sqlite3.Connection) -> None:
+    aid = make(conn, opening_balance="0")
+    savings.activate_promo(
+        conn, aid, base_rate="0,5", promo_rate="5,25", new_funds="50 000", start="2026-10-20"
+    )
+    acc = savings.get(conn, aid)
+    assert (acc.base_rate, acc.promo_rate, acc.promo_limit) == (
+        Decimal("0.5"),
+        Decimal("5.25"),
+        50000,
+    )
+    assert acc.promo_until == date(2027, 1, 18)  # 91 dni łącznie z dniem przystąpienia
+    assert acc.account_number == DIGITS and acc.opening_balance == 0  # reszta konta bez zmian
+
+
+def test_activate_promo_validates(conn: sqlite3.Connection) -> None:
+    aid = make(conn)
+    ok = {"base_rate": "0,5", "promo_rate": "5,25", "new_funds": "1000", "start": "2026-10-20"}
+    for bad, msg in (
+        ({"new_funds": "250000"}, "do 200 000"),
+        ({"new_funds": ""}, "podaj kwotę"),
+        ({"promo_rate": ""}, "łączną stawkę"),
+        ({"start": "jutro"}, "datę przystąpienia"),
+    ):
+        with pytest.raises(savings.SavingsError, match=msg):
+            savings.activate_promo(conn, aid, **{**ok, **bad})  # type: ignore[arg-type]
+    with pytest.raises(savings.SavingsError, match="Nie ma takiego"):
+        savings.activate_promo(conn, 999, **ok)  # type: ignore[arg-type]

@@ -21,6 +21,7 @@ def router(panel: Panel) -> APIRouter:
     ) -> HTMLResponse:
         today = panel.service.now().date()
         accts = savings.all_accounts(conn)
+        watch = promo_watch.load(conn) if accts else None
         fc = panel.service.forecast()  # ten sam okres i stan co w prognozie „Do wypłaty”
         if fc is not None and fc.piggies_from is not None:
             start, rows = fc.piggies_from, fc.piggies
@@ -39,7 +40,8 @@ def router(panel: Panel) -> APIRouter:
             edit=next((s.piggy for s in rows if s.piggy.id == edit), None),
             accounts=[(a, savings.estimate(conn, a, today)) for a in accts],
             rates=savings.monthly_rates(conn, today) if accts else [],
-            watch=promo_watch.load(conn) if accts else None,
+            watch=watch,
+            promo_days=watch.edition.days if watch and watch.edition else savings.PROMO_DAYS,
             edit_savings=next((a for a in accts if a.id == edit_savings), None),
         )
 
@@ -115,6 +117,24 @@ def router(panel: Panel) -> APIRouter:
     @r.post("/savings/{account_id}")
     async def change_savings(request: Request, account_id: int) -> Response:
         return await save_savings(request, account_id)
+
+    @r.post("/savings/{account_id}/promo")
+    async def promo_savings(request: Request, account_id: int) -> Response:
+        field = {k: str(v) for k, v in (await request.form()).items()}
+        watch = promo_watch.load(conn)
+        try:
+            savings.activate_promo(
+                conn,
+                account_id,
+                base_rate=field.get("base_rate"),
+                promo_rate=field.get("promo_rate"),
+                new_funds=field.get("new_funds"),
+                start=field.get("start"),
+                days=watch.edition.days if watch and watch.edition else savings.PROMO_DAYS,
+            )
+        except piggy.PiggyError as exc:
+            return panel.redirect(request, f"/piggy#savings-{account_id}", str(exc), "error")
+        return panel.redirect(request, f"/piggy#savings-{account_id}", "Ustawiono promocję.")
 
     @r.post("/savings/{account_id}/archive")
     async def archive_savings(request: Request, account_id: int) -> Response:

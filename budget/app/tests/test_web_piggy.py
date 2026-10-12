@@ -201,3 +201,66 @@ async def test_promo_refresh_failure_is_shown(client: httpx.AsyncClient) -> None
     await client.post("/promo/refresh")
     page = (await client.get("/piggy")).text
     assert "Błąd odczytu regulaminu" in page and "503" in page
+
+
+async def test_savings_months_expand_to_per_account_moves(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    month = service.now().strftime("%Y-%m")
+    for name, number in (("Profit", NUMBER), ("Cel roczny", "22 3333 4444 5555 6666 7777 8888")):
+        await client.post(
+            "/savings",
+            data={
+                "name": name,
+                "account_number": number,
+                "opening_balance": "0",
+                "opening_date": f"{month}-01",
+            },
+        )
+    for day, amount, number in (
+        ("02", "-500", NUMBER),
+        ("03", "-200", "22333344445555666677778888"),
+    ):
+        add(
+            service.conn,
+            amount,
+            "transfer_out",
+            "wpłata",
+            "JA",
+            day=f"{month}-{day}",
+            counterparty_account="PL" + number.replace(" ", ""),
+        )
+    page = (await client.get("/piggy")).text
+    assert '<ul class="cats">' in page and "<details>" in page
+    assert "Profit" in page and "Cel roczny" in page
+    assert f"02.{month[5:]} · wpłata" in page and f"03.{month[5:]} · wpłata" in page
+
+
+async def test_activate_promo_from_account_card(client: httpx.AsyncClient) -> None:
+    await client.post(
+        "/savings",
+        data={
+            "name": "Profit",
+            "account_number": NUMBER,
+            "opening_balance": "0",
+            "opening_date": "2026-10-01",
+        },
+    )
+    assert "Aktywuj promocję" in (await client.get("/piggy")).text
+    r = await client.post(
+        "/savings/1/promo",
+        data={
+            "new_funds": "40000",
+            "start": "2026-10-20",
+            "promo_rate": "5,25",
+            "base_rate": "0,5",
+        },
+    )
+    assert r.status_code == 303
+    page = (await client.get("/piggy")).text
+    assert "5.25%" in page and "limit" in page and "18.01.2027" in page
+    await client.post(
+        "/savings/1/promo",
+        data={"new_funds": "999999", "start": "2026-10-20", "promo_rate": "5,25"},
+    )
+    assert "do 200 000" in (await client.get("/piggy")).text

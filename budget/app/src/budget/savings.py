@@ -21,6 +21,8 @@ from budget.storage.db import now_iso
 
 ZERO = money.ZERO
 BELKA = Decimal("0.19")  # podatek od odsetek, potrącany przy kapitalizacji
+PROMO_FUNDS_MAX = Decimal(200_000)  # limit nowych środków w promocji Profit
+PROMO_DAYS = 91  # okres promocyjny Profit liczony od dnia przystąpienia (ed. 77)
 PROMO_REMIND_DAYS = (14, 3)  # push o końcu promocji tyle dni przed; dzwonek od pierwszego z nich
 
 
@@ -160,6 +162,41 @@ def save(
     return account_id
 
 
+def activate_promo(
+    conn: sqlite3.Connection,
+    account_id: int,
+    *,
+    base_rate: str | None,
+    promo_rate: str | None,
+    new_funds: str | None,
+    start: str | None,
+    days: int = PROMO_DAYS,
+) -> None:
+    """Promocja „Nowe środki” (Profit): stawka łączna do kwoty nowych środków (do 200 tys.) przez
+    `days` dni od dnia przystąpienia (ostatni dzień = start + days − 1), potem stawka bazowa."""
+    acc = get(conn, account_id)
+    day = _date(start, "Podaj datę przystąpienia do promocji.")
+    funds = piggy.parse_amount(new_funds, "kwotę nowych środków")
+    if funds is None or funds > PROMO_FUNDS_MAX:
+        raise SavingsError(
+            f"Nowe środki: podaj kwotę do {PROMO_FUNDS_MAX:,.0f} zł.".replace(",", " ")
+        )
+    if not (promo_rate or "").strip():
+        raise SavingsError("Podaj łączną stawkę promocyjną, np. 5,25.")
+    save(
+        conn,
+        account_id=acc.id,
+        name=acc.name,
+        account_number="",
+        opening_balance=str(acc.opening_balance),
+        opening_date=acc.opening_date.isoformat(),
+        base_rate=base_rate,
+        promo_rate=promo_rate,
+        promo_limit=str(funds),
+        promo_until=(day + timedelta(days=days - 1)).isoformat(),
+    )
+
+
 def archive(conn: sqlite3.Connection, account_id: int) -> None:
     cur = conn.execute(
         "UPDATE savings_account SET archived_at = ? WHERE id = ?", (now_iso(), account_id)
@@ -236,10 +273,29 @@ def estimate(conn: sqlite3.Connection, acc: Account, today: date) -> Interest:
 
 
 @dataclass(frozen=True)
+class Move:
+    day: date
+    amount: Decimal  # + wpłata na konto oszczędnościowe, − wypłata z niego
+    account: str
+
+
+@dataclass(frozen=True)
 class MonthRate:
     month: date
     saved: Decimal  # wpłaty na konta oszczędnościowe minus wypłaty z nich (skarbonki się nie liczą)
     income: Decimal  # wpływy miesiąca wg `spending.totals`
+    moves: tuple[Move, ...] = ()
+
+    @property
+    def by_account(self) -> list[tuple[str, Decimal, list[Move]]]:
+        """Przelewy miesiąca per konto (nazwa, netto, przelewy po dacie), konta alfabetycznie."""
+        grouped: dict[str, list[Move]] = defaultdict(list)
+        for mv in sorted(self.moves, key=lambda m: m.day):
+            grouped[mv.account].append(mv)
+        return [
+            (name, sum((m.amount for m in rows), ZERO), rows)
+            for name, rows in sorted(grouped.items())
+        ]
 
     @property
     def rate(self) -> Decimal | None:
@@ -254,13 +310,18 @@ class MonthRate:
 def monthly_rates(conn: sqlite3.Connection, today: date, n: int = 12) -> list[MonthRate]:
     """Stopa oszczędności ostatnich `n` miesięcy do bieżącego włącznie, od najstarszego. Wpływy
     bez przelewów z kont oszczędnościowych i skarbonek — wypłata z nich nie jest dochodem."""
-    transfers = piggy.transfers(conn, _numbers(conn))
-    saved: dict[date, Decimal] = defaultdict(Decimal)
+    names = dict(conn.execute("SELECT account_number, name FROM savings_account").fetchall())
+    transfers = piggy.transfers(conn, list(names))
+    moves: dict[date, list[Move]] = defaultdict(list)
     for r in transfers:
-        saved[month_start(date.fromisoformat(r["day"]))] -= Decimal(r["amount"])
+        day = date.fromisoformat(r["day"])
+        moves[month_start(day)].append(Move(day, -Decimal(r["amount"]), names[r["number"]]))
     skip = {r["id"] for r in transfers} | piggy.txn_ids(conn)
     return [
-        MonthRate(t.month, saved[t.month], t.income) for t in monthly_totals(conn, today, n, skip)
+        MonthRate(
+            t.month, sum((m.amount for m in moves[t.month]), ZERO), t.income, tuple(moves[t.month])
+        )
+        for t in monthly_totals(conn, today, n, skip)
     ]
 
 
