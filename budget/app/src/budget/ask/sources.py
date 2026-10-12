@@ -82,7 +82,7 @@ class Source:
 
 def month_of(value: str, today: date) -> date:
     """Miesiąc z planu: pusty albo błędny = bieżący."""
-    return parse_month(value or None, today) if value else month_start(today)
+    return parse_month(value or None, today)
 
 
 def _date(d: date) -> str:

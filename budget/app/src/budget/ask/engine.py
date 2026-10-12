@@ -270,7 +270,7 @@ async def _run(
         return
     name = str(a.plan.get("source") or sources.TRANSACTIONS)
     if name != sources.TRANSACTIONS:
-        await _run_source(conn, settings, a, name, today, call, snap, now)
+        await _run_source(conn, settings, a, name, a.plan, today, call, snap, now)
         return
     try:
         plan = query.parse(a.plan, cats, today)
@@ -279,17 +279,30 @@ async def _run(
         return
     a.result = query.execute(conn, plan, today, cats)
     a.context = [*a.context, {"q": a.question, "plan": compact(a.plan)}][-CONTEXT_MAX:]
+    a.text = await _answer(conn, settings, a, today, call, a.result.for_llm(), a.result.labels)
+
+
+async def _answer(
+    conn: sqlite3.Connection,
+    settings: Settings,
+    a: Answer,
+    today: date,
+    call: suggest.Call,
+    payload: dict[str, Any],
+    labels: dict[str, str],
+) -> str:
+    """Zdanie odpowiedzi od modelu z wyniku po redakcji; etykiety podmieniane lokalnie."""
     raw = await suggest.metered_call(
         conn,
         settings,
         today,
         call,
         key=USAGE_KEY,
-        prompt=answer_prompt(a.question, a.result.for_llm()),
+        prompt=answer_prompt(a.question, payload),
         schema=ANSWER_SCHEMA,
         schema_name="odpowiedz",
     )
-    a.text = restore(str(raw.get("answer") or "").strip(), a.result.labels)
+    return restore(str(raw.get("answer") or "").strip(), labels)
 
 
 async def _run_source(
@@ -297,36 +310,28 @@ async def _run_source(
     settings: Settings,
     a: Answer,
     name: str,
+    plan: dict[str, Any],
     today: date,
     call: suggest.Call,
     snap: Snapshot,
     now: datetime,
 ) -> None:
     """Źródło stanu (E3b): fakty z kodu ekranu, potem zdanie od modelu — chyba że brak danych."""
-    assert a.plan is not None
     ctx = sources.Ctx(
         conn, snap, today, now, today.replace(day=1), Decimal(settings.forecast_buffer)
     )
     try:
-        a.source_result = sources.run(name, ctx, str(a.plan.get("month") or ""))
+        a.source_result = sources.run(name, ctx, str(plan.get("month") or ""))
     except sources.SourceError as exc:
         a.unsupported = f"Nie udało się odczytać źródła ({exc})."
         return
-    a.context = [*a.context, {"q": a.question, "plan": compact(a.plan)}][-CONTEXT_MAX:]
+    a.context = [*a.context, {"q": a.question, "plan": compact(plan)}][-CONTEXT_MAX:]
     if a.source_result.note:
         a.text = a.source_result.note
         return
-    raw = await suggest.metered_call(
-        conn,
-        settings,
-        today,
-        call,
-        key=USAGE_KEY,
-        prompt=answer_prompt(a.question, a.source_result.for_llm()),
-        schema=ANSWER_SCHEMA,
-        schema_name="odpowiedz",
+    a.text = await _answer(
+        conn, settings, a, today, call, a.source_result.for_llm(), a.source_result.labels
     )
-    a.text = restore(str(raw.get("answer") or "").strip(), a.source_result.labels)
 
 
 async def ask(
