@@ -84,3 +84,16 @@ Ingress (playwright-ha): ekran Kredyt, encja w HA. Użytkownik wpisuje parametry
 - E3: ręczne przeliczenie jednego scenariusza (X, H, stopy) zgodne z wynikiem ekranu.
 - UI: devserve na kopii księgi + Playwright (screenshot telefon/desktop, konsola bez błędów), potem
   na żywo po wydaniu.
+
+## Wynik (2026-10-12)
+- **E0** dokumenty: commit 9838745 (plan, decyzja 28, M26, kredyt w źródłach M12 E3b).
+- **E1** 336b990: migracja 015 (`loan`), `loan.py` (rata równa/malejąca, odsetki act/365, ostatnia rata
+  domyka saldo), ekran `/loan`, zakładka „Kredyt”. Odstępstwo od planu: bez tabeli `loan_event` — nowy
+  kapitał lub stopa to korekta wiersza (jak w `savings_account`).
+- **E2** 8969be3: stan na dziś z harmonogramu, wybór serii rat, dzwonek `loan_rate` (rata w księdze inna niż
+  w harmonogramie o > 1%), encja `sensor.budget_loan_principal`.
+- **E3a** 92c0dd0: `loan.run` (wspólny silnik rat i scenariuszy), `loan_sim` (porównanie z oszczędnościami,
+  tabela WIBOR × wariant). Stopa z dnia raty obowiązuje za cały okres. `savings.daily/net` są publiczne.
+- **E3b**: formularz i wynik htmx na `/loan` (`GET /loan/{id}/calc`), weryfikacja na 360 i 1280 px.
+- Otwarte: kalibracja z prawdziwą ratą z banku (±1 zł) po wpisaniu kredytu przez użytkownika; wydanie 0.43.0
+  czeka na zgodę (zawiera też niewydane f044cef).
