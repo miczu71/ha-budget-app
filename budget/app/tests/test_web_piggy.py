@@ -105,3 +105,22 @@ async def test_savings_account_balance_and_masked_number(
     assert "22223333" not in page.replace(" ", "")
     await client.post("/savings/1/archive")
     assert "PL** **** … 7777" not in (await client.get("/piggy")).text
+
+
+async def test_savings_page_shows_interest_and_promo(client: httpx.AsyncClient) -> None:
+    form = {
+        "name": "Oszczędnościowe",
+        "account_number": NUMBER,
+        "opening_balance": "10000",
+        "opening_date": "2026-01-01",
+        "base_rate": "3,65",
+        "promo_rate": "6",
+        "promo_limit": "5000",
+        "promo_until": "2099-01-31",
+    }
+    assert (await client.post("/savings", data=form)).status_code == 303
+    page = (await client.get("/piggy")).text
+    assert "Odsetki (szac., netto)" in page and "Promocja" in page and "limit" in page
+    bad = await client.post("/savings", data={**form, "name": "Inne", "promo_until": ""})
+    assert bad.status_code == 303
+    assert "datę końca promocji" in (await client.get("/piggy")).text

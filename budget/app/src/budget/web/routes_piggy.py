@@ -37,7 +37,7 @@ def router(panel: Panel) -> APIRouter:
             archived=piggy.all_piggies(conn, archived=True),
             series=[s for s in S.all_series(conn, ("active",)) if s.direction == "out"],
             edit=next((s.piggy for s in rows if s.piggy.id == edit), None),
-            accounts=[(a, savings.balance(conn, a)) for a in accts],
+            accounts=[(a, savings.estimate(conn, a, today)) for a in accts],
             edit_savings=next((a for a in accts if a.id == edit_savings), None),
         )
 
@@ -87,6 +87,10 @@ def router(panel: Panel) -> APIRouter:
                 account_number=field.get("account_number", ""),
                 opening_balance=field.get("opening_balance"),
                 opening_date=field.get("opening_date"),
+                base_rate=field.get("base_rate"),
+                promo_rate=field.get("promo_rate"),
+                promo_limit=field.get("promo_limit"),
+                promo_until=field.get("promo_until"),
             )
         except piggy.PiggyError as exc:
             back = f"/piggy?edit_savings={account_id}" if account_id else "/piggy"

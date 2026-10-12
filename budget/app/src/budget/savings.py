@@ -8,9 +8,10 @@ Numer konta tylko w bazie, w panelu maskowany. Odsetki i promocja — E3, stopa 
 from __future__ import annotations
 
 import sqlite3
+from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
-from decimal import Decimal
+from datetime import date, timedelta
+from decimal import ROUND_HALF_UP, Decimal
 
 from budget import money, piggy
 from budget.logging_utils import mask_iban
@@ -18,6 +19,9 @@ from budget.piggy import PiggyError
 from budget.storage.db import now_iso
 
 ZERO = money.ZERO
+BELKA = Decimal("0.19")  # podatek od odsetek, potrącany przy kapitalizacji
+PROMO_REMIND_DAYS = (14, 3)  # przypomnienie o końcu promocji tyle dni przed (push)
+PROMO_BELL_DAYS = 14  # karta w dzwonku od tylu dni przed końcem promocji
 
 
 class SavingsError(PiggyError):
@@ -31,6 +35,10 @@ class Account:
     account_number: str
     opening_balance: Decimal
     opening_date: date
+    base_rate: Decimal | None = None  # % rocznie
+    promo_rate: Decimal | None = None
+    promo_limit: Decimal | None = None  # promocja obejmuje saldo do tej kwoty (None = całe)
+    promo_until: date | None = None
 
     @property
     def masked(self) -> str:
@@ -44,6 +52,10 @@ def _row(r: sqlite3.Row) -> Account:
         account_number=r["account_number"],
         opening_balance=Decimal(r["opening_balance"]),
         opening_date=date.fromisoformat(r["opening_date"]),
+        base_rate=Decimal(r["base_rate"]) if r["base_rate"] else None,
+        promo_rate=Decimal(r["promo_rate"]) if r["promo_rate"] else None,
+        promo_limit=Decimal(r["promo_limit"]) if r["promo_limit"] else None,
+        promo_until=date.fromisoformat(r["promo_until"]) if r["promo_until"] else None,
     )
 
 
@@ -63,6 +75,19 @@ def get(conn: sqlite3.Connection, account_id: int) -> Account:
     return _row(row)
 
 
+def _rate(value: str | None, what: str) -> Decimal | None:
+    """Stopa roczna w procentach (0–100) albo None, gdy puste."""
+    if value is None or not value.strip():
+        return None
+    try:
+        rate = money.parse(value)
+    except money.AmountError:
+        rate = None
+    if rate is None or rate < ZERO or rate > 100:
+        raise SavingsError(f"Podaj {what} w procentach, np. 5 albo 4,5.")
+    return rate
+
+
 def save(
     conn: sqlite3.Connection,
     *,
@@ -71,6 +96,10 @@ def save(
     account_number: str,
     opening_balance: str | None,
     opening_date: str | None,
+    base_rate: str | None = None,
+    promo_rate: str | None = None,
+    promo_limit: str | None = None,
+    promo_until: str | None = None,
 ) -> int:
     """Nowe konto (`account_id` None) albo zmiana (pusty numer = bez zmiany — panel pokazuje go
     zamaskowany). Nowe saldo na nowy dzień to korekta względem banku."""
@@ -86,18 +115,37 @@ def save(
     except ValueError as exc:
         raise SavingsError("Podaj datę salda.") from exc
     opening = piggy._amount(opening_balance, "saldo konta", allow_zero=True) or ZERO
-    params = (clean, number, str(opening), day.isoformat())
+    base, promo = _rate(base_rate, "stopę bazową"), _rate(promo_rate, "stopę promocyjną")
+    limit = piggy._amount(promo_limit, "limit promocji")
+    until = None
+    if promo_until:
+        try:
+            until = date.fromisoformat(promo_until)
+        except ValueError as exc:
+            raise SavingsError("Podaj datę końca promocji.") from exc
+    if promo is not None and until is None:
+        raise SavingsError("Do stopy promocyjnej podaj datę końca promocji.")
+    rates = (base, promo, limit, until.isoformat() if until else None)
+    params = (
+        clean,
+        number,
+        str(opening),
+        day.isoformat(),
+        *(None if v is None else str(v) for v in rates),
+    )
     try:
         if account_id is None:
             cur = conn.execute(
                 "INSERT INTO savings_account (name, account_number, opening_balance, "
-                "opening_date, created_at) VALUES (?, ?, ?, ?, ?)",
+                "opening_date, base_rate, promo_rate, promo_limit, promo_until, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (*params, now_iso()),
             )
             return int(cur.lastrowid or 0)
         cur = conn.execute(
             "UPDATE savings_account SET name = ?, account_number = ?, opening_balance = ?, "
-            "opening_date = ? WHERE id = ?",
+            "opening_date = ?, base_rate = ?, promo_rate = ?, promo_limit = ?, promo_until = ? "
+            "WHERE id = ?",
             (*params, account_id),
         )
     except sqlite3.IntegrityError as exc:
@@ -133,3 +181,51 @@ def txn_ids(conn: sqlite3.Connection) -> set[int]:
     po dacie salda)."""
     numbers = [r[0] for r in conn.execute("SELECT account_number FROM savings_account")]
     return {r["id"] for r in piggy.transfers(conn, numbers)}
+
+
+@dataclass(frozen=True)
+class Interest:
+    balance: Decimal  # saldo z odsetkami skapitalizowanymi na koniec zamkniętych miesięcy
+    earned: Decimal  # odsetki netto (po Belce) skapitalizowane od daty salda
+    accrued: Decimal  # odsetki netto naliczone w bieżącym miesiącu, jeszcze nieskapitalizowane
+
+    @property
+    def total(self) -> Decimal:
+        return self.balance + self.accrued
+
+    @property
+    def interest(self) -> Decimal:
+        return self.earned + self.accrued
+
+
+def _daily(acc: Account, bal: Decimal, day: date) -> Decimal:
+    """Brutto odsetki za dzień: saldo do limitu po stopie promocyjnej (do daty końca), reszta po
+    bazowej; rok = 365 dni."""
+    bal = max(bal, ZERO)
+    promo_part = ZERO
+    if acc.promo_rate is not None and acc.promo_until and day <= acc.promo_until:
+        promo_part = min(bal, acc.promo_limit) if acc.promo_limit else bal
+    promo = promo_part * (acc.promo_rate or ZERO)
+    return (promo + (bal - promo_part) * (acc.base_rate or ZERO)) / 100 / 365
+
+
+def _net(gross: Decimal) -> Decimal:
+    return (gross * (1 - BELKA)).quantize(money.CENT, ROUND_HALF_UP)
+
+
+def estimate(conn: sqlite3.Connection, acc: Account, today: date) -> Interest:
+    """Szacunek odsetek dzień po dniu od daty salda do `today`: kapitalizacja na koniec miesiąca,
+    odsetki netto (Belka). Bank liczy co do grosza inaczej — stąd ręczna korekta salda."""
+    flows: dict[date, Decimal] = defaultdict(Decimal)
+    for r in movements(conn, acc):
+        flows[date.fromisoformat(r["day"])] -= Decimal(r["amount"])
+    bal, earned, gross = acc.opening_balance, ZERO, ZERO
+    day = acc.opening_date
+    while day < today:
+        day += timedelta(days=1)
+        bal += flows.get(day, ZERO)
+        gross += _daily(acc, bal, day)
+        if (day + timedelta(days=1)).month != day.month:
+            capital = _net(gross)
+            bal, earned, gross = bal + capital, earned + capital, ZERO
+    return Interest(bal, earned, _net(gross))

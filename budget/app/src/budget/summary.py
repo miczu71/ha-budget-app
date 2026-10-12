@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-from budget import card, flex, money, review
+from budget import card, flex, money, review, savings
 from budget.categorize import taxonomy
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
@@ -29,6 +29,7 @@ from budget.storage.db import kv_get, kv_set
 SEND_AT = time(7, 0)
 SENT_KEY = "summary_sent"
 WEEKLY, MONTHLY, CARD, CARD_DUE = "weekly", "monthly", "card", "card_due"
+PROMO = "savings_promo"
 UPCOMING_DAYS = 7
 TOP = 3
 MONTH_NAMES = (
@@ -49,7 +50,7 @@ MONTH_NAMES = (
 
 @dataclass(frozen=True)
 class Message:
-    kind: str  # WEEKLY | MONTHLY | CARD | CARD_DUE
+    kind: str  # WEEKLY | MONTHLY | CARD | CARD_DUE | PROMO
     period: str  # znacznik wysłanego okresu: dzień poniedziałku, RRRR-MM albo RRRR-MM-<dni>
     title: str
     text: str
@@ -211,6 +212,18 @@ def due_reminder(cd: card.CardDue) -> Message:
     )
 
 
+def promo_reminder(acc: savings.Account, days: int) -> Message:
+    """Przypomnienie o końcu promocyjnej stopy konta oszczędnościowego (M10 E3)."""
+    assert acc.promo_until is not None
+    return Message(
+        f"{PROMO}_{acc.id}",  # rodzaj per konto — `mark_sent` pamięta jeden okres na rodzaj
+        f"{acc.promo_until:%Y-%m-%d}-{days}",
+        f"Konto oszczędnościowe — promocja do {_short(acc.promo_until)}",
+        f"Stopa {acc.promo_rate}% kończy się {when(days)}, potem {acc.base_rate or 0}%. "
+        "Sprawdź warunki i rozważ przeniesienie środków.",
+    )
+
+
 def build(snap: Snapshot, kind: str, today: date) -> Message:
     return weekly(snap, today) if kind == WEEKLY else monthly(snap, today)
 
@@ -236,6 +249,12 @@ def due(snap: Snapshot, now: datetime) -> list[Message]:
         msg = due_reminder(cd)
         if sent.get(CARD_DUE) != msg.period:
             out.append(msg)
+    for acc in savings.all_accounts(snap.conn):
+        days = (acc.promo_until - today).days if acc.promo_until and acc.promo_rate else -1
+        if days in savings.PROMO_REMIND_DAYS:
+            msg = promo_reminder(acc, days)
+            if sent.get(msg.kind) != msg.period:
+                out.append(msg)
     return out
 
 

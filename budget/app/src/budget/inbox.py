@@ -17,7 +17,17 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Literal
 
-from budget import card, ledger, money, notifications, review, sessions, summary, sync_service
+from budget import (
+    card,
+    ledger,
+    money,
+    notifications,
+    review,
+    savings,
+    sessions,
+    summary,
+    sync_service,
+)
 from budget.forecast import Forecast
 from budget.recurring import changes, series
 from budget.snapshot import Snapshot
@@ -256,6 +266,24 @@ def piggy_transfer(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) ->
     return [Item("piggy_transfer", "Odłóż do skarbonek", 1, "/piggy", "info", detail)]
 
 
+def savings_promo(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Promocyjna stopa konta oszczędnościowego kończy się za `PROMO_BELL_DAYS` dni lub mniej."""
+    out = []
+    for acc in savings.all_accounts(conn):
+        days = (acc.promo_until - ctx.today).days if acc.promo_until and acc.promo_rate else -1
+        if not 0 <= days <= savings.PROMO_BELL_DAYS:
+            continue
+        detail = f"Stopa {acc.promo_rate}% do {acc.promo_until:%d.%m}"
+        detail += f", potem {acc.base_rate or 0}% — rozważ przeniesienie środków."
+        title = f"Promocja konta „{acc.name}” kończy się {summary.when(days)}"
+        out.append(
+            Item(
+                "savings_promo", title, 1, "/piggy#savings", "warn" if days <= 3 else "info", detail
+            )
+        )
+    return out
+
+
 Provider = Callable[[sqlite3.Connection, Context, BalanceMemo], list[Item]]
 PROVIDERS: tuple[Provider, ...] = (
     operational,
@@ -266,6 +294,7 @@ PROVIDERS: tuple[Provider, ...] = (
     card_due,
     forecast_low,
     piggy_transfer,
+    savings_promo,
 )
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
 

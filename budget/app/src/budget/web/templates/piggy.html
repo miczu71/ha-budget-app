@@ -75,6 +75,12 @@
     <label>Saldo<input name="opening_balance" inputmode="decimal" size="10" value="{{ a.opening_balance if a }}" required placeholder="z aplikacji banku"></label>
     <label>Na dzień<input type="date" name="opening_date" value="{{ (a.opening_date if a else today).isoformat() }}" required></label>
   </div>
+  <div class="inline">
+    <label>Stopa bazowa (% rocznie)<input name="base_rate" inputmode="decimal" size="6" value="{{ a.base_rate if a and a.base_rate }}" placeholder="np. 3"></label>
+    <label>Stopa promocyjna (%)<input name="promo_rate" inputmode="decimal" size="6" value="{{ a.promo_rate if a and a.promo_rate }}" placeholder="np. 6"></label>
+    <label>Limit promocji<input name="promo_limit" inputmode="decimal" size="10" value="{{ a.promo_limit if a and a.promo_limit }}" placeholder="puste = całe saldo"></label>
+    <label>Promocja do<input type="date" name="promo_until" value="{{ a.promo_until.isoformat() if a and a.promo_until }}"></label>
+  </div>
   <p class="small muted">Panel nie widzi tego konta w banku: saldo = wpisane saldo + przelewy na konto i z konta po tej dacie. Gdy różni się od banku, wpisz nowe saldo na nowy dzień.</p>
   <p class="actions-row">
     <button type="submit">{{ "Zapisz" if a else "Dodaj konto" }}</button>
@@ -83,11 +89,13 @@
 </form>
 {% endmacro %}
 <h2 id="savings">Konto oszczędnościowe</h2>
-{% for a, bal in accounts %}
+{% for a, est in accounts %}
 <section class="card piggy" id="savings-{{ a.id }}">
   <h2>{{ a.name }} <span class="small muted">{{ a.masked }}</span></h2>
   <div class="stats">
-    <div class="stat"><span class="stat-label">Saldo</span><span class="stat-value">{{ bal | money("PLN") }}</span><span class="small muted">od {{ a.opening_date.isoformat() | pldate }}: {{ a.opening_balance | money("PLN") }}</span></div>
+    <div class="stat"><span class="stat-label">Saldo</span><span class="stat-value">{{ est.total | money("PLN") }}</span><span class="small muted">od {{ a.opening_date.isoformat() | pldate }}: {{ a.opening_balance | money("PLN") }}</span></div>
+    {% if a.base_rate is not none or a.promo_rate is not none %}<div class="stat"><span class="stat-label">Odsetki (szac., netto)</span><span class="stat-value">{{ est.interest | money("PLN") }}</span><span class="small muted">po Belce 19%, kapitalizacja co miesiąc</span></div>{% endif %}
+    {% if a.promo_rate is not none and a.promo_until %}<div class="stat"><span class="stat-label">Promocja</span><span class="stat-value">{{ a.promo_rate }}%</span><span class="small {{ 'warn-text' if a.promo_until < today else 'muted' }}">{% if a.promo_until < today %}skończyła się {{ a.promo_until.isoformat() | pldate }}{% else %}do {{ a.promo_until.isoformat() | pldate }}{% if a.promo_limit %}, limit {{ a.promo_limit | money("PLN") }}{% endif %}{% endif %}</span></div>{% endif %}
   </div>
   <form class="actions-row small" method="post" action="{{ base }}/savings/{{ a.id }}/archive">
     <a class="tap" href="{{ base }}/piggy?edit_savings={{ a.id }}#edit-savings">Zmień</a>
