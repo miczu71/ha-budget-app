@@ -40,3 +40,10 @@ Pierwszy krok implementacji: skopiować ten plan do `docs/PLAN_M9_M21_poprawki.m
 1. Testy, ruff i mypy na zielono.
 2. Lokalny devserve na kopii `~/budget_dev`, Playwright 390 px: kredyt (tabela zwinięta, rozwinięcie liczy, zmiana kroku 0,25 daje wiersze −0,5…+0,5, wpisanie nadpłaty nie zwija sekcji), Podsumowanie (podpis, pusty pasek planu, „N dni do wypłaty”), konsola bez błędów. Zrzuty do scratchpada, potem skasować (finanse).
 3. Po wydaniu: na żywo `/app/a9413a25_budget`, stopka v0.47.0, ten sam przegląd obu ekranów.
+
+## Wynik (2026-10-12)
+- **0.47.0 wydane i zainstalowane** (tag v0.47.0 na d59e035, release opublikowany, `update.budzet_domowy_update` = 0.47.0 o 14:21:54, backup przy instalacji). 826 testów, ruff i mypy czyste.
+- E1 (56e7c39): tabela WIBOR w `<details>`, liczona tylko po rozwinięciu (`table=1`), 5 wierszy, krok 1/0,5/0,25. Na żywo: `/loan/1/calc` z `table=1&wibor_step=0.5` → 5 wierszy, z `table=0` → 0.
+- E2 (5d3fc0c): podpis metody, pusty pasek planu w przyszłych tygodniach, „+X zł ponad plan”, „N dni od/do wypłaty”. Na żywo: 24.09–27.09 „4 dni od wypłaty … +366,52 zł ponad plan”, 19.10–22.10 „4 dni do wypłaty”, konsola bez błędów.
+- **Regres znaleziony na żywo (390 px):** dopisek „ponad plan” w jednej linii poszerzał kartę do 395 px. Poprawka f3ab453 (osobna linia, `.over-note`) zweryfikowana wstrzykniętym stylem (390 px), **jeszcze niewydana** — do 0.47.1 razem z następną zmianą albo osobno.
+- Pułapka: lokalny devserve z seedowanymi danymi testowymi (`serie`/`add`/`snapshot` z `tests/`, `db.kv_set(PAYDAY_KEY)`) wystarcza do wizualnej weryfikacji bez kopii księgi, ale nie złapał przepełnienia (krótsze kwoty niż na produkcji) — szerokość sprawdzać też na żywo.
