@@ -13,6 +13,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import sqlite3
 from collections.abc import Callable, Coroutine, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -21,7 +22,7 @@ from typing import Any
 
 import aiomqtt
 
-from budget import __version__, card, flex, inbox, ledger, money, sessions, sync_service
+from budget import __version__, card, flex, inbox, ledger, loan, money, sessions, sync_service
 from budget import forecast as forecast_mod
 from budget.logging_utils import mask_iban
 from budget.recurring import schedule
@@ -187,6 +188,7 @@ def build_entities(
     entities += flex_entities(snap, today)
     entities += recurring_entities(snap, today)
     entities += card_entities(snap, today)
+    entities += loan_entities(snap.conn, today)
     entities += forecast_entities(forecast)
     if inbox_items is not None:
         entities.append(inbox_entity(inbox_items))
@@ -395,6 +397,27 @@ def card_entities(snap: Snapshot, today: date) -> list[Entity]:
                 available_bank=_amount(cd.available),
                 limit=_amount(cd.limit),
                 utilization=None if cd.utilization is None else round(cd.utilization * 100, 1),
+            )
+        )
+    return out
+
+
+def loan_entities(conn: sqlite3.Connection, today: date) -> list[Entity]:
+    """Kapitał kredytu wg harmonogramu (M9 E2); pierwszy kredyt = `loan_principal`, kolejne z id."""
+    out = []
+    for n, lo in enumerate(loan.all_loans(conn)):
+        sm = loan.summary(lo, loan.schedule(lo), today)
+        out.append(
+            _flex_sensor(
+                "loan_principal" if n == 0 else f"loan_principal_{lo.id}",
+                f"Kredyt: {lo.name} — kapitał",
+                "mdi:home-city-outline",
+                _amount(sm.principal),
+                rate=str(lo.rate),
+                installment=_amount(sm.installment),
+                installments_left=sm.count,
+                payoff_date=sm.payoff.isoformat() if sm.payoff else None,
+                interest_left=_amount(sm.interest_left),
             )
         )
     return out

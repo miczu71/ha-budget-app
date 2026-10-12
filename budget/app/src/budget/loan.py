@@ -15,10 +15,13 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 from budget import money
+from budget.recurring import series as S
 from budget.storage.db import now_iso
 
 ZERO = money.ZERO
 KINDS = {"equal": "równe", "decreasing": "malejące"}
+DRIFT = Decimal("0.01")  # rata w księdze różna od harmonogramu o więcej niż 1% → dzwonek
+DRIFT_DAYS = 7  # rata z księgi należy do wiersza harmonogramu najwyżej tyle dni od jego dnia
 
 
 class LoanError(ValueError):
@@ -57,6 +60,7 @@ class Installment:
 
 @dataclass(frozen=True)
 class Summary:
+    principal: Decimal  # kapitał na dziś wg harmonogramu (po ostatniej racie do dziś)
     installment: Decimal  # najbliższa rata
     count: int
     payoff: date | None
@@ -227,10 +231,39 @@ def schedule(loan: Loan) -> list[Installment]:
     return out
 
 
-def summary(rows: list[Installment]) -> Summary:
+def summary(lo: Loan, rows: list[Installment], today: date) -> Summary:
+    """Stan na `today`: kapitał po ostatniej racie do dziś, reszta z rat przed nami."""
+    elapsed = [r for r in rows if r.day <= today]
+    left = rows[len(elapsed) :]
     return Summary(
-        installment=rows[0].payment if rows else ZERO,
-        count=len(rows),
+        principal=elapsed[-1].balance if elapsed else lo.principal,
+        installment=left[0].payment if left else ZERO,
+        count=len(left),
         payoff=rows[-1].day if rows else None,
-        interest_left=sum((r.interest for r in rows), ZERO),
+        interest_left=sum((r.interest for r in left), ZERO),
     )
+
+
+@dataclass(frozen=True)
+class Drift:
+    day: date  # dzień raty z księgi
+    paid: Decimal
+    expected: Decimal  # rata z harmonogramu najbliższa temu dniowi
+
+
+def drift(rows: list[Installment], paid_day: date, paid: Decimal) -> Drift | None:
+    """Rata z księgi vs harmonogram: różnica powyżej `DRIFT` zwykle znaczy zmianę stopy (WIBOR)."""
+    near = min(rows, key=lambda r: abs((r.day - paid_day).days), default=None)
+    if near is None or abs((near.day - paid_day).days) > DRIFT_DAYS or near.payment == ZERO:
+        return None
+    if abs(paid - near.payment) / near.payment <= DRIFT:
+        return None
+    return Drift(paid_day, paid, near.payment)
+
+
+def set_series(conn: sqlite3.Connection, loan_id: int, series_id: int | None) -> None:
+    """Seria rat w księdze (tylko wydatkowa); `None` odpina."""
+    get(conn, loan_id)
+    if series_id is not None and S.get(conn, series_id).direction != "out":
+        raise LoanError("Rata kredytu to seria wydatkowa.")
+    conn.execute("UPDATE loan SET series_id = ? WHERE id = ?", (series_id, loan_id))

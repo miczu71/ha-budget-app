@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget import loan
+from budget.recurring import series as S
 from budget.web.common import Panel
 
 
@@ -16,12 +17,16 @@ def router(panel: Panel) -> APIRouter:
     @r.get("/loan", response_class=HTMLResponse)
     async def loan_page(request: Request, edit: int | None = None) -> HTMLResponse:
         loans = loan.all_loans(conn)
+        today = panel.service.now().date()
         schedules = {lo.id: loan.schedule(lo) for lo in loans}
         return panel.render(
             request,
             "loan.html",
-            today=panel.service.now().date(),
-            rows=[(lo, loan.summary(schedules[lo.id]), schedules[lo.id]) for lo in loans],
+            today=today,
+            rows=[
+                (lo, loan.summary(lo, schedules[lo.id], today), schedules[lo.id]) for lo in loans
+            ],
+            series=[s for s in S.all_series(conn, ("active",)) if s.direction == "out"],
             edit=next((lo for lo in loans if lo.id == edit), None),
             kinds=loan.KINDS,
         )
@@ -53,6 +58,14 @@ def router(panel: Panel) -> APIRouter:
     @r.post("/loan/{loan_id}")
     async def change(request: Request, loan_id: int) -> Response:
         return await save(request, loan_id)
+
+    @r.post("/loan/{loan_id}/series")
+    async def link_series(request: Request, loan_id: int, series_id: str = Form("")) -> Response:
+        try:
+            loan.set_series(conn, loan_id, int(series_id) if series_id.isdigit() else None)
+        except (loan.LoanError, S.SeriesError) as exc:
+            return panel.redirect(request, "/loan", str(exc), "error")
+        return panel.redirect(request, "/loan", "Zapisano powiązanie z serią rat.")
 
     @r.post("/loan/{loan_id}/archive")
     async def archive(request: Request, loan_id: int) -> Response:

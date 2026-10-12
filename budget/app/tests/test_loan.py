@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
 
-from budget import loan
+from budget import ha_publisher, inbox, loan
+from budget.categorize.rules import Conditions
+from budget.recurring import series as S
+from budget.snapshot import Snapshot
 
-from .test_categorize_engine import conn
+from .test_categorize_engine import add, conn
 
 __all__ = ["conn"]
 
@@ -47,7 +50,7 @@ def test_equal_schedule_matches_annuity_and_closes_balance(conn: sqlite3.Connect
     assert sum(r.principal for r in rows) == Decimal("100000.00")
     # 100 000 zł, 6% rocznie, 12 rat: wzór annuitetowy daje 8606,64 zł
     assert rows[0].payment == pytest.approx(Decimal("8606.64"), abs=Decimal("30"))
-    assert loan.summary(rows).installment == rows[0].payment
+    assert loan.summary(lo, rows, date(2026, 1, 21)).installment == rows[0].payment
 
 
 def test_decreasing_has_constant_principal_and_lower_payments_later(
@@ -83,3 +86,86 @@ def test_save_validates_and_updates(conn: sqlite3.Connection) -> None:
     assert lo.rate == Decimal("1.20") and len(loan.all_loans(conn)) == 1
     loan.archive(conn, lid)
     assert loan.all_loans(conn) == []
+
+
+def test_summary_is_as_of_today(conn: sqlite3.Connection) -> None:
+    lo = loan.get(conn, make(conn))
+    rows = loan.schedule(lo)
+    before = loan.summary(lo, rows, date(2026, 1, 21))
+    assert before.principal == Decimal("100000.00") and before.count == 12
+    mid = loan.summary(lo, rows, date(2026, 3, 25))  # po ratach 20.02 i 20.03
+    assert mid.principal == rows[1].balance and mid.count == 10
+    assert mid.installment == rows[2].payment and mid.payoff == date(2027, 1, 20)
+    done = loan.summary(lo, rows, date(2027, 2, 1))
+    assert done.principal == Decimal("0.00") and done.count == 0 and done.installment == 0
+
+
+def test_drift_flags_changed_installment_only() -> None:
+    lo = loan.Loan(
+        1,
+        "Dom",
+        Decimal(100000),
+        date(2026, 1, 21),
+        Decimal(4),
+        Decimal(2),
+        "equal",
+        date(2027, 1, 20),
+        20,
+    )
+    rows = loan.schedule(lo)
+    exp = rows[0].payment
+    assert loan.drift(rows, date(2026, 2, 21), exp) is None
+    assert loan.drift(rows, date(2026, 2, 21), exp + Decimal("0.50")) is None  # < 1%
+    d = loan.drift(rows, date(2026, 2, 21), exp * Decimal("1.1"))
+    assert d is not None and d.expected == exp
+    assert loan.drift(rows, date(2026, 6, 5), exp * 2) is None  # daleko od dnia raty
+    assert loan.drift([], date(2026, 2, 21), exp) is None
+
+
+def _series(conn: sqlite3.Connection, direction: str = "out") -> int:
+    return S.insert(
+        conn,
+        name="Rata",
+        direction=direction,
+        cadence="M",
+        conditions=Conditions(),
+        expected=Decimal("100"),
+        tolerance=Decimal("10"),
+        anchor_day=20,
+        status="active",
+        origin="manual",
+        key=None,
+    )
+
+
+def test_set_series_rejects_income_and_unlinks(conn: sqlite3.Connection) -> None:
+    lid = make(conn)
+    with pytest.raises(loan.LoanError, match="wydatkowa"):
+        loan.set_series(conn, lid, _series(conn, "in"))
+    sid = _series(conn)
+    loan.set_series(conn, lid, sid)
+    assert loan.get(conn, lid).series_id == sid
+    make(conn, loan_id=lid, margin="1")  # zapis parametrów nie odpina serii
+    assert loan.get(conn, lid).series_id == sid
+    loan.set_series(conn, lid, None)
+    assert loan.get(conn, lid).series_id is None
+
+
+def test_inbox_card_and_entity(conn: sqlite3.Connection) -> None:
+    lid = make(conn)
+    rows = loan.schedule(loan.get(conn, lid))
+    loan.set_series(conn, lid, _series(conn))
+    now = datetime(2026, 3, 1, 9, 0)
+
+    def cards() -> list[inbox.Item]:
+        items = inbox.items(Snapshot(conn), now, inbox.BalanceMemo())
+        return [i for i in items if i.kind == "loan_rate"]
+
+    add(conn, str(-rows[0].payment), kind="loan", day="2026-02-20", description="rata")
+    assert cards() == []
+    add(conn, str(-rows[1].payment * 2), kind="loan", day="2026-03-20", description="rata")
+    (card,) = cards()
+    assert card.link == f"/loan?edit={lid}#edit-loan" and "harmonogramie" in card.detail
+    (ent,) = ha_publisher.loan_entities(conn, date(2026, 3, 25))
+    assert ent.key == "loan_principal" and ent.state == str(rows[1].balance)
+    assert ent.attributes["installments_left"] == 10 and ent.attributes["rate"] == "6.00"

@@ -37,7 +37,7 @@
 <section class="card piggy" id="loan-{{ lo.id }}">
   <h2>{{ lo.name }} <span class="small muted">raty {{ kinds[lo.installment_kind] }}</span></h2>
   <div class="stats">
-    <div class="stat"><span class="stat-label">Kapitał do spłaty</span><span class="stat-value">{{ lo.principal | money("PLN") }}</span><span class="small muted">na {{ lo.principal_date.isoformat() | pldate }}</span></div>
+    <div class="stat"><span class="stat-label">Kapitał do spłaty</span><span class="stat-value">{{ sm.principal | money("PLN") }}</span><span class="small muted">wg harmonogramu</span></div>
     <div class="stat"><span class="stat-label">Najbliższa rata</span><span class="stat-value">{{ sm.installment | money("PLN") }}</span><span class="small muted">{{ sm.count }} rat do spłaty</span></div>
     <div class="stat"><span class="stat-label">Oprocentowanie</span><span class="stat-value">{{ lo.rate }}%</span><span class="small muted">{{ lo.reference_rate }}% + marża {{ lo.margin }}%</span></div>
     <div class="stat"><span class="stat-label">Spłata</span><span class="stat-value">{{ sm.payoff.strftime('%m.%Y') if sm.payoff }}</span><span class="small muted">odsetki do końca: {{ sm.interest_left | money("PLN") }}</span></div>
@@ -56,6 +56,16 @@
     </details>
     {% endif %}
   </details>
+  <form class="actions-row small" method="post" action="{{ base }}/loan/{{ lo.id }}/series" hx-boost="false">
+    <label>Seria rat w księdze
+      <select name="series_id" onchange="this.form.submit()">
+        <option value="">— bez serii —</option>{% for s in series %}
+        <option value="{{ s.id }}" {{ "selected" if lo.series_id == s.id }}>{{ s.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <noscript><button>Zapisz</button></noscript>
+  </form>
+  <p class="small muted">Wpisano {{ lo.principal | money("PLN") }} na {{ lo.principal_date.isoformat() | pldate }}. Powiązana seria pozwala wykryć zmianę raty (stopy) w księdze.</p>
   <form class="actions-row small" method="post" action="{{ base }}/loan/{{ lo.id }}/archive">
     <a class="tap" href="{{ base }}/loan?edit={{ lo.id }}#edit-loan">Zmień</a>
     <button class="link">Archiwizuj</button>

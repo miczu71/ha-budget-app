@@ -20,6 +20,7 @@ from typing import Literal
 from budget import (
     card,
     ledger,
+    loan,
     money,
     notifications,
     promo_watch,
@@ -341,6 +342,34 @@ def promo_cards(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> li
     return out
 
 
+def loan_rate(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Rata kredytu w księdze inna niż w harmonogramie — zmienił się WIBOR albo marża (M9 E2)."""
+    out = []
+    for lo in loan.all_loans(conn):
+        if lo.series_id is None:
+            continue
+        live = [s for s in series.all_series(conn, ("active",)) if s.id == lo.series_id]
+        paid = series.assign(live, ctx.snap.candidates()).get(lo.series_id, [])
+        d = loan.drift(loan.schedule(lo), paid[-1].day, abs(paid[-1].amount)) if paid else None
+        if d is None:
+            continue
+        detail = (
+            f"Rata {d.day:%d.%m}: {summary.zl(d.paid)} w banku, {summary.zl(d.expected)} w "
+            "harmonogramie. Zmienił się WIBOR lub marża? Wpisz nowy kapitał i stopę."
+        )
+        out.append(
+            Item(
+                "loan_rate",
+                f"{lo.name}: rata inna niż w harmonogramie",
+                1,
+                f"/loan?edit={lo.id}#edit-loan",
+                "warn",
+                detail,
+            )
+        )
+    return out
+
+
 Provider = Callable[[sqlite3.Connection, Context, BalanceMemo], list[Item]]
 PROVIDERS: tuple[Provider, ...] = (
     operational,
@@ -353,6 +382,7 @@ PROVIDERS: tuple[Provider, ...] = (
     piggy_transfer,
     savings_promo,
     promo_cards,
+    loan_rate,
 )
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
 
