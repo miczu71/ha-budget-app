@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date, datetime
+from decimal import Decimal
 
-from budget import forecast
+from budget import card, flex, forecast
 from budget.ask import sources
+from budget.money import pl
 from budget.snapshot import Snapshot
 
+from .test_card import CARD, buy
 from .test_categorize_engine import conn
 from .test_forecast import at, seeded
 
@@ -69,3 +72,51 @@ def test_month_parsing_defaults_to_current() -> None:
     assert sources.month_of("", date(2026, 10, 3)) == date(2026, 10, 1)
     assert sources.month_of("2026-08", date(2026, 10, 3)) == date(2026, 8, 1)
     assert sources.month_of("zły", date(2026, 10, 3)) == date(2026, 10, 1)
+
+
+def facts(res: sources.SourceResult) -> dict[str, str]:
+    return {f.label: f.value for f in res.facts}
+
+
+def test_card_shared_counter_and_due(conn: sqlite3.Connection) -> None:
+    buy(conn, "2026-10-10", 3)
+    res = sources.run("card", ctx(conn, at(20)))
+    got = facts(res)
+    assert got["Płatności kartą w miesiącu"] == "3 z 5 (brakuje 2)"
+    assert res.link == "/card" and res.filters and not res.note
+
+
+def test_card_per_person_is_redacted_for_llm(conn: sqlite3.Connection) -> None:
+    buy(conn, "2026-10-10", 2)
+    holder = card.add_holder(conn, "Osoba Testowa")
+    for (txn_id,) in conn.execute("SELECT id FROM txn WHERE account_id = ?", (CARD,)).fetchall():
+        card.assign(conn, txn_id, holder)
+    res = sources.run("card", ctx(conn, at(20)))
+    assert facts(res)["Osoba Testowa"].startswith("2 z 5")
+    assert "Testowa" not in str(res.for_llm()) and res.labels == {"[Osoba 1]": "Osoba Testowa"}
+
+
+def test_card_past_month_has_no_due_part(conn: sqlite3.Connection) -> None:
+    buy(conn, "2026-09-10", 4)
+    got = facts(sources.run("card", ctx(conn, at(20)), "2026-09"))
+    assert got["Płatności kartą w miesiącu"] == "4 z 5 (brakuje 1)"
+    assert "Do spłaty w terminie" not in got
+
+
+def test_budget_matches_flex_screen(conn: sqlite3.Connection) -> None:
+    flex.set_budget(conn, date(2026, 10, 1), Decimal("1000"))
+    f = flex.build(Snapshot(conn), date(2026, 10, 1), TODAY)
+    got = facts(sources.run("budget", ctx(conn, at(3))))
+    assert f.remaining is not None
+    assert got["Zostało w budżecie elastycznym"] == pl(f.remaining, "PLN")
+    assert got["Budżet elastyczny"] == pl(Decimal("1000"), "PLN")
+
+
+def test_budget_without_amount_says_so(conn: sqlite3.Connection) -> None:
+    got = facts(sources.run("budget", ctx(conn, at(3))))
+    assert got["Budżet elastyczny"] == "nie ustawiono"
+
+
+def test_budget_month_param_and_link(conn: sqlite3.Connection) -> None:
+    res = sources.run("budget", ctx(conn, at(3)), "2026-08")
+    assert res.link == "/budget?month=2026-08" and "sierpień" in facts(res)["Miesiąc"].lower()

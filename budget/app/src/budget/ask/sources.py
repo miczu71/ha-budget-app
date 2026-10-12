@@ -15,10 +15,10 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from budget import forecast
+from budget import card, flex, forecast
 from budget.money import ZERO, pl
 from budget.snapshot import Snapshot
-from budget.spending import month_start, parse_month
+from budget.spending import month_label, month_start, parse_month
 
 TRANSACTIONS = "transactions"
 
@@ -131,6 +131,85 @@ def _payday(c: Ctx) -> SourceResult:
     return res
 
 
+# --- Karta -----------------------------------------------------------------------------------
+
+
+def _card(c: Ctx) -> SourceResult:
+    res = SourceResult("card", link="/card", link_label="Otwórz Kartę")
+    cm = card.month_status(c.conn, c.month)
+    if cm is None:
+        res.note = "Brak konta karty kredytowej w księdze."
+        return res
+    facts = res.facts
+    facts.append(Fact("Miesiąc", month_label(cm.month)))
+    if cm.shared:
+        h = cm.holders[0]
+        facts.append(Fact("Płatności kartą w miesiącu", _count(h.count, h.threshold)))
+    else:
+        facts.append(Fact("Płatności kartą w miesiącu", str(cm.count)))
+        for i, h in enumerate(cm.holders, 1):
+            facts.append(Fact(h.name, _count(h.count, h.threshold), llm_label=f"[Osoba {i}]"))
+        if cm.unassigned:
+            facts.append(Fact("Płatności bez przypisanej osoby", str(cm.unassigned)))
+    if cm.month == month_start(c.today):
+        facts.append(Fact("Dni do końca miesiąca", str(card.days_to_end(c.today))))
+        due = card.due_status(c.conn, c.today)
+        if due is not None:
+            facts.append(Fact("Do spłaty w terminie", pl(due.left, "PLN")))
+            facts.append(Fact("Termin spłaty", _date(due.due)))
+            facts.append(Fact("Zadłużenie karty", pl(due.debt, "PLN")))
+            if due.limit:
+                facts.append(Fact("Limit karty", pl(due.limit, "PLN")))
+    res.filters = [
+        "Licznik jak na ekranie Karta: płatności kartą w miesiącu (mniejsza z liczb po dacie "
+        "księgowania i po dacie zakupu), karta bezpłatna przy " + str(card.THRESHOLD),
+        "Do spłaty = zadłużenie − nowe zakupy po zamknięciu cyklu (jak kafelek Karta)",
+    ]
+    return res
+
+
+def _count(count: int, threshold: int) -> str:
+    left = max(threshold - count, 0)
+    return f"{count} z {threshold}" + (f" (brakuje {left})" if left else "")
+
+
+# --- Budżet ----------------------------------------------------------------------------------
+
+
+def _budget(c: Ctx) -> SourceResult:
+    f = flex.build(c.snap, c.month, c.today)
+    res = SourceResult("budget", link=f"/budget?month={c.month:%Y-%m}", link_label="Otwórz Budżet")
+    facts = res.facts
+    facts.append(Fact("Miesiąc", month_label(f.month)))
+    if f.budget is None:
+        facts.append(Fact("Budżet elastyczny", "nie ustawiono"))
+    else:
+        how = "ręczny" if f.budget_source == "manual" else "z dochodu"
+        facts.append(Fact("Budżet elastyczny", pl(f.budget, "PLN")))
+        facts.append(Fact("Źródło kwoty budżetu", how))
+    facts.append(Fact("Wydane elastyczne", pl(f.spent, "PLN")))
+    if f.remaining is not None:
+        facts.append(Fact("Zostało w budżecie elastycznym", pl(f.remaining, "PLN")))
+    if f.is_current:
+        facts.append(Fact("Dni do końca miesiąca", str(f.days_left)))
+        if f.per_day is not None:
+            facts.append(Fact("Można wydawać dziennie", pl(f.per_day, "PLN")))
+        if f.expected is not None:
+            facts.append(Fact("Przy równym tempie powinno być wydane", pl(f.expected, "PLN")))
+            facts.append(Fact("Wydatki szybsze od tempa", "tak" if f.over_pace else "nie"))
+    facts.append(Fact("Koszty stałe (informacyjnie)", pl(f.fixed, "PLN")))
+    facts.append(Fact("Wydatki nieregularne (informacyjnie)", pl(f.non_monthly, "PLN")))
+    if f.uncategorized_count:
+        facts.append(
+            Fact(
+                "Bez kategorii (w wydanych)",
+                f"{pl(f.uncategorized, 'PLN')} ({f.uncategorized_count} tr.)",
+            )
+        )
+    res.filters = ["Budżet jak na ekranie Budżet: pula elastyczna z dochodu albo wpisana ręcznie"]
+    return res
+
+
 REGISTRY: tuple[Source, ...] = (
     Source(
         "payday",
@@ -138,6 +217,20 @@ REGISTRY: tuple[Source, ...] = (
         "czy starczy do następnej wypłaty: wolne środki, saldo, dług karty, najniższe saldo, "
         "limit dzienny",
         _payday,
+    ),
+    Source(
+        "card",
+        "Karta",
+        "karta kredytowa: płatności w miesiącu (próg 5, per osoba), kwota do spłaty, termin, limit",
+        _card,
+        monthly=True,
+    ),
+    Source(
+        "budget",
+        "Budżet",
+        "budżet elastyczny miesiąca: pula, wydane, ile zostało, ile można wydawać dziennie, tempo",
+        _budget,
+        monthly=True,
     ),
 )
 NAMES = tuple(s.name for s in REGISTRY)
