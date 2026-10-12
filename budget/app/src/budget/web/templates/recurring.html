@@ -101,7 +101,7 @@
         <a class="cat-name tap" href="{{ base }}/recurring/{{ v.s.id }}">{{ v.s.name }}</a>
         <span class="cat-amount">{{ amount(v.s) }}</span>
       </div>
-      <div class="small muted">{{ dir_label(v.s) }} · {{ cadences[v.s.cadence] }}{% if v.s.cadence != "M" %} ({{ v.s.monthly | money("PLN") }}/mies.){% endif %}{% if v.last %} · ostatnio {{ v.last.day.isoformat() | pldate }}: {{ v.last.amount | money("PLN") }}{% else %} · brak transakcji{% endif %}{% if v.few_history %} · <span class="warn-text">mało historii</span>{% endif %}</div>
+      <div class="small muted">{{ dir_label(v.s) }} · {{ cadences[v.s.cadence] }}{% if v.s.cadence != "M" %} ({{ v.s.monthly | money("PLN") }}/mies.){% endif %}{% if v.last %} · ostatnio {{ v.last.day.isoformat() | pldate }}: {{ v.last.amount | money("PLN") }}{% else %} · brak transakcji{% endif %}{% if v.few_history %} · <span class="warn-text">mało historii</span>{% endif %}{% set pg = piggies.get(v.s.id) %}{% if pg %} · <a class="tap" href="{{ base }}/piggy#piggy-{{ pg.id }}">Skarbonka: {{ pg.name }}</a>{% endif %}</div>
     </li>
     {% endfor %}
   </ul>

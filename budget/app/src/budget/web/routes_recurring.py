@@ -16,7 +16,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 from starlette.datastructures import FormData
 
-from budget import forecast, money
+from budget import forecast, money, piggy
 from budget.categorize.rules import Conditions, Rule, RuleError, TextCondition
 from budget.ledger import transaction
 from budget.recurring import changes, schedule
@@ -114,6 +114,7 @@ def router(panel: Panel) -> APIRouter:
             "recurring.html",
             proposed=by_status["proposed"],
             active=by_status["active"],
+            piggies={p.series_id: p for p in piggy.all_piggies(conn) if p.series_id},
             ended=by_status["ended"],
             rejected=len(by_status["rejected"]),
             mv=schedule.for_month(snap, start, today),
