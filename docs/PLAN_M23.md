@@ -75,3 +75,10 @@ synchronizacjach. Ekran pokazuje pokrycie „dane do <ostatni import CSV karty>�
 Na kopii księgi z 2.10 przebudowa (`rebuild_derived`) poprawia 28 transakcji, suma karty −54,90 zł
 (zgodnie z E0). Na produkcji poprawka zadziała przy pierwszej synchronizacji po wydaniu. Skutek
 uboczny: zmiana kwoty kasuje podział M29 tej transakcji (jednorazowo, `_update_changed`).
+
+## Wynik E3
+`hidden_costs.py`: `build(start, end)` (koszt per transakcja ze znakiem — zakupy i zwroty, `missing` bez
+kursu), `months`, `csv_until`. Kopia księgi z 2.10 + kursy NBP pobrane na żywo: 78 transakcji walutowych,
+0 bez kursu, przewalutowanie 113,55 zł przy wartości 12 291,46 zł wg NBP (średnio 0,9%; wrzesień
+106,87 zł — transakcje z 2% prowizją), opłaty 22,79 zł, CSV karty do 2026-09-26. Kontrola ręczna
+3 transakcji (kwota × kurs NBP z tabeli z dnia poprzedniego) zgodna co do grosza.
