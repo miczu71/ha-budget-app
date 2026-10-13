@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.50.2
+
+- Głęboki link `/app/<slug>/inbox` (np. chip „do decyzji” na dashboardzie HA) otwiera ekran „Do decyzji”
+  zamiast samej strony głównej panelu.
+
 ## 0.50.1
 
 - Transakcje: link „paragon Lidl” w aplikacji HA na telefonie otwierał przeglądarkę zamiast panelu

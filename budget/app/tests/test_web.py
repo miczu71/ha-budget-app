@@ -94,6 +94,13 @@ async def test_ingress_prefix_and_cache(client: httpx.AsyncClient) -> None:
     assert css.status_code == 200 and "immutable" in css.headers["cache-control"]
 
 
+async def test_deep_link_guard_targets_inbox(client: httpx.AsyncClient) -> None:
+    """`/app/<slug>/inbox` otwiera w HA tylko korzeń panelu — strona sama przechodzi do „Do decyzji”."""
+    html = (await client.get("/")).text
+    assert "top.location.pathname" in html
+    assert f'"{INGRESS}/inbox"' in html
+
+
 async def test_all_pages_render_empty(client: httpx.AsyncClient) -> None:
     for path in ("/", "/status", "/bank", "/import", "/accounts", "/transactions", "/healthz"):
         r = await client.get(path)

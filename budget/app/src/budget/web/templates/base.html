@@ -18,6 +18,20 @@
     document.addEventListener("DOMContentLoaded", showActiveTab);
     document.addEventListener("htmx:afterSettle", showActiveTab);
 
+    // Głęboki link z dashboardu HA (`/app/<slug>/inbox`): HA ładuje w ramce tylko korzeń panelu, więc czytamy
+    // adres okna nadrzędnego (ten sam origin) i raz przechodzimy do „Do decyzji”. Znacznik trzyma adres,
+    // bo okno HA żyje między wejściami; gdy adres przestaje pasować, znacznik znika.
+    try {
+      if (top !== self) {
+        if (/^\/app\/[^/]+\/inbox\/?$/.test(top.location.pathname)) {
+          if (top.__budgetDeep !== top.location.pathname) {
+            top.__budgetDeep = top.location.pathname;
+            if (location.pathname !== "{{ base }}/inbox") location.replace("{{ base }}/inbox");
+          }
+        } else delete top.__budgetDeep;
+      }
+    } catch (e) { /* inny origin albo brak HA — zwykły panel */ }
+
     // Link do innego panelu HA (np. paragon w panelu sklepu): router HA zamiast przeładowania okna — aplikacja
     // HA Companion otwiera nawigację `_top` z ramki w przeglądarce. Inny origin / brak HA = zwykły link.
     document.addEventListener("click", function (e) {
