@@ -6,6 +6,8 @@ import sqlite3
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from budget import fx
 
 from .test_categorize_engine import add, conn
@@ -80,3 +82,13 @@ async def test_refresh_never_raises(conn: sqlite3.Connection) -> None:
 
     await fx.refresh(conn, boom)
     assert fx.Rates(conn).get("EUR", date(2026, 9, 8)) is None
+
+
+async def test_refresh_survives_database_errors(
+    conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(c: sqlite3.Connection) -> dict[str, set[date]]:
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(fx, "_needed", broken)
+    await fx.refresh(conn)  # nie rzuca — pętla serwisu żyje dalej

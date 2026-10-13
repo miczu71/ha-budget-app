@@ -95,3 +95,16 @@ def test_csv_until_is_last_settle_date_of_card_csv() -> None:
     )
     ledger.ingest_csv(c, rows, card_map={CARD_NO: card})
     assert hidden_costs.csv_until(c) == date(2026, 9, 22)
+
+
+def test_only_pln_amounts_count(conn: sqlite3.Connection) -> None:
+    add(conn, "-7.00", "fee", "PROWIZJA", day="2026-09-05", currency="EUR")  # konto walutowe
+    add(conn, "-1.00", "fee", "PROWIZJA", day="2026-09-05")
+    assert hidden_costs.build(conn, *SEP).fees == Decimal("1.00")
+
+
+def test_zero_foreign_amount_has_cost_but_no_pct(conn: sqlite3.Connection) -> None:
+    seed_rates(conn)
+    add(conn, "-3.00", day="2026-09-07", account=2, orig_amount="0.00", orig_currency="EUR")
+    (item,) = hidden_costs.build(conn, *SEP).fx
+    assert item.cost == Decimal("3.00") and item.pct is None

@@ -101,7 +101,7 @@ class Costs:
 def build(conn: sqlite3.Connection, start: date, end: date) -> Costs:
     """Koszty transakcji zaksięgowanych w [start, end) według daty transakcji (od najnowszych)."""
     out = Costs(start)
-    span = f"status = 'BOOK' AND {_DAY} >= ? AND {_DAY} < ?"
+    span = f"status = 'BOOK' AND currency = 'PLN' AND {_DAY} >= ? AND {_DAY} < ?"
     args = (start.isoformat(), end.isoformat())
     rates = fx.Rates(conn)
     for r in conn.execute(

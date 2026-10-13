@@ -93,9 +93,15 @@ def _needed(conn: sqlite3.Connection) -> dict[str, set[date]]:
 
 
 async def refresh(conn: sqlite3.Connection, get: Fetch = fetch) -> None:
-    """Dociąga kursy brakujące dla dni transakcji walutowych; nigdy nie rzuca."""
-    rates = Rates(conn)
-    for cur, days in sorted(_needed(conn).items()):
+    """Dociąga kursy brakujące dla dni transakcji walutowych; nigdy nie rzuca (woła ją pętla
+    serwisu i import CSV — brak kursu oznacza tylko nieznany koszt)."""
+    try:
+        rates = Rates(conn)
+        needed = _needed(conn)
+    except Exception:
+        log.exception("Kursy NBP: odczyt bazy nieudany")
+        return
+    for cur, days in sorted(needed.items()):
         missing = sorted(d for d in days if rates.get(cur, d) is None)
         if not missing:
             continue
@@ -103,7 +109,6 @@ async def refresh(conn: sqlite3.Connection, get: Fetch = fetch) -> None:
             got = await get(
                 cur, missing[0] - timedelta(days=LOOKBACK), missing[-1] - timedelta(days=1)
             )
-        except Exception as exc:  # sieć, NBP — koszt policzy się przy następnym odczycie
+            store(conn, cur, got)
+        except Exception as exc:  # sieć, NBP, baza — koszt policzy się przy następnym odczycie
             log.warning("Kursy NBP %s nieudane: %s", cur, exc)
-            continue
-        store(conn, cur, got)

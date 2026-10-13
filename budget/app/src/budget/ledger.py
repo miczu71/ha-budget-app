@@ -288,7 +288,7 @@ def ingest_api(
                 stats.new += 1
                 continue
             values = _api_values(t)
-            if existing["orig_currency"]:  # walutowa: kwota z CSV (z prowizją), nie z API
+            if _fx_from_csv(conn, existing["id"]):  # kwota z CSV (z prowizją), nie z API
                 del values["amount"]
             if existing["kind_source"] == "heuristic":
                 values["kind"] = t.kind.value
@@ -628,10 +628,22 @@ def _drop_csv_txn(conn: sqlite3.Connection, txn_id: int, successor: int | None) 
     conn.execute("DELETE FROM txn WHERE id = ?", (txn_id,))
 
 
+def _fx_from_csv(conn: sqlite3.Connection, txn_id: int) -> bool:
+    """Transakcja walutowa wciąż powiązana z wierszem CSV — kwota należy do CSV."""
+    return (
+        conn.execute(
+            "SELECT 1 FROM csv_row WHERE txn_id = ? AND status = 'enriched' "
+            "AND orig_currency IS NOT NULL",
+            (txn_id,),
+        ).fetchone()
+        is not None
+    )
+
+
 def _enrich(conn: sqlite3.Connection, txn_id: int, r: sqlite3.Row) -> None:
     """CSV w oknie API: daty zostają z API, CSV dokłada to, czego API nie ma. Kwota zostaje z API
     poza transakcjami walutowymi: tam CSV zawiera prowizję banku za przewalutowanie, której API
-    nie pokazuje (M23 E0) — `ingest_api` nie nadpisuje potem kwoty transakcji z `orig_currency`."""
+    nie pokazuje (M23 E0) — `ingest_api` nie nadpisuje jej, dopóki wiersz CSV jest powiązany."""
     current = conn.execute("SELECT * FROM txn WHERE id = ?", (txn_id,)).fetchone()
     values: dict[str, Any] = {
         "balance_after": r["balance_after"],

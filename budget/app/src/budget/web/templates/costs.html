@@ -18,7 +18,7 @@
   </dl>
   <p class="small muted">Przewalutowanie to różnica między kwotą w złotych a kwotą w walucie po kursie średnim NBP z dnia roboczego przed zakupem: marża Visy i prowizja banku razem.
   Kwoty w walucie są tylko w eksporcie CSV karty — {% if csv_until %}znamy je do {{ csv_until.isoformat() | pldate }}; nowsze płatności dojdą po <a href="{{ base }}/import">Import CSV</a>.{% else %}zaimportuj go w <a href="{{ base }}/import">Import CSV</a>.{% endif %}
-  {% if c.missing %}<span class="warn-text">Bez kursu NBP: {{ c.missing }} — policzą się po następnym odczycie kursów.</span>{% endif %}</p>
+  {% if c.missing %}<span class="warn-text">Bez kursu NBP (tabela A): {{ c.missing }} — ich koszt nie jest wliczony.</span>{% endif %}</p>
 </section>
 
 {% if months %}
@@ -41,7 +41,7 @@
     <li><div class="row">
       <span class="row-date">{{ i.day.strftime('%d.%m') }}</span>
       <span class="row-title">{{ i.description or "—" }}<span class="small muted costs-sub"><span>{% if i.amount > 0 %}zwrot {% endif %}{{ i.amount | abs | money("PLN") }}</span> <span>· {{ i.orig | abs | money(i.currency) }}</span>{% if i.nbp is not none %} <span>· NBP {{ i.nbp | dec(4) }}</span>{% endif %}</span></span>
-      <span class="row-amount">{% if i.cost is not none %}{{ i.cost | money("PLN") }}<span class="small muted">{{ i.pct | dec }}%</span>{% else %}<span class="small muted">brak kursu</span>{% endif %}</span>
+      <span class="row-amount">{% if i.cost is not none %}{{ i.cost | money("PLN") }}{% if i.pct is not none %}<span class="small muted">{{ i.pct | dec }}%</span>{% endif %}{% else %}<span class="small muted">brak kursu</span>{% endif %}</span>
     </div></li>
   {% endfor %}</ul>
   {% else %}

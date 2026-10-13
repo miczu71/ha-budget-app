@@ -68,13 +68,14 @@ walutowych w CSV ≠ API (mediana ~2%) — nie wiadomo, która jest faktycznym o
 ## Decyzja po E0 (user, 2026-10-13)
 CSV karty importowany raz w miesiącu (po zamknięciu cyklu) jest źródłem waluty oryginalnej i kwoty PLN
 transakcji walutowych. E2 zmienione: zamiast backfillu 2025 (niemożliwy) — **kwota PLN z CSV wygrywa**
-dla transakcji walutowych (`_enrich` + `ingest_api` przez `_csv_fx_amount`), także przy kolejnych
-synchronizacjach. Ekran pokazuje pokrycie „dane do <ostatni import CSV karty>”. Historia od 06.2026.
+dla transakcji walutowych (`_enrich`; `ingest_api` nie nadpisuje jej, dopóki wiersz CSV jest powiązany —
+`_fx_from_csv`). Ekran pokazuje pokrycie „dane do <ostatni import CSV karty>”. Historia od 06.2026.
 
 ## Wynik E2
 Na kopii księgi z 2.10 przebudowa (`rebuild_derived`) poprawia 28 transakcji, suma karty −54,90 zł
-(zgodnie z E0). Na produkcji poprawka zadziała przy pierwszej synchronizacji po wydaniu. Skutek
-uboczny: zmiana kwoty kasuje podział M29 tej transakcji (jednorazowo, `_update_changed`).
+(zgodnie z E0). Na produkcji poprawka zadziała przy pierwszej synchronizacji po wydaniu. Ograniczenie:
+zmiana kwoty kasuje podział M29 transakcji (`_update_changed`), więc podział transakcji walutowej zrobiony
+przed importem CSV karty znika przy imporcie — dzieli się ją po imporcie.
 
 ## Wynik E3
 `hidden_costs.py`: `build(start, end)` (koszt per transakcja ze znakiem — zakupy i zwroty, `missing` bez
@@ -89,3 +90,12 @@ liczba płatności), miesiące z paskiem (miesiące po ostatnim CSV karty: „be
 w walutach (koszt, %, kwota · waluta · kurs NBP), lista opłat; nawigacja latami. Źródło czatu `costs` (rok bieżący,
 miesiące, „znane do”; bez nazw sprzedawców do LLM). Sprawdzone w Playwright na kopii księgi: 360 i 1280 px, bez
 przewijania poziomego, cele dotyku ≥ 44 px, konsola czysta, `/costs` 200 `no-store`.
+
+## Simplify i code-review (przed 0.51.0)
+- Simplify: rok czytany raz, miesiące grupowane w Pythonie; `fx.Rates` (jeden odczyt kursów); `money.dec` jako
+  filtr; `IS_FX`; `money.CENT/ZERO`. Pominięte: kursy w tle przy imporcie (import rzadki, wynik od razu),
+  pamięć nieudanych pobrań (EUR/CZK są w tabeli A).
+- Code-review — poprawione: tylko kwoty w PLN (opłaty z rachunku EUR nie mieszają się z zł), `_fx_from_csv`
+  zamiast „lepkiego” `orig_currency`, `fx.refresh` nie rzuca przy błędzie bazy, `pct` None przy kwocie
+  walutowej 0, komunikat dla walut spoza tabeli A. Świadomie pominięte: `csv_until` dla kilku kart (jest jedna),
+  blokowanie odpowiedzi importu przez NBP.
