@@ -51,3 +51,16 @@ walutowych w CSV ≠ API (mediana ~2%) — nie wiadomo, która jest faktycznym o
 - Pokrycie: liczba transakcji walutowych w 2025 > 0 (backfill zadziałał), zgodna z E0.
 - Czat: „ile zapłaciłem bankowi za przewalutowanie w tym roku?” = liczba z ekranu.
 - Pełny zestaw testów zielony; na żywo stopka v0.51.0, `/costs` 200 `no-store`.
+
+## Wynik E0 (2026-10-13, kopia księgi z 2.10, kursy NBP A z api.nbp.pl)
+- **API nie zna waluty oryginalnej:** `exchange_rate` = null, `transaction_amount` tylko w PLN. Wszystkie
+  78 `orig_amount/orig_currency` w księdze pochodzą ze wzbogacenia z CSV karty (`csv_row`, status
+  `enriched`). Bez okresowego importu CSV karty nowe transakcje walutowe nie mają kwoty oryginalnej.
+- **Kwota z API ≈ kurs Visy:** mediana +0,33% ponad NBP A (zakres +0,04…+0,47%).
+- **CSV pokazuje dodatkowe 2% na 28 z 78 transakcji** (wszystkie we wrześniu, przemieszane z
+  transakcjami bez dopłaty z tych samych dni): CSV = kurs Visy + 2,0% ≈ +2,2–2,5% ponad NBP. API tych 2%
+  nie pokazuje ani jako osobnej opłaty (karta ma w API 2 opłaty, razem −2,99 zł). Księga trzyma kwotę z
+  API, więc **zaniża wydatki kartą o 54,90 zł** na tych 28 pozycjach (reguła L1: CSV tylko wzbogaca).
+- **Historia:** karta ma dane dopiero od 2026-06-24. Wiersze CSV rachunku PLN od 2025-01 (karta debetowa)
+  nie mają żadnej informacji o walucie, więc spreadu za 2025 nie da się policzyć.
+- Wniosek: założenia „pełna historia” i „API wystarczy na bieżąco” nie są prawdziwe → decyzja usera.
