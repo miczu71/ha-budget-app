@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.51.0
+
+**Koszty banku** (M23, `docs/PLAN_M23.md`).
+
+- Nowy ekran „Koszty banku” (menu ⚙, link w Wydatkach): ile bank wziął w roku poza ceną zakupów —
+  przewalutowanie płatności kartą względem kursu średniego NBP (tabela A, dzień roboczy przed zakupem)
+  i opłaty/prowizje; podział na miesiące, lista płatności w walutach (koszt, %, kurs NBP) i opłat.
+- Kursy NBP pobierane z api.nbp.pl raz dziennie i po imporcie CSV, tylko dla dni płatności w walutach.
+- **Kwota płatności w walucie obcej pochodzi z CSV karty:** API pokazuje ją bez 2% prowizji banku za
+  przewalutowanie, więc wydatki kartą były zaniżone. Po imporcie CSV karty kwota w księdze jest
+  faktycznym obciążeniem (podział takiej transakcji zrobiony przed importem trzeba powtórzyć).
+- Kwoty w walucie są tylko w eksporcie CSV karty — importuj go raz w miesiącu.
+- Czat: nowe źródło „Koszty banku” (rok, miesiące).
+
 ## 0.50.2
 
 - Głęboki link `/app/<slug>/inbox` (np. chip „do decyzji” na dashboardzie HA) otwiera ekran „Do decyzji”
