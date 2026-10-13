@@ -55,6 +55,11 @@ def total(values: Iterable[str | Decimal]) -> Decimal:
     return sum((v if isinstance(v, Decimal) else Decimal(v) for v in values), ZERO)
 
 
+def dec(value: Decimal, places: int = 1) -> str:
+    """`Decimal("2.14")` → `2,1` (przecinek dziesiętny, bez grup cyfr)."""
+    return f"{value:.{places}f}".replace(".", ",")
+
+
 def pl(value: Any, currency: str | None = None) -> str:
     """`-1234.5` → `−1 234,50 zł` (polski zapis, twarde spacje)."""
     try:

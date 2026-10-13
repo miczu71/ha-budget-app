@@ -16,7 +16,7 @@ from decimal import Decimal
 from typing import Any
 
 from budget import card, flex, forecast, hidden_costs, loan, loan_sim, piggy, savings
-from budget.money import ZERO, pl
+from budget.money import ZERO, dec, pl
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
 from budget.spending import add_months, month_label, month_start, parse_month
@@ -333,13 +333,13 @@ def _costs(c: Ctx) -> SourceResult:
     res = SourceResult("costs", link="/costs", link_label="Otwórz Koszty banku")
     start, end = date(c.today.year, 1, 1), date(c.today.year + 1, 1, 1)
     y = hidden_costs.build(c.conn, start, end)
-    pct = f", średnio {y.fx_pct}% ponad NBP".replace(".", ",") if y.fx_pct is not None else ""
+    pct = f", średnio {dec(y.fx_pct)}% ponad NBP" if y.fx_pct is not None else ""
     res.facts += [
         Fact(f"Koszty banku w {c.today.year} (razem)", pl(y.total, "PLN")),
         Fact("Przewalutowanie", f"{pl(y.fx_cost, 'PLN')} ({len(y.fx)} płatności w walutach{pct})"),
         Fact("Opłaty i prowizje", f"{pl(y.fees, 'PLN')} ({len(y.fee_items)} pozycji)"),
     ]
-    for m in hidden_costs.months(c.conn, start, add_months(month_start(c.today), 1)):
+    for m in reversed(hidden_costs.months(y, add_months(month_start(c.today), 1))):
         if m.total:
             res.facts.append(
                 Fact(

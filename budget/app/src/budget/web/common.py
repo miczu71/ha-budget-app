@@ -78,6 +78,7 @@ class Panel:
         self.flash: list[tuple[str, str]] = []
         t = Jinja2Templates(directory=HERE / "templates")
         t.env.filters["money"] = fmt_money
+        t.env.filters["dec"] = money.dec
         t.env.filters["plural"] = plural
         t.env.filters["ts"] = lambda v: fmt_ts(v, service.tz)
         t.env.filters["iban"] = mask_iban

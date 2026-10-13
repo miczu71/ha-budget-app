@@ -40,11 +40,11 @@ def test_spans_split_ranges_longer_than_nbp_limit() -> None:
 def test_rate_uses_last_table_before_transaction_day(conn: sqlite3.Connection) -> None:
     fx.store(conn, "EUR", fx.parse(BODY))
     # pn 7.09: tabela z pt 4.09 (kurs z dnia roboczego poprzedzającego), nie z tego samego dnia
-    assert fx.rate(conn, "EUR", date(2026, 9, 7)) == (date(2026, 9, 4), Decimal("4.2523"))
-    assert fx.rate(conn, "EUR", date(2026, 9, 8)) == (date(2026, 9, 7), Decimal("4.2611"))
-    assert fx.rate(conn, "EUR", date(2026, 9, 4)) is None  # brak wcześniejszej tabeli
-    assert fx.rate(conn, "EUR", date(2026, 9, 30)) is None  # luka dłuższa niż LOOKBACK
-    assert fx.rate(conn, "CZK", date(2026, 9, 8)) is None
+    assert fx.Rates(conn).get("EUR", date(2026, 9, 7)) == Decimal("4.2523")
+    assert fx.Rates(conn).get("EUR", date(2026, 9, 8)) == Decimal("4.2611")
+    assert fx.Rates(conn).get("EUR", date(2026, 9, 4)) is None  # brak wcześniejszej tabeli
+    assert fx.Rates(conn).get("EUR", date(2026, 9, 30)) is None  # luka dłuższa niż LOOKBACK
+    assert fx.Rates(conn).get("CZK", date(2026, 9, 8)) is None
 
 
 def recorder(
@@ -67,7 +67,7 @@ async def test_refresh_fetches_only_missing_days_of_fx_transactions(
     get, calls = recorder({"EUR": fx.parse(BODY)})
     await fx.refresh(conn, get)
     assert calls == [("EUR", date(2026, 8, 29), date(2026, 9, 7))]
-    assert fx.rate(conn, "EUR", date(2026, 9, 8)) == (date(2026, 9, 7), Decimal("4.2611"))
+    assert fx.Rates(conn).get("EUR", date(2026, 9, 8)) == Decimal("4.2611")
     await fx.refresh(conn, get)
     assert len(calls) == 1  # kurs już jest — bez zapytania
 
@@ -79,4 +79,4 @@ async def test_refresh_never_raises(conn: sqlite3.Connection) -> None:
         raise OSError("sieć")
 
     await fx.refresh(conn, boom)
-    assert fx.rate(conn, "EUR", date(2026, 9, 8)) is None
+    assert fx.Rates(conn).get("EUR", date(2026, 9, 8)) is None

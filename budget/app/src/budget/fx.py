@@ -7,6 +7,7 @@ walutowych, których jeszcze nie pokrywa zapis; API zwraca najwyżej `MAX_SPAN` 
 
 from __future__ import annotations
 
+import bisect
 import logging
 import sqlite3
 from collections.abc import Awaitable, Callable
@@ -21,6 +22,9 @@ log = logging.getLogger(__name__)
 URL = "https://api.nbp.pl/api/exchangerates/rates/A/{cur}/{start}/{end}/"
 MAX_SPAN = 93  # dni w jednym zapytaniu (limit NBP)
 LOOKBACK = 10  # dni wstecz szukania tabeli (weekend + święta)
+
+# Transakcja walutowa: kwotę w walucie zna tylko CSV karty (API jej nie podaje, M23 E0)
+IS_FX = "orig_currency IS NOT NULL"
 
 Fetch = Callable[[str, date, date], Awaitable[dict[date, Decimal]]]
 
@@ -60,21 +64,29 @@ def store(conn: sqlite3.Connection, cur: str, rates: dict[date, Decimal]) -> Non
     )
 
 
-def rate(conn: sqlite3.Connection, cur: str, day: date) -> tuple[date, Decimal] | None:
-    """Tabela z ostatniego dnia przed `day` (najwyżej `LOOKBACK` dni wstecz); None: brak kursu."""
-    r = conn.execute(
-        "SELECT day, mid FROM fx_rate WHERE currency = ? AND day < ? AND day >= ? "
-        "ORDER BY day DESC LIMIT 1",
-        (cur, day.isoformat(), (day - timedelta(days=LOOKBACK)).isoformat()),
-    ).fetchone()
-    return (date.fromisoformat(r[0]), Decimal(r[1])) if r else None
+class Rates:
+    """Zapisane kursy wczytane raz; `get` = tabela z ostatniego dnia przed `day`."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._days: dict[str, list[date]] = {}
+        self._mids: dict[str, list[Decimal]] = {}
+        for cur, day, mid in conn.execute("SELECT currency, day, mid FROM fx_rate ORDER BY day"):
+            self._days.setdefault(cur, []).append(date.fromisoformat(day))
+            self._mids.setdefault(cur, []).append(Decimal(mid))
+
+    def get(self, cur: str, day: date) -> Decimal | None:
+        """None: brak tabeli w `LOOKBACK` dniach przed `day`."""
+        days = self._days.get(cur, [])
+        i = bisect.bisect_left(days, day) - 1
+        if i < 0 or days[i] < day - timedelta(days=LOOKBACK):
+            return None
+        return self._mids[cur][i]
 
 
 def _needed(conn: sqlite3.Connection) -> dict[str, set[date]]:
     out: dict[str, set[date]] = {}
     for cur, day in conn.execute(
-        "SELECT DISTINCT orig_currency, COALESCE(tx_date, booking_date) FROM txn "
-        "WHERE orig_currency IS NOT NULL AND orig_currency <> currency"
+        f"SELECT DISTINCT orig_currency, COALESCE(tx_date, booking_date) FROM txn WHERE {IS_FX}"
     ):
         out.setdefault(cur, set()).add(date.fromisoformat(day))
     return out
@@ -82,8 +94,9 @@ def _needed(conn: sqlite3.Connection) -> dict[str, set[date]]:
 
 async def refresh(conn: sqlite3.Connection, get: Fetch = fetch) -> None:
     """Dociąga kursy brakujące dla dni transakcji walutowych; nigdy nie rzuca."""
+    rates = Rates(conn)
     for cur, days in sorted(_needed(conn).items()):
-        missing = sorted(d for d in days if rate(conn, cur, d) is None)
+        missing = sorted(d for d in days if rates.get(cur, d) is None)
         if not missing:
             continue
         try:

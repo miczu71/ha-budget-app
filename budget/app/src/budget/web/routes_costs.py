@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from budget import hidden_costs
+from budget.money import ZERO
 from budget.spending import MONTHS, add_months, month_start
 from budget.web.common import Panel
 
@@ -22,14 +22,15 @@ def router(panel: Panel) -> APIRouter:
         today = panel.service.now().date()
         y = year if year and 2000 <= year <= today.year else today.year
         start, end = date(y, 1, 1), date(y + 1, 1, 1)
-        months = hidden_costs.months(conn, start, min(end, add_months(month_start(today), 1)))
-        top = max((m.total for m in months), default=Decimal("0"))
+        c = hidden_costs.build(conn, start, end)
+        months = hidden_costs.months(c, min(end, add_months(month_start(today), 1)))
+        top = max((m.total for m in months), default=ZERO)
         return panel.render(
             request,
             "costs.html",
             year=y,
-            c=hidden_costs.build(conn, start, end),
-            months=[(MONTHS[m.start.month - 1], m) for m in reversed(months)],
+            c=c,
+            months=[(MONTHS[m.start.month - 1], m) for m in months],
             top=top,
             csv_until=hidden_costs.csv_until(conn),
             prev=y - 1,

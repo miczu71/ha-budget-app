@@ -68,10 +68,11 @@ def test_months_split_costs_by_transaction_month(conn: sqlite3.Connection) -> No
     seed_rates(conn)
     add(conn, "-102.00", day="2026-09-07", account=2, orig_amount="-25.00", orig_currency="EUR")
     add(conn, "-1.50", "fee", day="2026-08-10")
-    months = hidden_costs.months(conn, date(2026, 8, 1), date(2026, 10, 1))
+    c = hidden_costs.build(conn, date(2026, 8, 1), date(2026, 10, 1))
+    months = hidden_costs.months(c, date(2026, 10, 1))
     assert [(m.start, m.fx_cost, m.fees) for m in months] == [
-        (date(2026, 8, 1), Decimal("0"), Decimal("1.50")),
         (date(2026, 9, 1), Decimal("2.00"), Decimal("0")),
+        (date(2026, 8, 1), Decimal("0"), Decimal("1.50")),
     ]
 
 
