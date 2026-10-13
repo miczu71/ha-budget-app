@@ -288,6 +288,8 @@ def ingest_api(
                 stats.new += 1
                 continue
             values = _api_values(t)
+            if fx_amount := _csv_fx_amount(conn, existing["id"]):
+                values["amount"] = fx_amount
             if existing["kind_source"] == "heuristic":
                 values["kind"] = t.kind.value
             changed = _update_changed(conn, existing["id"], existing, values)
@@ -626,8 +628,20 @@ def _drop_csv_txn(conn: sqlite3.Connection, txn_id: int, successor: int | None) 
     conn.execute("DELETE FROM txn WHERE id = ?", (txn_id,))
 
 
+def _csv_fx_amount(conn: sqlite3.Connection, txn_id: int) -> str | None:
+    """Kwota PLN z CSV dla transakcji walutowej wzbogaconej z CSV (None: brak takiego wiersza)."""
+    r = conn.execute(
+        "SELECT amount FROM csv_row WHERE txn_id = ? AND status = 'enriched' "
+        "AND orig_currency IS NOT NULL",
+        (txn_id,),
+    ).fetchone()
+    return str(r["amount"]) if r else None
+
+
 def _enrich(conn: sqlite3.Connection, txn_id: int, r: sqlite3.Row) -> None:
-    """CSV w oknie API: kwota i daty zostają z API, CSV dokłada to, czego API nie ma."""
+    """CSV w oknie API: daty zostają z API, CSV dokłada to, czego API nie ma. Kwota zostaje z API
+    poza transakcjami walutowymi: tam CSV zawiera prowizję banku za przewalutowanie, której API
+    nie pokazuje (M23 E0) — kwota z CSV wygrywa też przy kolejnych synchronizacjach."""
     current = conn.execute("SELECT * FROM txn WHERE id = ?", (txn_id,)).fetchone()
     values: dict[str, Any] = {
         "balance_after": r["balance_after"],
@@ -636,6 +650,8 @@ def _enrich(conn: sqlite3.Connection, txn_id: int, r: sqlite3.Row) -> None:
         "tx_date": current["tx_date"] or _csv_tx_date(r),
         "counterparty_account": current["counterparty_account"] or r["counterparty_account"],
     }
+    if r["orig_currency"] is not None:
+        values["amount"] = r["amount"]
     if current["kind_source"] != "manual":
         values["kind"] = r["kind"]
         values["kind_source"] = "csv"

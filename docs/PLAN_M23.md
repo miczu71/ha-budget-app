@@ -64,3 +64,14 @@ walutowych w CSV ≠ API (mediana ~2%) — nie wiadomo, która jest faktycznym o
 - **Historia:** karta ma dane dopiero od 2026-06-24. Wiersze CSV rachunku PLN od 2025-01 (karta debetowa)
   nie mają żadnej informacji o walucie, więc spreadu za 2025 nie da się policzyć.
 - Wniosek: założenia „pełna historia” i „API wystarczy na bieżąco” nie są prawdziwe → decyzja usera.
+
+## Decyzja po E0 (user, 2026-10-13)
+CSV karty importowany raz w miesiącu (po zamknięciu cyklu) jest źródłem waluty oryginalnej i kwoty PLN
+transakcji walutowych. E2 zmienione: zamiast backfillu 2025 (niemożliwy) — **kwota PLN z CSV wygrywa**
+dla transakcji walutowych (`_enrich` + `ingest_api` przez `_csv_fx_amount`), także przy kolejnych
+synchronizacjach. Ekran pokazuje pokrycie „dane do <ostatni import CSV karty>”. Historia od 06.2026.
+
+## Wynik E2
+Na kopii księgi z 2.10 przebudowa (`rebuild_derived`) poprawia 28 transakcji, suma karty −54,90 zł
+(zgodnie z E0). Na produkcji poprawka zadziała przy pierwszej synchronizacji po wydaniu. Skutek
+uboczny: zmiana kwoty kasuje podział M29 tej transakcji (jednorazowo, `_update_changed`).
