@@ -99,3 +99,10 @@ przewijania poziomego, cele dotyku ≥ 44 px, konsola czysta, `/costs` 200 `no-s
   zamiast „lepkiego” `orig_currency`, `fx.refresh` nie rzuca przy błędzie bazy, `pct` None przy kwocie
   walutowej 0, komunikat dla walut spoza tabeli A. Świadomie pominięte: `csv_until` dla kilku kart (jest jedna),
   blokowanie odpowiedzi importu przez NBP.
+
+## Wynik wydania 0.51.0 (2026-10-13)
+Tag v0.51.0 na 23c8cb1 (release opublikowany, nie draft), 884 testy, instalacja przez Supervisora z backupem.
+Na żywo (Ingress, 390 px): stopka v0.51.0, `/costs` 200 `no-store`, 78 płatności w walutach z kursem NBP, 0 bez kursu,
+CSV karty do 26.09.2026, konsola czysta. Przewalutowanie na żywo 58,65 zł = 113,55 − 54,90: księga produkcyjna
+dostanie kwoty z CSV przy najbliższej synchronizacji (`rebuild_derived`), wtedy ekran pokaże ~113,55 zł (0,9%).
+Checkpoint usera: po synchronizacji porównać 2–3 transakcje z wyciągiem karty; import CSV karty po zamknięciu cyklu.
