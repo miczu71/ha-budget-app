@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "_macros.html" import bar %}
+{% macro dec(x, places=1) %}{{ ("%." ~ places ~ "f") | format(x) | replace(".", ",") }}{% endmacro %}
+{% block content %}
+<div class="month-nav">
+  <a class="month-link tap" href="{{ base }}/costs?year={{ prev }}" aria-label="poprzedni rok">«</a>
+  <h1>Koszty banku — {{ year }}</h1>
+  {% if next %}<a class="month-link tap" href="{{ base }}/costs?year={{ next }}" aria-label="następny rok">»</a>{% else %}<span class="month-link"></span>{% endif %}
+</div>
+
+<section class="card costs-hero">
+  <h2>Ile bank wziął poza ceną zakupów</h2>
+  <div class="hero-amount">{{ c.total | money("PLN") }}</div>
+  <dl class="fc-strip">
+    <div><dt>Przewalutowanie</dt><dd>{{ c.fx_cost | money("PLN") }}</dd></div>
+    <div><dt>Ponad kurs NBP</dt><dd>{% if c.fx_pct is not none %}{{ dec(c.fx_pct) }}%{% else %}—{% endif %}</dd></div>
+    <div><dt>Opłaty i prowizje</dt><dd>{{ c.fees | money("PLN") }}</dd></div>
+    <div><dt>Płatności w walutach</dt><dd>{{ c.fx | length }}</dd></div>
+  </dl>
+  <p class="small muted">Przewalutowanie to różnica między kwotą w złotych a kwotą w walucie po kursie średnim NBP z dnia roboczego przed zakupem: marża Visy i prowizja banku razem.
+  {% if csv_until %}Kwoty w walucie są tylko w eksporcie CSV karty — znamy je do {{ csv_until.strftime('%d.%m.%Y') }}; nowsze płatności dojdą po <a href="{{ base }}/import">Import CSV</a>.
+  {% else %}Kwoty w walucie są tylko w eksporcie CSV karty — zaimportuj go w <a href="{{ base }}/import">Import CSV</a>.{% endif %}
+  {% if c.missing %}<span class="warn-text">Bez kursu NBP: {{ c.missing }} — policzą się po następnym odczycie kursów.</span>{% endif %}</p>
+</section>
+
+{% if months %}
+<section class="card">
+  <h2>Miesiące</h2>
+  <ul class="rows bar-rows costs-months">{% for name, m in months %}
+    <li><div class="row">
+      <span class="row-title">{{ name | capitalize }}</span>
+      <span class="row-amount">{{ m.total | money("PLN") }}{% if csv_until is none or m.start > csv_until %} <span class="small muted">· bez walut (brak CSV)</span>{% elif m.fees and m.fx_cost %} <span class="small muted">· opłaty {{ m.fees | money("PLN") }}</span>{% endif %}</span>
+      {{ bar((m.total / top) if top > 0 else 0, "koszt miesiąca " ~ (m.total | money("PLN"))) }}
+    </div></li>
+  {% endfor %}</ul>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Płatności w walutach</h2>
+  {% if c.fx %}
+  <ul class="rows costs-fx">{% for i in c.fx %}
+    <li><div class="row">
+      <span class="row-date">{{ i.day.strftime('%d.%m') }}</span>
+      <span class="row-title">{{ i.description or "—" }}<span class="small muted costs-sub"><span>{% if i.amount > 0 %}zwrot {% endif %}{{ i.amount | abs | money("PLN") }}</span> <span>· {{ i.orig | abs | money(i.currency) }}</span>{% if i.nbp is not none %} <span>· NBP {{ dec(i.nbp, 4) }}</span>{% endif %}</span></span>
+      <span class="row-amount">{% if i.cost is not none %}{{ i.cost | money("PLN") }}<span class="small muted">{{ dec(i.pct) }}%</span>{% else %}<span class="small muted">brak kursu</span>{% endif %}</span>
+    </div></li>
+  {% endfor %}</ul>
+  {% else %}
+  <p class="muted">Brak płatności w walutach w {{ year }} roku.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Opłaty i prowizje</h2>
+  {% if c.fee_items %}
+  <ul class="rows">{% for f in c.fee_items %}
+    <li><div class="row">
+      <span class="row-date">{{ f.day.strftime('%d.%m') }}</span>
+      <span class="row-title">{{ f.description or "—" }}</span>
+      <span class="row-amount{{ ' pos' if f.amount > 0 }}">{{ f.amount | money("PLN") }}</span>
+    </div></li>
+  {% endfor %}</ul>
+  {% else %}
+  <p class="muted">Bank nie pobrał opłat w {{ year }} roku.</p>
+  {% endif %}
+</section>
+{% endblock %}

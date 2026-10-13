@@ -15,11 +15,11 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from budget import card, flex, forecast, loan, loan_sim, piggy, savings
+from budget import card, flex, forecast, hidden_costs, loan, loan_sim, piggy, savings
 from budget.money import ZERO, pl
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
-from budget.spending import month_label, month_start, parse_month
+from budget.spending import add_months, month_label, month_start, parse_month
 
 TRANSACTIONS = "transactions"
 
@@ -326,6 +326,38 @@ def _loan(c: Ctx) -> SourceResult:
     return res
 
 
+# --- Koszty banku ----------------------------------------------------------------------------
+
+
+def _costs(c: Ctx) -> SourceResult:
+    res = SourceResult("costs", link="/costs", link_label="Otwórz Koszty banku")
+    start, end = date(c.today.year, 1, 1), date(c.today.year + 1, 1, 1)
+    y = hidden_costs.build(c.conn, start, end)
+    pct = f", średnio {y.fx_pct}% ponad NBP".replace(".", ",") if y.fx_pct is not None else ""
+    res.facts += [
+        Fact(f"Koszty banku w {c.today.year} (razem)", pl(y.total, "PLN")),
+        Fact("Przewalutowanie", f"{pl(y.fx_cost, 'PLN')} ({len(y.fx)} płatności w walutach{pct})"),
+        Fact("Opłaty i prowizje", f"{pl(y.fees, 'PLN')} ({len(y.fee_items)} pozycji)"),
+    ]
+    for m in hidden_costs.months(c.conn, start, add_months(month_start(c.today), 1)):
+        if m.total:
+            res.facts.append(
+                Fact(
+                    month_label(m.start),
+                    f"{pl(m.total, 'PLN')} (przewalutowanie {pl(m.fx_cost, 'PLN')}, "
+                    f"opłaty {pl(m.fees, 'PLN')})",
+                )
+            )
+    until = hidden_costs.csv_until(c.conn)
+    res.facts.append(Fact("Kwoty w walutach znane do", _date(until) if until else "brak CSV karty"))
+    res.filters = [
+        "Przewalutowanie = kwota w zł − kwota w walucie × kurs średni NBP z dnia roboczego przed "
+        "zakupem; kwoty w walucie tylko z importu CSV karty",
+        "Opłaty = transakcje typu opłata/prowizja (zwroty opłat pomniejszają)",
+    ]
+    return res
+
+
 REGISTRY: tuple[Source, ...] = (
     Source(
         "payday",
@@ -366,6 +398,13 @@ REGISTRY: tuple[Source, ...] = (
         "Kredyt",
         "kredyt hipoteczny: kapitał, rata, oprocentowanie, pozostałe raty, odsetki, zmiana stopy",
         _loan,
+    ),
+    Source(
+        "costs",
+        "Koszty banku",
+        "koszty banku w bieżącym roku: przewalutowanie płatności kartą ponad kurs NBP, opłaty i "
+        "prowizje, podział na miesiące",
+        _costs,
     ),
 )
 NAMES = tuple(s.name for s in REGISTRY)

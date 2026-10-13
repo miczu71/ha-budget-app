@@ -46,11 +46,23 @@ class FxItem:
         return (cost / abs(self.orig * (self.nbp or 0)) * 100).quantize(Decimal("0.1"))
 
 
+@dataclass(frozen=True)
+class Fee:
+    txn_id: int
+    day: date
+    description: str
+    amount: Decimal  # ze znakiem: obciążenie ujemne, zwrot opłaty dodatni
+
+
 @dataclass
 class Costs:
     start: date
     fx: list[FxItem] = field(default_factory=list)
-    fees: Decimal = Decimal("0")
+    fee_items: list[Fee] = field(default_factory=list)
+
+    @property
+    def fees(self) -> Decimal:
+        return -sum((f.amount for f in self.fee_items), Decimal("0"))
 
     @property
     def priced(self) -> list[FxItem]:
@@ -105,12 +117,21 @@ def build(conn: sqlite3.Connection, start: date, end: date) -> Costs:
                 nbp=rate[1] if rate else None,
             )
         )
-    for (amount,) in conn.execute(
-        "SELECT amount FROM txn WHERE status = 'BOOK' AND kind = ? "
-        "AND COALESCE(tx_date, booking_date) >= ? AND COALESCE(tx_date, booking_date) < ?",
+    for r in conn.execute(
+        "SELECT id, COALESCE(tx_date, booking_date) AS day, description, amount FROM txn "
+        "WHERE status = 'BOOK' AND kind = ? "
+        "AND COALESCE(tx_date, booking_date) >= ? AND COALESCE(tx_date, booking_date) < ? "
+        "ORDER BY day DESC, id DESC",
         (Kind.FEE.value, *span),
     ):
-        out.fees -= Decimal(amount)
+        out.fee_items.append(
+            Fee(
+                int(r["id"]),
+                date.fromisoformat(r["day"]),
+                r["description"] or "",
+                Decimal(r["amount"]),
+            )
+        )
     return out
 
 

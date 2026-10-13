@@ -82,3 +82,10 @@ kursu), `months`, `csv_until`. Kopia księgi z 2.10 + kursy NBP pobrane na żywo
 0 bez kursu, przewalutowanie 113,55 zł przy wartości 12 291,46 zł wg NBP (średnio 0,9%; wrzesień
 106,87 zł — transakcje z 2% prowizją), opłaty 22,79 zł, CSV karty do 2026-09-26. Kontrola ręczna
 3 transakcji (kwota × kurs NBP z tabeli z dnia poprzedniego) zgodna co do grosza.
+
+## Wynik E4
+Ekran `/costs` (menu ⚙ „Koszty banku”, link w Wydatkach): suma roku, rozbicie (przewalutowanie, % ponad NBP, opłaty,
+liczba płatności), miesiące z paskiem (miesiące po ostatnim CSV karty: „bez walut (brak CSV)”), lista płatności
+w walutach (koszt, %, kwota · waluta · kurs NBP), lista opłat; nawigacja latami. Źródło czatu `costs` (rok bieżący,
+miesiące, „znane do”; bez nazw sprzedawców do LLM). Sprawdzone w Playwright na kopii księgi: 360 i 1280 px, bez
+przewijania poziomego, cele dotyku ≥ 44 px, konsola czysta, `/costs` 200 `no-store`.

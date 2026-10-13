@@ -166,3 +166,31 @@ def test_loan_matches_summary_and_redacts_name(conn: sqlite3.Connection) -> None
 
 def test_loan_empty_has_note(conn: sqlite3.Connection) -> None:
     assert "Brak" in sources.run("loan", ctx(conn, at(3))).note
+
+
+def test_costs_year_to_date_without_merchant_names(conn: sqlite3.Connection) -> None:
+    from budget import fx
+
+    from .test_categorize_engine import add
+
+    fx.store(conn, "EUR", {date(2026, 9, 4): Decimal("4.0000")})
+    add(
+        conn,
+        "-102.00",
+        "card",
+        "SKLEP X",
+        day="2026-09-07",
+        account=2,
+        orig_amount="-25.00",
+        orig_currency="EUR",
+    )
+    add(conn, "-7.00", "fee", "OPLATA", day="2026-08-05")
+    res = sources.run("costs", ctx(conn, at(3)))
+    got = facts(res)
+    assert got["Koszty banku w 2026 (razem)"] == pl(Decimal("9.00"), "PLN")
+    assert got["Przewalutowanie"].startswith(pl(Decimal("2.00"), "PLN"))
+    assert got["Opłaty i prowizje"].startswith(pl(Decimal("7.00"), "PLN"))
+    assert got["wrzesień 2026"].startswith(pl(Decimal("2.00"), "PLN"))
+    assert got["sierpień 2026"].startswith(pl(Decimal("7.00"), "PLN"))
+    assert "SKLEP X" not in str(res.for_llm())
+    assert res.link == "/costs"
