@@ -18,6 +18,7 @@ import httpx
 
 from budget import forecast as forecast_mod
 from budget import (
+    fx,
     ha_publisher,
     inbox,
     ledger,
@@ -272,6 +273,7 @@ class Service:
         while True:
             await self.watch_promo()
             await self.watch_wibor()
+            await fx.refresh(self.conn)
             await self.send_due_summaries()
             now = self.now()
             await asyncio.sleep(max(summary.next_send(now).timestamp() - now.timestamp(), 1))
