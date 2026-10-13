@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.52.0
+
+- Wycofany ekran „Koszty banku” z 0.51.0 (razem z kursami NBP i źródłem czatu). Kwoty płatności w walutach
+  znów pochodzą z API banku — import CSV karty nie zmienia już kwot ani nie kasuje podziału transakcji.
+  Po najbliższej synchronizacji kwoty wrócą do wartości z API.
+
 ## 0.51.0
 
 **Koszty banku** (M23, `docs/PLAN_M23.md`).

@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, Response
 
-from budget import fx, ledger, report
+from budget import ledger, report
 from budget.csv_import import CsvFormatError
 from budget.web.common import Panel
 from budget.web.routes_bank import MAX_UPLOAD
@@ -54,7 +54,6 @@ def router(panel: Panel) -> APIRouter:
             return panel.redirect(
                 request, "/import", f"Plik nie wygląda na eksport Millenetu: {exc}", "error"
             )
-        await fx.refresh(conn)  # kursy NBP dla nowych transakcji walutowych (M23)
         await service.refresh()
         reasons = ", ".join(sorted({r for _, r in stats.skipped}))
         return panel.redirect(

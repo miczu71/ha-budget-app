@@ -78,7 +78,7 @@
       {% endfor %}
     </dl>
     {% if not m.savings_lines and not m.excluded_lines %}<p class="muted">brak</p>{% endif %}
-    <p class="small muted">Przelewy między własnymi kontami (np. spłata karty) nie są liczone.{% if m.other_currency %} Pominięto {{ m.other_currency }} transakcji w innej walucie niż PLN.{% endif %} Ile kosztują przewalutowanie i opłaty banku — <a href="{{ base }}/costs">Koszty banku</a>.</p>
+    <p class="small muted">Przelewy między własnymi kontami (np. spłata karty) nie są liczone.{% if m.other_currency %} Pominięto {{ m.other_currency }} transakcji w innej walucie niż PLN.{% endif %}</p>
   </section>
 </div>
 {% endblock %}

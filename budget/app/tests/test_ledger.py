@@ -289,14 +289,9 @@ def test_card_fuzzy_match_only_for_foreign_currency(
         r["status"] for r in conn.execute("SELECT status FROM csv_row ORDER BY settle_date")
     ]
     assert statuses == ["enriched", "enriched", "unmatched"]
-    # transakcja walutowa: kwota PLN z CSV (API nie pokazuje 2% prowizji banku, M23 E0)
-    fx = conn.execute("SELECT * FROM txn WHERE orig_currency IS NOT NULL").fetchone()
-    assert (fx["amount"], fx["orig_amount"], fx["orig_currency"]) == ("-42.00", "-9.50", "EUR")
+    fx = conn.execute("SELECT * FROM txn WHERE amount = '-41.00'").fetchone()
+    assert (fx["orig_amount"], fx["orig_currency"]) == ("-9.50", "EUR")
     assert len(txns(conn, card)) == 3  # niesparowany wiersz CSV nie wchodzi do księgi
-    # kolejna synchronizacja API (kwota bez prowizji) nie cofa kwoty z CSV i niczego nie zmienia
-    api(conn, card, [tx("C2", "2026-09-03", "-41.00", "TRATTORIA TESTOWA")], card=True)
-    again = conn.execute("SELECT amount, updated_at FROM txn WHERE id = ?", (fx["id"],)).fetchone()
-    assert tuple(again) == ("-42.00", fx["updated_at"])
 
 
 def test_card_number_auto_mapped_after_three_matches(

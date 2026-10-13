@@ -991,8 +991,3 @@ a.lidl-link { display: inline-flex; align-items: center; min-height: var(--tap);
 .lidl-pick { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 form.lidl-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; }
 form.lidl-map select { width: 100%; }
-
-/* Koszty banku (M23 E4): koszt to nie „dobrze” — pasek miesiąca w Ink; koszt nad %, podpis bez łamania w segmentach */
-.costs-months .flex-bar .fill { background: var(--text); }
-.costs-fx .row-amount { display: flex; flex-direction: column; align-items: flex-end; }
-.costs-sub > span { white-space: nowrap; }

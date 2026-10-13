@@ -83,12 +83,6 @@ dwuwarstwowy cień (`--elev`). Siatka 4 px, padding karty 20 px (16 na telefonie
 - `section.piggy-tile` (kafelek Podsumowania): `ul.rows.bar-rows` z paskiem 6 px pod wierszem. `form.piggy-pick` w Transakcjach:
   `select` o wysokości `--tap`, zapis po zmianie.
 
-### Koszty banku (M23 E4)
-- `/costs` z menu ⚙ (i link w stopce Wydatków): `section.costs-hero` = `hero-amount` + `dl.fc-strip` (4 komórki) + podpis o
-  metodzie i pokryciu CSV karty. Miesiące: `ul.rows.bar-rows.costs-months` — pasek w Ink (koszt nie jest „dobrze”, więc
-  nie `--pos`). Płatności w walutach: `ul.rows.costs-fx`, koszt nad % w `row-amount` (kolumna), podpis `costs-sub`
-  z segmentami bez łamania (kwota · waluta · NBP).
-
 ## System designu w Claude Design (M20)
 Przeglądalne lustro tego pliku i `app.css`: https://claude.ai/artifact/GgbLCb6vkcwtvKAEQ3wwzr (prywatny artefakt typu
 Design System: tokeny, fonty, ikony, README, 38 komponentów z podglądami). Służy do makiet nowych ekranów i planowania
