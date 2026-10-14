@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.52.1
+
+- Transakcje: kolumna „Szczegóły” zawija odznaki i wybór skarbonki zamiast wychodzić poza kartę na desktopie.
+- Status: krótki opis pod nagłówkiem „Uzgodnienie salda” (co jest sprawdzane i co znaczą OK / W DRODZE / ROZBIEŻNOŚĆ).
+
 ## 0.52.0
 
 - Wycofany ekran „Koszty banku” z 0.51.0 (razem z kursami NBP i źródłem czatu). Kwoty płatności w walutach
