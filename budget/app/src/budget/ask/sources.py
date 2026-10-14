@@ -248,6 +248,19 @@ def _recurring(c: Ctx) -> SourceResult:
 # --- Rok -------------------------------------------------------------------------------------
 
 
+def _event_flow(e: year_events.Event) -> str:
+    """Nowa seria ma kwotę bezwzględną — kierunek mówi słowem; reszta ma znak w kwocie."""
+    if e.kind != "new_series":
+        return ""
+    return "wpływ " if e.direction == "in" else "wydatek "
+
+
+def _event_span(e: year_events.Event) -> str:
+    if e.kind == "one_off":
+        return month_label(e.start)
+    return f"od {month_label(e.start)}" + (f" do {month_label(e.end)}" if e.end else "")
+
+
 def _year(c: Ctx) -> SourceResult:
     res = SourceResult("year", link="/year", link_label="Otwórz Rok")
     proj = year.build(c.snap, c.today, c.buffer)
@@ -271,8 +284,8 @@ def _year(c: Ctx) -> SourceResult:
         facts.append(
             Fact(
                 e.name,
-                f"{year_events.KINDS[e.kind]} {pl(e.amount, 'PLN')} · "
-                f"{year_events.MODES[e.mode].lower()}",
+                f"{year_events.KINDS[e.kind]} {_event_flow(e)}{pl(e.amount, 'PLN')} · "
+                f"{_event_span(e)} · {year_events.MODES[e.mode].lower()}",
                 f"[Seria {i}]",
             )
         )

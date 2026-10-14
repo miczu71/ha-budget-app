@@ -92,3 +92,19 @@ def test_year_source_without_balance_has_note() -> None:
 async def test_home_has_year_tile(client: httpx.AsyncClient) -> None:
     page = (await client.get("/")).text
     assert "Prognoza roczna »" in page and '/year"' in page
+
+
+def test_year_source_event_fact_says_direction_and_span(conn: sqlite3.Connection) -> None:
+    snap = seeded(conn)
+    year_events.add(
+        conn,
+        kind="new_series",
+        mode="plan",
+        name="Czynsz",
+        amount=D("500"),
+        start=date(2026, 11, 1),
+        direction="out",
+    )
+    res = sources.run("year", sources.Ctx(conn, snap, TODAY, NOW, date(2026, 10, 1)))
+    value = next(f.value for f in res.facts if f.label == "Czynsz")
+    assert "wydatek" in value and "od listopad 2026" in value
