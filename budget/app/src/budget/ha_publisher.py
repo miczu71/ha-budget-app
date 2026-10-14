@@ -35,6 +35,7 @@ from budget import (
     sync_service,
 )
 from budget import forecast as forecast_mod
+from budget import year as year_mod
 from budget.logging_utils import mask_iban
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
@@ -103,6 +104,7 @@ def build_entities(
     today: date,
     inbox_items: Sequence[inbox.Item] | None = None,
     forecast: forecast_mod.Forecast | None = None,
+    year_proj: year_mod.Projection | None = None,
 ) -> list[Entity]:
     conn = snap.conn
     entities: list[Entity] = []
@@ -201,6 +203,7 @@ def build_entities(
     entities += card_entities(snap, today)
     entities += loan_entities(snap.conn, today)
     entities += forecast_entities(forecast)
+    entities += year_entities(year_proj)
     if inbox_items is not None:
         entities.append(inbox_entity(inbox_items))
     entities.append(
@@ -365,6 +368,26 @@ def forecast_entities(fc: forecast_mod.Forecast | None) -> list[Entity]:
                 "buffer": _amount(fc.buffer),
             },
         ),
+    ]
+
+
+def year_entities(proj: year_mod.Projection | None) -> list[Entity]:
+    """Prognoza roczna (M18 E3): saldo na koniec horyzontu; bez salda rachunku nie ma encji."""
+    if proj is None or not proj.months:
+        return []
+    deficit = proj.first_deficit
+    return [
+        _flex_sensor(
+            "year_end",
+            "Saldo na koniec horyzontu",
+            "mdi:calendar-end",
+            _amount(proj.end),
+            horizon_end=proj.months[-1].month.strftime("%Y-%m"),
+            first_deficit=deficit.strftime("%Y-%m") if deficit else None,
+            max_flex=_amount(proj.max_flex),
+            scenario_end=_amount(proj.scenario.end) if proj.scenario else None,
+            buffer=_amount(proj.buffer),
+        )
     ]
 
 

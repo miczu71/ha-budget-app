@@ -311,6 +311,17 @@ class Service:
             log.exception("Prognoza do wypłaty nieudana")
             return None
 
+    def year_projection(self) -> year.Projection | None:
+        """Prognoza roczna dla encji; błąd prognozy nie blokuje reszty."""
+        now = self.now()
+        try:
+            return self.year_memo.get(
+                self.snapshot, now.date(), Decimal(self.settings.forecast_buffer)
+            )
+        except Exception:
+            log.exception("Prognoza roczna nieudana")
+            return None
+
     def refresh_soon(self) -> None:
         """Odświeżenie encji w tle po zapisie w panelu (kwota, grupa, kategorie)."""
         if self._refresh_task and not self._refresh_task.done():
@@ -345,6 +356,7 @@ class Service:
                     today=now.date(),
                     inbox_items=self.inbox(),
                     forecast=self.forecast(),
+                    year_proj=self.year_projection(),
                 )
             )
         if not self.ha.available:

@@ -126,6 +126,7 @@ def router(panel: Panel) -> APIRouter:
             cm=card.month_status(conn, today) if f.is_current else None,
             cd=card.due_status(conn, today) if f.is_current else None,
             fc=fc,
+            yr=panel.service.year_projection(),
             chart=charts.forecast_line(fc.days, buffer, fc.events, fc.payday) if fc else None,
             timeline=forecast_timeline(fc) if fc else [],
         )

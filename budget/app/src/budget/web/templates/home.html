@@ -52,6 +52,20 @@
     {% endif %}
     <p class="small card-link"><a class="tap" href="{{ base }}/spending?month={{ ym }}">Wszystkie kategorie i podkategorie »</a></p>
   </section>
+  {% elif t.key == "year" %}
+  <section class="card">
+    <h2>Rok</h2>
+    {% if yr %}
+    {% set deficit = yr.first_deficit %}
+    <div class="stats">
+      <div class="stat"><span class="stat-label">Koniec {{ yr.months[-1].month.strftime('%m.%Y') }}</span><span class="stat-value {{ 'neg' if yr.end < yr.buffer }}">{{ yr.end | money("PLN") }}</span></div>
+      <div class="stat"><span class="stat-label">Pierwszy deficyt</span><span class="stat-value {{ 'neg' if deficit }}">{{ deficit.strftime('%m.%Y') if deficit else "brak" }}</span></div>
+    </div>
+    {% else %}
+    <p class="muted">Prognoza roczna pojawi się po pierwszej synchronizacji z bankiem.</p>
+    {% endif %}
+    <p class="small card-link"><a class="tap" href="{{ base }}/year">Prognoza roczna »</a></p>
+  </section>
   {% elif t.key == "inbox" %}
   <section class="card">
     <h2>Do decyzji</h2>

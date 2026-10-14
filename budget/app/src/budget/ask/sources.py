@@ -15,7 +15,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from budget import card, flex, forecast, loan, loan_sim, piggy, savings
+from budget import card, flex, forecast, loan, loan_sim, piggy, savings, year, year_events
 from budget.money import ZERO, pl
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
@@ -245,6 +245,44 @@ def _recurring(c: Ctx) -> SourceResult:
     return res
 
 
+# --- Rok -------------------------------------------------------------------------------------
+
+
+def _year(c: Ctx) -> SourceResult:
+    res = SourceResult("year", link="/year", link_label="Otwórz Rok")
+    proj = year.build(c.snap, c.today, c.buffer)
+    if proj is None:
+        res.note = "Brak salda rachunku PLN w księdze — nie da się policzyć prognozy rocznej."
+        return res
+    facts = res.facts
+    deficit = proj.first_deficit
+    facts.append(Fact("Koniec horyzontu", _date(year.horizon_end(c.today))))
+    facts.append(Fact("Saldo dziś", pl(proj.start_balance, "PLN")))
+    facts.append(Fact("Saldo na koniec horyzontu", pl(proj.end, "PLN")))
+    facts.append(Fact("Pierwszy deficyt", month_label(deficit) if deficit else "brak"))
+    if proj.max_flex is not None:
+        facts.append(Fact("Mogę wydać miesięcznie (elastyczne)", pl(proj.max_flex, "PLN")))
+    facts.append(Fact("Elastyczne w prognozie (miesięcznie)", pl(proj.flex_month, "PLN")))
+    if proj.scenario:
+        facts.append(Fact("Saldo na koniec w scenariuszu", pl(proj.scenario.end, "PLN")))
+    for m in proj.months:
+        facts.append(Fact(f"Saldo na koniec: {month_label(m.month)}", pl(m.balance, "PLN")))
+    for i, e in enumerate(year_events.active(c.conn), 1):
+        facts.append(
+            Fact(
+                e.name,
+                f"{year_events.KINDS[e.kind]} {pl(e.amount, 'PLN')} · "
+                f"{year_events.MODES[e.mode].lower()}",
+                f"[Seria {i}]",
+            )
+        )
+    res.filters = [
+        "Prognoza jak na ekranie Rok: serie, mediana elastycznych, roczne bez serii, zdarzenia",
+        "Próg deficytu: " + (f"bufor {pl(proj.buffer, 'PLN')}" if proj.buffer > 0 else "zero"),
+    ]
+    return res
+
+
 # --- Oszczędności i skarbonki ----------------------------------------------------------------
 
 
@@ -354,6 +392,13 @@ REGISTRY: tuple[Source, ...] = (
         "płatności i wpływy cykliczne miesiąca: co zapłacone, co jeszcze do zapłaty, terminy",
         _recurring,
         monthly=True,
+    ),
+    Source(
+        "year",
+        "Rok",
+        "prognoza roczna: saldo na koniec roku, pierwszy deficyt, ile można wydawać miesięcznie, "
+        "scenariusze",
+        _year,
     ),
     Source(
         "savings",
