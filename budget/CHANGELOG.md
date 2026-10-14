@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.54.0
+
+**Prognoza roczna bez wydatków jednorazowych** (M30, `docs/PLAN_M30.md`).
+
+- Kategorie: przy każdej podkategorii przełącznik „Pomiń w prognozie rocznej (wydatki jednorazowe)”. Oflagowana
+  kategoria wypada z mediany Flex, korekty „nieregularne” i wierszy „roczne bez serii” na ekranie „Rok” oraz z pomiaru
+  na Statusie; nie zmienia grupy budżetu, więc „Budżet” i „Wydatki” liczą jak dotąd.
+- Ekran „Rok”: linijka „Pominięte w prognozie” z nazwami kategorii i średnią miesięczną z ostatnich 12 miesięcy oraz
+  link do Kategorii. Pominięte kategorie nie trafiają też na listę „Płatności roczne bez serii”.
+- Duży planowany wydatek (remont, wyjazd) dodaje się teraz jako zdarzenie roku, zamiast kopiować go z poprzedniego roku.
+
 ## 0.53.0
 
 **Prognoza roczna** (M18, `docs/PLAN_M18.md`).
