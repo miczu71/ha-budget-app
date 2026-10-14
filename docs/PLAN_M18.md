@@ -124,3 +124,25 @@ zgodne z ekranem. Potem ROADMAP § Wynik i checkpoint użytkownika.
 - Seria wypłaty bez historii zeszłego roku → brak propozycji progu (tylko ręcznie).
 - Przy niepełnym bieżącym miesiącu nieskategoryzowane transakcje zaniżają Flex historyczny
   (jak w M5a). Backtest to pokaże.
+
+## Wynik E1 (2026-10-14, commit 418015e, niewydane)
+
+- `year.py` (rdzeń `project` + `history`/`build`/`backtest`/`evaluate`/`unseried`), ekran `/year`
+  (podsumowanie, wykres przez `forecast_line`, miesiące, ustawienia Flex i cel, płatności roczne bez
+  serii), zakładka „Rok” po „Kredyt”, `Service.year_memo`, `flex.group_spent` (dawne `_group`).
+- 901 testów zielone, mypy czysty; ruff: jedyna uwaga `tests/test_web.py:98` jest sprzed M18.
+- Ekran na danych syntetycznych: 390 px bez przewijania poziomego, 0 elementów < 44 px, 1280 px OK.
+- **Zmiana względem planu (decyzja usera 2026-10-14):** backtest na kopii księgi z 2.10 odpadł (kopia
+  bez kategorii i serii — „nieregularne” wyszło 8,5 tys. zł/mies. przez duże nieskategoryzowane
+  przelewy), więc pomiar jest w add-onie (Status → „Prognoza roczna — pomiar”). Mierzy wyłącznie
+  wydatki spoza serii (Flex + korekta + sezonowość) z 31.12 wobec faktu; serie, wpływy i deficyty
+  zostają niesprawdzone (obecne kwoty serii znają próg PIT). Dlatego checkpoint = pomiar ±10%
+  **oraz** ocena tabeli miesięcy na żywo (porównanie z nadchodzącymi opłatami i wypłatą).
+- Ryzyko do zbadania na żywo: „nieregularne” = średnia − mediana może być duże, gdy rzadkie duże
+  przelewy są nieskategoryzowane (wchodzą do Flex). Jeśli pomiar to pokaże, rozważyć obcięcie
+  miesięcy powyżej progu (jak `flex._bonus_limit`).
+- Odroczone z `simplify` (nie zmieniają zachowania): zapytania `sums` per miesiąc (≈45 przy
+  pomiarze) — mierzyć czas na żywo, w razie potrzeby jedno `_rows` kubełkowane po miesiącach;
+  `for_month` ×14 wczytuje serie/acks za każdym razem; wspólny generyczny `Memo` (3 klasy:
+  `BalanceMemo`, `ForecastMemo`, `year.Memo`); `Balances.free()` zamiast powtórzonej formuły z
+  `forecast.build`; publiczne `spending.rows` (dziś `_rows` używa też `ask/query.py`).
