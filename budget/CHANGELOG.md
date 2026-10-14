@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.52.3
+
+- Transakcje: odznaka serii z dłuższą nazwą zawija się w kolumnie Szczegóły — koniec przewijania poziomego tabeli.
+
 ## 0.52.1
 
 - Transakcje: kolumna „Szczegóły” zawija odznaki i wybór skarbonki zamiast wychodzić poza kartę na desktopie.
