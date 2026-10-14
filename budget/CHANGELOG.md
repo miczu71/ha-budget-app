@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.53.0
+
+**Prognoza roczna** (M18, `docs/PLAN_M18.md`).
+
+- Nowy ekran „Rok” (zakładka po „Kredyt”): saldo miesiąc po miesiącu do końca roku (od 1.11 do końca następnego),
+  pierwszy deficyt, „ile mogę wydać miesięcznie”, wykres z linią scenariusza, ustawienia Flex i celu salda oraz lista
+  rocznych płatności bez serii.
+- Zdarzenia roku: zmiana kwoty serii, nowa seria i kwota jednorazowa — w trybie „Plan” (zmienia prognozę bazową,
+  np. niższa wypłata po progu podatkowym) albo „Scenariusz” (druga linia „co jeśli”). Propozycje z historii (próg
+  podatkowy, premia) czekają na zatwierdzenie i nie wracają po odrzuceniu.
+- Strona główna: kafelek „Rok” (koniec horyzontu, pierwszy deficyt). Encja `sensor.budget_year_end` z atrybutami
+  `horizon_end`, `first_deficit`, `max_flex`, `scenario_end`, `buffer`.
+- Czat: nowe źródło „Rok” (te same liczby co ekran; nazwy zdarzeń nie trafiają do modelu).
+- Status: karta „Prognoza roczna — pomiar” (błąd prognozy wydatków spoza serii wobec faktu).
+
 ## 0.52.3
 
 - Transakcje: odznaka serii z dłuższą nazwą zawija się w kolumnie Szczegóły — koniec przewijania poziomego tabeli.
