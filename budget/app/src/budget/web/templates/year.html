@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "_charts.html" import forecast_chart with context %}
+{% block content %}
+<h1>Rok</h1>
+{% if p is none %}
+<section class="card"><p class="muted">Prognoza roczna potrzebuje salda rachunku PLN — pojawi się po pierwszej synchronizacji z bankiem.</p></section>
+{% else %}
+{% set deficit = p.first_deficit %}
+<section class="card" id="year-summary">
+  <h2>Do {{ end.strftime('%d.%m.%Y') }}</h2>
+  <div class="stats">
+    <div class="stat"><span class="stat-label">Saldo na koniec</span><span class="stat-value {{ 'neg' if p.end < p.buffer }}">{{ p.end | money("PLN") }}</span><span class="small muted">start {{ p.start_balance | money("PLN") }}</span></div>
+    <div class="stat"><span class="stat-label">Pierwszy deficyt</span><span class="stat-value {{ 'neg' if deficit }}">{{ label(deficit) if deficit else "brak" }}</span><span class="small muted">próg: {{ "bufor " ~ (p.buffer | money("PLN")) if p.buffer > 0 else "zero" }}</span></div>
+    <div class="stat"><span class="stat-label">Mogę wydać</span><span class="stat-value {{ 'neg' if p.max_flex is not none and p.max_flex < 0 }}">{{ p.max_flex | money("PLN") if p.max_flex is not none else "—" }}</span><span class="small muted">miesięcznie</span></div>
+  </div>
+  <p class="small muted">„Mogę wydać” to miesięczny Flex, przy którym saldo na końcu horyzontu wynosi co najmniej {{ p.target | money("PLN") }}. W prognozie przyjęto {{ p.flex_month | money("PLN") }}.</p>
+  {{ forecast_chart(chart, "Saldo na koniec każdego miesiąca do " ~ end.strftime('%d.%m.%Y')) }}
+</section>
+
+<section class="card" id="year-months">
+  <h2>Miesiące</h2>
+  <ul class="rows year-rows">
+    {% for m in p.months %}
+    <li><div class="row">
+      <span class="row-date">{{ m.month.strftime('%m.%y') }}</span>
+      <span class="row-title">{{ '+ ' if m.net > 0 }}{{ m.net | money("PLN") }}<span class="small muted block">wpływy {{ m.inflow | money("PLN") }} · serie {{ m.series_out | money("PLN") }} · Flex {{ m.flex | money("PLN") }}{% if m.irregular %} · nieregularne {{ m.irregular | money("PLN") }}{% endif %}{% if m.seasonal %} · roczne bez serii {{ m.seasonal | money("PLN") }}{% endif %}</span></span>
+      <span class="row-amount"><span class="{{ 'neg' if m.below_buffer }}">{{ m.balance | money("PLN") }}</span>{% if m.below_buffer %}<span class="small neg block">poniżej bufora</span>{% endif %}</span>
+    </div></li>
+    {% endfor %}
+  </ul>
+  <p class="small muted">Bieżący miesiąc liczony od dziś: serie, które jeszcze zejdą lub wpłyną, i część Flex proporcjonalna do pozostałych dni. Flex = {{ "wpisany ręcznie" if p.flex_manual else "mediana z " ~ p.history_months ~ " miesięcy" }}{% if not p.flex_manual %}, plus „nieregularne” — rzadkie duże wydatki rozłożone po równo{% endif %}. „Roczne bez serii” to wydatki z tego samego miesiąca rok wcześniej (grupy stałe i nieregularne bez serii).</p>
+</section>
+
+<section class="card" id="year-settings">
+  <h2>Ustawienia prognozy</h2>
+  <form class="rule-form" method="post" action="{{ base }}/year/settings" hx-boost="false">
+    <div class="inline">
+      <label>Flex miesięcznie (puste = mediana)<input name="flex" inputmode="decimal" size="10" value="{{ manual_flex if manual_flex is not none }}" placeholder="{{ p.flex_month | money }}"></label>
+      <label>Cel salda na koniec (puste = 0)<input name="target" inputmode="decimal" size="10" value="{{ p.target if p.target }}" placeholder="0"></label>
+    </div>
+    <p class="small muted">Cel i bufor (opcja add-onu) wyznaczają kwotę „Mogę wydać / mies.”: największy miesięczny Flex, przy którym saldo żadnego miesiąca nie spada poniżej bufora, a na końcu jest co najmniej celem.</p>
+    <p class="actions-row"><button type="submit">Zapisz</button></p>
+  </form>
+</section>
+
+{% if unseried %}
+<section class="card" id="year-unseried">
+  <h2>Płatności roczne bez serii</h2>
+  <p class="small muted">Wydatki z ostatnich 13 miesięcy w grupach stałych i nieregularnych, których nie obejmuje żadna seria. Do czasu potwierdzenia pokrywa je wiersz „roczne bez serii”. Jeśli któraś wraca regularnie, <a class="tap" href="{{ base }}/recurring">dodaj ją jako serię</a> w Cyklicznych.</p>
+  <ul class="rows">
+    {% for u in unseried %}
+    <li><div class="row"><span class="row-date">{{ u.day.strftime('%m.%y') }}</span><span class="row-title">{{ u.name }}{% if u.count > 1 %} <span class="small muted">× {{ u.count }}</span>{% endif %}</span><span class="row-amount">{{ u.amount | money("PLN") }}</span></div></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

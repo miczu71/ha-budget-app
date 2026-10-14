@@ -30,6 +30,7 @@ from budget import (
     summary,
     sync_service,
     wibor,
+    year,
 )
 from budget.categorize import engine as categorize
 from budget.eb_client import EBClient, EBError, PsuHeaders
@@ -80,6 +81,7 @@ class Service:
         self._refresh_task: asyncio.Task[None] | None = None
         self.balance_memo = inbox.BalanceMemo()
         self.forecast_memo = forecast_mod.ForecastMemo()
+        self.year_memo = year.Memo()
         self.snapshot = Snapshot(conn)
         self._eb_base_url = eb_base_url or settings.eb_base_url
 

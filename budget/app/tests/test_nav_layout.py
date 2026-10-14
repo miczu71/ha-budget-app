@@ -37,7 +37,7 @@ def test_home_is_pinned_and_nothing_passes_it(conn: sqlite3.Connection) -> None:
 
 def test_move_toggle_reset(conn: sqlite3.Connection) -> None:
     N.layout.move(conn, "ask", -1)
-    assert _keys(conn)[4:7] == ["spending", "ask", "card"]
+    assert _keys(conn)[5:8] == ["spending", "ask", "card"]
     N.layout.toggle(conn, "card")
     assert [t.key for t in N.layout.load(conn) if t.hidden] == ["card"]
     N.layout.reset(conn)

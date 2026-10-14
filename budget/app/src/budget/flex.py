@@ -295,7 +295,7 @@ def _spent(s: Sums, flexible: list[Category]) -> Decimal:
     return s.unc_out.amount - net  # kwoty wydatków są ujemne
 
 
-def _group(s: Sums, leaves: list[Category], group: str) -> Decimal:
+def group_spent(s: Sums, leaves: list[Category], group: str) -> Decimal:
     return -sum(
         (s.by_leaf[c.id].amount for c in leaves if c.flex_group == group and c.id in s.by_leaf),
         ZERO,
@@ -455,8 +455,8 @@ def build(snap: Snapshot, month: date, today: date) -> FlexMonth:
         spent=_spent(cur, flexible),
         uncategorized=cur.unc_out.amount,
         uncategorized_count=cur.unc_out.count,
-        fixed=_group(cur, leaves, "fixed"),
-        non_monthly=_group(cur, leaves, "non_monthly"),
+        fixed=group_spent(cur, leaves, "fixed"),
+        non_monthly=group_spent(cur, leaves, "non_monthly"),
         recurring=sum((abs(t.amount) for t in pool.txns if start <= t.day < nxt), ZERO),
         days_in_month=calendar.monthrange(start.year, start.month)[1],
         day=today.day if current else None,

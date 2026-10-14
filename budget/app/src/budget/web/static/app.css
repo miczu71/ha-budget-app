@@ -730,6 +730,7 @@ a.row:hover .row-title { text-decoration: underline; }
 .loan-rows .row { grid-template-columns: 4.6em 1fr auto; }  /* harmonogram kredytu: data z rokiem (M9 E1) */
 .bar-rows .flex-bar { grid-column: 1 / -1; height: 8px; margin: 0; }
 .fc-weeks .week-now .row-date { color: var(--text); font-weight: 600; }
+.year-rows .block { display: block; }  /* podpis pod tytułem/kwotą wiersza (Rok) */
 .fc-weeks .over-note { display: block; }  /* „+X zł ponad plan” w osobnej linii — w jednej poszerzał kartę na 390 px */
 .week-line { margin-bottom: 0; }
 .bars { display: block; width: 100%; max-width: 520px; height: auto; }

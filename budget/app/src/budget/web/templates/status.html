@@ -178,6 +178,30 @@
   {% endif %}
 </section>
 
+<section class="card" id="year-eval">
+  <h2>Prognoza roczna — pomiar</h2>
+  <p class="small muted">Sprawdza na Twojej historii, jak trafiłaby prognoza wydatków spoza serii (mediana Flex, korekta na rzadkie wydatki, roczne bez serii) sporządzona 31 grudnia poprzedniego roku, wobec faktu w pełnych miesiącach tego roku. Serie, wpływy i deficyty pomija (obecne kwoty serii znają późniejsze zmiany, np. próg podatkowy), więc wynik mówi tylko o tej części wydatków — resztę oceń na ekranie „Rok”. Nic nie zmienia w danych.</p>
+  <form method="post" action="{{ base }}/status/year-eval" hx-boost="true" hx-disabled-elt="find button">
+    <button type="submit" class="secondary">Zmierz</button>
+    <span class="htmx-indicator muted small">liczę…</span>
+  </form>
+  {% if year_eval %}
+  {% set y = year_eval %}
+  <p>{{ y.at | ts }} · {{ y.history_months }} mies. historii do mediany{% if y.error_pct is not none %} · odchylenie <strong>{{ "%+.1f" | format(y.error_pct) | replace(".", ",") }}%</strong> ({{ "w granicach ±10%" if y.within_10 else "poza granicą ±10%" }}){% endif %}</p>
+  {% if y.months %}
+  <div class="table-wrap"><table class="ai-eval">
+    <thead><tr><th>miesiąc</th><th>prognoza</th><th>fakt</th></tr></thead>
+    <tbody>
+      {% for row in y.months %}
+      <tr><td>{{ row.month }}</td><td>{{ row.predicted | money("PLN") }}</td><td>{{ row.actual | money("PLN") }}</td></tr>
+      {% endfor %}
+      <tr><th>razem</th><th>{{ y.predicted | money("PLN") }}</th><th>{{ y.actual | money("PLN") }}</th></tr>
+    </tbody>
+  </table></div>
+  {% endif %}
+  {% endif %}
+</section>
+
 <section class="card" id="learn">
   <h2>Kategoryzacja — pomiar</h2>
   {% set ls = learned_stats %}{% set decided = ls.confirmed + ls.corrected %}

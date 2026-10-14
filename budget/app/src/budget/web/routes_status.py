@@ -9,7 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import ledger, report, sessions, summary, sync_service
+from budget import ledger, report, sessions, summary, sync_service, year
 from budget.ask import engine as ask
 from budget.categorize import engine, learn
 from budget.eb_client import PsuHeaders
@@ -70,6 +70,7 @@ def router(panel: Panel) -> APIRouter:
             "summaries": summaries_context(),
             "learn": db.kv_get(conn, learn.EVAL_KEY),
             "learned_stats": engine.learned_stats(conn),
+            "year_eval": db.kv_get(conn, year.BACKTEST_KEY),
             "chat_log": chat_log,
             "chat_counts": Counter(e["outcome"] for e in chat_log),
         }
@@ -149,6 +150,18 @@ def router(panel: Panel) -> APIRouter:
         if res.error:
             return panel.redirect(request, "/status", f"{text} — {res.error}", "error")
         return panel.redirect(request, "/status", text, "ok" if res.calls else "warn")
+
+    @r.post("/status/year-eval")
+    async def year_eval(request: Request) -> Response:
+        now = service.now()
+        out = year.evaluate(service.snapshot, now.date(), now.isoformat())
+        error = out["error_pct"]
+        text = (
+            "Pomiar prognozy rocznej: brak pełnych miesięcy do porównania"
+            if error is None
+            else f"Pomiar prognozy rocznej: odchylenie {error:+.1f}%".replace(".", ",")
+        )
+        return panel.redirect(request, "/status", text, "ok")
 
     @r.post("/learn/eval")
     async def learn_eval(request: Request) -> Response:

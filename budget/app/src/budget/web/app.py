@@ -40,6 +40,7 @@ from budget.web import (
     routes_status,
     routes_tabs,
     routes_transactions,
+    routes_year,
 )
 from budget.web.common import HERE, Panel, fmt_date, fmt_money
 
@@ -98,6 +99,7 @@ def create_app(service: Service, *, dev: bool = False) -> FastAPI:
         routes_ask,
         routes_piggy,
         routes_loan,
+        routes_year,
         routes_tabs,
     ):
         app.include_router(module.router(panel))
