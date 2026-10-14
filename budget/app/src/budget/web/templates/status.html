@@ -83,6 +83,7 @@
 
 <section class="card" id="reconcile">
   <h2>Uzgodnienie salda</h2>
+  <p class="small muted">Sprawdza, czy transakcje w budżecie sumują się do salda podawanego przez bank. OK — zgadza się; W DRODZE — krótka różnica (autoryzacje karty jeszcze nie zaksięgowane); ROZBIEŻNOŚĆ — brakuje transakcji albo jest zdublowana.</p>
   {% for line, c in checks %}
   <div class="small">{{ line }}</div>
   {% if c.delta_mode and c.status != "OK" %}

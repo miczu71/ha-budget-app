@@ -239,7 +239,9 @@ button:disabled, .htmx-request button { opacity: 0.6; cursor: progress; }
 .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline; }
 .pager { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
 .tx-desc { max-width: 380px; overflow-wrap: anywhere; }
-.flags { white-space: nowrap; }
+.flags { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; max-width: 100%; }
+.flags .badge { white-space: nowrap; }
+td.meta { max-width: 320px; overflow-wrap: anywhere; }
 td.date { white-space: nowrap; }
 .steps { margin: 0; padding-left: 20px; }
 .steps li { margin-bottom: 6px; }
@@ -271,7 +273,7 @@ td.date { white-space: nowrap; }
   table.tx td.date { grid-column: 1; color: var(--muted); font-size: 12px; }
   table.tx td.num { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 15px; }
   table.tx td.tx-desc { grid-column: 1; max-width: none; }
-  table.tx td.meta { grid-column: 1 / span 2; color: var(--muted); font-size: 12px; }
+  table.tx td.meta { grid-column: 1 / span 2; max-width: none; color: var(--muted); font-size: 12px; }
   .kv dd { text-align: left; }
 }
 
@@ -915,7 +917,8 @@ label.switch input[type="checkbox"]:checked::after { transform: translateX(16px)
 .piggy-form label, .piggy-form select { min-width: 0; max-width: 100%; }  /* długie nazwy serii w opcjach */
 .piggy-pick { display: inline-block; }
 .piggy-new > summary { line-height: var(--tap); cursor: pointer; font-weight: 600; }
-.piggy-pick select { min-height: var(--tap); }
+.piggy-pick select { min-height: var(--tap); max-width: 100%; }
+td.meta .piggy-pick select { max-width: 280px; }
 .piggy-tile .flex-bar { height: 6px; }
 .fc-strip > div:nth-child(5):last-child { grid-column: 1 / -1; }
 @media (min-width: 720px) { .fc-strip:has(> div:nth-child(5)) { grid-template-columns: repeat(5, 1fr); } .fc-strip > div:nth-child(5):last-child { grid-column: auto; } }
