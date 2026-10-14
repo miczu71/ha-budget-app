@@ -146,3 +146,19 @@ zgodne z ekranem. Potem ROADMAP § Wynik i checkpoint użytkownika.
   `for_month` ×14 wczytuje serie/acks za każdym razem; wspólny generyczny `Memo` (3 klasy:
   `BalanceMemo`, `ForecastMemo`, `year.Memo`); `Balances.free()` zamiast powtórzonej formuły z
   `forecast.build`; publiczne `spending.rows` (dziś `_rows` używa też `ask/query.py`).
+
+## Wynik E2 (2026-10-14, niewydane)
+
+- Migracja `021_year_event.sql` (tabela `year_event`), `year_events.py` (CRUD, `apply`, `proposals`,
+  `save_form`), `year.build` stosuje zdarzenia `plan` do bazy, a wszystkie aktywne do drugiej projekcji
+  (`Projection.scenario`, `scenario_delta`); druga linia wykresu (`forecast_line(second=...)`), sekcja
+  „Zdarzenia” i „Propozycje z historii” na `/year`. 923 testy, mypy czysty, `simplify` zastosowany.
+- **Odchylenia od planu:** propozycje liczone na żywo i niezapisywane — wiersz powstaje po zatwierdzeniu
+  albo odrzuceniu (`proposal_key` UNIQUE), więc status `proposed` nie istnieje (tylko `active`/`dismissed`).
+  „Popraw” = zatwierdź, potem edytuj zdarzenie. Kwota po progu PIT pochodzi z mediany zeszłorocznych
+  wypłat po spadku (nie z bieżącej kwoty serii); propozycję pomija się, gdy równa się kwocie serii albo
+  jej zakres jest już w przeszłości. Od 1.11 propozycje obejmują też styczeń następnego roku.
+  Rok docelowy N bierze historię N−1.
+- Odroczone z `simplify` (bez zmiany zachowania): jedna lista `ChartLine` zamiast `points2/end2_*`;
+  wspólna funkcja „limit + typowa mediana” dla `flex.auto_budget`/`_drop` i `year_events`;
+  memoizacja `proposals()` (dziś liczone przy każdym GET `/year`); wspólny `_write` dla `add`/`update`.

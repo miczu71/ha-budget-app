@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import ROUND_FLOOR, Decimal
 
-from budget import flex, forecast, money
+from budget import flex, forecast, money, year_events
 from budget.categorize import taxonomy
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
@@ -42,10 +42,13 @@ class YearMonth:
     seasonal: Decimal  # roczne bez serii: kwota z tego samego miesiąca rok wcześniej
     balance: Decimal  # saldo na koniec miesiąca, narastająco
     below_buffer: bool
+    events: Decimal = ZERO  # zdarzenia: nowe serie i kwoty jednorazowe (ze znakiem)
 
     @property
     def net(self) -> Decimal:
-        return self.inflow - self.series_out - self.flex - self.irregular - self.seasonal
+        return (
+            self.inflow - self.series_out - self.flex - self.irregular - self.seasonal + self.events
+        )
 
 
 @dataclass
@@ -58,10 +61,16 @@ class Projection:
     flex_month: Decimal = ZERO  # miesięczny Flex użyty w prognozie
     flex_manual: bool = False
     history_months: int = 0  # ile pełnych miesięcy historii stoi za medianą
+    scenario: Projection | None = None  # plan + zdarzenia „scenariusz”; None bez takich zdarzeń
 
     @property
     def end(self) -> Decimal:
         return self.months[-1].balance
+
+    @property
+    def scenario_delta(self) -> Decimal | None:
+        """Różnica salda na końcu horyzontu: scenariusz − plan."""
+        return self.scenario.end - self.end if self.scenario else None
 
     @property
     def first_deficit(self) -> date | None:
@@ -75,9 +84,7 @@ class Projection:
         ]
 
 
-def horizon_end(today: date) -> date:
-    """Koniec roku kalendarzowego; od 1.11 koniec roku następnego."""
-    return date(today.year + (1 if today.month >= 11 else 0), 12, 31)
+horizon_end = year_events.horizon_end
 
 
 def _horizon_months(today: date) -> list[date]:
@@ -120,10 +127,12 @@ def project(
     seasonal: Mapping[date, Decimal],
     buffer: Decimal,
     target: Decimal,
+    extra: Mapping[date, Decimal] | None = None,
 ) -> Projection:
     """Saldo na koniec każdego miesiąca od bieżącego do końca horyzontu. `max_flex` = największy
     miesięczny Flex, przy którym saldo żadnego miesiąca nie spada poniżej bufora, a na końcu
-    wynosi co najmniej `target` (ujemny, gdy same serie łamią bufor)."""
+    wynosi co najmniej `target` (ujemny, gdy same serie łamią bufor). `extra` — kwoty zdarzeń
+    (ze znakiem) w miesiącach, wprost do salda."""
     result = Projection(buffer=buffer, target=target)
     balance = start_balance
     weights = ZERO
@@ -135,11 +144,12 @@ def project(
         rare = (irregular * w).quantize(money.CENT)
         season = (seasonal.get(month, ZERO) * w).quantize(money.CENT)
         spend = (flex * w).quantize(money.CENT)
-        balance += inflow - out - spend - rare - season
+        event = (extra or {}).get(month, ZERO)
+        balance += inflow - out - spend - rare - season + event
         result.months.append(
-            YearMonth(month, inflow, out, spend, rare, season, balance, balance < buffer)
+            YearMonth(month, inflow, out, spend, rare, season, balance, balance < buffer, event)
         )
-        base += inflow - out - rare - season
+        base += inflow - out - rare - season + event
         weights += w
         if w > 0:
             limits.append((base - buffer) / weights)
@@ -233,19 +243,32 @@ def build(snap: Snapshot, today: date, buffer: Decimal = ZERO) -> Projection | N
     start = balances.account - (
         balances.card_debt if forecast.include_card_debt(snap.conn) else ZERO
     )
-    dues = {m: schedule.for_month(snap, m, today).rows for m in _horizon_months(today)}
-    result = project(
-        start_balance=start,
-        today=today,
-        dues=dues,
-        flex=past.flex if manual is None else manual,
-        irregular=past.irregular if manual is None else ZERO,
-        seasonal=past.seasonal,
-        buffer=buffer,
-        target=target,
-    )
-    result.start_balance = start
-    result.flex_month = past.flex if manual is None else manual
+    months = _horizon_months(today)
+    dues = {m: schedule.for_month(snap, m, today).rows for m in months}
+    events = year_events.active(snap.conn)
+    flex_month = past.flex if manual is None else manual
+
+    def run(chosen: list[year_events.Event]) -> Projection:
+        applied, extra = year_events.apply(chosen, dues, months)
+        projected = project(
+            start_balance=start,
+            today=today,
+            dues=applied,
+            flex=flex_month,
+            irregular=past.irregular if manual is None else ZERO,
+            seasonal=past.seasonal,
+            buffer=buffer,
+            target=target,
+            extra=extra,
+        )
+        projected.start_balance = start
+        projected.flex_month = flex_month
+        return projected
+
+    plan = [e for e in events if e.mode == "plan"]
+    result = run(plan)
+    if len(plan) < len(events):
+        result.scenario = run(events)
     result.flex_manual = manual is not None
     result.history_months = past.months
     return result

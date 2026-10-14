@@ -319,7 +319,7 @@ def _medians(
     return out
 
 
-def _income_by_source(
+def income_by_source(
     conn: sqlite3.Connection, start: date, end: date
 ) -> dict[str, dict[date, Decimal]]:
     """Wpływy z podkategorii `POOL_INCOME` per źródło i miesiąc (filtry jak w `spending`)."""
@@ -347,7 +347,7 @@ def _income_by_source(
     return out
 
 
-def _bonus_limit(values: list[Decimal]) -> Decimal | None:
+def bonus_limit(values: list[Decimal]) -> Decimal | None:
     """Granica premii z historii źródła; None — za krótka historia."""
     if len(values) < BONUS_MIN_MONTHS:
         return None
@@ -366,14 +366,14 @@ def auto_budget(
     start = month_start(month)
     base = add_months(start, -1)
     window = [add_months(base, -n) for n in range(BONUS_WINDOW, 0, -1)]
-    data = _income_by_source(conn, window[0], start)
+    data = income_by_source(conn, window[0], start)
     sources = []
     for name in sorted(data):
         amount = data[name].get(base, ZERO)
         if amount <= 0:
             continue
         past = [data[name][m] for m in window if data[name].get(m, ZERO) > 0]
-        limit = _bonus_limit(past)
+        limit = bonus_limit(past)
         bonus = ZERO
         if limit is not None and amount > limit:
             typical = Decimal(statistics.median(past[-BONUS_TYPICAL_MONTHS:]))
@@ -411,7 +411,7 @@ def _drop(
     if current is None:
         return None
     year = [v for m, v in sorted(data[main].items()) if m.year == base.year and m < base and v > 0]
-    limit = _bonus_limit(year)
+    limit = bonus_limit(year)
     if limit is not None:
         year = [v for v in year if v <= limit]
     if len(year) < 2:

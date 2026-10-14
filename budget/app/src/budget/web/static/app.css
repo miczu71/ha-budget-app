@@ -874,6 +874,8 @@ a.row { min-height: var(--tap); align-content: center; }
 .fc-line .zero { stroke: var(--neg); stroke-dasharray: none; opacity: 0.5; }
 .fc-line .buffer { stroke: var(--warn); stroke-dasharray: 4 3; }
 .fc-line .fc-path { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.fc-line .fc-scenario { stroke: var(--accent); stroke-dasharray: 5 4; }
+.fc-line .fc-end2 { fill: var(--accent); }
 .fc-line .fc-low { fill: var(--accent); stroke: var(--surface-1); stroke-width: 2; }
 .fc-line .fc-end { fill: var(--text); }
 .fc-foot { margin-top: 8px; }

@@ -1,5 +1,33 @@
 {% extends "base.html" %}
 {% from "_charts.html" import forecast_chart with context %}
+{% macro event_form(e=None) %}
+{% set kind = e.kind if e else '' %}
+<form class="rule-form" method="post" action="{{ base }}/year/events{{ '/' ~ e.id if e }}" hx-boost="false">
+  <div class="inline">
+    {% if not e %}<label>Rodzaj
+      <select name="kind" required>{% for key, label in kinds.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select>
+    </label>{% endif %}
+    <label>Tryb
+      <select name="mode">{% for key, label in modes.items() %}<option value="{{ key }}" {{ "selected" if e and e.mode == key }}>{{ label }}</option>{% endfor %}</select>
+    </label>
+    <label>Nazwa<input name="name" value="{{ e.name if e }}" maxlength="60" required placeholder="np. Remont"></label>
+  </div>
+  <div class="inline">
+    {% if not e or kind == 'series_amount' %}<label>Seria (dla zmiany kwoty)
+      <select name="series_id"><option value="">—</option>{% for s in series %}<option value="{{ s.id }}" {{ "selected" if e and e.series_id == s.id }}>{{ s.name }}</option>{% endfor %}</select>
+    </label>{% endif %}
+    {% if not e or kind != 'series_amount' %}<label>Kierunek
+      <select name="direction"><option value="out" {{ "selected" if e and (e.direction == 'out' or (kind == 'one_off' and e.amount < 0)) }}>wydatek</option><option value="in" {{ "selected" if e and (e.direction == 'in' or (kind == 'one_off' and e.amount > 0)) }}>wpływ</option></select>
+    </label>{% endif %}
+    <label>Kwota<input name="amount" inputmode="decimal" size="10" value="{{ e.amount | abs if e }}" required></label>
+  </div>
+  <div class="inline">
+    <label>Od miesiąca<input type="month" name="start" value="{{ e.start.strftime('%Y-%m') if e else this_month }}" required></label>
+    {% if not e or kind != 'one_off' %}<label>Do miesiąca (puste = do końca)<input type="month" name="end" value="{{ e.end.strftime('%Y-%m') if e and e.end }}"></label>{% endif %}
+  </div>
+  <p class="actions-row"><button type="submit">{{ "Zapisz" if e else "Dodaj zdarzenie" }}</button></p>
+</form>
+{% endmacro %}
 {% block content %}
 <h1>Rok</h1>
 {% if p is none %}
@@ -12,9 +40,11 @@
     <div class="stat"><span class="stat-label">Saldo na koniec</span><span class="stat-value {{ 'neg' if p.end < p.buffer }}">{{ p.end | money("PLN") }}</span><span class="small muted">start {{ p.start_balance | money("PLN") }}</span></div>
     <div class="stat"><span class="stat-label">Pierwszy deficyt</span><span class="stat-value {{ 'neg' if deficit }}">{{ label(deficit) if deficit else "brak" }}</span><span class="small muted">próg: {{ "bufor " ~ (p.buffer | money("PLN")) if p.buffer > 0 else "zero" }}</span></div>
     <div class="stat"><span class="stat-label">Mogę wydać</span><span class="stat-value {{ 'neg' if p.max_flex is not none and p.max_flex < 0 }}">{{ p.max_flex | money("PLN") if p.max_flex is not none else "—" }}</span><span class="small muted">miesięcznie</span></div>
+    {% if p.scenario %}<div class="stat"><span class="stat-label">Scenariusz: koniec</span><span class="stat-value {{ 'neg' if p.scenario.end < p.buffer }}">{{ p.scenario.end | money("PLN") }}</span><span class="small muted">{{ '+' if p.scenario_delta > 0 }}{{ p.scenario_delta | money("PLN") }} wobec planu</span></div>{% endif %}
   </div>
   <p class="small muted">„Mogę wydać” to miesięczny Flex, przy którym saldo na końcu horyzontu wynosi co najmniej {{ p.target | money("PLN") }}. W prognozie przyjęto {{ p.flex_month | money("PLN") }}.</p>
   {{ forecast_chart(chart, "Saldo na koniec każdego miesiąca do " ~ end.strftime('%d.%m.%Y')) }}
+  {% if p.scenario %}<p class="small muted">Linia przerywana — scenariusz (plan + zdarzenia w trybie „Scenariusz”).</p>{% endif %}
 </section>
 
 <section class="card" id="year-months">
@@ -23,12 +53,45 @@
     {% for m in p.months %}
     <li><div class="row">
       <span class="row-date">{{ m.month.strftime('%m.%y') }}</span>
-      <span class="row-title">{{ '+ ' if m.net > 0 }}{{ m.net | money("PLN") }}<span class="small muted block">wpływy {{ m.inflow | money("PLN") }} · serie {{ m.series_out | money("PLN") }} · Flex {{ m.flex | money("PLN") }}{% if m.irregular %} · nieregularne {{ m.irregular | money("PLN") }}{% endif %}{% if m.seasonal %} · roczne bez serii {{ m.seasonal | money("PLN") }}{% endif %}</span></span>
+      <span class="row-title">{{ '+ ' if m.net > 0 }}{{ m.net | money("PLN") }}<span class="small muted block">wpływy {{ m.inflow | money("PLN") }} · serie {{ m.series_out | money("PLN") }} · Flex {{ m.flex | money("PLN") }}{% if m.irregular %} · nieregularne {{ m.irregular | money("PLN") }}{% endif %}{% if m.seasonal %} · roczne bez serii {{ m.seasonal | money("PLN") }}{% endif %}{% if m.events %} · zdarzenia {{ '+' if m.events > 0 }}{{ m.events | money("PLN") }}{% endif %}</span></span>
       <span class="row-amount"><span class="{{ 'neg' if m.below_buffer }}">{{ m.balance | money("PLN") }}</span>{% if m.below_buffer %}<span class="small neg block">poniżej bufora</span>{% endif %}</span>
     </div></li>
     {% endfor %}
   </ul>
   <p class="small muted">Bieżący miesiąc liczony od dziś: serie, które jeszcze zejdą lub wpłyną, i część Flex proporcjonalna do pozostałych dni. Flex = {{ "wpisany ręcznie" if p.flex_manual else "mediana z " ~ p.history_months ~ " miesięcy" }}{% if not p.flex_manual %}, plus „nieregularne” — rzadkie duże wydatki rozłożone po równo{% endif %}. „Roczne bez serii” to wydatki z tego samego miesiąca rok wcześniej (grupy stałe i nieregularne bez serii).</p>
+</section>
+
+<section class="card" id="year-events">
+  <h2>Zdarzenia</h2>
+  <p class="small muted">Plan zmienia prognozę bazową (np. niższa wypłata po przekroczeniu progu podatkowego). Scenariusz rysuje drugą linię „co jeśli” i nie rusza planu.</p>
+  {% if proposals %}
+  <h3>Propozycje z historii</h3>
+  <ul class="rows">
+    {% for pr in proposals %}
+    <li><div class="row"><span class="row-date">{{ pr.start.strftime('%m.%y') }}</span><span class="row-title">{{ pr.name }} <span class="small muted">· {{ modes[pr.mode] }} · {{ pr.amount | money("PLN") }}</span><span class="small muted block">{{ pr.why }}</span></span>
+      <span class="row-amount">
+        <form method="post" action="{{ base }}/year/proposals" hx-boost="false" class="inline"><input type="hidden" name="key" value="{{ pr.key }}"><button name="action" value="approve">Zatwierdź</button><button class="secondary" name="action" value="dismiss">Odrzuć</button></form>
+      </span></div></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if events %}
+  <ul class="rows">
+    {% for e in events %}
+    <li><details><summary class="row"><span class="row-date">{{ e.start.strftime('%m.%y') }}</span><span class="row-title">{{ e.name }} <span class="small muted">· {{ modes[e.mode] }} · {{ kinds[e.kind] }}{% if e.kind == 'series_amount' %}: {{ series_names.get(e.series_id, '?') }}{% endif %}{% if e.end and e.kind != 'one_off' %} · do {{ e.end.strftime('%m.%y') }}{% elif e.kind != 'one_off' %} · bez końca{% endif %}</span></span><span class="row-amount">{% if e.kind == 'new_series' %}{{ '−' if e.direction == 'out' else '+' }}{% elif e.kind == 'one_off' %}{{ '+' if e.amount > 0 }}{% endif %}{{ e.amount | money("PLN") }}</span></summary>
+      {{ event_form(e) }}
+      <form method="post" action="{{ base }}/year/events/{{ e.id }}/delete" hx-boost="false"><button class="secondary">Usuń</button></form>
+    </details></li>
+    {% endfor %}
+  </ul>
+  {% elif not proposals %}
+  <p class="muted">Brak zdarzeń. Dodaj pierwsze poniżej.</p>
+  {% endif %}
+  <details class="fc-rest">
+    <summary>Dodaj zdarzenie</summary>
+    {{ event_form() }}
+    <p class="small muted">Zmiana kwoty serii obowiązuje od wybranego miesiąca (do końca albo do wskazanego). Nowa seria to powtarzalny wpływ lub wydatek co miesiąc. Jednorazowo — jedna kwota w wybranym miesiącu (nadpłata kredytu, wpłata na oszczędności, premia). Kwotę wpisz dodatnią, kierunek wybierz osobno.</p>
+  </details>
 </section>
 
 <section class="card" id="year-settings">

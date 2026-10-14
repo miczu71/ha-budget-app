@@ -236,6 +236,9 @@ class LineChart:
     ticks: list[Tick]
     x_labels: list[tuple[float, str]]
     marks: list[Mark] = field(default_factory=list)
+    points2: str = ""  # druga linia (scenariusz) w tej samej skali
+    end2_x: float = 0.0
+    end2_y: float = 0.0
     width: int = FC_WIDTH
     height: int = FC_HEIGHT
     plot_left: float = LEFT
@@ -254,12 +257,14 @@ def forecast_line(
     buffer: Decimal = ZERO,
     events: Sequence[Event] = (),
     payday: date | None = None,
+    second: Sequence[tuple[date, Decimal]] = (),
 ) -> LineChart:
     """Saldo dzień po dniu jako linia w skali od najniższej do najwyższej wartości (z zapasem 8%,
     żeby płaska linia też miała wysokość); zero i bufor to kreski, jeśli mieszczą się w skali,
     a strefa poniżej zera jest wypełniona. Znaczniki stoją na saldzie z końca dnia zdarzenia."""
     values = [float(v) for _, v in days]
-    lo, hi = min(values), max(values)
+    values2 = [float(v) for _, v in second]
+    lo, hi = min(values + values2), max(values + values2)
     pad = ((hi - lo) or max(abs(hi), 1.0)) * 0.08
     lo, hi = lo - pad, hi + pad
     plot_h = FC_HEIGHT - TOP - BOTTOM
@@ -314,4 +319,7 @@ def forecast_line(
         ticks=[Tick(_signed_compact(v), y_at(v)) for v in (min(values), max(values))],
         x_labels=labels,
         marks=marks,
+        points2=" ".join(f"{x_at(i):.1f},{y_at(v):.1f}" for i, v in enumerate(values2)),
+        end2_x=x_at(len(values2) - 1) if values2 else 0.0,
+        end2_y=y_at(values2[-1]) if values2 else 0.0,
     )
