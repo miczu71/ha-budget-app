@@ -570,6 +570,49 @@ def test_project_covered_series_costs_nothing() -> None:
     assert p.at_payday == Decimal(1000) and p.events[0].covered and p.events[0].amount == 0
 
 
+def test_held_takes_due_outflows_that_fit_in_pending() -> None:
+    dues = [
+        due(1, date(2026, 10, 2), "300", "out", sch.LATE),
+        due(2, TODAY, "5000", "out"),
+        due(3, TODAY, "900", "out"),  # nie mieści się już w reszcie
+        due(4, date(2026, 10, 4), "10", "out"),  # termin po dniu migawki
+        due(5, TODAY, "10", "out", sch.PAID),
+        due(6, TODAY, "10", "in"),
+    ]
+    assert forecast.held(dues, Decimal("5500"), TODAY) == frozenset({1, 2})
+    assert forecast.held(dues, Decimal("200"), TODAY) == frozenset()
+    assert forecast.held(dues, Decimal(0), TODAY) == frozenset()
+
+
+def test_project_held_series_costs_nothing() -> None:
+    dues = [due(1, TODAY, "5000", "out"), due(2, date(2026, 10, 10), "9000", "in")]
+    p = forecast.project(
+        free_now=Decimal(2000), today=TODAY, dues=dues, per_day=Decimal(0), held=frozenset({1})
+    )
+    assert p.outflows == [] and p.at_payday == Decimal(2000)
+    assert p.events[0].held and p.events[0].amount == 0 and not p.events[0].covered
+
+
+def test_build_does_not_count_twice_what_the_bank_already_holds(conn: sqlite3.Connection) -> None:
+    serie(conn, "rata", "5000.00")  # termin 7.
+    snapshot(conn, 1, "ITBD", "7300.00", "2026-10-07T04:30:00+00:00")
+    snapshot(conn, 1, "ITAV", "2000.00", "2026-10-07T04:30:00+00:00")
+    fc = build(conn, today=date(2026, 10, 7))
+    assert fc is not None and fc.balances is not None
+    assert fc.balances.pending == Decimal("5300.00")
+    assert [e.due.series.name for e in fc.events if e.held and e.due] == ["Seria rata"]
+    assert fc.series_out == 0 and fc.days[0][1] == Decimal("2000.00")
+
+
+def test_build_snapshot_from_before_due_day_holds_nothing(conn: sqlite3.Connection) -> None:
+    serie(conn, "rata", "5000.00")
+    snapshot(conn, 1, "ITBD", "7300.00", "2026-10-06T19:30:00+00:00")  # 21:30 dzień wcześniej
+    snapshot(conn, 1, "ITAV", "2000.00", "2026-10-06T19:30:00+00:00")
+    fc = build(conn, today=date(2026, 10, 7))
+    assert fc is not None and not any(e.held for e in fc.events)
+    assert fc.series_out == Decimal("5000.00")
+
+
 def test_build_reserves_piggy_until_transferred(conn: sqlite3.Connection) -> None:
     seeded(conn)
     mine = serie(conn, "pensja", "9000.00", direction="in")  # termin 7.

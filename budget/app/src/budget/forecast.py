@@ -43,6 +43,7 @@ class Balances:
     card_debt: Decimal  # karta: ITBD = bieżące zadłużenie; bez karty 0
     eur: Decimal | None
     fetched_at: str  # najstarsza z migawek użytych do wyniku
+    pending: Decimal = ZERO  # rachunek PLN: ITBD − ITAV = blokady jeszcze bez księgowania
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,7 @@ class Event:
     due: schedule.Due | None  # None = planowany przelew do skarbonek (M10 E1)
     amount: Decimal  # ze znakiem: wydatek ujemny, wpływ dodatni
     covered: bool = False  # wydatek serii pokryty saldem skarbonki — w prognozie 0
+    held: bool = False  # wydatek serii już zdjęty z dostępnego salda przez bank — w prognozie 0
 
     @property
     def label(self) -> str:
@@ -189,7 +191,9 @@ def read_balances(conn: sqlite3.Connection) -> Balances | None:
         row = ledger.latest_balances(conn, accounts["fx"]["id"])
         found = row.get("ITAV") or row.get("ITBD")
         eur = Decimal(found["amount"]) if found else None
-    return Balances(Decimal(main["amount"]), card_debt, eur, min(fetched))
+    booked = snaps.get("ITBD")
+    pending = max(Decimal(booked["amount"]) - Decimal(main["amount"]), ZERO) if booked else ZERO
+    return Balances(Decimal(main["amount"]), card_debt, eur, min(fetched), pending)
 
 
 def flex_per_day(f: flex.FlexMonth) -> Decimal:
@@ -227,6 +231,25 @@ def _is_payday_candidate(d: schedule.Due, today: date) -> bool:
     )
 
 
+def held(dues: Sequence[schedule.Due], pending: Decimal, as_of: date) -> frozenset[int]:
+    """Serie wydatkowe, które bank już zdjął z dostępnego salda, a jeszcze ich nie zaksięgował:
+    termin nie później niż w dniu migawki, a kwota mieści się w `pending` (ITBD − ITAV, reszta
+    to autoryzacje kartą). Kolejno wg terminów; taka, która się nie mieści, zostaje w prognozie."""
+    out: set[int] = set()
+    left = pending
+    for d in sorted(dues, key=lambda d: (d.due or as_of, d.series.name)):
+        if (
+            d.series.direction == "out"
+            and d.status in (schedule.EXPECTED, schedule.LATE)
+            and d.due is not None
+            and d.due <= as_of
+            and d.series.expected_amount <= left
+        ):
+            out.add(d.series.id)
+            left -= d.series.expected_amount
+    return frozenset(out)
+
+
 def project(
     *,
     free_now: Decimal,
@@ -236,10 +259,12 @@ def project(
     payday_id: int | None = None,
     piggy_out: Decimal = ZERO,
     covered: frozenset[int] = frozenset(),
+    held: frozenset[int] = frozenset(),
 ) -> Projection:
     """Saldo dzień po dniu od dziś do dnia wypłaty (czysta logika). Wypłata to termin serii
     `payday_id`, a gdy jej nie ma — seria wpływowa o największej kwocie. `piggy_out` schodzi
-    dziś (przelew do skarbonek), a wydatki serii z `covered` płaci skarbonka (w prognozie 0)."""
+    dziś (przelew do skarbonek), a wydatki serii z `covered` płaci skarbonka (w prognozie 0);
+    serie z `held` bank już odjął od dostępnego salda (też 0)."""
     live = [
         (max(d.due, today), d)
         for d in dues
@@ -265,13 +290,15 @@ def project(
         key=lambda p: p[0],
     )
     inflows = sorted((p for p in paydays if p[0] <= end and p is not first), key=lambda p: p[0])
-    result.outflows = [d for _, d in out if d.series.id not in covered]
+    result.outflows = [d for _, d in out if d.series.id not in covered | held]
     result.inflows = [d for _, d in inflows]
     result.piggy_out = piggy_out
     result.events = sorted(
         [
             Event(day, d, ZERO, True)
             if d.series.id in covered
+            else Event(day, d, ZERO, held=True)
+            if d.series.id in held
             else Event(day, d, -d.series.expected_amount)
             for day, d in out
         ]
@@ -366,18 +393,22 @@ def build(
     start = last_payday(snap, payday_id, today)
     piggies_from = start or month_start(today)
     piggies = piggy.statuses(snap, today, piggies_from)
+    dues = _dues(snap, today, mv, payday_id)
+    covered = frozenset(
+        s.piggy.series_id
+        for s in piggies
+        if s.piggy.series_id is not None and s.target and s.balance >= s.target
+    )
+    as_of = datetime.fromisoformat(balances.fetched_at).astimezone(now.tzinfo).date()
     p = project(
         free_now=free_now,
         today=today,
-        dues=_dues(snap, today, mv, payday_id),
+        dues=dues,
         per_day=per_day,
         payday_id=payday_id,
         piggy_out=piggy.total_to_transfer(piggies),
-        covered=frozenset(
-            s.piggy.series_id
-            for s in piggies
-            if s.piggy.series_id is not None and s.target and s.balance >= s.target
-        ),
+        covered=covered,
+        held=held([d for d in dues if d.series.id not in covered], balances.pending, as_of),
     )
     if p.payday_series_id != payday_id:
         start = last_payday(snap, p.payday_series_id, today)
