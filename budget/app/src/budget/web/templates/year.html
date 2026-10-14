@@ -59,6 +59,7 @@
     {% endfor %}
   </ul>
   <p class="small muted">Bieżący miesiąc liczony od dziś: serie, które jeszcze zejdą lub wpłyną, i część Flex proporcjonalna do pozostałych dni. Flex = {{ "wpisany ręcznie" if p.flex_manual else "mediana z " ~ p.history_months ~ " miesięcy" }}{% if not p.flex_manual %}, plus „nieregularne” — rzadkie duże wydatki rozłożone po równo{% endif %}. „Roczne bez serii” to wydatki z tego samego miesiąca rok wcześniej (grupy stałe i nieregularne bez serii).</p>
+  {% if p.skipped_names %}<p class="small muted">Pominięte w prognozie: {{ p.skipped_names | join(", ") }} — średnio {{ p.skipped | money("PLN") }} miesięcznie w ostatnich {{ p.history_months }} mies. Duży planowany wydatek dodaj jako zdarzenie. <a class="tap" href="{{ base }}/categories">Zmień w Kategoriach</a></p>{% endif %}
 </section>
 
 <section class="card" id="year-events">

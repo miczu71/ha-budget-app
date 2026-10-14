@@ -303,6 +303,18 @@ def router(panel: Panel) -> APIRouter:
             f"„{cat.name}” — grupa budżetu: {taxonomy.FLEX_LABELS[flex_group]}.",
         )
 
+    @r.post("/categories/{category_id}/year-skip")
+    async def category_year_skip(
+        request: Request, category_id: int, year_skip: str = Form("")
+    ) -> Response:
+        """Wyłącza podkategorię z prognozy rocznej (M30); odznaczony checkbox nie wysyła pola."""
+        try:
+            cat = taxonomy.set_year_skip(conn, category_id, bool(year_skip))
+        except TaxonomyError as exc:
+            return panel.redirect(request, "/categories", str(exc), "error")
+        done = "wyłączona z prognozy rocznej" if year_skip else "wraca do prognozy rocznej"
+        return panel.redirect(request, "/categories", f"„{cat.name}” — {done}.")
+
     @r.post("/categories/{category_id}/delete")
     async def delete_category(request: Request, category_id: int) -> Response:
         try:

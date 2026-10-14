@@ -21,7 +21,7 @@
         <details class="leaf">
           <summary>
             <span class="cat-name">{{ c.name }}</span>
-            <span class="small muted">{{ groups[c.flex_group] }} · {{ counts.get(c.id, 0) }} tr.</span>
+            <span class="small muted">{{ groups[c.flex_group] }} · {{ counts.get(c.id, 0) }} tr.{% if c.year_skip %} · poza prognozą roczną{% endif %}</span>
           </summary>
           <form class="rename" method="post" action="{{ base }}/categories/{{ c.id }}/rename">
             <input name="name" value="{{ c.name }}" aria-label="nazwa podkategorii" maxlength="60"><button class="secondary">Zmień</button>
@@ -32,6 +32,9 @@
               <option value="{{ key }}"{{ " selected" if key == c.flex_group }}>{{ label }}</option>
               {% endfor %}
             </select><button class="secondary">Ustaw</button>
+          </form>
+          <form class="move year-skip" method="post" action="{{ base }}/categories/{{ c.id }}/year-skip">
+            <label><input type="checkbox" name="year_skip" value="1"{{ " checked" if c.year_skip }}> Pomiń w prognozie rocznej (wydatki jednorazowe)</label><button class="secondary">Ustaw</button>
           </form>
           <form class="move" method="post" action="{{ base }}/categories/{{ c.id }}/move">
             <select name="parent_id" aria-label="przenieś {{ c.name }} do kategorii głównej" required>

@@ -20,7 +20,7 @@ from .test_categorize_engine import conn
 from .test_flex import serie, spend
 from .test_forecast import snapshot
 from .test_recurring_schedule import make
-from .test_web import _client, service
+from .test_web import INGRESS, _client, service
 
 __all__ = ["conn", "service"]
 
@@ -274,6 +274,25 @@ def test_backtest_leaves_out_skipped_categories(conn: sqlite3.Connection) -> Non
     out = year.backtest(snap, TODAY, "now")
     feb = next(m for m in out["months"] if m["month"] == "2026-02")  # type: ignore[attr-defined]
     assert feb["actual"] == "100.00"
+
+
+@pytest.mark.asyncio
+async def test_year_page_lists_skipped_categories(service: Service) -> None:
+    c = service.conn
+    c.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (1, 'current', 'PLN', ?)",
+        ("2026-10-14T08:00:00+02:00",),
+    )
+    seeded(c)
+    async with _client(service) as client:
+        assert "Pominięte w prognozie" not in (await client.get("/year")).text
+        paliwo = next(x for x in taxonomy.all_categories(c).values() if x.slug == "paliwo")
+        spend(c, "1200.00", "2026-05", "paliwo")
+        engine.recategorize(c)
+        await client.post(f"/categories/{paliwo.id}/year-skip", data={"year_skip": "1"})
+        page = (await client.get("/year")).text
+    assert "Pominięte w prognozie: Paliwo" in page and "100,00" in page  # 1200 / 12 mies.
+    assert 'href="/categories"' in page.replace(INGRESS, "")
 
 
 def test_backtest_without_full_months_has_nothing_to_compare(conn: sqlite3.Connection) -> None:

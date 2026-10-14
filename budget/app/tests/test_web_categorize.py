@@ -196,6 +196,21 @@ async def test_categories_leaf_row_collapses_edit_forms(
         assert f'action="{INGRESS}/categories/111/{action}"' in forms
 
 
+async def test_categories_year_skip_toggle(client: httpx.AsyncClient, service: Service) -> None:
+    _seed(service.conn)
+    page = (await client.get("/categories")).text
+    assert f'action="{INGRESS}/categories/111/year-skip"' in page and "poza prognozą" not in page
+    r = await client.post("/categories/111/year-skip", data={"year_skip": "1"})
+    assert r.status_code in (200, 303)
+    assert taxonomy.all_categories(service.conn)[111].year_skip is True
+    page = (await client.get("/categories")).text
+    assert "poza prognozą roczną" in page and "wyłączona z prognozy rocznej" in page
+    await client.post("/categories/111/year-skip", data={})  # odznaczony checkbox nie wysyła pola
+    assert taxonomy.all_categories(service.conn)[111].year_skip is False
+    r = await client.post("/categories/4/year-skip", data={"year_skip": "1"})  # główna
+    assert "tylko podkategorii" in (await client.get("/categories")).text
+
+
 async def test_categories_add_main_move_delete(client: httpx.AsyncClient, service: Service) -> None:
     ids = _seed(service.conn)
     conn = service.conn

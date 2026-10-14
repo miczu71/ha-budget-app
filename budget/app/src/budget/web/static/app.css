@@ -833,6 +833,9 @@ select, textarea, button { min-height: var(--tap); }
 .leaf form { margin: 6px 0 0 22px; }
 .leaf form.move select { flex: 1; min-width: 0; max-width: none; padding: 9px 12px; font-size: inherit; }
 .leaf form.move button { padding: 9px 12px; font-size: inherit; }
+.leaf form.year-skip { align-items: center; }
+.leaf form.year-skip label { flex: 1; min-width: 0; display: flex; flex-direction: row; align-items: center; gap: 10px; font-size: 14px; }
+.leaf form.year-skip input[type="checkbox"] { flex: none; width: 18px; height: 18px; margin: 0; padding: 0; }
 .leaf[open] { padding-bottom: 10px; }
 /* Wiersze serii (link na cały wiersz) */
 a.row { min-height: var(--tap); align-content: center; }

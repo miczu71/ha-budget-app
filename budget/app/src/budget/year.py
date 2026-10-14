@@ -187,6 +187,14 @@ def _seasonal_spent(
     return sum((flex.group_spent(s, leaves, g) for g in SEASONAL_GROUPS), ZERO)
 
 
+def _in_forecast(
+    all_leaves: list[taxonomy.Category],
+) -> tuple[list[taxonomy.Category], list[taxonomy.Category]]:
+    """Podkategorie liczone w prognozie (bez `year_skip`) i spośród nich elastyczne."""
+    leaves = [c for c in all_leaves if not c.year_skip]
+    return leaves, [c for c in leaves if c.flex_group == "flexible"]
+
+
 def _skip_all(snap: Snapshot) -> set[int]:
     return {t.id for txns in snap.members().values() for t in txns} | snap.piggy_ids()
 
@@ -207,8 +215,7 @@ def history(
     skip = flex.pool_series(snap).skip if skip is None else skip
     skip_all = _skip_all(snap) if skip_all is None else skip_all
     all_leaves = list(taxonomy.leaves(snap.conn).values())
-    leaves = [c for c in all_leaves if not c.year_skip]
-    flexible = [c for c in leaves if c.flex_group == "flexible"]
+    leaves, flexible = _in_forecast(all_leaves)
     history_months = [
         m for m in (add_months(cur, -n) for n in range(HISTORY_MONTHS, 0, -1)) if m >= first
     ]
@@ -292,8 +299,7 @@ def backtest(snap: Snapshot, today: date, at: str) -> dict[str, object]:
     Serie pomijamy — ich obecne kwoty znają późniejsze zmiany (np. próg podatkowy), więc pomiar
     nie byłby uczciwy; mierzymy tylko to, co robi M18 sam."""
     skip, skip_all = flex.pool_series(snap).skip, _skip_all(snap)
-    leaves = [c for c in taxonomy.leaves(snap.conn).values() if not c.year_skip]
-    flexible = [c for c in leaves if c.flex_group == "flexible"]
+    leaves, flexible = _in_forecast(list(taxonomy.leaves(snap.conn).values()))
     h = history(snap, date(today.year - 1, 12, 31), skip, skip_all)
     rows: list[tuple[date, Decimal, Decimal]] = []
     month = date(today.year, 1, 1)
