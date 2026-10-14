@@ -62,6 +62,8 @@ class Projection:
     flex_manual: bool = False
     history_months: int = 0  # ile pełnych miesięcy historii stoi za medianą
     scenario: Projection | None = None  # plan + zdarzenia „scenariusz”; None bez takich zdarzeń
+    skipped: Decimal = ZERO  # średnio miesięcznie w kategoriach wyłączonych z prognozy (M30)
+    skipped_names: list[str] = field(default_factory=list)
 
     @property
     def end(self) -> Decimal:
@@ -165,6 +167,8 @@ class History:
     irregular: Decimal = ZERO  # (suma − n × mediana) / n: rzadkie duże wydatki po równo
     months: int = 0
     seasonal: dict[date, Decimal] = field(default_factory=dict)  # roczne bez serii wg miesięcy
+    skipped: Decimal = ZERO  # średnio miesięcznie w kategoriach z `year_skip` (poza prognozą)
+    skipped_names: list[str] = field(default_factory=list)
 
 
 def _lookback(month: date, today: date) -> date:
@@ -202,17 +206,24 @@ def history(
         return History()
     skip = flex.pool_series(snap).skip if skip is None else skip
     skip_all = _skip_all(snap) if skip_all is None else skip_all
-    spent = [
-        flex.spent_between(snap, m, add_months(m, 1), skip)
-        for m in (add_months(cur, -n) for n in range(HISTORY_MONTHS, 0, -1))
-        if m >= first
+    all_leaves = list(taxonomy.leaves(snap.conn).values())
+    leaves = [c for c in all_leaves if not c.year_skip]
+    flexible = [c for c in leaves if c.flex_group == "flexible"]
+    history_months = [
+        m for m in (add_months(cur, -n) for n in range(HISTORY_MONTHS, 0, -1)) if m >= first
     ]
+    spent = [flex.spent_between(snap, m, add_months(m, 1), skip, flexible) for m in history_months]
     out = History(months=len(spent))
     if spent:
         median = Decimal(statistics.median(spent))
         out.flex = median.quantize(money.CENT)
         out.irregular = ((sum(spent, ZERO) - len(spent) * median) / len(spent)).quantize(money.CENT)
-    leaves = list(taxonomy.leaves(snap.conn).values())
+    dropped = [c for c in all_leaves if c.year_skip]
+    if dropped and history_months:
+        total = sums(snap.conn, history_months[0], cur, skip_all)
+        gone = -sum((total.by_leaf[c.id].amount for c in dropped if c.id in total.by_leaf), ZERO)
+        out.skipped = (gone / len(history_months)).quantize(money.CENT)
+        out.skipped_names = [c.name for c in dropped]
     cache: dict[date, Decimal] = {}
     for m in _horizon_months(today):
         src = _lookback(m, today)
@@ -271,6 +282,7 @@ def build(snap: Snapshot, today: date, buffer: Decimal = ZERO) -> Projection | N
         result.scenario = run(events)
     result.flex_manual = manual is not None
     result.history_months = past.months
+    result.skipped, result.skipped_names = past.skipped, past.skipped_names
     return result
 
 
@@ -280,15 +292,16 @@ def backtest(snap: Snapshot, today: date, at: str) -> dict[str, object]:
     Serie pomijamy — ich obecne kwoty znają późniejsze zmiany (np. próg podatkowy), więc pomiar
     nie byłby uczciwy; mierzymy tylko to, co robi M18 sam."""
     skip, skip_all = flex.pool_series(snap).skip, _skip_all(snap)
-    leaves = list(taxonomy.leaves(snap.conn).values())
+    leaves = [c for c in taxonomy.leaves(snap.conn).values() if not c.year_skip]
+    flexible = [c for c in leaves if c.flex_group == "flexible"]
     h = history(snap, date(today.year - 1, 12, 31), skip, skip_all)
     rows: list[tuple[date, Decimal, Decimal]] = []
     month = date(today.year, 1, 1)
     while month < month_start(today):
         predicted = h.flex + h.irregular + h.seasonal.get(month, ZERO)
-        actual = flex.spent_between(snap, month, add_months(month, 1), skip) + _seasonal_spent(
-            snap, month, skip_all, leaves
-        )
+        actual = flex.spent_between(
+            snap, month, add_months(month, 1), skip, flexible
+        ) + _seasonal_spent(snap, month, skip_all, leaves)
         rows.append((month, predicted.quantize(money.CENT), actual.quantize(money.CENT)))
         month = add_months(month, 1)
     predicted = sum((p for _, p, _ in rows), ZERO)

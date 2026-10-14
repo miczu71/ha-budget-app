@@ -9,7 +9,7 @@ from decimal import Decimal
 import pytest
 
 from budget import year
-from budget.categorize import engine
+from budget.categorize import engine, taxonomy
 from budget.recurring import schedule as sch
 from budget.service import Service
 from budget.snapshot import Snapshot
@@ -183,6 +183,37 @@ def test_seasonal_ignores_payments_covered_by_a_series(conn: sqlite3.Connection)
     assert year.history(Snapshot(conn), TODAY).seasonal[date(2026, 12, 1)] == D("0.00")
 
 
+def skip_category(c: sqlite3.Connection, slug: str) -> None:
+    cat = next(x for x in taxonomy.all_categories(c).values() if x.slug == slug)
+    taxonomy.set_year_skip(c, cat.id, True)
+
+
+def test_skipped_flexible_category_leaves_median_and_irregular(conn: sqlite3.Connection) -> None:
+    snap = seeded(conn)
+    spend(conn, "9000.00", "2025-11", "paliwo")
+    engine.recategorize(conn)
+    before = year.history(snap, TODAY)
+    assert (before.flex, before.irregular) == (D("100.00"), D("850.00"))
+    skip_category(conn, "paliwo")
+    after = year.history(snap, TODAY)
+    assert (after.flex, after.irregular) == (D("100.00"), D("100.00"))
+    assert after.skipped == D("750.00")  # 9000 / 12 miesięcy
+    assert after.skipped_names == ["Paliwo"]
+
+
+def test_skipped_non_monthly_category_leaves_seasonal(conn: sqlite3.Connection) -> None:
+    snap = seeded(conn)
+    skip_category(conn, "ubezpieczenia")
+    h = year.history(snap, TODAY)
+    assert h.seasonal[date(2026, 12, 1)] == D("0.00")
+    assert h.skipped == D("50.00")  # 600 / 12 miesięcy
+
+
+def test_skipped_empty_without_flags(conn: sqlite3.Connection) -> None:
+    h = year.history(seeded(conn), TODAY)
+    assert (h.skipped, h.skipped_names) == (D("0"), [])
+
+
 def test_history_empty_without_ledger(conn: sqlite3.Connection) -> None:
     assert year.history(Snapshot(conn), TODAY) == year.History()
 
@@ -233,6 +264,16 @@ def test_backtest_compares_non_series_spend_with_forecast_from_december(
     ]
     assert (out["predicted"], out["actual"], out["error_pct"]) == ("200.00", "250.00", -20.0)
     assert out["history_months"] == 12 and not out["within_10"]
+
+
+def test_backtest_leaves_out_skipped_categories(conn: sqlite3.Connection) -> None:
+    snap = seeded(conn)
+    spend(conn, "500.00", "2026-02", "paliwo")
+    engine.recategorize(conn)
+    skip_category(conn, "paliwo")
+    out = year.backtest(snap, TODAY, "now")
+    feb = next(m for m in out["months"] if m["month"] == "2026-02")  # type: ignore[attr-defined]
+    assert feb["actual"] == "100.00"
 
 
 def test_backtest_without_full_months_has_nothing_to_compare(conn: sqlite3.Connection) -> None:

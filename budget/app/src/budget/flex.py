@@ -422,11 +422,20 @@ def _drop(
     return main, float(1 - current.amount / usual)
 
 
-def spent_between(snap: Snapshot, start: date, end: date, skip: set[int] | None = None) -> Decimal:
+def spent_between(
+    snap: Snapshot,
+    start: date,
+    end: date,
+    skip: set[int] | None = None,
+    leaves: list[Category] | None = None,
+) -> Decimal:
     """„Wydane” elastyczne (jak `FlexMonth.spent`) w dowolnym okresie [start, end) — M21 E3;
-    `skip` = już policzone `pool_series(snap).skip` (kilka okresów naraz, M21 E4)."""
+    `skip` = już policzone `pool_series(snap).skip` (kilka okresów naraz, M21 E4); `leaves` =
+    podkategorie elastyczne do policzenia (domyślnie wszystkie; „Rok” pomija wyłączone)."""
     skip = pool_series(snap).skip if skip is None else skip
-    return _spent(sums(snap.conn, start, end, skip), _flexible(snap.conn))
+    return _spent(
+        sums(snap.conn, start, end, skip), _flexible(snap.conn) if leaves is None else leaves
+    )
 
 
 def build(snap: Snapshot, month: date, today: date) -> FlexMonth:

@@ -163,3 +163,18 @@ def test_delete_main_only_when_empty(conn: sqlite3.Connection) -> None:
     assert 12 not in taxonomy.all_categories(conn)
     with pytest.raises(TaxonomyError, match="Nie ma"):
         taxonomy.delete_main(conn, 110)
+
+
+def test_year_skip_flag_roundtrip(conn: sqlite3.Connection) -> None:
+    leaf = next(c for c in taxonomy.all_categories(conn).values() if not c.is_main)
+    assert leaf.year_skip is False
+    taxonomy.set_year_skip(conn, leaf.id, True)
+    assert taxonomy.all_categories(conn)[leaf.id].year_skip is True
+    taxonomy.set_year_skip(conn, leaf.id, False)
+    assert taxonomy.all_categories(conn)[leaf.id].year_skip is False
+
+
+def test_year_skip_only_for_subcategories(conn: sqlite3.Connection) -> None:
+    main = next(c for c in taxonomy.all_categories(conn).values() if c.is_main)
+    with pytest.raises(TaxonomyError):
+        taxonomy.set_year_skip(conn, main.id, True)

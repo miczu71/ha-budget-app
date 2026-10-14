@@ -40,6 +40,7 @@ class Category:
     name: str
     flex_group: str | None
     sort: int
+    year_skip: bool = False  # M30: poza prognozą roczną (wydatki jednorazowe)
 
     @property
     def is_main(self) -> bool:
@@ -60,6 +61,7 @@ def _row(r: sqlite3.Row) -> Category:
         name=r["name"],
         flex_group=r["flex_group"],
         sort=int(r["sort"]),
+        year_skip=bool(r["year_skip"]),
     )
 
 
@@ -198,6 +200,15 @@ def delete_main(conn: sqlite3.Connection, category_id: int) -> str:
         raise TaxonomyError(f"„{cat.name}” ma podkategorie — najpierw je przenieś.")
     conn.execute("DELETE FROM category WHERE id = ?", (cat.id,))
     return cat.name
+
+
+def set_year_skip(conn: sqlite3.Connection, category_id: int, on: bool) -> Category:
+    """Wyłącza podkategorię z prognozy rocznej (M30); grupa budżetu i transakcje bez zmian."""
+    cat = all_categories(conn).get(category_id)
+    if cat is None or cat.is_main:
+        raise TaxonomyError("Prognozę roczną ustawia się tylko podkategorii.")
+    conn.execute("UPDATE category SET year_skip = ? WHERE id = ?", (int(on), cat.id))
+    return cat
 
 
 def set_flex_group(conn: sqlite3.Connection, category_id: int, group: str) -> Category:
