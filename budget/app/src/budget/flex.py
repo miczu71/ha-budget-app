@@ -286,7 +286,7 @@ def _history(
     return out
 
 
-def _flexible(conn: sqlite3.Connection) -> list[Category]:
+def flexible_leaves(conn: sqlite3.Connection) -> list[Category]:
     return [c for c in taxonomy.leaves(conn).values() if c.flex_group == "flexible"]
 
 
@@ -434,7 +434,7 @@ def spent_between(
     podkategorie elastyczne do policzenia (domyślnie wszystkie; „Rok” pomija wyłączone)."""
     skip = pool_series(snap).skip if skip is None else skip
     return _spent(
-        sums(snap.conn, start, end, skip), _flexible(snap.conn) if leaves is None else leaves
+        sums(snap.conn, start, end, skip), flexible_leaves(snap.conn) if leaves is None else leaves
     )
 
 

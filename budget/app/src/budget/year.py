@@ -188,11 +188,14 @@ def _seasonal_spent(
 
 
 def _in_forecast(
-    all_leaves: list[taxonomy.Category],
+    conn: sqlite3.Connection, all_leaves: list[taxonomy.Category]
 ) -> tuple[list[taxonomy.Category], list[taxonomy.Category]]:
-    """Podkategorie liczone w prognozie (bez `year_skip`) i spośród nich elastyczne."""
-    leaves = [c for c in all_leaves if not c.year_skip]
-    return leaves, [c for c in leaves if c.flex_group == "flexible"]
+    """Podkategorie liczone w prognozie (bez `year_skip`) i spośród nich elastyczne — te same,
+    które tworzą pulę Budżetu (`flex._flexible`)."""
+    return (
+        [c for c in all_leaves if not c.year_skip],
+        [c for c in flex.flexible_leaves(conn) if not c.year_skip],
+    )
 
 
 def _skip_all(snap: Snapshot) -> set[int]:
@@ -215,7 +218,7 @@ def history(
     skip = flex.pool_series(snap).skip if skip is None else skip
     skip_all = _skip_all(snap) if skip_all is None else skip_all
     all_leaves = list(taxonomy.leaves(snap.conn).values())
-    leaves, flexible = _in_forecast(all_leaves)
+    leaves, flexible = _in_forecast(snap.conn, all_leaves)
     history_months = [
         m for m in (add_months(cur, -n) for n in range(HISTORY_MONTHS, 0, -1)) if m >= first
     ]
@@ -229,7 +232,7 @@ def history(
     if dropped and history_months:
         total = sums(snap.conn, history_months[0], cur, skip_all)
         gone = -sum((total.by_leaf[c.id].amount for c in dropped if c.id in total.by_leaf), ZERO)
-        out.skipped = (gone / len(history_months)).quantize(money.CENT)
+        out.skipped = (max(gone, ZERO) / len(history_months)).quantize(money.CENT)
         out.skipped_names = [c.name for c in dropped]
     cache: dict[date, Decimal] = {}
     for m in _horizon_months(today):
@@ -299,7 +302,7 @@ def backtest(snap: Snapshot, today: date, at: str) -> dict[str, object]:
     Serie pomijamy — ich obecne kwoty znają późniejsze zmiany (np. próg podatkowy), więc pomiar
     nie byłby uczciwy; mierzymy tylko to, co robi M18 sam."""
     skip, skip_all = flex.pool_series(snap).skip, _skip_all(snap)
-    leaves, flexible = _in_forecast(list(taxonomy.leaves(snap.conn).values()))
+    leaves, flexible = _in_forecast(snap.conn, list(taxonomy.leaves(snap.conn).values()))
     h = history(snap, date(today.year - 1, 12, 31), skip, skip_all)
     rows: list[tuple[date, Decimal, Decimal]] = []
     month = date(today.year, 1, 1)
@@ -345,7 +348,11 @@ def unseried(snap: Snapshot, today: date, limit: int = 15) -> list[Unseried]:
     """Wydatki z grup `SEASONAL_GROUPS` z ostatnich 13 miesięcy, które nie należą do żadnej serii
     — kandydaci na opłaty roczne/kwartalne do potwierdzenia. Pokrywa je wiersz „roczne bez serii”,
     dopóki użytkownik nie zamieni ich w serię (detektor rzadko łapie roczne: ~21 mies. historii)."""
-    allowed = {i for i, c in taxonomy.leaves(snap.conn).items() if c.flex_group in SEASONAL_GROUPS}
+    allowed = {
+        i
+        for i, c in taxonomy.leaves(snap.conn).items()
+        if c.flex_group in SEASONAL_GROUPS and not c.year_skip
+    }
     skip = _skip_all(snap)
     start = add_months(month_start(today), -13)
     found: dict[str, list[tuple[date, Decimal]]] = {}

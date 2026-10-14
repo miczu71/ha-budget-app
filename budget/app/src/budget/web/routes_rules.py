@@ -309,10 +309,10 @@ def router(panel: Panel) -> APIRouter:
     ) -> Response:
         """Wyłącza podkategorię z prognozy rocznej (M30); odznaczony checkbox nie wysyła pola."""
         try:
-            cat = taxonomy.set_year_skip(conn, category_id, bool(year_skip))
+            cat = taxonomy.set_year_skip(conn, category_id, year_skip == "1")
         except TaxonomyError as exc:
             return panel.redirect(request, "/categories", str(exc), "error")
-        done = "wyłączona z prognozy rocznej" if year_skip else "wraca do prognozy rocznej"
+        done = "wyłączona z prognozy rocznej" if year_skip == "1" else "wraca do prognozy rocznej"
         return panel.redirect(request, "/categories", f"„{cat.name}” — {done}.")
 
     @r.post("/categories/{category_id}/delete")

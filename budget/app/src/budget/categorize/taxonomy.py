@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from budget.normalize import fold
 
@@ -208,7 +208,7 @@ def set_year_skip(conn: sqlite3.Connection, category_id: int, on: bool) -> Categ
     if cat is None or cat.is_main:
         raise TaxonomyError("Prognozę roczną ustawia się tylko podkategorii.")
     conn.execute("UPDATE category SET year_skip = ? WHERE id = ?", (int(on), cat.id))
-    return cat
+    return replace(cat, year_skip=on)
 
 
 def set_flex_group(conn: sqlite3.Connection, category_id: int, group: str) -> Category:

@@ -209,6 +209,18 @@ def test_skipped_non_monthly_category_leaves_seasonal(conn: sqlite3.Connection) 
     assert h.skipped == D("50.00")  # 600 / 12 miesięcy
 
 
+def test_skipped_never_negative_and_unseried_leaves_out_flagged(conn: sqlite3.Connection) -> None:
+    snap = seeded(conn)
+    skip_category(conn, "ubezpieczenia")
+    assert [u.name for u in year.unseried(snap, TODAY)] == []
+    taxonomy.set_year_skip(conn, _slug_id(conn, "paliwo"), True)
+    assert year.history(snap, TODAY).skipped >= 0
+
+
+def _slug_id(c: sqlite3.Connection, slug: str) -> int:
+    return next(x.id for x in taxonomy.all_categories(c).values() if x.slug == slug)
+
+
 def test_skipped_empty_without_flags(conn: sqlite3.Connection) -> None:
     h = year.history(seeded(conn), TODAY)
     assert (h.skipped, h.skipped_names) == (D("0"), [])

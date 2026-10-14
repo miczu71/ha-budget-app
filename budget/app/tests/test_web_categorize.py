@@ -205,6 +205,9 @@ async def test_categories_year_skip_toggle(client: httpx.AsyncClient, service: S
     assert taxonomy.all_categories(service.conn)[111].year_skip is True
     page = (await client.get("/categories")).text
     assert "poza prognozą roczną" in page and "wyłączona z prognozy rocznej" in page
+    await client.post("/categories/111/year-skip", data={"year_skip": "0"})  # nie włącza flagi
+    assert taxonomy.all_categories(service.conn)[111].year_skip is False
+    await client.post("/categories/111/year-skip", data={"year_skip": "1"})
     await client.post("/categories/111/year-skip", data={})  # odznaczony checkbox nie wysyła pola
     assert taxonomy.all_categories(service.conn)[111].year_skip is False
     r = await client.post("/categories/4/year-skip", data={"year_skip": "1"})  # główna

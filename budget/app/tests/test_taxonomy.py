@@ -168,7 +168,7 @@ def test_delete_main_only_when_empty(conn: sqlite3.Connection) -> None:
 def test_year_skip_flag_roundtrip(conn: sqlite3.Connection) -> None:
     leaf = next(c for c in taxonomy.all_categories(conn).values() if not c.is_main)
     assert leaf.year_skip is False
-    taxonomy.set_year_skip(conn, leaf.id, True)
+    assert taxonomy.set_year_skip(conn, leaf.id, True).year_skip is True
     assert taxonomy.all_categories(conn)[leaf.id].year_skip is True
     taxonomy.set_year_skip(conn, leaf.id, False)
     assert taxonomy.all_categories(conn)[leaf.id].year_skip is False
