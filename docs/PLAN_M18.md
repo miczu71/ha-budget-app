@@ -25,7 +25,10 @@ miesięcznie wydawać na wydatki elastyczne (Flex), żeby dojść do celu. Wywia
 - **Miesiąc:** wpływy z serii `in` + wydatki z serii `out` (terminy z `schedule.for_month(snap, m,
   today)`, M/Q/Y). Do tego Flex = mediana elastycznych z 12 pełnych miesięcy (te same zasady co
   `flex._history`/`_spent`, okno 12 zamiast `HISTORY_MONTHS`=6, bez transakcji serii) oraz wiersz
-  „nieregularne” = (suma 12 mies. − 12 × mediana) / 12. Zdarzenia „plan” w bazie. Wynik miesiąca:
+  „nieregularne” = (suma 12 mies. − 12 × mediana) / 12. Wydatki spoza serii i spoza Flex (grupy
+  `non_monthly` i `fixed` bez aktywnej serii, np. roczne OC, ubezpieczenia) wchodzą jako wiersz
+  „roczne bez serii”: kwota z TEGO SAMEGO miesiąca rok wcześniej (sezonowość), a nie rozłożona po
+  równo. Zdarzenia „plan” w bazie. Wynik miesiąca:
   nadwyżka i saldo narastająco. Bieżący miesiąc liczony od dziś: zostałe terminy (EXPECTED/LATE)
   + Flex proporcjonalnie do pozostałych dni.
 - **Ręczny Flex:** pole na ekranie (kv `year_flex`) zastępuje medianę. „Wróć do automatycznej”.
@@ -64,7 +67,12 @@ M18 (wywiad, etapy) i decyzję 29, commit `docs(m18): plan i decyzja 29`.
 3. Testy TDD `tests/test_year.py`: horyzont (X vs XI → +rok), bieżący miesiąc częściowy, serie
    Q/Y w dobrym miesiącu, mediana + nieregularne sumują się do 12 mies., max_flex z buforem
    i celem, brak salda → None.
-4. Backtest: skrypt w scratchpadzie na kopii `~/budget_dev/prod/ledger.db` (świeża kopia
+4. Lista „Płatności roczne bez serii do potwierdzenia” na `/year` (E1): transakcje z ostatnich 13
+   mies. w `non_monthly`/`fixed` poza seriami, pogrupowane po sprzedawcy, z miesiącem i kwotą.
+   Użytkownik zamienia je w serię (link do Cyklicznych) albo odrzuca. Źródło: odpowiedź na uwagę,
+   że detektor rzadko łapie serie roczne (historia ~21 mies.). Do czasu potwierdzenia pokrywa je
+   wiersz „roczne bez serii”.
+4b. Backtest: skrypt w scratchpadzie na kopii `~/budget_dev/prod/ledger.db` (świeża kopia
    wymaga zgody, bo dane prywatne zostają lokalnie). `year.project(...)` z `today=2026-01-01`
    na historii do 31.12.2025 kontra faktyczne I–IX. Raport (tylko metryki, bez kwot w repo)
    w `PLAN_M18.md` § Wynik E1. **Wynik poza ±10% albo zgubiony deficyt = stop i pytanie**
