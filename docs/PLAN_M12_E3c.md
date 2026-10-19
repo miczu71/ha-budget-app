@@ -74,3 +74,11 @@ aktualizacji do 0.56.0 (Supervisor → Kopie zapasowe → „Budżet Domowy 0.55
   nieprzepisanych etykiet), Skarbonki + Do wypłaty: wszystkie trafiły w oba źródła; „Ile zostało do wypłaty?” = 1 tabela.
   Liczby z tabel zgodne z ekranami; „koniec roku” = `sensor.budget_year_end` co do grosza.
 - Uwaga z pomiaru: pierwszy skrypt czytał pierwszą sekcję odpowiedzi zamiast kolejnych (błąd pomiaru, nie produktu).
+
+## Wynik 0.56.1–0.56.2 (2026-10-19)
+- 0.56.1: reguła w `answer_prompt` — przy „Starczy do wypłaty: nie” zdanie mówi wprost, że brakuje (na żywo 3/3 poprawnie).
+- Pomiar niestabilności na 0.56.1: to samo pytanie „karta + do wypłaty” → „nie umiem” w 2 z 4 prób (model wybierał
+  `unsupported` zamiast `source2`; prompt planu się nie zmienił, więc to nie regresja).
+- 0.56.2: prompt planu — pytanie łączące dwa źródła stanu nie jest `unsupported`, przykład `card` + `payday`.
+  Na żywo **8/8** prób z obiema tabelami, 0 „nie umiem”, 0 błędów. Zastrzeżenie: jedno pytanie; inne pary źródeł
+  (np. kredyt + skarbonki) niemierzone, a poprawka to wskazówka w prompcie, nie gwarancja.
