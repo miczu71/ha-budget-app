@@ -65,7 +65,7 @@ Wywiad 2026-10-19 rozszerzył go do pełnego doradcy i dołączył M17 (śledzen
 - Weryfikacja: testy jednostkowe 3 scenariuszy liczonych ręcznie (lokata, EDO 10 lat, nadpłata) ±1 zł.
 - Rollback: `git revert` commitów E1 (migracja 023 addytywna, niewydana).
 
-### E2 — Obligacje i ranking lokat/kont z sieci → **wydanie 0.57.0**
+### E2 — Obligacje i ranking lokat/kont z sieci → **wydanie 0.57.0** — ✅ 2026-10-19 (22f8939, wydane)
 - Krok 0 (sonda): pobrać stronę oferty obligacji i jedną stronę rankingu (np. Bankier: lokaty + konta
   oszczędnościowe), sprawdzić strukturę i robots/warunki. Fixture w repo tylko z neutralnymi nazwami.
   Jeśli ranking nie jest stabilny do parsowania, **staję i pytam** (zmiana założenia z wywiadu).
@@ -131,3 +131,21 @@ Wywiad 2026-10-19 rozszerzył go do pełnego doradcy i dołączył M17 (śledzen
   zalecane wpłaty do skarbonek.
 - Uwaga: kopia księgi z 02.10 nie ma wpływów, więc nadwyżka wyszła tam ujemna (deficyt) — ścieżkę „odłóż X” sprawdzają
   testy jednostkowe, na prawdziwych danych zobaczy ją użytkownik po wydaniu 0.57.0.
+
+## Wynik E2 (2026-10-19, wydanie 0.57.0, 22f8939)
+- Zrobione: `invest_sources.py` (`parse_bonds`, `parse_margin`, `parse_ranking`, `guess_bank`, `refresh`, `due`), harmonogram
+  `Service.watch_invest` (raz na dobę, `checked` tylko po pełnym sukcesie), dostawca dzwonka `invest_source_error`,
+  `invest`: `all_banks/save_bank/delete_bank/confirm_offer/is_hidden`, UI: „Moje banki”, „Do sprawdzenia”, „Z rankingu”.
+  Bez migracji (tabele z E1).
+- Sonda (krok 0): obligacjeskarbowe.pl i bankier.pl/smart/{lokaty,konta-oszczednosciowe} są renderowane po stronie
+  serwera i parsują się stabilnie (robots.txt nie blokuje; `/e/lead…` blokuje, więc zapisujemy link do opisu). **Ranking nie
+  ma pola „bank”** — decyzja usera: słownik banków + slug (`guess_bank`), nierozpoznane → status „review”. Na żywo
+  rozpoznano 15/20 wpisów. Opłaty za wcześniejszy wykup z `invest.BONDS` potwierdzone na stronach serii (EDO 2,00;
+  COI/TOS/DOR 0,70; ROR 0,50).
+- Weryfikacja: 1020 testów, ruff i mypy czyste; devserve na kopii księgi z prawdziwą siecią (390/1280 px, bez przepełnienia,
+  konsola czysta, cele dotyku ≥ 44 px); na żywo przez Ingress: wersja 0.57.0, `/invest` 200, 25 ofert, stawki i marże
+  obligacji = oficjalna strona. Code-review (high) → poprawki w b6ba74a (klucz oferty bez stawki, odrzucanie tylko ofert
+  z rankingu, ponowienie po błędzie, niepełna strona obligacji = błąd, długość promocji tylko z fraz o oprocentowaniu).
+- Znane ograniczenia: limity kwot („do 100 000 zł”) wyciągane tylko tam, gdzie są w tekście (3/20); `is_client` dopasowuje po
+  słowie („Santander” ukryje też „Santander Consumer Bank”); „3 opcje = przeliczenie ±1 zł” na prawdziwych danych zobaczy
+  user (kopia księgi bez wpływów).
