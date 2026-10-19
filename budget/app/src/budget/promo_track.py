@@ -18,7 +18,7 @@ from typing import Any
 from budget import card, money
 from budget.invest import InvestError, save_asset
 from budget.kinds import Kind
-from budget.piggy import parse_amount
+from budget.piggy import PiggyError, parse_amount
 from budget.settings import Settings
 from budget.storage.db import now_iso
 from budget.suggest import client
@@ -130,7 +130,8 @@ def _progress(conn: sqlite3.Connection, r: sqlite3.Row, t: sqlite3.Row) -> Decim
         for row in conn.execute(
             "SELECT t.amount FROM txn t JOIN account a ON a.id = t.account_id "
             f"WHERE a.kind = 'current' AND t.kind IN ({placeholders}) AND t.status = 'BOOK' "
-            "AND t.amount NOT LIKE '-%' AND t.booking_date BETWEEN ? AND ?",
+            "AND t.amount NOT LIKE '-%' AND t.transfer_group IS NULL "
+            "AND t.booking_date BETWEEN ? AND ?",
             (*INCOME_KINDS, start.isoformat(), end.isoformat()),
         )
     )
@@ -142,7 +143,7 @@ def _track(conn: sqlite3.Connection, t: sqlite3.Row) -> Track:
             r["id"],
             r["kind"],
             r["label"],
-            Decimal(r["target"]) if r["target"] else None,
+            Decimal(r["target"]) if r["target"] is not None else None,
             bool(r["done"]),
             bool(r["proposed"]),
             _progress(conn, r, t),
@@ -177,9 +178,16 @@ def tracks(conn: sqlite3.Connection, *, status: str | None = None) -> list[Track
 
 def start(conn: sqlite3.Connection, offer_id: int, today: date) -> int:
     """„Skorzystaj”: śledzenie z oferty (okres = długość promocji, domyślnie 3 mies.)."""
-    o = conn.execute("SELECT * FROM invest_offer WHERE id = ?", (offer_id,)).fetchone()
+    o = conn.execute(
+        "SELECT * FROM invest_offer WHERE id = ? AND archived_at IS NULL AND status = 'confirmed'",
+        (offer_id,),
+    ).fetchone()
     if o is None:
         raise PromoError("Nie ma takiej oferty.")
+    if conn.execute(
+        "SELECT 1 FROM promo_track WHERE offer_id = ? AND status = 'active'", (offer_id,)
+    ).fetchone():
+        raise PromoError("Ta oferta jest już śledzona.")
     length = o["months"] or 3
     end = _plus_months(today, length)
     cur = conn.execute(
@@ -263,7 +271,8 @@ def delete_condition(conn: sqlite3.Connection, condition_id: int) -> None:
 def set_status(conn: sqlite3.Connection, track_id: int, status: str) -> None:
     if status not in ("failed", "cancelled", "active"):
         raise PromoError("Nieznany status.")
-    _track_row(conn, track_id)
+    if _track_row(conn, track_id)["status"] == "paid":
+        raise PromoError("Premia jest już odebrana.")
     conn.execute("UPDATE promo_track SET status = ? WHERE id = ?", (status, track_id))
 
 
@@ -375,10 +384,18 @@ async def propose(
     except AIError:
         return "AI nie odpowiedziało — dodaj warunki ręcznie."
     found = parse_proposal(result)
-    if found.bonus is not None and not t["bonus"]:
-        set_bonus(conn, track_id, str(found.bonus))
+    added = 0
+    try:
+        if found.bonus is not None and not t["bonus"]:
+            set_bonus(conn, track_id, str(found.bonus))
+    except PiggyError:
+        pass  # premia od modelu poza zakresem — użytkownik wpisze ją ręcznie
     for kind, label, target in found.conditions:
-        add_condition(
-            conn, track_id, kind, label, None if target is None else str(target), proposed=True
-        )
-    return None if found.conditions else "AI nie znalazło warunków — dodaj je ręcznie."
+        try:
+            add_condition(
+                conn, track_id, kind, label, None if target is None else str(target), proposed=True
+            )
+        except PiggyError:
+            continue
+        added += 1
+    return None if added else "AI nie znalazło warunków — dodaj je ręcznie."

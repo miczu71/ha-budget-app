@@ -179,7 +179,7 @@ def router(panel: Panel) -> APIRouter:
     def promo_action(request: Request, done: str, action: Callable[[], object]) -> Response:
         try:
             action()
-        except invest.InvestError as exc:
+        except piggy.PiggyError as exc:
             return panel.redirect(request, "/invest#promos", str(exc), "error")
         return panel.redirect(request, "/invest#promos", done)
 
@@ -188,7 +188,7 @@ def router(panel: Panel) -> APIRouter:
         today = panel.service.now().date()
         try:
             track_id = promo_track.start(conn, offer_id, today)
-        except invest.InvestError as exc:
+        except piggy.PiggyError as exc:
             return panel.redirect(request, "/invest#offers", str(exc), "error")
         note = await promo_track.propose(conn, panel.service.settings, today, track_id)
         if note:

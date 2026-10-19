@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from budget import card, inbox, invest, promo_track, summary
+from budget.piggy import PiggyError
 from budget.settings import Settings
 from budget.snapshot import Snapshot
 from budget.suggest.client import AIError
@@ -247,3 +248,42 @@ def test_push_only_unmet_on_remind_days_once(conn: sqlite3.Connection) -> None:
     assert len(msgs(date(2026, 11, 18))) == 1  # 1 dzień
     promo_track.toggle_condition(conn, conn.execute("SELECT id FROM promo_condition").fetchone()[0])
     assert msgs(date(2026, 11, 18)) == []  # spełnione: bez pusha
+
+
+def test_start_rejects_duplicate_archived_and_unconfirmed(conn: sqlite3.Connection) -> None:
+    oid = offer(conn)
+    promo_track.start(conn, oid, TODAY)
+    with pytest.raises(promo_track.PromoError):
+        promo_track.start(conn, oid, TODAY)
+    gone = offer(conn, "Bank Z")
+    invest.archive_offer(conn, gone)
+    with pytest.raises(promo_track.PromoError):
+        promo_track.start(conn, gone, TODAY)
+
+
+def test_paid_track_cannot_be_reopened(conn: sqlite3.Connection) -> None:
+    tid = promo_track.start(conn, offer(conn, "Bank X"), TODAY)
+    promo_track.mark_paid(conn, tid, "income", TODAY)
+    with pytest.raises(promo_track.PromoError):
+        promo_track.set_status(conn, tid, "failed")
+
+
+def test_bad_amounts_raise_piggy_error_for_routes(conn: sqlite3.Connection) -> None:
+    tid = promo_track.start(conn, offer(conn), TODAY)
+    for bad in ("abc", "0", "-5"):
+        with pytest.raises(PiggyError):
+            promo_track.set_bonus(conn, tid, bad)
+
+
+def test_income_ignores_internal_transfers(conn: sqlite3.Connection) -> None:
+    tid = promo_track.start(conn, offer(conn), TODAY)
+    promo_track.add_condition(conn, tid, "income", "Wpływy", "1000")
+    add(conn, "1200.00", "transfer_in", day="2026-10-25", transfer_group="g1")
+    assert promo_track.tracks(conn)[0].conditions[0].progress == D("0.00")
+
+
+async def test_propose_out_of_range_values_do_not_raise(conn: sqlite3.Connection) -> None:
+    tid = track_with_text(conn)
+    fake = Fake({"bonus": 0.001, "conditions": [{"kind": "income", "label": "x", "target": 0.001}]})
+    msg = await promo_track.propose(conn, AI, TODAY, tid, fake)
+    assert msg and "ręcznie" in msg
