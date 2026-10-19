@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.56.2
+
+- Czat: pytania łączące dwa ekrany stanu (np. płatności kartą i kwota do wypłaty) nie kończą się już tak często
+  odpowiedzią „nie umiem” — model dostał wprost zasadę i przykład użycia drugiego źródła.
+
 ## 0.56.1
 
 - Prognoza roczna: do mediany Flex i średniej nie wchodzi już pierwszy miesiąc księgi, jeśli księga zaczęła się po

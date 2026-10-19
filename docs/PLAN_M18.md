@@ -183,4 +183,7 @@ zgodne z ekranem. Potem ROADMAP § Wynik i checkpoint użytkownika.
   kategorii skurczył się (ok. 2,9 → 0,7 tys. zł/mies.). Dzisiejsza mediana Flex (8 196 zł) zgadza się ze średnią
   faktu 2026 (8 193 zł), więc bieżąca prognoza nie dziedziczy tego zaniżenia; backtest z 31.12.2025 mierzy zmianę
   poziomu między pierwszym a drugim rokiem księgi.
-- Decyzja usera: otwarta (zaakceptować z adnotacją / ograniczyć sezon / ważyć świeższe miesiące).
+- **Decyzja usera 2026-10-19: zaakceptować z adnotacją — checkpoint M18 zamknięty, metoda bez zmian.** Pomiar −19,8% (poza
+  ±10%) opisuje skok poziomu Flex między pierwszym a drugim rokiem księgi; bieżąca mediana Flex zgadza się z faktem 2026.
+  Odrzucone na razie: ograniczenie sezonu (zawyżony o 7,1 tys. zł) i ważenie świeższych miesięcy — do wznowienia, gdy
+  prognoza zacznie rozjeżdżać się z faktem na żywo.
