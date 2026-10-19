@@ -11,22 +11,56 @@ import calendar
 import sqlite3
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+from typing import Any
 
 from budget import card, money
 from budget.invest import InvestError, save_asset
 from budget.kinds import Kind
 from budget.piggy import parse_amount
+from budget.settings import Settings
 from budget.storage.db import now_iso
+from budget.suggest import client
+from budget.suggest import engine as suggest
+from budget.suggest.client import AIError
 
 KINDS = ("payments", "income", "balance", "manual")
 LEDGER_BANK = "millen"
 REMIND_DAYS = 7  # dzwonek: tyle dni przed końcem, gdy warunki niespełnione
 INCOME_KINDS = (Kind.TRANSFER_IN.value, Kind.OTHER.value)
+USAGE_KEY = "invest_usage"
+SCHEMA_NAME = "warunki_promocji"
+SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "bonus": {"type": "number"},
+        "conditions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "kind": {"type": "string", "enum": list(KINDS)},
+                    "label": {"type": "string"},
+                    "target": {"type": "number"},
+                },
+                "required": ["kind", "label", "target"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["bonus", "conditions"],
+    "additionalProperties": False,
+}
 
 
 class PromoError(InvestError):
     pass
+
+
+@dataclass(frozen=True)
+class Proposal:
+    bonus: Decimal | None
+    conditions: tuple[tuple[str, str, Decimal | None], ...]  # (rodzaj, opis, próg)
 
 
 @dataclass(frozen=True)
@@ -262,3 +296,86 @@ def overdue(conn: sqlite3.Connection, today: date) -> int:
             set_status(conn, t.id, "failed")
             n += 1
     return n
+
+
+# --- propozycja warunków i premii od modelu ---------------------------------------------------
+
+
+def build_prompt(text: str) -> str:
+    return (
+        "Z opisu promocji bankowej wyciągnij premię w złotych i warunki jej otrzymania. "
+        "Niczego nie zgaduj: gdy opis nie podaje premii, bonus = 0, a gdy nie podaje warunków, "
+        "zwróć pustą listę. Pola warunku: kind (payments = liczba płatności kartą, income = "
+        "suma wpływów na konto w zł, balance = saldo utrzymane na dany dzień, manual = inny krok, "
+        "np. aktywacja aplikacji), label (opis jednym zdaniem po polsku), target (liczba "
+        "płatności albo kwota w zł; 0 dla balance i manual).\n\n"
+        f"Opis promocji: {text}"
+    )
+
+
+def parse_proposal(result: dict[str, Any]) -> Proposal:
+    """Odpowiedź modelu → tylko pozycje, które przechodzą walidację (resztę odrzucamy po cichu)."""
+    bonus: Decimal | None
+    try:
+        bonus = Decimal(str(result.get("bonus")))
+    except InvalidOperation:
+        bonus = None
+    if bonus is None or not bonus.is_finite() or not 0 < bonus < 100_000:
+        bonus = None
+    out = []
+    for raw in result.get("conditions") or []:
+        if not isinstance(raw, dict) or raw.get("kind") not in KINDS:
+            continue
+        label = " ".join(str(raw.get("label", "")).split())[:120]
+        try:
+            target: Decimal | None = Decimal(str(raw.get("target")))
+        except InvalidOperation:
+            target = None
+        if target is not None and not (target.is_finite() and 0 < target < 1_000_000):
+            target = None
+        if not label or (raw["kind"] in ("payments", "income") and target is None):
+            continue
+        out.append((raw["kind"], label, target))
+    return Proposal(bonus, tuple(out))
+
+
+async def propose(
+    conn: sqlite3.Connection,
+    settings: Settings,
+    today: date,
+    track_id: int,
+    call: suggest.Call = client.complete,
+) -> str | None:
+    """Wstępne warunki i premia z tekstu oferty (jako propozycje do sprawdzenia).
+
+    Zwraca komunikat dla użytkownika, gdy się nie udało; śledzenie zostaje bez warunków."""
+    t = _track_row(conn, track_id)
+    offer = conn.execute("SELECT * FROM invest_offer WHERE id = ?", (t["offer_id"],)).fetchone()
+    text = (offer["conditions"] if offer else "") or ""
+    if not text.strip():
+        return "Oferta nie ma opisu warunków — dodaj je ręcznie."
+    if not settings.ai_enabled or settings.invest_daily_calls <= 0:
+        return "Podpowiedzi AI są wyłączone — dodaj warunki ręcznie."
+    if int(suggest.usage(conn, today, USAGE_KEY).get("calls", 0)) >= settings.invest_daily_calls:
+        return "Dobowy limit zapytań do AI wyczerpany — dodaj warunki ręcznie."
+    try:
+        result = await suggest.metered_call(
+            conn,
+            settings,
+            today,
+            call,
+            key=USAGE_KEY,
+            prompt=build_prompt(text),
+            schema=SCHEMA,
+            schema_name=SCHEMA_NAME,
+        )
+    except AIError:
+        return "AI nie odpowiedziało — dodaj warunki ręcznie."
+    found = parse_proposal(result)
+    if found.bonus is not None and not t["bonus"]:
+        set_bonus(conn, track_id, str(found.bonus))
+    for kind, label, target in found.conditions:
+        add_condition(
+            conn, track_id, kind, label, None if target is None else str(target), proposed=True
+        )
+    return None if found.conditions else "AI nie znalazło warunków — dodaj je ręcznie."

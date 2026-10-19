@@ -5,10 +5,13 @@ from __future__ import annotations
 import sqlite3
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 import pytest
 
 from budget import card, invest, promo_track
+from budget.settings import Settings
+from budget.suggest.client import AIError
 
 from .test_categorize_engine import add, conn
 
@@ -132,3 +135,64 @@ def test_overdue_closes_unmet_only(conn: sqlite3.Connection) -> None:
     assert promo_track.overdue(conn, date(2026, 11, 20)) == 1
     st = {t.id: t.status for t in promo_track.tracks(conn)}
     assert st == {a: "failed", b: "active"}
+
+
+# --- propozycja warunków (LLM) ---
+
+AI = Settings(ai_base_url="http://router:3003/v1", ai_api_key="k", invest_daily_calls=3)
+
+
+class Fake:
+    def __init__(self, result: dict[str, Any] | None = None) -> None:
+        self.result, self.prompts = result, []  # type: ignore[var-annotated]
+
+    async def __call__(self, **kw: Any) -> tuple[dict[str, Any], int]:
+        self.prompts.append(kw["prompt"])
+        if self.result is None:
+            raise AIError("limit")
+        return self.result, 10
+
+
+def track_with_text(
+    c: sqlite3.Connection, text: str = "5 płatności kartą i 1000 zł wpływów"
+) -> int:
+    oid = invest.save_offer(c, "account", "Bank X", "5", None, None, "3", text, False)
+    return promo_track.start(c, oid, TODAY)
+
+
+async def test_propose_stores_validated_proposals(conn: sqlite3.Connection) -> None:
+    tid = track_with_text(conn)
+    fake = Fake(
+        {
+            "bonus": 300,
+            "conditions": [
+                {"kind": "payments", "label": " 5  płatności ", "target": 5},
+                {"kind": "income", "label": "Wpływy", "target": 1000},
+                {"kind": "manual", "label": "Aplikacja", "target": 0},
+                {"kind": "payments", "label": "bez progu", "target": 0},  # odrzucona
+                {"kind": "zły", "label": "x", "target": 1},  # odrzucona
+            ],
+        }
+    )
+    assert await promo_track.propose(conn, AI, TODAY, tid, fake) is None
+    (t,) = promo_track.tracks(conn)
+    assert t.bonus == D("300")
+    assert [(c.kind, c.label, c.proposed) for c in t.conditions] == [
+        ("payments", "5 płatności", True),
+        ("income", "Wpływy", True),
+        ("manual", "Aplikacja", True),
+    ]
+    assert "5 płatności kartą" in fake.prompts[0]
+
+
+async def test_propose_failures_leave_track_without_conditions(conn: sqlite3.Connection) -> None:
+    tid = track_with_text(conn)
+    msg = await promo_track.propose(conn, AI, TODAY, tid, Fake(None))
+    assert msg and "ręcznie" in msg
+    off = await promo_track.propose(conn, Settings(), TODAY, tid, Fake({}))
+    assert off and "wyłączone" in off
+    empty = await promo_track.propose(conn, AI, TODAY, tid, Fake({"bonus": 0, "conditions": []}))
+    assert empty and "ręcznie" in empty
+    blank = await promo_track.propose(conn, AI, TODAY, track_with_text(conn, " "), Fake({}))
+    assert blank and "opisu" in blank
+    assert all(not t.conditions and t.bonus is None for t in promo_track.tracks(conn))
