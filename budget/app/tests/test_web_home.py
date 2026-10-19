@@ -676,3 +676,11 @@ async def test_balance_tiles_list_piggies_in_savings_tile(
     tile = page[page.index("bal-has-pop") : page.index("flex-hero")]
     assert "w tym skarbonki " + fmt_money("150", "PLN") in tile
     assert "bal-pop" in tile and "Nabu" in tile
+
+
+async def test_inbox_delete_ignores_a_key_that_is_not_a_visible_card(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    resp = await client.post("/inbox/delete", data={"key": "stale:nope", "back": "/inbox"})
+    assert resp.status_code in (302, 303)
+    assert "stale:nope" not in (db.kv_get(service.conn, inbox.DELETED_KEY) or [])

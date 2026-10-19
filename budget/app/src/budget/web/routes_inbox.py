@@ -32,8 +32,10 @@ def router(panel: Panel) -> APIRouter:
     async def inbox_delete(
         request: Request, key: str = Form(...), back: str = Form("/inbox")
     ) -> Response:
-        if not any(i.key == key and i.severity == "error" for i in panel.service.inbox_all()):
-            inbox.delete(panel.conn, key)  # karty błędów (zgoda, synchronizacje) tylko się ukrywa
+        # kasuje się tylko widoczną kartę nie-błędu; błędy (zgoda, synchronizacje) tylko się ukrywa,
+        # a nieaktualny albo ręcznie złożony klucz jest ignorowany
+        if any(i.key == key and i.severity != "error" for i in panel.service.inbox_all()):
+            inbox.delete(panel.conn, key)
             panel.service.refresh_soon()
         return panel.redirect(request, back if back in ("/", "/inbox") else "/inbox")
 

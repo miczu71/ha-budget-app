@@ -1002,10 +1002,9 @@ form.lidl-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(18
 form.lidl-map select { width: 100%; }
 
 /* M31 E4: kafelki sald nad hero */
-.bal-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.bal-tiles { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; margin-bottom: 12px; }
 .bal-tile { position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); color: inherit; text-decoration: none; }
-.bal-main { display: flex; flex-direction: column; gap: 2px; color: inherit; text-decoration: none; }
-.bal-label { color: var(--text-3); font-size: 13px; }
+.bal-label { color: var(--text-3); font-size: 13px; text-decoration: none; }
 .bal-value { font: 600 16px / 1.2 var(--font-display); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .bal-pop { display: none; position: absolute; z-index: 5; top: 100%; right: 0; min-width: 200px; margin: 4px 0 0; padding: 8px 12px; list-style: none; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--elev); }
 .bal-pop li { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; font-size: 14px; }

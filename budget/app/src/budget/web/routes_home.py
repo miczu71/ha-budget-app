@@ -137,7 +137,12 @@ def router(panel: Panel) -> APIRouter:
                 log.exception("Prognoza do wypłaty nieudana")
         sv = savings.overview(conn, today, 1)
         cm = card.month_status(conn, today) if f.is_current else None
-        tiles = balance_tiles(panel, fc, today, sv, bool(cm)) if f.is_current else None
+        tiles = None
+        if f.is_current:  # kafelki to dodatek: błąd nie może zablokować strony głównej
+            try:
+                tiles = balance_tiles(panel, fc, today, sv, bool(cm))
+            except Exception:
+                log.exception("Kafelki sald nieudane")
         sync_at = sync_service.last_success(conn)
         record = sessions.current(conn)
         return panel.render(
