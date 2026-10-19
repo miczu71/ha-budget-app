@@ -652,7 +652,8 @@ async def test_balance_tiles_above_hero_with_links(
     assert "bal-tiles" in page and page.index("bal-tiles") < page.index("flex-hero")
     for text in ("Konto", "Karta", "Oszczędności"):
         assert text in tiles
-    assert fmt_money("9136.98", "PLN") in tiles and fmt_money("377.67", "PLN") in tiles
+    assert fmt_money("9136.98", "PLN", whole=True) in tiles
+    assert fmt_money("377.67", "PLN", whole=True) in tiles
     for href in ("/transactions", "/card", "/piggy"):
         assert f'href="{INGRESS}{href}"' in tiles
 
@@ -674,7 +675,7 @@ async def test_balance_tiles_list_piggies_in_savings_tile(
     make(service.conn, name="Nabu", opening_balance="150")
     page = (await client.get("/")).text
     tile = page[page.index("bal-has-pop") : page.index("flex-hero")]
-    assert "w tym skarbonki " + fmt_money("150", "PLN") in tile
+    assert "w tym skarbonki" in tile and fmt_money("150", "PLN") in tile
     assert "bal-pop" in tile and "Nabu" in tile
 
 

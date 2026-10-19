@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.55.1
+
+- Strona główna: kafelki sald nad głównym kafelkiem to teraz mały pasek (ok. 42 px zamiast 110–150 px): kwoty w pełnych
+  złotych, lista skarbonek w podpowiedzi po najechaniu (na telefonie kafelek Oszczędności przechodzi do skarbonek).
+
 ## 0.55.0
 
 **Poprawki panelu** (M31, `docs/PLAN_M31.md`).

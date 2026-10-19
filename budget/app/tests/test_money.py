@@ -39,3 +39,9 @@ def test_fmt_and_total() -> None:
     assert money.fmt(Decimal("-0.001")) == "0.00"
     assert money.fmt(Decimal("100.0")) == "100.00"
     assert money.total(["0.10", "0.20", Decimal("-0.30")]) == Decimal("0.00")
+
+
+def test_pl_whole_drops_cents_and_keeps_sign_and_grouping() -> None:
+    assert money.pl("3426.12", "PLN", whole=True) == "3 426\xa0zł"
+    assert money.pl("-1234.5", "PLN", whole=True) == "−1 235\xa0zł"
+    assert money.pl("1234.5", "PLN") == "1 234,50\xa0zł"  # domyślnie bez zmian
