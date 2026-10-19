@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
 
-from budget import invest
+from budget import invest, invest_sources
 from budget.service import Service
 
 from .test_web import INGRESS, _client
 
 __all__ = ["service"]
 from .test_web import service
+
+WARSAW = ZoneInfo("Europe/Warsaw")
 
 
 @pytest.fixture
@@ -68,3 +71,37 @@ async def test_settings_change_cushion(client: httpx.AsyncClient, service: Servi
     await client.post("/invest/settings", data={**data, "cushion_months": "0"})
     assert "od 1 do 24" in (await client.get("/invest")).text
     assert invest.load_settings(service.conn).cushion_months == 6
+
+
+async def test_banks_hide_new_client_offers_and_review_offers_can_be_confirmed(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    from .test_invest_sources import NOW as NAIVE
+    from .test_invest_sources import PAGES, feed
+
+    await invest_sources.refresh(service.conn, NAIVE.replace(tzinfo=WARSAW), feed(PAGES))
+    page = (await client.get("/invest?amount=10000&years=1")).text
+    assert "Lokata VeloBank" in page and "Do sprawdzenia" in page and "opis oferty" in page
+    assert "pobrane 19.10 07:00" in page
+
+    assert (await client.post("/invest/banks", data={"name": "velobank"})).status_code == 303
+    page = (await client.get("/invest?amount=10000&years=1")).text
+    assert "Lokata VeloBank" not in page and "jesteś klientem tego banku" in page
+    await client.post("/invest/banks", data={"name": "VELOBANK"})
+    assert "już jest na liście" in (await client.get("/invest")).text
+
+    await client.post("/invest/banks/1/delete")
+    assert invest.all_banks(service.conn) == []
+    review = next(o for o in invest.all_offers(service.conn) if o.status == "review")
+    await client.post(f"/invest/offers/{review.id}/confirm", data={"bank": "Bank Beta"})
+    assert "Bank Beta" in (await client.get("/invest")).text
+
+
+async def test_source_error_is_visible_on_the_page(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    from .test_invest_sources import NOW as NAIVE
+    from .test_invest_sources import feed
+
+    await invest_sources.refresh(service.conn, NAIVE.replace(tzinfo=WARSAW), feed({}))
+    assert "błąd odczytu od 19.10" in (await client.get("/invest")).text

@@ -20,6 +20,7 @@ from budget import forecast as forecast_mod
 from budget import (
     ha_publisher,
     inbox,
+    invest_sources,
     ledger,
     lidl_link,
     loan,
@@ -269,11 +270,18 @@ class Service:
             ]
             await wibor.refresh(self.conn, self.now(), wanted)
 
+    async def watch_invest(self) -> None:
+        """Oferty obligacji i rankingu lokat/kont (M22 E2) — raz na dobę, mimo restartów."""
+        now = self.now()
+        if invest_sources.due(self.conn, now):
+            await invest_sources.refresh(self.conn, now)
+
     async def summaries(self) -> None:
         """Podsumowania o `summary.SEND_AT`; zaległe z dzisiaj zaraz po starcie."""
         while True:
             await self.watch_promo()
             await self.watch_wibor()
+            await self.watch_invest()
             await self.send_due_summaries()
             now = self.now()
             await asyncio.sleep(max(summary.next_send(now).timestamp() - now.timestamp(), 1))

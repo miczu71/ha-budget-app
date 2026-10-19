@@ -105,17 +105,40 @@
 
 <section class="card" id="offers">
   <h2>Oferty</h2>
-  {% for o in offers %}
+  <p class="small muted">{% if sources_checked %}Obligacje i ranking lokat/kont pobrane {{ sources_checked.strftime('%d.%m %H:%M') }} (raz na dobę).{% else %}Obligacje i ranking lokat/kont zostaną pobrane przy najbliższym przebiegu add-onu (raz na dobę).{% endif %}{% if sources_error %} <span class="badge warn">błąd odczytu od {{ sources_error[1].strftime('%d.%m') }}</span> {{ sources_error[0] }}{% endif %}</p>
+  {% macro offer_row(o) %}
   <div class="stats">
     <div class="stat"><span class="stat-label">{{ offer_kinds[o.kind] }}</span><span class="stat-value">{{ o.bank }}</span>{% if o.conditions %}<span class="small muted">{{ o.conditions }}</span>{% endif %}</div>
     <div class="stat"><span class="stat-label">Stawka</span><span class="stat-value">{{ o.rate }}%</span><span class="small muted">{% if o.margin is not none %}+ marża {{ o.margin }} p.p.{% endif %}{% if o.months %} {{ o.months }} mies.{% endif %}{% if o.limit_amount %} do {{ o.limit_amount | money("PLN") }}{% endif %}</span></div>
   </div>
-  <form class="actions-row small" method="post" action="{{ base }}/invest/offers/{{ o.id }}/archive">
-    <button class="link">Usuń</button>
+  <p class="small">{% if o.new_only %}<span class="badge {{ 'warn' if o.id in hidden else '' }}">tylko dla nowych klientów</span> {% endif %}{% if o.id in hidden %}<span class="muted">pominięta w porównaniu — jesteś klientem tego banku.</span> {% endif %}{% if o.source != 'manual' %}<span class="muted">{{ 'z oficjalnej strony' if o.source == 'bonds' else 'z rankingu' }}</span>{% endif %}{% if o.url %} · <a href="{{ o.url }}" rel="noopener noreferrer" target="_blank">opis oferty</a>{% endif %}</p>
+  {% if o.status == 'review' %}
+  <form class="inline actions-row small" method="post" action="{{ base }}/invest/offers/{{ o.id }}/confirm" hx-boost="false">
+    <label>Bank<input name="bank" value="{{ o.bank }}" maxlength="40" required></label>
+    <button type="submit">Potwierdź</button>
   </form>
+  {% endif %}
+  <form class="actions-row small" method="post" action="{{ base }}/invest/offers/{{ o.id }}/archive">
+    <button class="link">{{ 'Odrzuć' if o.status == 'review' else 'Usuń' }}</button>
+  </form>
+  {% endmacro %}
+  {% set review = offers | selectattr('status', 'equalto', 'review') | list %}
+  {% if review %}
+  <h3>Do sprawdzenia ({{ review | length }})</h3>
+  <p class="small muted">Nie rozpoznałem banku. Sprawdź opis oferty, popraw nazwę i potwierdź — dopiero wtedy wejdzie do porównania.</p>
+  {% for o in review %}{{ offer_row(o) }}{% endfor %}
+  {% endif %}
+  {% for o in offers if o.status != 'review' and o.source != 'ranking' %}{{ offer_row(o) }}
   {% else %}
-  <p class="muted">Dopisz oferty, które cię interesują (lokata, promocja konta, obligacje skarbowe) — agent porówna je z nadpłatą i kontem. Pobieranie stawek z sieci dojdzie w następnym etapie.</p>
+  {% if not offers %}<p class="muted">Dopisz oferty, które cię interesują (lokata, promocja konta, obligacje skarbowe) — agent porówna je z nadpłatą i kontem. Obligacje i ranking lokat/kont add-on dopisuje sam.</p>{% endif %}
   {% endfor %}
+  {% set ranked = offers | selectattr('source', 'equalto', 'ranking') | rejectattr('status', 'equalto', 'review') | list %}
+  {% if ranked %}
+  <details class="piggy-new">
+    <summary>Z rankingu ({{ ranked | length }})</summary>
+    {% for o in ranked %}{{ offer_row(o) }}{% endfor %}
+  </details>
+  {% endif %}
   <details class="piggy-new" {{ "open" if not offers }}>
     <summary>Nowa oferta</summary>
     <form class="rule-form piggy-form" method="post" action="{{ base }}/invest/offers" hx-boost="false">
@@ -135,6 +158,20 @@
       <p class="actions-row"><button type="submit">Dodaj ofertę</button></p>
     </form>
   </details>
+</section>
+
+<section class="card" id="banks">
+  <h2>Moje banki</h2>
+  <p class="small muted">Oferty „tylko dla nowych klientów” z tych banków są pomijane w porównaniu. Nazwę wpisz tak, jak w ofercie (np. „VeloBank”); „ING” pasuje też do „ING Bank Śląski”.</p>
+  {% for b in banks %}
+  <form class="inline actions-row" method="post" action="{{ base }}/invest/banks/{{ b.id }}/delete" hx-boost="false">
+    <span>{{ b.name }}</span> <button class="link">Usuń</button>
+  </form>
+  {% endfor %}
+  <form class="inline actions-row" method="post" action="{{ base }}/invest/banks" hx-boost="false">
+    <label>Bank<input name="name" maxlength="40" required placeholder="np. Bank A"></label>
+    <button type="submit">Dodaj</button>
+  </form>
 </section>
 
 <details class="card piggy-new" id="settings">

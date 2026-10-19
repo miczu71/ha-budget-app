@@ -19,6 +19,7 @@ from typing import Literal
 
 from budget import (
     card,
+    invest_sources,
     ledger,
     loan,
     loan_sim,
@@ -405,6 +406,26 @@ def wibor_error(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> li
     return [Item("wibor_error", "Nie mogę odczytać WIBOR 3M", 1, "/loan", "warn", detail)]
 
 
+def invest_source_error(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Odczyt ofert z sieci nie działa od kilku dni (M22 E2): lista ofert agenta się starzeje."""
+    err = invest_sources.error(conn)
+    if err is None or (ctx.now - err[1]).days < invest_sources.ERROR_ALERT_DAYS:
+        return []
+    detail = (
+        f"Od {err[1]:%d.%m}: {err[0]}. Agent liczy na ostatnich pobranych albo ręcznych ofertach."
+    )
+    return [
+        Item(
+            "invest_source_error",
+            "Nie mogę pobrać ofert inwestycyjnych",
+            1,
+            "/invest",
+            "warn",
+            detail,
+        )
+    ]
+
+
 Provider = Callable[[sqlite3.Connection, Context, BalanceMemo], list[Item]]
 PROVIDERS: tuple[Provider, ...] = (
     operational,
@@ -420,6 +441,7 @@ PROVIDERS: tuple[Provider, ...] = (
     loan_rate,
     loan_reset,
     wibor_error,
+    invest_source_error,
 )
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
 

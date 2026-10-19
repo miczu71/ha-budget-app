@@ -3,14 +3,16 @@
 Wyłącznie doradztwo — żadnych operacji na kontach. Liczy add-on, deterministycznie; zysk netto po
 Belce (19%), w IKE bez podatku. Trzy koszyki: poduszka (mnożnik × miesięczne wydatki), cele 1–5
 lat (skarbonki M10) i długi termin (reszta). Nowe pieniądze to nadwyżka miesiąca z prognozy rocznej
-(M18) po skarbonkach; przy deficycie agent niczego nowego nie poleca. Oferty w E1 wpisuje
-użytkownik.
+(M18) po skarbonkach; przy deficycie agent niczego nowego nie poleca. Oferty wpisuje użytkownik
+albo dopisuje `invest_sources` (E2); oferty „tylko dla nowych” znikają z porównania dla banków
+z listy użytkownika.
 """
 
 from __future__ import annotations
 
 import calendar
 import math
+import re
 import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -73,6 +75,12 @@ class Settings:
     etf_returns: tuple[Decimal, Decimal, Decimal] = (Decimal(0), Decimal(6), Decimal(9))
     etf_ter: Decimal = Decimal("0.2")  # % rocznie
     inflation: Decimal = Decimal(3)  # % rocznie, do obligacji indeksowanych
+
+
+@dataclass(frozen=True)
+class Bank:
+    id: int
+    name: str
 
 
 @dataclass(frozen=True)
@@ -253,8 +261,9 @@ def options(
     out = [
         o for acc in savings.all_accounts(conn) if (o := savings_option(acc, amount, years, today))
     ]
+    clients = [b.name for b in all_banks(conn)]
     for offer in all_offers(conn):
-        if offer.status == "confirmed":
+        if offer.status == "confirmed" and not is_hidden(offer, clients):
             out += offer_options(offer, amount, years, s)
     out += [etf_option(amount, years, s), etf_option(amount, years, s, ike=True)]
     out += [o for lo in loan.all_loans(conn) if (o := overpay_option(lo, amount, years, today))]
@@ -588,4 +597,56 @@ def save_offer(
 
 
 def archive_offer(conn: sqlite3.Connection, offer_id: int) -> None:
-    conn.execute("UPDATE invest_offer SET archived_at = ? WHERE id = ?", (now_iso(), offer_id))
+    """Usuwa ofertę; pobrana z sieci dostaje status „rejected”, by odczyt jej nie przywrócił."""
+    conn.execute(
+        "UPDATE invest_offer SET archived_at = ?, "
+        "status = CASE WHEN source = 'manual' THEN status ELSE 'rejected' END WHERE id = ?",
+        (now_iso(), offer_id),
+    )
+
+
+def confirm_offer(conn: sqlite3.Connection, offer_id: int, bank: str = "") -> None:
+    """Potwierdza ofertę „do sprawdzenia” (z opcjonalnie poprawioną nazwą banku)."""
+    name = " ".join(bank.split())[:40]
+    conn.execute(
+        "UPDATE invest_offer SET status = 'confirmed', bank = COALESCE(NULLIF(?, ''), bank) "
+        "WHERE id = ? AND archived_at IS NULL",
+        (name, offer_id),
+    )
+
+
+# --- banki użytkownika (filtr ofert „tylko dla nowych klientów”) ----------------------------
+
+
+def all_banks(conn: sqlite3.Connection) -> list[Bank]:
+    return [
+        Bank(r["id"], r["name"]) for r in conn.execute("SELECT * FROM invest_bank ORDER BY name")
+    ]
+
+
+def is_client(clients: Sequence[str], bank: str) -> bool:
+    """Czy `bank` to bank użytkownika (bez wielkości liter; „ING” pasuje do „ING Bank Śląski”)."""
+    mine = bank.casefold()
+    for name in clients:
+        short, long = sorted((name.casefold(), mine), key=len)
+        if len(short) >= 3 and re.search(rf"(?<!\w){re.escape(short)}(?!\w)", long):
+            return True
+    return False
+
+
+def is_hidden(offer: Offer, clients: Sequence[str]) -> bool:
+    """Oferta „tylko dla nowych” z banku, w którym użytkownik już jest klientem."""
+    return offer.new_only and is_client(clients, offer.bank)
+
+
+def save_bank(conn: sqlite3.Connection, name: str) -> None:
+    clean = " ".join(name.split())[:40]
+    if not clean:
+        raise InvestError("Podaj nazwę banku.")
+    if any(b.name.casefold() == clean.casefold() for b in all_banks(conn)):
+        raise InvestError("Ten bank już jest na liście.")
+    conn.execute("INSERT INTO invest_bank (name, created_at) VALUES (?, ?)", (clean, now_iso()))
+
+
+def delete_bank(conn: sqlite3.Connection, bank_id: int) -> None:
+    conn.execute("DELETE FROM invest_bank WHERE id = ?", (bank_id,))

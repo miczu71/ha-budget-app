@@ -8,7 +8,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import invest, piggy
+from budget import invest, invest_sources, piggy
 from budget.spending import month_start
 from budget.web.common import Panel
 
@@ -58,6 +58,9 @@ def router(panel: Panel) -> APIRouter:
         sum_, horizon = compare_args(amount, years, inp.surplus)
         opts = invest.options(conn, sum_, horizon, today, s)
         assets = invest.all_assets(conn)
+        offers = invest.all_offers(conn)
+        banks = invest.all_banks(conn)
+        clients = [b.name for b in banks]
         return panel.render(
             request,
             "invest.html",
@@ -71,7 +74,11 @@ def router(panel: Panel) -> APIRouter:
             years=int(horizon),
             assets=assets,
             edit_asset=next((a for a in assets if a.id == edit_asset), None),
-            offers=invest.all_offers(conn),
+            offers=offers,
+            banks=banks,
+            hidden={o.id for o in offers if invest.is_hidden(o, clients)},
+            sources_checked=invest_sources.checked(conn),
+            sources_error=invest_sources.error(conn),
             asset_kinds=invest.ASSET_KINDS,
             offer_kinds=invest.OFFER_KINDS,
         )
@@ -141,6 +148,26 @@ def router(panel: Panel) -> APIRouter:
         except invest.InvestError as exc:
             return panel.redirect(request, "/invest#offers", str(exc), "error")
         return panel.redirect(request, "/invest#offers", "Dodano ofertę.")
+
+    @r.post("/invest/offers/{offer_id}/confirm")
+    async def confirm_offer(request: Request, offer_id: int) -> Response:
+        f = await request.form()
+        invest.confirm_offer(conn, offer_id, str(f.get("bank", "")))
+        return panel.redirect(request, "/invest#offers", "Potwierdzono ofertę.")
+
+    @r.post("/invest/banks")
+    async def add_bank(request: Request) -> Response:
+        f = await request.form()
+        try:
+            invest.save_bank(conn, str(f.get("name", "")))
+        except invest.InvestError as exc:
+            return panel.redirect(request, "/invest#banks", str(exc), "error")
+        return panel.redirect(request, "/invest#banks", "Dodano bank.")
+
+    @r.post("/invest/banks/{bank_id}/delete")
+    async def delete_bank(request: Request, bank_id: int) -> Response:
+        invest.delete_bank(conn, bank_id)
+        return panel.redirect(request, "/invest#banks", "Usunięto bank.")
 
     @r.post("/invest/offers/{offer_id}/archive")
     async def archive_offer(request: Request, offer_id: int) -> Response:
