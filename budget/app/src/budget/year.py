@@ -230,9 +230,11 @@ def history(
     skip_all = _skip_all(snap) if skip_all is None else skip_all
     all_leaves = list(taxonomy.leaves(snap.conn).values())
     leaves, flexible = _in_forecast(snap.conn, all_leaves)
-    history_months = [
-        m for m in (add_months(cur, -n) for n in range(HISTORY_MONTHS, 0, -1)) if m >= first
-    ]
+    window = [add_months(cur, -n) for n in range(HISTORY_MONTHS, 0, -1)]
+    history_months = [m for m in window if m >= first]
+    if not history_months:  # księga krótsza niż miesiąc: lepsza niepełna historia niż żadna
+        first = flex.first_month(snap.conn) or first
+        history_months = [m for m in window if m >= first]
     spent = [flex.spent_between(snap, m, add_months(m, 1), skip, flexible) for m in history_months]
     out = History(months=len(spent), first=history_months[0] if history_months else None)
     if spent:
@@ -335,7 +337,6 @@ def backtest(snap: Snapshot, today: date, at: str) -> dict[str, object]:
                 "month": f"{month:%Y-%m}",
                 "predicted": cents(predicted),
                 "actual": cents(actual),
-                "flex": cents(base),
                 "seasonal": cents(seasonal),
                 "actual_flex": cents(actual_flex),
                 "actual_seasonal": cents(actual_seasonal),
@@ -356,6 +357,7 @@ def backtest(snap: Snapshot, today: date, at: str) -> dict[str, object]:
         "within_10": error is not None and abs(error) <= 10,
         "history_months": h.months,
         "history_from": f"{h.first:%Y-%m}" if h.first else None,
+        "base": cents(base),
         "flex": str(h.flex),
         "irregular": str(h.irregular),
     }

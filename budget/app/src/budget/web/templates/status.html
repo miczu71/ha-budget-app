@@ -188,15 +188,16 @@
   {% if year_eval %}
   {% set y = year_eval %}
   <p>{{ y.at | ts }} · {{ y.history_months }} mies. historii do mediany{% if y.error_pct is not none %} · odchylenie <strong>{{ "%+.1f" | format(y.error_pct) | replace(".", ",") }}%</strong> ({{ "w granicach ±10%" if y.within_10 else "poza granicą ±10%" }}){% endif %}</p>
-  {% if y.flex is defined %}<p class="small muted">Baza prognozy: mediana Flex + korekta {{ (y.flex | float + y.irregular | float) | money("PLN") }} miesięcznie, historia od {{ y.history_from or "—" }}. Kolumny „sezon” to wydatki grup stałych i nieregularnych bez serii.</p>{% endif %}
+  {% set detailed = y.base is defined %}
+  {% if detailed %}<p class="small muted">Baza prognozy: mediana Flex + korekta {{ y.base | money("PLN") }} miesięcznie, historia od {{ y.history_from or "—" }}. Kolumny „sezon” to wydatki grup stałych i nieregularnych bez serii.</p>{% endif %}
   {% if y.months %}
   <div class="table-wrap"><table class="ai-eval">
-    <thead><tr><th>miesiąc</th><th>prognoza</th>{% if y.flex is defined %}<th>w tym sezon</th>{% endif %}<th>fakt</th>{% if y.flex is defined %}<th>Flex</th><th>sezon</th>{% endif %}</tr></thead>
+    <thead><tr><th>miesiąc</th><th>prognoza</th>{% if detailed %}<th>w tym sezon</th>{% endif %}<th>fakt</th>{% if detailed %}<th>Flex</th><th>sezon</th>{% endif %}</tr></thead>
     <tbody>
       {% for row in y.months %}
-      <tr><td>{{ row.month }}</td><td>{{ row.predicted | money("PLN") }}</td>{% if y.flex is defined %}<td>{{ row.seasonal | money("PLN") }}</td>{% endif %}<td>{{ row.actual | money("PLN") }}</td>{% if y.flex is defined %}<td>{{ row.actual_flex | money("PLN") }}</td><td>{{ row.actual_seasonal | money("PLN") }}</td>{% endif %}</tr>
+      <tr><td>{{ row.month }}</td><td>{{ row.predicted | money("PLN") }}</td>{% if detailed %}<td>{{ row.seasonal | money("PLN") }}</td>{% endif %}<td>{{ row.actual | money("PLN") }}</td>{% if detailed %}<td>{{ row.actual_flex | money("PLN") }}</td><td>{{ row.actual_seasonal | money("PLN") }}</td>{% endif %}</tr>
       {% endfor %}
-      <tr><th>razem</th><th>{{ y.predicted | money("PLN") }}</th>{% if y.flex is defined %}<th></th>{% endif %}<th>{{ y.actual | money("PLN") }}</th>{% if y.flex is defined %}<th></th><th></th>{% endif %}</tr>
+      <tr><th>razem</th><th>{{ y.predicted | money("PLN") }}</th>{% if detailed %}<th></th>{% endif %}<th>{{ y.actual | money("PLN") }}</th>{% if detailed %}<th></th><th></th>{% endif %}</tr>
     </tbody>
   </table></div>
   {% endif %}

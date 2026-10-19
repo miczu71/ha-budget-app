@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.56.1
+
+- Prognoza roczna: do mediany Flex i średniej nie wchodzi już pierwszy miesiąc księgi, jeśli księga zaczęła się po
+  7. dniu (to tylko końcówka miesiąca i zaniżała bazę o kilka procent). Księga krótsza niż miesiąc nadal używa
+  tego, co ma.
+- Status → „Prognoza roczna — pomiar”: pokazuje bazę Flex, początek historii oraz składniki prognozy i faktu
+  (Flex, sezon) w każdym miesiącu; wcześniejsze pomiary pozostają czytelne.
+- Czat: gdy fakty mówią, że czegoś nie starczy („Starczy do wypłaty: nie”), zdanie odpowiedzi ma to powiedzieć wprost.
+
 ## 0.56.0
 
 **Czat: pytania z dwóch źródeł naraz** (M12 E3c, `docs/PLAN_M12_E3c.md`).

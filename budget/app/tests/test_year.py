@@ -188,6 +188,15 @@ def test_history_leaves_out_ledger_first_month_started_late(conn: sqlite3.Connec
     assert (h.months, h.flex, h.irregular) == (11, D("100.00"), D("0.00"))
 
 
+def test_history_falls_back_to_partial_month_when_ledger_is_shorter(
+    conn: sqlite3.Connection,
+) -> None:
+    t = add(conn, "-40.00", "transfer_out", "start", "ODBIORCA spozywcze", day="2026-09-20")
+    engine.set_manual(conn, t, _slug_id(conn, "spozywcze"))
+    h = year.history(Snapshot(conn), TODAY)
+    assert (h.months, h.flex, h.first) == (1, D("40.00"), date(2026, 9, 1))
+
+
 def test_history_keeps_ledger_first_month_started_at_the_beginning(
     conn: sqlite3.Connection,
 ) -> None:
@@ -307,9 +316,9 @@ def test_backtest_shows_components_of_forecast_and_fact(conn: sqlite3.Connection
     engine.recategorize(conn)
     out = year.backtest(Snapshot(conn), date(2026, 3, 10), "now")
     feb = out["months"][1]  # type: ignore[index]
-    assert (feb["flex"], feb["seasonal"]) == ("100.00", "600.00")
+    assert feb["seasonal"] == "600.00"
     assert (feb["actual_flex"], feb["actual_seasonal"]) == ("150.00", "700.00")
-    assert (out["flex"], out["irregular"], out["history_from"]) == ("100.00", "0.00", "2024-12")
+    assert (out["base"], out["history_from"]) == ("100.00", "2024-12")
 
 
 def test_backtest_leaves_out_skipped_categories(conn: sqlite3.Connection) -> None:
@@ -435,7 +444,7 @@ async def test_status_year_eval_card_shows_components(service: Service) -> None:
         page = (await client.get("/status")).text
     assert "historia od 2024-12" in page and "w tym sezon" in page
     old = year.backtest(Snapshot(service.conn), date(2026, 3, 10), "2026-03-10T08:00:00+01:00")
-    for key in ("flex", "irregular", "history_from"):
+    for key in ("base", "flex", "irregular", "history_from"):
         old.pop(key)  # pomiar zapisany przez 0.56.0
     db.kv_set(service.conn, year.BACKTEST_KEY, old)
     async with _client(service) as client:
