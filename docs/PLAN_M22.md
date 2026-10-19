@@ -76,7 +76,7 @@ Wywiad 2026-10-19 rozszerzył go do pełnego doradcy i dołączył M17 (śledzen
 - Wydanie: `code-review` → `release` 0.57.0. Na żywo: stawki obligacji = obligacjeskarbowe.pl, 3 opcje = przeliczenie ręczne ±1 zł.
 - Rollback: backup add-onu z `ha_manage_updates` (backup=true) albo cofnięcie do 0.56.2.
 
-### E3 — RSS blogów + streszczenia LLM
+### E3 — RSS blogów + streszczenia LLM — ✅ 2026-10-19 (ab5811c, niewydane)
 - Krok 0: sprawdzić kanały RSS 2–3 blogów (kandydaci: jakoszczedzacpieniadze.pl, subiektywnieofinansach.pl,
   bankier.pl/promocje) — lista do potwierdzenia w raporcie etapu. Parser RSS na stdlib `xml.etree` (bez nowej zależności).
 - Nowe wpisy → LLM (`suggest.metered_call`, osobny limit dzienny `invest_daily_calls`) → JSON wg schematu:
@@ -97,7 +97,7 @@ Wywiad 2026-10-19 rozszerzył go do pełnego doradcy i dołączył M17 (śledzen
 - Rollback: backup add-onu, cofnięcie do 0.57.0.
 
 ### E5 — Śledzenie promocji (dawne M17) → **wydanie 0.59.0**
-- Migracja 024: `promo_track` (oferta, bank, okres, start/koniec, premia, status), `promo_condition`
+- Migracja 025 (024 zajęła E3): `promo_track` (oferta, bank, okres, start/koniec, premia, status), `promo_condition`
   (typ: liczba płatności kartą / suma wpływów / saldo na dzień / ręczny krok, próg, okres).
 - „Skorzystaj” przy ofercie tworzy śledzenie z warunkami wstępnie wyciągniętymi z tekstu oferty (LLM jako propozycja,
   edytowalne). Postęp z księgi tylko dla kont Millennium (uogólniony licznik z `card.py`), dla innych banków ręczne odhaczanie.
@@ -149,3 +149,24 @@ Wywiad 2026-10-19 rozszerzył go do pełnego doradcy i dołączył M17 (śledzen
 - Znane ograniczenia: limity kwot („do 100 000 zł”) wyciągane tylko tam, gdzie są w tekście (3/20); `is_client` dopasowuje po
   słowie („Santander” ukryje też „Santander Consumer Bank”); „3 opcje = przeliczenie ±1 zł” na prawdziwych danych zobaczy
   user (kopia księgi bez wpływów).
+
+## Wynik E3 (2026-10-19, ab5811c)
+- Zrobione: `invest_blogs.py` (`parse_feed`, `wanted`, `parse_offers`, `refresh`), migracja `024_invest_blog.sql`
+  (`extracted`, `verdict`), `invest.confirm_offer` z polami stawka/limit/okres/warunki i werdyktem `clean`/`fixed`,
+  `invest.blog_accuracy`, opcja `invest_daily_calls` (domyślnie 10), UI „Do sprawdzenia” z formularzem poprawek,
+  karta „Oferty z blogów — trafność” na Status (w sekcji AI). Odczyt razem z ofertami z sieci (raz na dobę).
+- Krok 0 (sonda kanałów): działają subiektywnieofinansach.pl, jakoszczedzacpieniadze.pl (pisze rzadko), livesmarter.pl,
+  jakdorobic.pl (kanał ma tylko stopkę — model widzi sam tytuł, zwykle ze stawką) i bankobranie.pl (`/rss.xml`, najlepszy:
+  serwis promocji, streszczenia ~1500 znaków). Nie ma kanału bankier.pl/promocje; część blogów za Cloudflare.
+  Streszczenia z RSS wystarczają (stawka, okres, limit), więc artykułów nie pobieramy. Lista `FEEDS` w kodzie.
+- Pomiar na żywo (model `auto:text`, 16 ofert z 5 blogów, 2026-10-19), sprawdzone ręcznie ze źródłem: 14/16 bez poprawek
+  (87,5%, cel ≥ 80%). Dwie oferty VeloBanku bez okresu („92 dni”) — prompt poprawiony (dni → miesiące, nie powtórzono pomiaru).
+  Nie wyciągnięto lokat powitalnych z bankobranie (recall niemierzony). Pomiar „≥ 8/10” na ekranie Status robi user przy
+  potwierdzaniu.
+- Weryfikacja: 1043 testów, ruff i mypy czyste; devserve na pustej księdze z prawdziwą siecią i modelem, 390/1280 px bez
+  przepełnienia, konsola czysta; przyciski i pola ≥ 44 px (zostają śródtekstowe linki „opis oferty”). Żywy test wyłapał
+  błąd strefy czasowej (`Service.now()` ma strefę, RSS też — naiwne porównanie rzucało) — regresja w testach.
+- Decyzje wykonawcze (poza planem): brak karty dzwonka dla błędu blogów (błąd modelu bywa chwilowy; widać go na `/invest`
+  i Status); oferty z bloga starzeją się po 60 dniach (archiwizacja), wpisy starsze niż 30 dni pomijane; filtr wpisu = „lokat”
+  lub „oszczędnościow” oraz „%”; blogi: 2 błędy modelu z rzędu kończą przebieg, 3 próby na wpis; kanały z DTD odrzucane (XXE).
+- Pominięte z `simplify`: wspólny helper błędów źródeł (też `wibor.py`), wspólny INSERT do `invest_offer`, rejestr źródeł.
