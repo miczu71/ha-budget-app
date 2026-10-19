@@ -162,3 +162,9 @@ zgodne z ekranem. Potem ROADMAP § Wynik i checkpoint użytkownika.
 - Odroczone z `simplify` (bez zmiany zachowania): jedna lista `ChartLine` zamiast `points2/end2_*`;
   wspólna funkcja „limit + typowa mediana” dla `flex.auto_budget`/`_drop` i `year_events`;
   memoizacja `proposals()` (dziś liczone przy każdym GET `/year`); wspólny `_write` dla `add`/`update`.
+
+## Checkpoint (2026-10-19, 0.56.0 na żywo)
+- Pomiar (Status → „Prognoza roczna — pomiar”): **odchylenie −24,5% (poza ±10%)**; prognoza 57 857,01 zł vs fakt
+  76 676,79 zł za I–IX, każdy miesiąc zaniżony (−18…−36%). Wg tego planu: stop i decyzja usera.
+- Pytanie do czatu o rok: −1 744,20 zł = `sensor.budget_year_end`, pierwszy deficyt 2026-12.
+- Do oceny przez usera: tabela miesięcy na `/year` wobec nadchodzących opłat i wypłaty.

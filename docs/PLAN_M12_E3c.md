@@ -62,3 +62,15 @@ notatka `project_budget_app`.
 ## Rollback
 Bez migracji i bez nowych encji: `git revert` commitu E3c, albo przywrócenie backupu add-onu z
 aktualizacji do 0.56.0 (Supervisor → Kopie zapasowe → „Budżet Domowy 0.55.1”).
+
+## Wynik (2026-10-19)
+- **0.56.0 wydane i zainstalowane** (v0.56.0, 896e4f5; backup add-onu przy aktualizacji; `update.budzet_domowy_update` = 0.56.0).
+  954 testy, mypy czysty; ruff: jedyna uwaga `tests/test_web.py:98` sprzed zmiany.
+- Zakres jak w planie: `source2` w schemacie planu, `merge_results` (litera przy kolidujących etykietach), `source_results`
+  w `Answer`, szablon z tabelą i linkiem na źródło. Po `code-review`: nota przy źródle bez danych, unikalne linki,
+  odporny sufiks etykiety. Pominięte świadomie: jeden wspólny `month` dla obu źródeł, wspólna lista „Jak policzono”.
+- Dev (kopia księgi, atrapa routera): 2 tabele, 2 linki, 390/1280 px bez przepełnienia, cele ≥ 44 px, 0 błędów konsoli.
+- Na żywo (Ingress, prawdziwy model): stopka v0.56.0; Karta + Do wypłaty, Cykliczne + Rok (kolizja `[Seria n]` — brak
+  nieprzepisanych etykiet), Skarbonki + Do wypłaty: wszystkie trafiły w oba źródła; „Ile zostało do wypłaty?” = 1 tabela.
+  Liczby z tabel zgodne z ekranami; „koniec roku” = `sensor.budget_year_end` co do grosza.
+- Uwaga z pomiaru: pierwszy skrypt czytał pierwszą sekcję odpowiedzi zamiast kolejnych (błąd pomiaru, nie produktu).
