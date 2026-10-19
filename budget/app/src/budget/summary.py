@@ -20,7 +20,18 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-from budget import card, flex, invest, loan, loan_sim, money, promo_watch, review, savings
+from budget import (
+    card,
+    flex,
+    invest,
+    loan,
+    loan_sim,
+    money,
+    promo_track,
+    promo_watch,
+    review,
+    savings,
+)
 from budget.categorize import taxonomy
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
@@ -220,6 +231,25 @@ def due_reminder(cd: card.CardDue) -> Message:
     )
 
 
+def promo_track_messages(conn: sqlite3.Connection, today: date) -> list[Message]:
+    """Push przed końcem promocji z niespełnionymi warunkami, w dni `card.REMIND_DAYS` (M22 E5)."""
+    out = []
+    for t in promo_track.tracks(conn, status="active"):
+        days = t.days_left(today)
+        if t.met or days not in card.REMIND_DAYS:
+            continue
+        left = [c.label for c in t.conditions if not c.met]
+        out.append(
+            Message(
+                f"promo_track_{t.id}",  # rodzaj per śledzenie (jeden okres na rodzaj)
+                f"{t.end:%Y-%m-%d}-{days}",
+                f"{t.bank} — promocja do {_short(t.end)}",
+                f"Koniec {when(days)}. Zostało: {'; '.join(left) or 'dodaj warunki'}.",
+            )
+        )
+    return out
+
+
 def promo_reminder(acc: savings.Account, days: int) -> Message:
     """Przypomnienie o końcu promocyjnej stopy konta oszczędnościowego (M10 E3)."""
     assert acc.promo_until is not None
@@ -352,6 +382,9 @@ def due(
     if cd and cd.left and cd.days_left in card.DUE_REMIND_DAYS:
         msg = due_reminder(cd)
         if sent.get(CARD_DUE) != msg.period:
+            out.append(msg)
+    for msg in promo_track_messages(snap.conn, today):
+        if sent.get(msg.kind) != msg.period:
             out.append(msg)
     pay = invest_due() if invest_due else None
     if pay and sent.get(INVEST) != pay.period:

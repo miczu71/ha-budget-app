@@ -100,7 +100,8 @@ class Track:
         return (self.end - today).days
 
     def remind(self, today: date) -> bool:
-        return self.status == "active" and (self.met or 0 <= self.days_left(today) <= REMIND_DAYS)
+        """Dzwonek: warunki spełnione (odbierz premię) albo koniec blisko lub minął (zamknij)."""
+        return self.status == "active" and (self.met or self.days_left(today) <= REMIND_DAYS)
 
 
 def _plus_months(day: date, months: int) -> date:
@@ -286,16 +287,6 @@ def register(conn: sqlite3.Connection) -> tuple[Decimal, Decimal]:
     due = money.total(t.bonus for t in tracks(conn, status="active") if t.met and t.bonus)
     paid = money.total(t.bonus for t in tracks(conn, status="paid") if t.bonus)
     return due, paid
-
-
-def overdue(conn: sqlite3.Connection, today: date) -> int:
-    """Aktywne po terminie z niespełnionymi warunkami -> `failed`; liczba zamkniętych."""
-    n = 0
-    for t in tracks(conn, status="active"):
-        if t.end < today and not t.met:
-            set_status(conn, t.id, "failed")
-            n += 1
-    return n
 
 
 # --- propozycja warunków i premii od modelu ---------------------------------------------------

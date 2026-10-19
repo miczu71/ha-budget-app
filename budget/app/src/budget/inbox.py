@@ -26,6 +26,7 @@ from budget import (
     loan_sim,
     money,
     notifications,
+    promo_track,
     promo_watch,
     review,
     savings,
@@ -459,6 +460,32 @@ def invest_maturity(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -
     return out
 
 
+def promo_track_due(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Promocja w toku: warunki spełnione (odbierz premię) albo koniec blisko lub minął (M22 E5)."""
+    out = []
+    for t in promo_track.tracks(conn, status="active"):
+        if not t.remind(ctx.today):
+            continue
+        days = t.days_left(ctx.today)
+        bonus = f" Premia {summary.zl(t.bonus)}." if t.bonus else ""
+        severity: Severity = "warn"
+        if t.met:
+            title, detail, severity = (
+                f"{t.bank}: warunki spełnione",
+                f"Odbierz premię.{bonus}",
+                "info",
+            )
+        elif days < 0:
+            title = f"{t.bank}: promocja się skończyła"
+            detail = f"Termin minął {t.end:%d.%m} — oznacz wynik.{bonus}"
+        else:
+            left = "; ".join(c.label for c in t.conditions if not c.met) or "dodaj warunki"
+            title = f"{t.bank}: promocja do {t.end:%d.%m}"
+            detail = f"Koniec {summary.when(days)}. Zostało: {left}.{bonus}"
+        out.append(Item("promo_track", title, 1, "/invest#promos", severity, detail))
+    return out
+
+
 Provider = Callable[[sqlite3.Connection, Context, BalanceMemo], list[Item]]
 PROVIDERS: tuple[Provider, ...] = (
     operational,
@@ -477,6 +504,7 @@ PROVIDERS: tuple[Provider, ...] = (
     invest_source_error,
     invest_better_offer,
     invest_maturity,
+    promo_track_due,
 )
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
 

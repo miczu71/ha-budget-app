@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 
-from budget import card, invest, promo_track
+from budget import card, inbox, invest, promo_track, summary
 from budget.settings import Settings
+from budget.snapshot import Snapshot
 from budget.suggest.client import AIError
 
 from .test_categorize_engine import add, conn
@@ -18,6 +20,7 @@ from .test_categorize_engine import add, conn
 __all__ = ["conn"]
 
 TODAY = date(2026, 10, 19)
+WAW = ZoneInfo("Europe/Warsaw")
 D = Decimal
 
 
@@ -99,7 +102,7 @@ def test_remind_window(conn: sqlite3.Connection) -> None:
     promo_track.add_condition(conn, tid, "manual", "Krok")
     (t,) = promo_track.tracks(conn)
     assert not t.remind(date(2026, 11, 1)) and t.remind(date(2026, 11, 12))
-    assert not t.remind(date(2026, 11, 20))
+    assert t.remind(date(2026, 11, 20))  # po terminie: do zamknięcia
     promo_track.toggle_condition(conn, t.conditions[0].id)
     assert promo_track.tracks(conn)[0].remind(date(2026, 11, 1))  # spełniona: odbierz premię
 
@@ -124,17 +127,6 @@ def test_mark_paid_to_income_creates_no_asset(conn: sqlite3.Connection) -> None:
     tid = promo_track.start(conn, offer(conn, "Bank X"), TODAY)
     promo_track.mark_paid(conn, tid, "income", TODAY)
     assert invest.assets_total(conn) == D("0.00")
-
-
-def test_overdue_closes_unmet_only(conn: sqlite3.Connection) -> None:
-    a = promo_track.start(conn, offer(conn, "Bank X", 1), TODAY)
-    b = promo_track.start(conn, offer(conn, "Bank Y", 1), TODAY)
-    promo_track.add_condition(conn, a, "manual", "Krok")
-    cid = promo_track.add_condition(conn, b, "manual", "Krok")
-    promo_track.toggle_condition(conn, cid)
-    assert promo_track.overdue(conn, date(2026, 11, 20)) == 1
-    st = {t.id: t.status for t in promo_track.tracks(conn)}
-    assert st == {a: "failed", b: "active"}
 
 
 # --- propozycja warunków (LLM) ---
@@ -196,3 +188,52 @@ async def test_propose_failures_leave_track_without_conditions(conn: sqlite3.Con
     blank = await promo_track.propose(conn, AI, TODAY, track_with_text(conn, " "), Fake({}))
     assert blank and "opisu" in blank
     assert all(not t.conditions and t.bonus is None for t in promo_track.tracks(conn))
+
+
+# --- przypomnienia: dzwonek i push ---
+
+
+def _active(c: sqlite3.Connection, months: int = 1) -> int:
+    tid = promo_track.start(c, offer(c, "Bank X", months), TODAY)  # koniec 2026-11-19
+    promo_track.add_condition(c, tid, "manual", "Aplikacja")
+    promo_track.set_bonus(c, tid, "300")
+    return tid
+
+
+def bell(c: sqlite3.Connection, day: date) -> list[inbox.Item]:
+    now = datetime(day.year, day.month, day.day, 8, tzinfo=WAW)
+    return [
+        i for i in inbox.items(Snapshot(c), now, inbox.BalanceMemo()) if i.kind == "promo_track"
+    ]
+
+
+def test_bell_unmet_met_and_overdue(conn: sqlite3.Connection) -> None:
+    tid = _active(conn)
+    assert bell(conn, date(2026, 11, 1)) == []
+    (near,) = bell(conn, date(2026, 11, 14))
+    assert near.severity == "warn" and "Aplikacja" in near.detail and "300\xa0zł" in near.detail
+    (late,) = bell(conn, date(2026, 11, 25))
+    assert "skończyła" in late.title
+    promo_track.toggle_condition(conn, conn.execute("SELECT id FROM promo_condition").fetchone()[0])
+    (ok,) = bell(conn, date(2026, 11, 1))
+    assert ok.severity == "info" and "Odbierz premię" in ok.detail
+    promo_track.mark_paid(conn, tid, "income", TODAY)
+    assert bell(conn, date(2026, 11, 14)) == []
+
+
+def test_push_only_unmet_on_remind_days_once(conn: sqlite3.Connection) -> None:
+    tid = _active(conn)
+    snap = Snapshot(conn)
+
+    def msgs(day: date) -> list[summary.Message]:
+        now = datetime(day.year, day.month, day.day, 8, tzinfo=WAW)
+        return [m for m in summary.due(snap, now) if m.kind == f"promo_track_{tid}"]
+
+    assert msgs(date(2026, 11, 13)) == []  # 6 dni
+    (five,) = msgs(date(2026, 11, 14))
+    assert "Aplikacja" in five.text and five.period == "2026-11-19-5"
+    summary.mark_sent(conn, five)
+    assert msgs(date(2026, 11, 14)) == []
+    assert len(msgs(date(2026, 11, 18))) == 1  # 1 dzień
+    promo_track.toggle_condition(conn, conn.execute("SELECT id FROM promo_condition").fetchone()[0])
+    assert msgs(date(2026, 11, 18)) == []  # spełnione: bez pusha
