@@ -495,6 +495,23 @@ async def test_inbox_delete_removes_card_for_good(
     assert "forecast_low" in [i.kind for i in service.inbox_all()]
 
 
+async def test_inbox_error_cards_cannot_be_deleted(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    service.conn.execute(
+        "INSERT INTO sync_log (trigger, started_at, finished_at, status) "
+        "VALUES ('auto', '2026-06-15T10:00:00+00:00', '2026-06-15T10:00:05+00:00', 'error')"
+    )
+    service.conn.commit()
+    err = next(i for i in service.inbox_all() if i.kind == "sync_failures")
+    assert err.severity == "error"
+    page = (await client.get("/inbox")).text
+    assert err.title in page and "/inbox/delete" not in page
+    resp = await client.post("/inbox/delete", data={"key": err.key, "back": "/inbox"})
+    assert resp.status_code == 303
+    assert err.key in [i.key for i in service.inbox()]
+
+
 def test_inbox_delete_survives_dismiss_pruning(service: Service) -> None:
     gone = inbox.Item("promo_wait", "Profit: czekam na regulamin edycji 77", 1, "/piggy")
     other = inbox.Item("series_proposed", "Nowe płatności cykliczne", 1, "/recurring")

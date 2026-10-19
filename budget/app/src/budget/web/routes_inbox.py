@@ -32,8 +32,9 @@ def router(panel: Panel) -> APIRouter:
     async def inbox_delete(
         request: Request, key: str = Form(...), back: str = Form("/inbox")
     ) -> Response:
-        inbox.delete(panel.conn, key)
-        panel.service.refresh_soon()
+        if not any(i.key == key and i.severity == "error" for i in panel.service.inbox_all()):
+            inbox.delete(panel.conn, key)  # karty błędów (zgoda, synchronizacje) tylko się ukrywa
+            panel.service.refresh_soon()
         return panel.redirect(request, back if back in ("/", "/inbox") else "/inbox")
 
     @r.post("/inbox/restore")
