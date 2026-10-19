@@ -15,7 +15,7 @@ import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_CEILING, Decimal
 
 from budget import money
 from budget.logging_utils import mask_iban
@@ -265,7 +265,11 @@ def statuses(snap: Snapshot, today: date, period_start: date) -> list[Status]:
         target, due = (s.expected_amount, next_due(snap, s, today)) if s else (p.target, p.due_date)
         monthly = ZERO
         if target is not None and due is not None and due >= today:
-            monthly = (max(target - before, ZERO) / months_left(today, due)).quantize(money.CENT)
+            missing = max(target - before, ZERO)
+            # pełne złote (bez reszt typu „przelej 0,02 zł”), ale nigdy więcej niż brakuje
+            monthly = min(
+                (missing / months_left(today, due)).to_integral_value(ROUND_CEILING), missing
+            )
         out.append(
             Status(
                 piggy=p,

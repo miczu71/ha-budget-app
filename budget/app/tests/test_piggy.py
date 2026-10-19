@@ -68,8 +68,26 @@ def test_status_from_transfers_and_period(conn: sqlite3.Connection) -> None:
     [s] = piggy.statuses(Snapshot(conn), TODAY, PERIOD)
     assert s.balance == Decimal(400) and s.saved == Decimal(150)
     # na początek okresu 250 zł; do 15.01 trzy miesiące odkładania (paź, lis, gru)
-    assert s.monthly == Decimal("316.67") and s.to_transfer == Decimal("166.67")
+    assert s.monthly == Decimal(317) and s.to_transfer == Decimal(
+        167
+    )  # 950 / 3 w górę do pełnych zł
     assert s.progress == pytest.approx(400 / 1200)
+
+
+def test_monthly_rounds_up_but_last_month_takes_exact_remainder(conn: sqlite3.Connection) -> None:
+    make(conn, target="330.23", due_date="2027-01-15")  # paź–gru: 110,08 → 111
+    make(
+        conn,
+        name="Ostatnia",
+        account_number="PL" + "8" * 26,
+        target="100.50",
+        due_date="2026-10-20",
+    )
+    by_name = {s.piggy.name: s for s in piggy.statuses(Snapshot(conn), TODAY, PERIOD)}
+    assert by_name["Wakacje"].monthly == Decimal(111)
+    assert by_name["Ostatnia"].monthly == Decimal(
+        "100.50"
+    )  # jeden miesiąc: dokładna reszta, nie 101
 
 
 def test_no_monthly_after_due_or_when_goal_reached(conn: sqlite3.Connection) -> None:
