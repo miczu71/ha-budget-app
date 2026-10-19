@@ -217,6 +217,18 @@ def simulate(
     )
 
 
+def overpay_gain(lo: Loan, lump: Decimal, today: date, months: int | None = None) -> Decimal | None:
+    """Zysk z jednorazowej nadpłaty (krótszy okres) względem trzymania gotówki bez odsetek, na
+    koniec horyzontu: zaoszczędzone odsetki i raty (bez oprocentowania uwolnionej gotówki).
+    Na całym okresie kredytu = zaoszczędzone odsetki; None, gdy kredyt spłacony."""
+    res = simulate(lo, Scenario(lump=lump), today, account_for(None), months)
+    if res is None:
+        return None
+    done = [r for r in res.base.rows if r.day <= res.horizon_end]
+    base_balance = done[-1].balance if done else _start(lo, today)[0]
+    return (res.wealth_overpay + base_balance - lump).quantize(money.CENT)
+
+
 def variants(
     lo: Loan, scen: Scenario, today: date, step: Decimal = STEPS[0]
 ) -> list[tuple[Decimal, Outcome, Outcome, Outcome]]:

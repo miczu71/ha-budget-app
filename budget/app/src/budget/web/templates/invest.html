@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% from "_macros.html" import bar, pct %}
+{% macro asset_form(a=None) %}
+<form class="rule-form piggy-form" method="post" action="{{ base }}/invest/assets{{ '/' ~ a.id if a }}" hx-boost="false">
+  <div class="inline">
+    <label>Rodzaj
+      <select name="kind">{% for k, label in asset_kinds.items() %}<option value="{{ k }}" {{ "selected" if a and a.kind == k }}>{{ label }}</option>{% endfor %}</select>
+    </label>
+    <label>Nazwa<input name="name" value="{{ a.name if a }}" maxlength="60" required placeholder="np. EDO 2025"></label>
+    <label>Wartość (zł)<input name="amount" inputmode="decimal" size="10" value="{{ a.amount if a }}" required placeholder="np. 5000"></label>
+  </div>
+  <div class="inline">
+    <label>Oprocentowanie (%)<input name="rate" inputmode="decimal" size="6" value="{{ a.rate if a and a.rate is not none }}" placeholder="opcjonalnie"></label>
+    <label>Od<input type="date" name="start_date" value="{{ a.start.isoformat() if a and a.start }}"></label>
+    <label>Zapadalność<input type="date" name="maturity_date" value="{{ a.maturity.isoformat() if a and a.maturity }}"></label>
+    <label class="check"><input type="checkbox" name="ike" value="1" {{ "checked" if a and a.ike }}> w IKE</label>
+  </div>
+  <p class="actions-row">
+    <button type="submit">{{ "Zapisz" if a else "Dodaj aktywo" }}</button>
+    {% if a %}<a class="tap" href="{{ base }}/invest#assets">Anuluj</a>{% endif %}
+  </p>
+</form>
+{% endmacro %}
+{% block content %}
+<h1>Inwestycje</h1>
+<p class="small muted">Doradztwo na podstawie Twoich liczb z panelu — żadnych operacji na kontach. Zysk liczony netto po podatku Belki (19%), w IKE bez podatku.</p>
+
+<section class="card" id="recommendation">
+  <h2>Co zrobić z nadwyżką</h2>
+  {% if rec.state == "no_data" %}
+  <p class="muted">Brak prognozy rocznej (potrzebne saldo rachunku) — nie ma z czego policzyć nadwyżki.</p>
+  {% elif rec.state == "deficit" %}
+  <p><strong class="warn-text">Nadwyżki brak</strong> — przy obecnym planie miesiąc zamyka się na {{ rec.surplus | money("PLN") }} po skarbonkach. Agent nie poleca nowych wpłat. Porównanie poniżej liczy się dla wpisanej kwoty — np. tej, która już leży na koncie.</p>
+  {% else %}
+  <p>Co miesiąc możesz odłożyć około <strong>{{ rec.surplus | money("PLN") }}</strong> (nadwyżka po skarbonkach, z prognozy rocznej).</p>
+  <ol class="rec-parts">
+    {% for p in rec.parts %}
+    <li><strong>{{ p.amount | money("PLN") }}</strong> → {{ buckets[p.bucket - 1].label | lower }}{% if p.option %}: <strong>{{ p.option.label }}</strong> <span class="small muted">({{ p.option.per_year | money("PLN") }} netto rocznie z {{ amount | money("PLN") }})</span>{% else %}: <span class="muted">dodaj konto lub ofertę poniżej</span>{% endif %}</li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+</section>
+
+<section class="card" id="buckets">
+  <h2>Trzy koszyki</h2>
+  {% for b in buckets %}
+  <div class="bucket">
+    <p><strong>{{ b.label }}</strong> <span class="small muted">
+      {%- if b.key == 1 %} — {{ s.cushion_months }} × miesięczne wydatki ({{ inp.spend | money("PLN") }}){% elif b.key == 2 %} — skarbonki z terminem do 5 lat{% else %} — aktywa poniżej, nadpłata kredytu{% endif %}</span></p>
+    {% if b.target is not none %}
+    {{ bar(b.progress, b.label ~ ": " ~ pct(b.progress) ~ " celu", tag="div") }}
+    <p class="small">{{ b.have | money("PLN") }} z {{ b.target | money("PLN") }}{% if b.gap > 0 %} · brakuje <strong>{{ b.gap | money("PLN") }}</strong>{% else %} · <span class="pos">komplet</span>{% endif %}</p>
+    {% else %}
+    <p class="small">{{ b.have | money("PLN") }} w aktywach</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+  <p class="small muted">Poduszka = konta oszczędnościowe z panelu + wolne środki ponad bufor prognozy. Skarbonki liczą się osobno, jako cele.</p>
+</section>
+
+<section class="card" id="compare">
+  <h2>Porównanie opcji</h2>
+  <form class="inline" method="get" action="{{ base }}/invest#compare" hx-boost="false">
+    <label>Kwota (zł)<input name="amount" inputmode="decimal" size="10" value="{{ amount }}"></label>
+    <label>Horyzont (lata)<input name="years" type="number" min="1" max="10" value="{{ years }}"></label>
+    <button type="submit">Przelicz</button>
+  </form>
+  <div class="table-wrap"><table class="loan-table">
+    <thead><tr><th>Opcja</th><th class="num">Netto zł / rok</th><th class="num">Netto w horyzoncie</th></tr></thead>
+    <tbody>{% for o in options %}
+      <tr>
+        <th scope="row">{{ o.label }}{% if o.risky %} <span class="small warn-text">ryzyko</span>{% endif %}{% if not o.liquid %} <span class="small muted">zamrożone {{ ('%g' | format(o.years)) }} l.</span>{% endif %}{% if o.note %}<br><span class="small muted">{{ o.note }}</span>{% endif %}</th>
+        <td class="num"><strong>{{ o.per_year | money("PLN") }}</strong></td>
+        <td class="num">{{ o.net_gain | money("PLN") }}{% if o.scenarios %}<br><span class="small muted">od {{ o.scenarios[0] | money("PLN") }}<br>do {{ o.scenarios[2] | money("PLN") }}</span>{% endif %}</td>
+      </tr>{% endfor %}
+    </tbody>
+  </table></div>
+  <p class="small muted">Do oferty z lokaty i konta liczone są odsetki netto z odnawianiem; obligacje według stawek wpisanych poniżej i inflacji z ustawień; nadpłata = zaoszczędzone odsetki kredytu. ETF w trzech scenariuszach zwrotu z ustawień.</p>
+</section>
+
+<section class="card" id="assets">
+  <h2>Aktywa</h2>
+  {% for a in assets %}
+  <div class="stats">
+    <div class="stat"><span class="stat-label">{{ asset_kinds[a.kind] }}{% if a.ike %} · IKE{% endif %}</span><span class="stat-value">{{ a.name }}</span><span class="small muted">{{ a.maturity.isoformat() | pldate if a.maturity else "bez terminu" }}</span></div>
+    <div class="stat"><span class="stat-label">Wartość</span><span class="stat-value">{{ a.amount | money("PLN") }}</span>{% if a.rate is not none %}<span class="small muted">{{ a.rate }}%</span>{% endif %}</div>
+  </div>
+  <form class="actions-row small" method="post" action="{{ base }}/invest/assets/{{ a.id }}/archive">
+    <a class="tap" href="{{ base }}/invest?edit_asset={{ a.id }}#edit-asset">Zmień</a>
+    <button class="link">Archiwizuj</button>
+  </form>
+  {% else %}
+  <p class="muted">Wpisz to, co już masz (obligacje, IKE, ETF, lokaty), żeby koszyk „długi termin” pokazywał stan.</p>
+  {% endfor %}
+  {% if edit_asset %}
+  <h3 id="edit-asset">Zmień: {{ edit_asset.name }}</h3>
+  {{ asset_form(edit_asset) }}
+  {% else %}
+  <details class="piggy-new" {{ "open" if not assets }}>
+    <summary>Nowe aktywo</summary>
+    {{ asset_form() }}
+  </details>
+  {% endif %}
+</section>
+
+<section class="card" id="offers">
+  <h2>Oferty</h2>
+  {% for o in offers %}
+  <div class="stats">
+    <div class="stat"><span class="stat-label">{{ offer_kinds[o.kind] }}</span><span class="stat-value">{{ o.bank }}</span>{% if o.conditions %}<span class="small muted">{{ o.conditions }}</span>{% endif %}</div>
+    <div class="stat"><span class="stat-label">Stawka</span><span class="stat-value">{{ o.rate }}%</span><span class="small muted">{% if o.margin is not none %}+ marża {{ o.margin }} p.p.{% endif %}{% if o.months %} {{ o.months }} mies.{% endif %}{% if o.limit_amount %} do {{ o.limit_amount | money("PLN") }}{% endif %}</span></div>
+  </div>
+  <form class="actions-row small" method="post" action="{{ base }}/invest/offers/{{ o.id }}/archive">
+    <button class="link">Usuń</button>
+  </form>
+  {% else %}
+  <p class="muted">Dopisz oferty, które cię interesują (lokata, promocja konta, obligacje skarbowe) — agent porówna je z nadpłatą i kontem. Pobieranie stawek z sieci dojdzie w następnym etapie.</p>
+  {% endfor %}
+  <details class="piggy-new" {{ "open" if not offers }}>
+    <summary>Nowa oferta</summary>
+    <form class="rule-form piggy-form" method="post" action="{{ base }}/invest/offers" hx-boost="false">
+      <div class="inline">
+        <label>Rodzaj
+          <select name="kind">{% for k, label in offer_kinds.items() %}<option value="{{ k }}">{{ label }}</option>{% endfor %}</select>
+        </label>
+        <label>Bank / emitent<input name="bank" maxlength="40" required placeholder="np. Bank A"></label>
+        <label>Stawka (% rocznie)<input name="rate" inputmode="decimal" size="6" required placeholder="obligacje: 1. rok"></label>
+      </div>
+      <div class="inline">
+        <label>Marża (p.p.)<input name="margin" inputmode="decimal" size="6" placeholder="EDO, COI"></label>
+        <label>Okres (mies.)<input name="months" inputmode="numeric" size="4" placeholder="lokata, promocja"></label>
+        <label>Limit kwoty<input name="limit_amount" inputmode="decimal" size="10" placeholder="opcjonalnie"></label>
+      </div>
+      <label>Warunki<input name="conditions" maxlength="300" placeholder="np. min. 1000 zł, 5 płatności kartą"></label>
+      <p class="actions-row"><button type="submit">Dodaj ofertę</button></p>
+    </form>
+  </details>
+</section>
+
+<details class="card piggy-new" id="settings">
+  <summary>Ustawienia agenta</summary>
+  <form class="rule-form piggy-form" method="post" action="{{ base }}/invest/settings" hx-boost="false">
+    <div class="inline">
+      <label>Poduszka (miesięcy wydatków)<input name="cushion_months" type="number" min="1" max="24" value="{{ s.cushion_months }}" required></label>
+      <label>Zwroty ETF (% rocznie, trzy)<input name="etf_returns" value="{{ s.etf_returns | join('; ') }}" required></label>
+    </div>
+    <div class="inline">
+      <label>Koszt ETF, TER (%)<input name="etf_ter" inputmode="decimal" size="6" value="{{ s.etf_ter }}" required></label>
+      <label>Inflacja (%)<input name="inflation" inputmode="decimal" size="6" value="{{ s.inflation }}" required></label>
+    </div>
+    <p class="small muted">Inflacja wchodzi do oprocentowania obligacji indeksowanych (EDO, COI) od drugiego roku.</p>
+    <p class="actions-row"><button type="submit">Zapisz</button></p>
+  </form>
+</details>
+{% endblock %}

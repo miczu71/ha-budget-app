@@ -31,6 +31,7 @@ from budget.web import (
     routes_home,
     routes_import,
     routes_inbox,
+    routes_invest,
     routes_loan,
     routes_piggy,
     routes_recurring,
@@ -99,6 +100,7 @@ def create_app(service: Service, *, dev: bool = False) -> FastAPI:
         routes_ask,
         routes_piggy,
         routes_loan,
+        routes_invest,
         routes_year,
         routes_tabs,
     ):
