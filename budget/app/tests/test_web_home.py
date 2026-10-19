@@ -640,3 +640,39 @@ async def test_hero_shows_spending_since_last_payday(
     page = (await client.get("/")).text
     hero = page[page.index("payday-hero") : page.index("home-grid")]
     assert "Od wypłaty" in hero and fmt_money("80.00", "PLN") in hero and "flex-bar" in hero
+
+
+async def test_balance_tiles_above_hero_with_links(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    assert "bal-tiles" not in (await client.get("/")).text  # bez sald
+    _balances(service.conn)
+    page = (await client.get("/")).text
+    tiles = page[page.index("bal-tiles") : page.index("flex-hero")]
+    assert "bal-tiles" in page and page.index("bal-tiles") < page.index("flex-hero")
+    for text in ("Konto", "Karta", "Oszczędności"):
+        assert text in tiles
+    assert fmt_money("9136.98", "PLN") in tiles and fmt_money("377.67", "PLN") in tiles
+    for href in ("/transactions", "/card", "/piggy"):
+        assert f'href="{INGRESS}{href}"' in tiles
+
+
+async def test_balance_tiles_absent_in_past_months(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    prev = spending.add_months(date.today().replace(day=1), -1)
+    assert "bal-tiles" not in (await client.get(f"/?month={prev:%Y-%m}")).text
+
+
+async def test_balance_tiles_list_piggies_in_savings_tile(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    from .test_piggy import make
+
+    _balances(service.conn)
+    make(service.conn, name="Nabu", opening_balance="150")
+    page = (await client.get("/")).text
+    tile = page[page.index("bal-has-pop") : page.index("flex-hero")]
+    assert "w tym skarbonki " + fmt_money("150", "PLN") in tile
+    assert "bal-pop" in tile and "Nabu" in tile

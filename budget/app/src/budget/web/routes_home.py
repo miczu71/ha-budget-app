@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import sqlite3
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -10,7 +11,17 @@ from decimal import Decimal
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import card, flex, forecast, home_layout, savings, sessions, spending, sync_service
+from budget import (
+    card,
+    flex,
+    forecast,
+    home_layout,
+    piggy,
+    savings,
+    sessions,
+    spending,
+    sync_service,
+)
 from budget.recurring import schedule
 from budget.spending import MONTHS, MONTHS_GEN, add_months, month_label, month_start, parse_month
 from budget.storage import db
@@ -55,6 +66,36 @@ def compare_label(m: spending.Month) -> str:
     return f"vs {days} {MONTHS_GEN[first.month - 1]}"
 
 
+@dataclass(frozen=True)
+class BalanceTiles:
+    account: Decimal
+    card_debt: Decimal | None  # None: brak karty — kafelek pominięty
+    savings: Decimal  # konta oszczędnościowe + skarbonki
+    piggy_total: Decimal
+    piggies: list[piggy.Status]
+
+
+def balance_tiles(
+    panel: Panel, fc: forecast.Forecast | None, today: date, conn: sqlite3.Connection
+) -> BalanceTiles | None:
+    """Salda nad hero (M31 E4): konto, karta, oszczędności ze skarbonkami; None bez sald."""
+    balances = fc.balances if fc else forecast.read_balances(conn)
+    if balances is None:
+        return None
+    piggies = (
+        fc.piggies if fc else piggy.statuses(panel.service.snapshot, today, month_start(today))
+    )
+    sv = savings.overview(conn, today, 1)
+    in_piggies = sum((s.balance for s in piggies), Decimal(0))
+    return BalanceTiles(
+        account=balances.account,
+        card_debt=balances.card_debt if card.month_status(conn, today) else None,
+        savings=(sv.total if sv else Decimal(0)) + in_piggies,
+        piggy_total=in_piggies,
+        piggies=sorted(piggies, key=lambda s: s.piggy.name.lower()),
+    )
+
+
 def router(panel: Panel) -> APIRouter:
     r = APIRouter()
 
@@ -91,6 +132,7 @@ def router(panel: Panel) -> APIRouter:
                 )
             except Exception:
                 log.exception("Prognoza do wypłaty nieudana")
+        tiles = balance_tiles(panel, fc, today, conn) if f.is_current else None
         sync_at = sync_service.last_success(conn)
         record = sessions.current(conn)
         return panel.render(
@@ -126,6 +168,7 @@ def router(panel: Panel) -> APIRouter:
             cm=card.month_status(conn, today) if f.is_current else None,
             cd=card.due_status(conn, today) if f.is_current else None,
             fc=fc,
+            tiles=tiles,
             yr=panel.service.year_projection(),
             chart=charts.forecast_line(fc.days, buffer, fc.events, fc.payday) if fc else None,
             timeline=forecast_timeline(fc) if fc else [],

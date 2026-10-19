@@ -27,6 +27,7 @@
 {% with details=True %}{% include "_flex_hero.html" %}{% endwith %}
 {% endif %}
 {% endmacro %}
+{% include "_balance_tiles.html" %}
 {# M21 E2: w bieżącym miesiącu z prognozą hero liczy do wypłaty, a miesiąc to kafelek „month” #}
 {% set payday_hero = fc %}
 {% if payday_hero %}{% include "_payday_hero.html" %}{% else %}{{ month_card() }}{% endif %}

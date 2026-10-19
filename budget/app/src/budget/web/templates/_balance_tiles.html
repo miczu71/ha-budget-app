@@ -1,0 +1,16 @@
+{# Kafelki sald nad hero (M31 E4): konto, karta, oszczędności ze skarbonkami #}
+{% if tiles %}
+<div class="bal-tiles">
+  <a class="bal-tile tap" href="{{ base }}/transactions"><span class="bal-label">Konto</span><span class="bal-value">{{ tiles.account | money("PLN") }}</span></a>
+  {% if tiles.card_debt is not none %}
+  <a class="bal-tile tap" href="{{ base }}/card"><span class="bal-label">Karta</span><span class="bal-value {{ 'neg' if tiles.card_debt > 0 }}">{{ tiles.card_debt | money("PLN") }}</span></a>
+  {% endif %}
+  <div class="bal-tile bal-has-pop" tabindex="0">
+    <a class="bal-main tap" href="{{ base }}/piggy"><span class="bal-label">Oszczędności</span><span class="bal-value">{{ tiles.savings | money("PLN") }}</span></a>
+    {% if tiles.piggies %}
+    <span class="bal-sub small muted">w tym skarbonki {{ tiles.piggy_total | money("PLN") }}</span>
+    <ul class="bal-pop">{% for s in tiles.piggies %}<li><span>{{ s.piggy.name }}</span><span class="num">{{ s.balance | money("PLN") }}</span></li>{% endfor %}</ul>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
