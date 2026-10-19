@@ -52,7 +52,7 @@ Wywiad 2026-10-19 rozszerzył go do pełnego doradcy i dołączył M17 (śledzen
 
 ## Etapy (każdy: `tdd`, ruff + mypy + pytest, UI na devserve 390/1280 px, `simplify` przed commitem, `stage-end`)
 
-### E1 — Aktywa, koszyki, kalkulator netto (bez sieci)
+### E1 — Aktywa, koszyki, kalkulator netto (bez sieci) — ✅ 2026-10-19 (ae7b09b, niewydane)
 - Migracja `023_invest.sql`: `invest_asset` (typ: obligacje/lokata/konto/ETF/akcje/inne, nazwa, kwota, data,
   oprocentowanie lub wartość bieżąca, `ike`, zapadalność), `invest_bank` (bank, od kiedy). Ustawienia w `kv`:
   mnożnik poduszki, zwroty ETF 0/6/9, TER, inflacja do obligacji indeksowanych (domyślnie 3%).
@@ -117,3 +117,17 @@ Wywiad 2026-10-19 rozszerzył go do pełnego doradcy i dołączył M17 (śledzen
 - Słaba ekstrakcja przez qwen: status „do sprawdzenia” i pomiar trafności. Gdy wynik < 8/10, staję i pytam (inny model albo tylko linki).
 - Hook prywatności: nazwy banków i miast w fixture'ach → nazwy neutralne („Bank A”).
 - Okno 02:45–03:15 bez commitów i pushy.
+
+## Wynik E1 (2026-10-19, ae7b09b)
+- Zrobione: migracja `023_invest.sql` (`invest_asset`, `invest_offer` z `source`/`status`/`url` pod E2/E3, `invest_bank`
+  — bez UI, filtr w E2), `invest.py`, `loan_sim.overpay_gain`, trasa `/invest` (`routes_invest.py`, `invest.html`),
+  zakładka „Inwestycje” po „Kredyt”. Oferty obligacji (EDO/COI/TOS/ROR/DOR) wpisywane ręcznie: stawka 1. roku + marża.
+- Weryfikacja: 988 testów, ruff i mypy czyste; trzy scenariusze liczone ręcznie ±1 zł (lokata, EDO 10 lat, nadpłata =
+  zaoszczędzone odsetki na całym okresie); na kopii księgi 390/1280 px bez przepełnienia, cele dotyku ≥ 44 px,
+  konsola czysta; konto M10 4% na 5 lat = 3 514 zł (ręcznie), nadpłata 20 tys. przy 6% ≈ 6,8 tys. zł.
+- Decyzje wykonawcze: ETF nie jest polecany automatycznie (tylko w rankingu, z oznaczeniem ryzyka); konto promocyjne
+  po okresie promocji liczone bez odsetek (konserwatywnie); kwota porównania domyślnie = nadwyżka × 12 (bez
+  nadwyżki 10 000 zł przykładowo), horyzont 5 lat; nadwyżka = średnia pełnych miesięcy prognozy M18 minus
+  zalecane wpłaty do skarbonek.
+- Uwaga: kopia księgi z 02.10 nie ma wpływów, więc nadwyżka wyszła tam ujemna (deficyt) — ścieżkę „odłóż X” sprawdzają
+  testy jednostkowe, na prawdziwych danych zobaczy ją użytkownik po wydaniu 0.57.0.
