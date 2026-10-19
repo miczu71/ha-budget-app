@@ -106,6 +106,24 @@ Wywiad 2026-10-19 rozszerzył go do pełnego doradcy i dołączył M17 (śledzen
 - Wydanie: `code-review` → `release`. Na żywo: jedna promocja testowa z warunkiem ręcznym i z licznikiem z księgi.
 - Rollback: backup add-onu, cofnięcie do 0.58.0.
 
+### E5 — start (2026-10-19, wstrzymane przez limit; nic z E5 jeszcze nie napisane)
+Stan: `main` HEAD `d4725fe` (osobny commit `User-Agent` w `suggest/client.py`, niewypchnięty), produkcja 0.58.0.
+Kolejność po odnowieniu limitu (tdd, każdy krok: pytest + ruff + mypy):
+1. Migracja `025_promo_track.sql`: `promo_track` (offer_id, bank, tytuł, start, koniec, premia, `ledger`, status active/paid/failed/cancelled,
+   paid_at, paid_to) i `promo_condition` (track_id, kind payments/income/balance/manual, label, target, done, proposed).
+2. `card.count_purchases(conn, start, end)` — uogólniony licznik (zakupy kartą, konta current/card, BOOK, kwota ujemna); `PAYMENT_WHERE` bez zmian.
+3. `promo_track.py`: start ze „Skorzystaj”, postęp (payments z licznika, income = wpływy transfer_in/other na kontach current,
+   balance i manual = ręczne odhaczanie; `ledger` tylko dla banku z „millen” w nazwie), `mark_paid` (do `invest_asset` albo tylko do wpływów),
+   rejestr należnych/wypłaconych.
+4. Propozycja warunków i premii przez LLM (`suggest.metered_call`, klucz `invest_usage`, schemat: bonus + lista warunków; wejście tylko tekst oferty;
+   błąd/AI wyłączone → śledzenie bez warunków + komunikat „dodaj ręcznie”).
+5. Przypomnienia: dostawca dzwonka `promo_track` (≤ 7 dni do końca i warunki niespełnione; „odbierz premię” po spełnieniu) oraz push w `summary.due`
+   (dni `card.REMIND_DAYS` = 5 i 1, rodzaj per ścieżka `promo_track_<id>`).
+6. Trasy w `routes_invest.py` + sekcja „Promocje w toku” i przycisk „Skorzystaj” w `invest.html`; weryfikacja devserve 390/1280 px.
+7. `simplify` → `code-review` → `release` 0.59.0 (CHANGELOG: E5 + User-Agent), test na żywo: promocja z warunkiem ręcznym i licznikiem z księgi.
+Decyzje wykonawcze do odnotowania w wyniku E5: warunki liczone w okresie całej promocji (bez osobnych okresów); „saldo na dzień” tylko ręczne.
+Rollback: jak w E5 wyżej (backup add-onu, 0.58.0); migracja 025 addytywna.
+
 ## Weryfikacja (każdy etap)
 - `cd budget/app && uv run pytest -q && uv run ruff check && uv run mypy src`
 - devserve na kopii księgi w scratchpadzie (kopię skasować po teście), Playwright 390/1280 px,
