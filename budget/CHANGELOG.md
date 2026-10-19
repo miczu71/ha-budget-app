@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.56.0
+
+**Czat: pytania z dwóch źródeł naraz** (M12 E3c, `docs/PLAN_M12_E3c.md`).
+
+- „Zapytaj”: pytanie może łączyć dwa ekrany stanu (np. płatności kartą i kwota do spłaty, albo limit do wypłaty
+  i skarbonki). Add-on liczy oba źródła lokalnie jak na ekranach, model opisuje je jednym zdaniem; w odpowiedzi tabela
+  i link do ekranu dla każdego źródła. Źródło bez danych pokazuje notatkę zamiast pustej tabeli.
+- Bez zmian w bazie i w encjach.
+
 ## 0.55.1
 
 - Strona główna: kafelki sald nad głównym kafelkiem to teraz mały pasek (ok. 42 px zamiast 110–150 px): kwoty w pełnych
