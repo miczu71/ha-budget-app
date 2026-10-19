@@ -15,7 +15,18 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from budget import card, flex, forecast, loan, loan_sim, piggy, savings, year, year_events
+from budget import (
+    card,
+    flex,
+    forecast,
+    invest,
+    loan,
+    loan_sim,
+    piggy,
+    savings,
+    year,
+    year_events,
+)
 from budget.money import ZERO, pl
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
@@ -377,6 +388,44 @@ def _loan(c: Ctx) -> SourceResult:
     return res
 
 
+# --- Inwestycje ------------------------------------------------------------------------------
+
+TOP_OPTIONS = 3
+
+
+def _invest(c: Ctx) -> SourceResult:
+    res = SourceResult("invest", link="/invest", link_label="Otwórz Inwestycje")
+    fc = forecast.for_today(c.snap, c.today, c.now, c.buffer)
+    proj = year.build(c.snap, c.today, c.buffer)
+    adv = invest.advice(c.snap, fc, proj, c.today)
+    if adv.rec.state == "no_data":
+        res.note = "Brak prognozy rocznej w panelu — agent inwestycyjny nie ma z czego liczyć."
+        return res
+    facts = res.facts
+    for b in adv.buckets:
+        parts = [f"mam {pl(b.have, 'PLN')}"]
+        if b.target is not None:
+            parts += [f"cel {pl(b.target, 'PLN')}", f"brakuje {pl(b.gap, 'PLN')}"]
+        facts.append(Fact(f"Koszyk: {b.label}", " · ".join(parts)))
+    surplus = pl(adv.rec.surplus or ZERO, "PLN")
+    facts.append(
+        Fact("Nadwyżka miesięczna", f"brak ({surplus})" if adv.rec.state == "deficit" else surplus)
+    )
+    for p in adv.rec.parts:  # przy deficycie pusta
+        opt = p.option.label if p.option else "brak pasującej opcji"
+        facts.append(Fact(f"Odłóż w koszyku {p.bucket}", f"{pl(p.amount, 'PLN')} → {opt}"))
+    for i, o in enumerate(adv.options[:TOP_OPTIONS], 1):
+        kind = invest.OPTION_KINDS.get(o.key, "oferta")
+        access = "płynna" if o.liquid else "związana"
+        value = f"{kind} · netto {pl(o.per_year, 'PLN')} rocznie · {access}"
+        facts.append(Fact(o.label, value, llm_label=f"[Opcja {i}]"))
+    res.filters = [
+        f"Porównanie dla {pl(adv.amount, 'PLN')} na {invest.DEFAULT_YEARS} lat, netto po Belce",
+        "Doradztwo: add-on niczego nie robi na kontach",
+    ]
+    return res
+
+
 REGISTRY: tuple[Source, ...] = (
     Source(
         "payday",
@@ -424,6 +473,13 @@ REGISTRY: tuple[Source, ...] = (
         "Kredyt",
         "kredyt hipoteczny: kapitał, rata, oprocentowanie, pozostałe raty, odsetki, zmiana stopy",
         _loan,
+    ),
+    Source(
+        "invest",
+        "Inwestycje",
+        "agent inwestycyjny: koszyki (poduszka, cele, długi termin), ile odłożyć z nadwyżki, "
+        "gdzie, najlepsze opcje (lokaty, konta, obligacje, nadpłata kredytu)",
+        _invest,
     ),
 )
 NAMES = tuple(s.name for s in REGISTRY)

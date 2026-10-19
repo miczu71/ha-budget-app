@@ -15,11 +15,12 @@ from __future__ import annotations
 
 import sqlite3
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-from budget import card, flex, loan, loan_sim, money, promo_watch, review, savings
+from budget import card, flex, invest, loan, loan_sim, money, promo_watch, review, savings
 from budget.categorize import taxonomy
 from budget.recurring import schedule
 from budget.snapshot import Snapshot
@@ -32,6 +33,7 @@ WEEKLY, MONTHLY, CARD, CARD_DUE = "weekly", "monthly", "card", "card_due"
 PROMO = "savings_promo"
 PROMO_WINDOW, PROMO_CONFIRM = "promo_window", "promo_confirm"
 LOAN_RESET = "loan_reset"
+INVEST = "invest_monthly"
 LOAN_RESET_DAYS = (
     3  # powiadomienie o nowej stopie wychodzi najwcześniej dzień po zmianie, najdalej tyle dni
 )
@@ -298,12 +300,40 @@ def loan_reset_messages(conn: sqlite3.Connection, today: date) -> list[Message]:
     return out
 
 
+def invest_message(adv: invest.Advice, why: str | None = None) -> Message | None:
+    """Po wypłacie: ile odłożyć i gdzie (M22 E4); None bez danych do rekomendacji."""
+    rec = adv.rec
+    if rec.state == "no_data" or adv.payday is None:
+        return None
+    if rec.state == "deficit":
+        text = (
+            "Nadwyżki brak: miesiąc zamyka się na "
+            f"{zl(rec.surplus or Decimal(0))} po skarbonkach. Nie odkładaj nic nowego — "
+            "sprawdź w panelu, czy to, co już leży, nie pracuje lepiej gdzie indziej."
+        )
+    else:
+        lines = [
+            f"{zl(p.amount)} → {p.option.label if p.option else 'dodaj konto albo ofertę'} "
+            f"({invest.BUCKET_NAMES.get(p.bucket, 'cele')})"
+            for p in rec.parts
+        ]
+        text = f"Odłóż {zl(rec.surplus or Decimal(0))}:\n" + "\n".join(lines)
+    if why:
+        text += "\n" + why
+    return Message(INVEST, adv.payday.isoformat(), "Po wypłacie — co odłożyć", text)
+
+
 def build(snap: Snapshot, kind: str, today: date) -> Message:
     return weekly(snap, today) if kind == WEEKLY else monthly(snap, today)
 
 
-def due(snap: Snapshot, now: datetime) -> list[Message]:
-    """Podsumowania do wysłania teraz: dziś termin, po `SEND_AT`, jeszcze nie wysłane."""
+def due(
+    snap: Snapshot,
+    now: datetime,
+    invest_due: Callable[[], Message | None] | None = None,
+) -> list[Message]:
+    """Podsumowania do wysłania teraz: dziś termin, po `SEND_AT`, jeszcze nie wysłane.
+    `invest_due` zwraca wiadomość agenta inwestycyjnego, jeśli dziś jest dzień wypłaty (M22 E4)."""
     if now.time() < SEND_AT:
         return []
     today = now.date()
@@ -323,6 +353,9 @@ def due(snap: Snapshot, now: datetime) -> list[Message]:
         msg = due_reminder(cd)
         if sent.get(CARD_DUE) != msg.period:
             out.append(msg)
+    pay = invest_due() if invest_due else None
+    if pay and sent.get(INVEST) != pay.period:
+        out.append(pay)
     watch = promo_watch.load(snap.conn)
     for msg in promo_messages(watch, today) if watch else []:
         if sent.get(msg.kind) != msg.period:

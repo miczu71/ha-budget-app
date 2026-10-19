@@ -38,6 +38,7 @@
     <li><strong>{{ p.amount | money("PLN") }}</strong> → {{ buckets[p.bucket - 1].label | lower }}{% if p.option %}: <strong>{{ p.option.label }}</strong> <span class="small muted">({{ p.option.per_year | money("PLN") }} netto rocznie z {{ amount | money("PLN") }})</span>{% else %}: <span class="muted">dodaj konto lub ofertę poniżej</span>{% endif %}</li>
     {% endfor %}
   </ol>
+  {% if why %}<p class="small">{{ why }}</p>{% endif %}
   {% endif %}
 </section>
 
@@ -194,7 +195,10 @@
       <label>Koszt ETF, TER (%)<input name="etf_ter" inputmode="decimal" size="6" value="{{ s.etf_ter }}" required></label>
       <label>Inflacja (%)<input name="inflation" inputmode="decimal" size="6" value="{{ s.inflation }}" required></label>
     </div>
-    <p class="small muted">Inflacja wchodzi do oprocentowania obligacji indeksowanych (EDO, COI) od drugiego roku.</p>
+    <div class="inline">
+      <label>Dzwonek „lepsza oferta” od (zł rocznie)<input name="better_offer" inputmode="decimal" size="6" value="{{ s.better_offer }}" required></label>
+    </div>
+    <p class="small muted">Inflacja wchodzi do oprocentowania obligacji indeksowanych (EDO, COI) od drugiego roku. Dzwonek zgłasza ofertę, która daje rocznie co najmniej tyle więcej niż obecne konto.</p>
     <p class="actions-row"><button type="submit">Zapisz</button></p>
   </form>
 </details>

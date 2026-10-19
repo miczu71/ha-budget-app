@@ -21,7 +21,10 @@ from datetime import date, timedelta
 from decimal import ROUND_FLOOR, Decimal
 
 from budget import loan, loan_sim, money, piggy, savings, year
+from budget.forecast import Forecast
 from budget.piggy import PiggyError
+from budget.snapshot import Snapshot
+from budget.spending import month_start
 from budget.storage import db
 from budget.storage.db import now_iso
 
@@ -29,6 +32,7 @@ ZERO = money.ZERO
 BELKA = savings.BELKA
 SETTINGS_KEY = "invest_settings"
 GOAL_YEARS = 5  # skarbonki z terminem dalej niż tyle lat nie należą do koszyka celów
+BUCKET_NAMES = {1: "poduszka", 3: "długi termin"}  # krótkie nazwy koszyków w pushu i opisie dla LLM
 ASSET_KINDS = {
     "bonds": "Obligacje",
     "deposit": "Lokata",
@@ -65,6 +69,16 @@ BONDS = {
 }
 INDEXED = ("edo", "coi")  # wymagają marży
 
+# etykiety opcji bez nazw własnych (konto, kredyt, bank) — dla czatu i uzasadnienia od LLM
+OPTION_KINDS = {
+    **OFFER_KINDS,
+    "account_own": "własne konto oszczędnościowe",
+    "etf": "ETF",
+    "etf_ike": "ETF w IKE",
+    "overpay": "nadpłata kredytu",
+    "edo_ike": "Obligacje EDO w IKE",
+}
+
 
 class InvestError(PiggyError):
     pass
@@ -76,6 +90,9 @@ class Settings:
     etf_returns: tuple[Decimal, Decimal, Decimal] = (Decimal(0), Decimal(6), Decimal(9))
     etf_ter: Decimal = Decimal("0.2")  # % rocznie
     inflation: Decimal = Decimal(3)  # % rocznie, do obligacji indeksowanych
+    better_offer: Decimal = Decimal(
+        200
+    )  # zł rocznie: o tyle oferta musi bić obecne miejsce (dzwonek)
 
 
 @dataclass(frozen=True)
@@ -385,6 +402,114 @@ def build_inputs(
     )
 
 
+# --- doradztwo dla dzwonka, pusha i czatu (E4) -----------------------------------------------
+
+DEFAULT_YEARS = Decimal(5)
+FALLBACK_AMOUNT = Decimal(10_000)  # porównanie bez nadwyżki: kwota przykładowa
+MATURITY_DAYS = 14  # koniec lokaty albo wykup obligacji: tyle dni naprzód
+
+
+@dataclass(frozen=True)
+class Advice:
+    """To, co `/invest` pokazuje bez zmian formularza: koszyki, opcje i rekomendacja."""
+
+    settings: Settings
+    inputs: Inputs
+    buckets: list[Bucket]
+    options: list[Option]
+    rec: Recommendation
+    amount: Decimal
+    payday: date | None  # dzień ostatniej wypłaty (prognoza do wypłaty); None bez wypłaty w księdze
+
+
+def piggy_rows(snap: Snapshot, fc: Forecast | None, today: date) -> list[piggy.Status]:
+    if fc is not None and fc.piggies_from is not None:
+        return fc.piggies
+    return piggy.statuses(snap, today, month_start(today))
+
+
+def default_amount(surplus: Decimal | None) -> Decimal:
+    return surplus * 12 if surplus and surplus > 0 else FALLBACK_AMOUNT
+
+
+def advice(
+    snap: Snapshot,
+    fc: Forecast | None,
+    proj: year.Projection | None,
+    today: date,
+    amount: Decimal | None = None,
+    years: Decimal = DEFAULT_YEARS,
+) -> Advice:
+    """Rekomendacja dla kwoty i horyzontu porównania; domyślnie roczna nadwyżka na 5 lat."""
+    conn = snap.conn
+    s = load_settings(conn)
+    inp = build_inputs(conn, proj, piggy_rows(snap, fc, today), today)
+    amount = amount or default_amount(inp.surplus)
+    opts = options(conn, amount, years, today, s)
+    return Advice(
+        s,
+        inp,
+        buckets(inp, s),
+        opts,
+        recommend(inp, s, opts),
+        amount,
+        fc.period_start if fc else None,
+    )
+
+
+@dataclass(frozen=True)
+class Better:
+    holder: str  # konto M10 albo aktywo, które lepiej przenieść
+    offer: Offer
+    gain: Decimal  # zł rocznie netto ponad obecne oprocentowanie
+
+
+def _holders(conn: sqlite3.Connection, today: date) -> list[tuple[str, Decimal, Decimal]]:
+    """Gdzie leżą wolne pieniądze na koncie: (nazwa, kwota, obecny zysk netto zł rocznie)."""
+    out = []
+    for acc in savings.all_accounts(conn):
+        bal = savings.estimate(conn, acc, today).total
+        cur = savings_option(acc, bal, Decimal(1), today) if bal > 0 else None
+        if cur is not None:
+            out.append((acc.name, bal, cur.per_year))
+    for a in all_assets(conn):
+        if a.kind == "account" and a.rate is not None and a.amount > 0:
+            out.append((a.name, a.amount, _tax(a.amount * a.rate / 100, a.ike)))
+    return out
+
+
+def better_offers(conn: sqlite3.Connection, today: date, s: Settings) -> list[Better]:
+    """Potwierdzone, widoczne dla użytkownika lokaty i konta, które dla kwoty z danego miejsca
+    dają rocznie co najmniej `s.better_offer` zł więcej niż obecne oprocentowanie. Dla każdego
+    miejsca najlepsza oferta."""
+    clients = [b.name for b in all_banks(conn)]
+    offers = [
+        o
+        for o in all_offers(conn)
+        if o.kind in ("deposit", "account")
+        and o.status == "confirmed"
+        and not is_hidden(o, clients)
+    ]
+    out = []
+    for holder, amount, current in _holders(conn, today):
+        found = [
+            Better(holder, o, opt.per_year - current)
+            for o in offers
+            for opt in offer_options(o, amount, Decimal(1), s)
+        ]
+        best = max(found, key=lambda b: b.gain, default=None)
+        if best is not None and best.gain >= max(s.better_offer, money.CENT):
+            out.append(best)
+    return out
+
+
+def maturities(conn: sqlite3.Connection, today: date) -> list[Asset]:
+    """Aktywa z terminem w ciągu `MATURITY_DAYS` dni (także dzisiejszym), od najbliższego."""
+    end = today + timedelta(days=MATURITY_DAYS)
+    due = [a for a in all_assets(conn) if a.maturity is not None and today <= a.maturity <= end]
+    return sorted(due, key=lambda a: (a.maturity or today, a.id))
+
+
 # --- zapis ----------------------------------------------------------------------------------
 
 
@@ -415,12 +540,21 @@ def load_settings(conn: sqlite3.Connection) -> Settings:
         return Settings()
     a, b, c = (Decimal(x) for x in raw["etf_returns"])
     return Settings(
-        int(raw["cushion_months"]), (a, b, c), Decimal(raw["etf_ter"]), Decimal(raw["inflation"])
+        int(raw["cushion_months"]),
+        (a, b, c),
+        Decimal(raw["etf_ter"]),
+        Decimal(raw["inflation"]),
+        Decimal(raw.get("better_offer", Settings.better_offer)),
     )
 
 
 def save_settings(
-    conn: sqlite3.Connection, cushion: str, returns: str, ter: str, inflation: str
+    conn: sqlite3.Connection,
+    cushion: str,
+    returns: str,
+    ter: str,
+    inflation: str,
+    better: str = str(Settings.better_offer),
 ) -> None:
     try:
         months = int(cushion)
@@ -434,6 +568,11 @@ def save_settings(
     rates = [_pct(p, "zwrot ETF", required=True) for p in parts]
     fee = _pct(ter, "koszt TER", required=True)
     infl = _pct(inflation, "inflację", required=True)
+    try:
+        threshold = piggy.parse_amount(better, "próg lepszej oferty (zł rocznie)", allow_zero=True)
+    except PiggyError as exc:
+        raise InvestError(str(exc)) from exc
+    threshold = Settings.better_offer if threshold is None else threshold
     db.kv_set(
         conn,
         SETTINGS_KEY,
@@ -442,6 +581,7 @@ def save_settings(
             "etf_returns": [str(r) for r in rates],
             "etf_ter": str(fee),
             "inflation": str(infl),
+            "better_offer": str(threshold),
         },
     )
 

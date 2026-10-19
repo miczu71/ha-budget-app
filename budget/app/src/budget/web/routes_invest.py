@@ -8,34 +8,25 @@ from decimal import Decimal
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import invest, invest_blogs, invest_sources, piggy
-from budget.spending import month_start
+from budget import invest, invest_blogs, invest_sources, invest_why, piggy
 from budget.web.common import Panel
-
-DEFAULT_YEARS = 5
-FALLBACK_AMOUNT = Decimal(
-    10_000
-)  # porównanie bez nadwyżki: kwota przykładowa, do zmiany w formularzu
 
 
 def router(panel: Panel) -> APIRouter:
     r = APIRouter()
     conn = panel.conn
 
-    def compare_args(
-        amount: str | None, years: str | None, surplus: Decimal | None
-    ) -> tuple[Decimal, Decimal]:
-        """Kwota i horyzont porównania z adresu; domyślnie roczna nadwyżka i 5 lat."""
+    def compare_args(amount: str | None, years: str | None) -> tuple[Decimal | None, Decimal]:
+        """Kwota (None = roczna nadwyżka) i horyzont porównania z adresu, domyślnie 5 lat."""
         try:
             chosen = piggy.parse_amount(amount, "kwotę")
         except piggy.PiggyError:
             chosen = None
-        default = surplus * 12 if surplus and surplus > 0 else FALLBACK_AMOUNT
         try:
-            horizon = Decimal(int(years or DEFAULT_YEARS))
+            horizon = Decimal(int(years or invest.DEFAULT_YEARS))
         except ValueError:
-            horizon = Decimal(DEFAULT_YEARS)
-        return chosen or default, min(max(horizon, Decimal(1)), Decimal(10))
+            horizon = invest.DEFAULT_YEARS
+        return chosen, min(max(horizon, Decimal(1)), Decimal(10))
 
     @r.get("/invest", response_class=HTMLResponse)
     async def invest_page(
@@ -49,14 +40,8 @@ def router(panel: Panel) -> APIRouter:
         snap = panel.service.snapshot
         proj = panel.service.year_memo.get(snap, today, buffer)
         fc = panel.service.forecast()
-        if fc is not None and fc.piggies_from is not None:
-            rows = fc.piggies
-        else:
-            rows = piggy.statuses(snap, today, month_start(today))
-        s = invest.load_settings(conn)
-        inp = invest.build_inputs(conn, proj, rows, today)
-        sum_, horizon = compare_args(amount, years, inp.surplus)
-        opts = invest.options(conn, sum_, horizon, today, s)
+        chosen, horizon = compare_args(amount, years)
+        adv = invest.advice(snap, fc, proj, today, chosen, horizon)
         assets = invest.all_assets(conn)
         offers = invest.all_offers(conn)
         banks = invest.all_banks(conn)
@@ -65,12 +50,13 @@ def router(panel: Panel) -> APIRouter:
             request,
             "invest.html",
             today=today,
-            s=s,
-            inp=inp,
-            buckets=invest.buckets(inp, s),
-            rec=invest.recommend(inp, s, opts),
-            options=opts,
-            amount=sum_,
+            s=adv.settings,
+            inp=adv.inputs,
+            buckets=adv.buckets,
+            rec=adv.rec,
+            why=invest_why.text(conn, adv),
+            options=adv.options,
+            amount=adv.amount,
             years=int(horizon),
             assets=assets,
             edit_asset=next((a for a in assets if a.id == edit_asset), None),
@@ -94,6 +80,7 @@ def router(panel: Panel) -> APIRouter:
                 f.get("etf_returns", ""),
                 f.get("etf_ter", ""),
                 f.get("inflation", ""),
+                f.get("better_offer", ""),
             )
         except invest.InvestError as exc:
             return panel.redirect(request, "/invest#settings", str(exc), "error")

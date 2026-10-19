@@ -20,8 +20,10 @@ from budget import forecast as forecast_mod
 from budget import (
     ha_publisher,
     inbox,
+    invest,
     invest_blogs,
     invest_sources,
+    invest_why,
     ledger,
     lidl_link,
     loan,
@@ -244,7 +246,7 @@ class Service:
             return
         try:
             async with self.lock:  # poranna synchronizacja najpierw
-                due = summary.due(self.snapshot, self.now())
+                due = summary.due(self.snapshot, self.now(), self.invest_due)
             for msg in due:
                 await self.send_summary(msg)
                 summary.mark_sent(self.conn, msg)
@@ -278,12 +280,37 @@ class Service:
             await invest_sources.refresh(self.conn, now)
             await invest_blogs.refresh(self.conn, self.settings, now)
 
+    def invest_advice(self) -> invest.Advice | None:
+        """Rekomendacja agenta inwestycyjnego (M22 E4); błąd nie blokuje podsumowań."""
+        try:
+            return invest.advice(
+                self.snapshot, self.forecast(), self.year_projection(), self.now().date()
+            )
+        except Exception:
+            log.exception("Rekomendacja agenta inwestycyjnego nieudana")
+            return None
+
+    def invest_due(self) -> summary.Message | None:
+        """Push agenta inwestycyjnego w dniu wypłaty; w inne dni bez liczenia rekomendacji."""
+        fc = self.forecast()
+        if fc is None or fc.period_start != self.now().date():
+            return None
+        adv = self.invest_advice()
+        return summary.invest_message(adv, invest_why.text(self.conn, adv)) if adv else None
+
+    async def watch_invest_why(self) -> None:
+        """Uzasadnienie rekomendacji od modelu — tylko po zmianie rekomendacji (M22 E4)."""
+        adv = self.invest_advice()
+        if adv:
+            await invest_why.refresh(self.conn, self.settings, adv, self.now())
+
     async def summaries(self) -> None:
         """Podsumowania o `summary.SEND_AT`; zaległe z dzisiaj zaraz po starcie."""
         while True:
             await self.watch_promo()
             await self.watch_wibor()
             await self.watch_invest()
+            await self.watch_invest_why()
             await self.send_due_summaries()
             now = self.now()
             await asyncio.sleep(max(summary.next_send(now).timestamp() - now.timestamp(), 1))

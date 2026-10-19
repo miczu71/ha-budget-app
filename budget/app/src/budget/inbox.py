@@ -19,6 +19,7 @@ from typing import Literal
 
 from budget import (
     card,
+    invest,
     invest_sources,
     ledger,
     loan,
@@ -426,6 +427,35 @@ def invest_source_error(conn: sqlite3.Connection, ctx: Context, memo: BalanceMem
     ]
 
 
+def invest_better_offer(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Potwierdzona lokata albo konto bije obecne miejsce o próg z ustawień agenta (M22 E4)."""
+    out = []
+    for b in invest.better_offers(conn, ctx.today, invest.load_settings(conn)):
+        o = b.offer
+        rate = format(o.rate.normalize(), "f")
+        detail = (
+            f"{o.bank}: {rate}% zamiast obecnego oprocentowania „{b.holder}” — "
+            f"ok. {summary.zl(b.gain)} więcej rocznie netto. Sprawdź warunki oferty."
+        )
+        title = f"Lepsza oferta: {o.bank} {rate}%"
+        out.append(Item("invest_better_offer", title, 1, "/invest#offers", "info", detail))
+    return out
+
+
+def invest_maturity(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Lokata się kończy albo obligacje są do wykupu w ciągu dwóch tygodni (M22 E4)."""
+    out = []
+    for a in invest.maturities(conn, ctx.today):
+        assert a.maturity is not None
+        title = f"{a.name}: termin {a.maturity:%d.%m}"
+        detail = (
+            f"{summary.zl(a.amount)} — {summary.when((a.maturity - ctx.today).days)}. "
+            "Zdecyduj, gdzie przenieść środki."
+        )
+        out.append(Item("invest_maturity", title, 1, "/invest#assets", "warn", detail))
+    return out
+
+
 Provider = Callable[[sqlite3.Connection, Context, BalanceMemo], list[Item]]
 PROVIDERS: tuple[Provider, ...] = (
     operational,
@@ -442,6 +472,8 @@ PROVIDERS: tuple[Provider, ...] = (
     loan_reset,
     wibor_error,
     invest_source_error,
+    invest_better_offer,
+    invest_maturity,
 )
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}
 
