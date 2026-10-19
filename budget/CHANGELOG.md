@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.58.1
+
+- Zapytania do routera LLM niosą nagłówek `User-Agent: ha-budget/<wersja>`, dzięki czemu panel LLM (:3004) pokazuje, który add-on używa którego modelu. Bez zmian w działaniu.
+
 ## 0.58.0
 
 **Agent inwestycyjny: oferty z blogów, dzwonek, push po wypłacie, czat** (M22 E3 + E4, `docs/PLAN_M22.md`).
