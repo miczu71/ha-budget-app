@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.55.0
+
+**Poprawki panelu** (M31, `docs/PLAN_M31.md`).
+
+- „Do decyzji”: przy kartach (poza błędami zgody i synchronizacji, które można tylko ukryć) przycisk „Usuń” kasuje kartę
+  na stałe; zmiana tytułu to nowa karta.
+- Strona główna: kafelki sald nad głównym kafelkiem — „Konto”, „Karta” (zadłużenie) i „Oszczędności” (konta
+  oszczędnościowe razem ze skarbonkami; po najechaniu lub dotknięciu lista skarbonek).
+- Prognoza: tydzień okresu kończy się w dniu wypłaty (dzień wypłaty należy do starego okresu).
+- Skarbonki: zalecane odłożenie w pełnych złotych (zaokrąglane w górę, nigdy więcej niż brakuje).
+
 ## 0.54.0
 
 **Prognoza roczna bez wydatków jednorazowych** (M30, `docs/PLAN_M30.md`).
