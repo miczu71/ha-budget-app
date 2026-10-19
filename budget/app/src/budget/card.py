@@ -211,6 +211,18 @@ def payments(conn: sqlite3.Connection, month: date) -> list[sqlite3.Row]:
     ).fetchall()
 
 
+def count_purchases(conn: sqlite3.Connection, start: date, end: date) -> int:
+    """Zakupy kartą na kontach bieżących i karty zaksięgowane w `start`..`end` włącznie (M22 E5)."""
+    return int(
+        conn.execute(
+            "SELECT count(*) FROM txn t JOIN account a ON a.id = t.account_id "
+            f"WHERE a.kind IN ('current', 'card') AND t.kind = '{Kind.CARD.value}' "
+            "AND t.status = 'BOOK' AND t.amount LIKE '-%' AND t.booking_date BETWEEN ? AND ?",
+            (start.isoformat(), end.isoformat()),
+        ).fetchone()[0]
+    )
+
+
 @dataclass(frozen=True)
 class CardDue:
     left: Decimal  # zostało do spłaty z zamkniętego cyklu (≥ 0)
