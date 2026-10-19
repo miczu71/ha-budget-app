@@ -215,8 +215,9 @@ def count_purchases(conn: sqlite3.Connection, start: date, end: date) -> int:
     """Zakupy kartą na kontach bieżących i karty zaksięgowane w `start`..`end` włącznie (M22 E5)."""
     return int(
         conn.execute(
-            "SELECT count(*) FROM txn t JOIN account a ON a.id = t.account_id "
-            f"WHERE a.kind IN ('current', 'card') AND t.kind = '{Kind.CARD.value}' "
+            "SELECT count(*) FROM txn t WHERE t.account_id IN "
+            "(SELECT id FROM account WHERE kind IN ('current', 'card')) "
+            f"AND t.kind = '{Kind.CARD.value}' "
             "AND t.status = 'BOOK' AND t.amount LIKE '-%' AND t.booking_date BETWEEN ? AND ?",
             (start.isoformat(), end.isoformat()),
         ).fetchone()[0]

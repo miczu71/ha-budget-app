@@ -45,6 +45,7 @@ def router(panel: Panel) -> APIRouter:
         adv = invest.advice(snap, fc, proj, today, chosen, horizon)
         assets = invest.all_assets(conn)
         offers = invest.all_offers(conn)
+        promos = promo_track.tracks(conn)
         banks = invest.all_banks(conn)
         clients = [b.name for b in banks]
         return panel.render(
@@ -62,9 +63,9 @@ def router(panel: Panel) -> APIRouter:
             assets=assets,
             edit_asset=next((a for a in assets if a.id == edit_asset), None),
             offers=offers,
-            promos=promo_track.tracks(conn),
-            promo_due=promo_track.register(conn),
-            tracked={t.offer_id for t in promo_track.tracks(conn, status="active")},
+            promos=promos,
+            promo_due=promo_track.register(promos),
+            tracked={t.offer_id for t in promos if t.status == "active"},
             condition_kinds=promo_track.KIND_LABELS,
             banks=banks,
             hidden={o.id for o in offers if invest.is_hidden(o, clients)},

@@ -123,11 +123,11 @@ def test_mark_paid_to_asset_and_register(conn: sqlite3.Connection) -> None:
     with pytest.raises(promo_track.PromoError):
         promo_track.mark_paid(conn, tid, "asset", TODAY)  # brak kwoty premii
     promo_track.set_bonus(conn, tid, "300")
-    assert promo_track.register(conn) == (D("0.00"), D("0.00"))
+    assert promo_track.register(promo_track.tracks(conn)) == (D("0.00"), D("0.00"))
     promo_track.toggle_condition(conn, cid)
-    assert promo_track.register(conn) == (D("300.00"), D("0.00"))
+    assert promo_track.register(promo_track.tracks(conn)) == (D("300.00"), D("0.00"))
     promo_track.mark_paid(conn, tid, "asset", TODAY)
-    assert promo_track.register(conn) == (D("0.00"), D("300.00"))
+    assert promo_track.register(promo_track.tracks(conn)) == (D("0.00"), D("300.00"))
     assert invest.assets_total(conn) == D("300.00")
     with pytest.raises(promo_track.PromoError):
         promo_track.mark_paid(conn, tid, "income", TODAY)

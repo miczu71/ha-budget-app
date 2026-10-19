@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import calendar
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -24,13 +25,13 @@ from budget.suggest import client
 from budget.suggest import engine as suggest
 from budget.suggest.client import AIError
 
-KINDS = ("payments", "income", "balance", "manual")
 KIND_LABELS = {
     "payments": "liczba płatności kartą",
     "income": "suma wpływów (zł)",
     "balance": "saldo na dzień (ręcznie)",
     "manual": "inny krok (ręcznie)",
 }
+KINDS = tuple(KIND_LABELS)
 LEDGER_BANK = "millen"
 REMIND_DAYS = 7  # dzwonek: tyle dni przed końcem, gdy warunki niespełnione
 INCOME_KINDS = (Kind.TRANSFER_IN.value, Kind.OTHER.value)
@@ -96,7 +97,6 @@ class Track:
     end: date
     bonus: Decimal | None
     status: str
-    paid_to: str | None
     conditions: tuple[Condition, ...]
 
     @property
@@ -160,7 +160,6 @@ def _track(conn: sqlite3.Connection, t: sqlite3.Row) -> Track:
         date.fromisoformat(t["end_date"]),
         Decimal(t["bonus"]) if t["bonus"] else None,
         t["status"],
-        t["paid_to"],
         conds,
     )
 
@@ -176,12 +175,12 @@ def tracks(conn: sqlite3.Connection, *, status: str | None = None) -> list[Track
     ]
 
 
-def start(conn: sqlite3.Connection, offer_id: int, today: date, months: int | None = None) -> int:
+def start(conn: sqlite3.Connection, offer_id: int, today: date) -> int:
     """„Skorzystaj”: śledzenie z oferty (okres = długość promocji, domyślnie 3 mies.)."""
     o = conn.execute("SELECT * FROM invest_offer WHERE id = ?", (offer_id,)).fetchone()
     if o is None:
         raise PromoError("Nie ma takiej oferty.")
-    length = months or o["months"] or 3
+    length = o["months"] or 3
     end = _plus_months(today, length)
     cur = conn.execute(
         "INSERT INTO promo_track (offer_id, bank, title, start_date, end_date, ledger, created_at) "
@@ -268,9 +267,7 @@ def set_status(conn: sqlite3.Connection, track_id: int, status: str) -> None:
     conn.execute("UPDATE promo_track SET status = ? WHERE id = ?", (status, track_id))
 
 
-def mark_paid(
-    conn: sqlite3.Connection, track_id: int, paid_to: str, today: date, asset_kind: str = "account"
-) -> None:
+def mark_paid(conn: sqlite3.Connection, track_id: int, paid_to: str, today: date) -> None:
     """Premia wypłacona: do aktywów (`asset`) albo tylko do wpływów (`income`)."""
     t = _track_row(conn, track_id)
     if t["status"] != "active":
@@ -282,14 +279,14 @@ def mark_paid(
             raise PromoError("Najpierw wpisz kwotę premii.")
         save_asset(
             conn,
-            None,
-            asset_kind,
-            f"Premia: {t['title']}"[:60],
-            t["bonus"],
-            None,
-            None,
-            None,
-            False,
+            asset_id=None,
+            kind="account",
+            name=f"Premia: {t['title']}"[:60],
+            amount=t["bonus"],
+            rate=None,
+            start=None,
+            maturity=None,
+            ike=False,
         )
     conn.execute(
         "UPDATE promo_track SET status = 'paid', paid_at = ?, paid_to = ? WHERE id = ?",
@@ -297,10 +294,10 @@ def mark_paid(
     )
 
 
-def register(conn: sqlite3.Connection) -> tuple[Decimal, Decimal]:
+def register(items: Sequence[Track]) -> tuple[Decimal, Decimal]:
     """Rejestr premii: (należne = aktywne ze spełnionymi warunkami, wypłacone)."""
-    due = money.total(t.bonus for t in tracks(conn, status="active") if t.met and t.bonus)
-    paid = money.total(t.bonus for t in tracks(conn, status="paid") if t.bonus)
+    due = money.total(t.bonus for t in items if t.status == "active" and t.met and t.bonus)
+    paid = money.total(t.bonus for t in items if t.status == "paid" and t.bonus)
     return due, paid
 
 
