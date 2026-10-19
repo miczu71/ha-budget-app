@@ -311,3 +311,58 @@ def test_error_card_appears_after_three_days(conn: sqlite3.Connection) -> None:
     assert item.kind == "invest_source_error" and item.link == "/invest"
     db.kv_set(conn, src.KEY, {"error": "x", "error_since": "2026-10-18T07:00:00"})
     assert inbox.invest_source_error(conn, ctx, None) == []  # type: ignore[arg-type]
+
+
+async def test_rate_change_keeps_confirmation_and_corrected_bank(conn: sqlite3.Connection) -> None:
+    await src.refresh(conn, NOW, feed(PAGES))
+    review = next(o for o in offers(conn) if o.status == "review" and o.kind == "deposit")
+    invest.confirm_offer(conn, review.id, "Bank Beta")
+    changed = DEPOSITS.replace("4,00 %", "4,10 %")
+    await src.refresh(conn, NOW, feed(PAGES | {src.DEPOSITS_URL: changed}))
+    got = next(o for o in offers(conn) if o.id == review.id)
+    assert (got.rate, got.status, got.bank) == (D("4.10"), "confirmed", "Bank Beta")
+
+
+async def test_removed_official_bond_returns_but_rejected_ranking_offer_does_not(
+    conn: sqlite3.Connection,
+) -> None:
+    await src.refresh(conn, NOW, feed(PAGES))
+    edo = next(o for o in offers(conn) if o.kind == "edo")
+    invest.archive_offer(conn, edo.id)
+    assert all(o.kind != "edo" for o in offers(conn))
+    await src.refresh(conn, NOW, feed(PAGES))
+    assert any(o.kind == "edo" for o in offers(conn))
+
+
+async def test_partial_bond_page_is_an_error_and_keeps_stored_offers(
+    conn: sqlite3.Connection,
+) -> None:
+    await src.refresh(conn, NOW, feed(PAGES))
+    partial = BONDS.replace("COI", "XXX")
+    await src.refresh(conn, NOW, feed(PAGES | {src.BONDS_URL: partial}))
+    assert any(o.kind == "coi" for o in offers(conn))
+    err = src.error(conn)
+    assert err is not None and "coi" in err[0]
+
+
+async def test_failed_refresh_can_be_retried_at_next_pass(conn: sqlite3.Connection) -> None:
+    await src.refresh(conn, NOW, feed({}))
+    assert src.due(conn, NOW)
+    await src.refresh(conn, NOW, feed(PAGES))
+    assert not src.due(conn, NOW)
+
+
+def test_new_only_ignores_negated_phrases() -> None:
+    both = entry(
+        "Konto X", "/smart/konto-x?id=30", "5,00 %", cond="Dla nowych i dotychczasowych klientów."
+    )
+    (a,) = src.parse_ranking(both, "account")
+    assert not a.new_only
+
+
+def test_account_months_only_from_promo_phrases() -> None:
+    cond = "Premia po 90 dniach, spełnij warunki w ciągu 3 miesięcy."
+    (a,) = src.parse_ranking(
+        entry("Konto Y", "/smart/konto-y?id=31", "5,00 %", cond=cond), "account"
+    )
+    assert a.months is None

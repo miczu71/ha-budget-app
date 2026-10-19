@@ -12,6 +12,7 @@ do opisu oferty. Wzorzec jak `wibor`: błąd nie rzuca, ląduje w `kv` i w dzwon
 
 from __future__ import annotations
 
+import asyncio
 import html as htmllib
 import logging
 import re
@@ -89,8 +90,8 @@ def parse_bonds(page: str) -> dict[str, tuple[Decimal, str]]:
         )
         if path and rate and symbol and (kind := symbol.group(1).lower()) in invest.BONDS:
             out[kind] = (_dec(rate.group(1)), path.group(1))
-    if not out:
-        raise SourceError("Nie znaleziono obligacji na stronie ofert")
+    if missing := sorted(set(invest.BONDS) - set(out)):
+        raise SourceError(f"Na stronie ofert brak obligacji: {', '.join(missing)}")
     return out
 
 
@@ -111,8 +112,11 @@ _RATE = re.compile(r'Oprocentowanie</div><div class="[^"]*">\s*(\d+,\d+)\s*%')
 _PERIOD = re.compile(r'-period">.*?value">\s*(\d+)', re.S)
 _TIP = re.compile(r"tooltip__content[^>]*>.*?<div>(.*?)</div></div>", re.S)
 _TAGS = re.compile(r"<[^>]+>")
-_DAYS = re.compile(r"(\d+)\s*dni")
-_MONTHS = re.compile(r"(\d+)\s*miesi")
+_PROMO = (
+    r"(?:obowiązuj\w*|promocyjn\w*|podwyższon\w*)[^.]{0,60}?"  # tylko okres stawki, nie „w 3 mies.”
+)
+_DAYS = re.compile(_PROMO + r"(\d+)\s*dni", re.I)
+_MONTHS = re.compile(_PROMO + r"(\d+)\s*miesi", re.I)
 _LIMIT = re.compile(
     r"(?:do(?:\s+kwoty)?|max\.?|maksymalnie)\s+(\d[\d\s\xa0]*\d)\s*zł(?!\s*(?:premi|bonus|nagrod|zwrot))",
     re.I,
@@ -122,6 +126,8 @@ _NEW_ONLY = re.compile(
     r"|byli|korzyst)|nie\s+(?:posiadał|był|miał)\w*\s+(?:konta|klient)",
     re.I,
 )
+
+_NOT_NEW = re.compile(r"nie tylko|dotychczasow|istniejąc", re.I)  # „dla nowych i dotychczasowych”
 
 # (nazwa, wzorzec na znormalizowanym „-nazwa-slug-”); pierwszy pasujący wygrywa
 BANKS: tuple[tuple[str, str], ...] = (
@@ -170,11 +176,15 @@ def _clean(text: str) -> str:
     return " ".join(htmllib.unescape(_TAGS.sub(" ", text)).split())
 
 
+def _is_new_only(text: str) -> bool:
+    return bool(_NEW_ONLY.search(text)) and not _NOT_NEW.search(text)
+
+
 def _entry(chunk: str, kind: str) -> Found | None:
     name, rate = _NAME.search(chunk), _RATE.findall(chunk)
     if name is None or not rate:
         return None
-    path, title = name.group(1), _clean(name.group(2))
+    path, title = htmllib.unescape(name.group(1)), _clean(name.group(2))
     value = _dec(rate[-1])
     tip = _TIP.search(chunk)
     cond = _clean(tip.group(1)) if tip else ""
@@ -198,7 +208,7 @@ def _entry(chunk: str, kind: str) -> Found | None:
         months,
         limit,
         cond[:300],
-        bool(_NEW_ONLY.search(f"{title} {cond}")),
+        _is_new_only(f"{title} {cond}"),
         bank is None,
     )
 
@@ -217,8 +227,8 @@ def parse_ranking(page: str, kind: str) -> list[Found]:
 def _upsert(
     conn: sqlite3.Connection, where: str, args: tuple[object, ...], row: dict[str, object]
 ) -> int:
-    """Aktualizuje wpis pasujący do `where` (nigdy odrzucony; status i bank zostają, jeśli
-    użytkownik je zmienił) albo dodaje nowy; zwraca id."""
+    """Aktualizuje wpis pasujący do `where` (odrzuconego nie rusza; status i bank zostają, jeśli
+    użytkownik je zmienił; stawka i reszta pól się odświeżają) albo dodaje nowy; zwraca id."""
     now = db.now_iso()
     found = conn.execute(f"SELECT id, status FROM invest_offer WHERE {where}", args).fetchone()
     if found is None:
@@ -287,13 +297,19 @@ async def _bonds(conn: sqlite3.Connection, get: Get) -> None:
 
 async def _ranking(conn: sqlite3.Connection, get: Get, url: str, kind: str) -> None:
     keep: set[int] = set()
+    seen: set[tuple[str, int | None]] = set()
     for f in parse_ranking(await get(url), kind):
+        if (
+            f.url,
+            f.months,
+        ) in seen:  # ten sam produkt w kilku progach: bierzemy najwyższy (pierwszy)
+            continue
+        seen.add((f.url, f.months))
         keep.add(
             _upsert(
                 conn,
-                "source = 'ranking' AND kind = ? AND url = ? "
-                "AND IFNULL(months, -1) = ? AND rate = ?",
-                (kind, f.url, -1 if f.months is None else f.months, str(f.rate)),
+                "source = 'ranking' AND kind = ? AND url = ? AND IFNULL(months, -1) = ?",
+                (kind, f.url, -1 if f.months is None else f.months),
                 {
                     "kind": kind,
                     "bank": f.bank,
@@ -350,19 +366,22 @@ async def refresh(conn: sqlite3.Connection, now: datetime, get: Get = fetch) -> 
     """Odczyt wszystkich źródeł; nigdy nie rzuca. Każde źródło osobno: awaria jednego (np. zmiana
     układu rankingu) nie blokuje reszty, a błąd trafia do stanu i dzwonka."""
     raw = _raw(conn)
-    raw["checked"] = now.isoformat()
-    errors: list[str] = []
-    jobs = (
-        ("obligacje", _bonds(conn, get)),
-        ("lokaty", _ranking(conn, get, DEPOSITS_URL, "deposit")),
-        ("konta", _ranking(conn, get, ACCOUNTS_URL, "account")),
+    labels = ("obligacje", "lokaty", "konta")
+    results = await asyncio.gather(
+        _bonds(conn, get),
+        _ranking(conn, get, DEPOSITS_URL, "deposit"),
+        _ranking(conn, get, ACCOUNTS_URL, "account"),
+        return_exceptions=True,  # sieć, zmiana układu strony — wszystko ma być widoczne w panelu
     )
-    for label, job in jobs:
-        try:
-            await job
-        except Exception as exc:  # sieć, zmiana układu strony — wszystko ma być widoczne w panelu
-            log.warning("Odczyt źródła %s nieudany: %s", label, exc)
-            errors.append(f"{label}: {type(exc).__name__}: {exc}")
+    errors = []
+    for label, res in zip(labels, results, strict=True):
+        if isinstance(res, Exception):
+            log.warning("Odczyt źródła %s nieudany: %s", label, res)
+            errors.append(f"{label}: {type(res).__name__}: {res}")
+    if not errors:
+        raw["checked"] = (
+            now.isoformat()
+        )  # po błędzie `due` pozwala ponowić przy najbliższym przebiegu
     if errors:
         raw["error"] = "; ".join(errors)[:300]
         if not raw.get("error_since"):

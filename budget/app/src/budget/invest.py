@@ -597,10 +597,12 @@ def save_offer(
 
 
 def archive_offer(conn: sqlite3.Connection, offer_id: int) -> None:
-    """Usuwa ofertę; pobrana z sieci dostaje status „rejected”, by odczyt jej nie przywrócił."""
+    """Usuwa ofertę; z rankingu/bloga dostaje status „rejected”, by odczyt jej nie przywrócił
+    (oficjalne obligacje wracają przy następnym odczycie)."""
     conn.execute(
         "UPDATE invest_offer SET archived_at = ?, "
-        "status = CASE WHEN source = 'manual' THEN status ELSE 'rejected' END WHERE id = ?",
+        "status = CASE WHEN source IN ('ranking', 'blog') THEN 'rejected' ELSE status END "
+        "WHERE id = ?",
         (now_iso(), offer_id),
     )
 
