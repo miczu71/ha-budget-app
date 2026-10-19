@@ -156,6 +156,14 @@
   <p class="small muted">{{ name }}: {{ part.n }} sprzedawców, podkategoria {{ pct(row.leaf, row.shown) }}%{% if row.top is defined %} (wśród 3: {{ pct(row.top, row.shown) }}%){% endif %}, kategoria główna {{ pct(row.main, row.shown) }}%.</p>
   {% endfor %}
   {% endif %}
+  {% set b = ai.blog %}
+  <h3>Oferty z blogów — trafność</h3>
+  {% if b.limit == 0 %}
+  <p class="small muted">Wyłączone (opcja <code>invest_daily_calls</code> = 0).</p>
+  {% else %}
+  <p class="small">{% if b.total %}{{ b.clean }} z {{ b.total }} ocenionych ofert potwierdzono bez poprawek ({{ pct(b.clean, b.total) }}%, cel ≥ 80%).{% if b.total >= 10 and b.clean * 10 < b.total * 8 %} <span class="neg">Poniżej celu — rozważ inny model albo wyłączenie źródła.</span>{% endif %}{% else %}Jeszcze nic nie oceniono — potwierdzaj lub odrzucaj oferty „do sprawdzenia” w zakładce Inwestycje.{% endif %}</p>
+  <p class="small muted">Wywołania dziś: {{ b.calls }} / {{ b.limit }}.{% if b.error %} <span class="neg">Błąd od {{ b.error[1].strftime('%d.%m') }}: {{ b.error[0] }}</span>{% endif %}</p>
+  {% endif %}
   {% endif %}
 </section>
 

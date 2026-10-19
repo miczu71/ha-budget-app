@@ -11,6 +11,7 @@ z listy użytkownika.
 from __future__ import annotations
 
 import calendar
+import json
 import math
 import re
 import sqlite3
@@ -549,6 +550,24 @@ def all_offers(conn: sqlite3.Connection) -> list[Offer]:
     ]
 
 
+def _offer_fields(
+    kind: str, rate: str | None, limit_amount: str | None, months: str | None, conditions: str
+) -> tuple[Decimal, Decimal | None, int | None, str]:
+    """Stawka, limit, okres i warunki z pól formularza (dodanie i potwierdzenie oferty)."""
+    pct = _pct(rate, "oprocentowanie", required=True)
+    cap = piggy.parse_amount(limit_amount, "limit kwoty")
+    try:
+        period = int(months) if months and months.strip() else None
+    except ValueError:
+        period = None
+    if kind == "deposit" and (period is None or period < 1):
+        raise InvestError("Lokata wymaga okresu w miesiącach, np. 12.")
+    if period is not None and not 1 <= period <= 120:
+        raise InvestError("Okres podaj w miesiącach, od 1 do 120.")
+    assert pct is not None  # `required=True`
+    return pct, cap, period, " ".join(conditions.split())[:300]
+
+
 def save_offer(
     conn: sqlite3.Connection,
     kind: str,
@@ -565,19 +584,10 @@ def save_offer(
     name = " ".join(bank.split())[:40]
     if not name:
         raise InvestError("Podaj bank albo emitenta oferty.")
-    pct = _pct(rate, "oprocentowanie", required=True)
     extra = _pct(margin, "marżę")
     if kind in INDEXED and extra is None:
         raise InvestError("Obligacje indeksowane (EDO, COI) wymagają marży ponad inflację.")
-    cap = piggy.parse_amount(limit_amount, "limit kwoty")
-    try:
-        period = int(months) if months and months.strip() else None
-    except ValueError:
-        period = None
-    if kind == "deposit" and (period is None or period < 1):
-        raise InvestError("Lokata wymaga okresu w miesiącach, np. 12.")
-    if period is not None and not 1 <= period <= 120:
-        raise InvestError("Okres podaj w miesiącach, od 1 do 120.")
+    pct, cap, period, cond = _offer_fields(kind, rate, limit_amount, months, conditions)
     cur = conn.execute(
         "INSERT INTO invest_offer (kind, bank, rate, margin, limit_amount, months, conditions, "
         "new_clients_only, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -588,7 +598,7 @@ def save_offer(
             None if extra is None else str(extra),
             None if cap is None else str(cap),
             period,
-            " ".join(conditions.split())[:300],
+            cond,
             int(new_only),
             now_iso(),
         ),
@@ -598,23 +608,76 @@ def save_offer(
 
 def archive_offer(conn: sqlite3.Connection, offer_id: int) -> None:
     """Usuwa ofertę; z rankingu/bloga dostaje status „rejected”, by odczyt jej nie przywrócił
-    (oficjalne obligacje wracają przy następnym odczycie)."""
+    (oficjalne obligacje wracają przy następnym odczycie). Oferta z bloga, której nikt jeszcze nie
+    ocenił, liczy się w pomiarze trafności jako odrzucona."""
     conn.execute(
         "UPDATE invest_offer SET archived_at = ?, "
-        "status = CASE WHEN source IN ('ranking', 'blog') THEN 'rejected' ELSE status END "
+        "status = CASE WHEN source IN ('ranking', 'blog') THEN 'rejected' ELSE status END, "
+        "verdict = CASE WHEN extracted IS NOT NULL AND verdict IS NULL THEN 'rejected' "
+        "ELSE verdict END "
         "WHERE id = ?",
         (now_iso(), offer_id),
     )
 
 
-def confirm_offer(conn: sqlite3.Connection, offer_id: int, bank: str = "") -> None:
-    """Potwierdza ofertę „do sprawdzenia” (z opcjonalnie poprawioną nazwą banku)."""
+def _same(a: object, b: object) -> bool:
+    return Decimal(str(a or 0)) == Decimal(str(b or 0))
+
+
+def confirm_offer(
+    conn: sqlite3.Connection,
+    offer_id: int,
+    bank: str = "",
+    fields: dict[str, str] | None = None,
+) -> None:
+    """Potwierdza ofertę „do sprawdzenia” (z poprawioną nazwą banku i, dla ofert z bloga, polami
+    stawka / limit / okres / warunki). Porównanie z tym, co wyciągnął model, daje werdykt
+    `clean` albo `fixed` (pomiar trafności)."""
     name = " ".join(bank.split())[:40]
+    row = conn.execute(
+        "SELECT * FROM invest_offer WHERE id = ? AND archived_at IS NULL", (offer_id,)
+    ).fetchone()
+    if row is None:
+        return
+    sets: dict[str, object] = {"status": "confirmed"}
+    if name:
+        sets["bank"] = name
+    if fields is not None:
+        pct, cap, months, cond = _offer_fields(
+            row["kind"],
+            fields.get("rate"),
+            fields.get("limit_amount"),
+            fields.get("months"),
+            fields.get("conditions", ""),
+        )
+        sets.update(
+            rate=str(pct),
+            limit_amount=None if cap is None else str(cap),
+            months=months,
+            conditions=cond,
+        )
+    if row["extracted"] and row["verdict"] is None:
+        was = json.loads(row["extracted"])
+        same = (
+            _same(was.get("rate"), sets.get("rate", row["rate"]))
+            and _same(was.get("limit_amount"), sets.get("limit_amount", row["limit_amount"]))
+            and _same(was.get("months"), sets.get("months", row["months"]))
+            and was.get("bank") == sets.get("bank", row["bank"])
+        )
+        sets["verdict"] = "clean" if same else "fixed"
     conn.execute(
-        "UPDATE invest_offer SET status = 'confirmed', bank = COALESCE(NULLIF(?, ''), bank) "
-        "WHERE id = ? AND archived_at IS NULL",
-        (name, offer_id),
+        f"UPDATE invest_offer SET {', '.join(f'{k} = ?' for k in sets)} WHERE id = ?",
+        (*sets.values(), offer_id),
     )
+
+
+def blog_accuracy(conn: sqlite3.Connection) -> tuple[int, int]:
+    """(oferty z bloga potwierdzone bez poprawek, wszystkie ocenione) — cel M22 E3: ≥ 8 z 10."""
+    row = conn.execute(
+        "SELECT COUNT(*) AS n, COALESCE(SUM(verdict = 'clean'), 0) AS ok FROM invest_offer "
+        "WHERE source = 'blog' AND verdict IS NOT NULL"
+    ).fetchone()
+    return int(row["ok"]), int(row["n"])
 
 
 # --- banki użytkownika (filtr ofert „tylko dla nowych klientów”) ----------------------------

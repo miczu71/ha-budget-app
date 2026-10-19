@@ -41,6 +41,7 @@ options:
   ai_model: "gemini-3.1-flash-lite"
   ai_daily_calls: 20
   chat_daily_calls: 40
+  invest_daily_calls: 10
   log_level: info
 schema:
   eb_application_id: str?
@@ -61,4 +62,5 @@ schema:
   ai_model: str?
   ai_daily_calls: "int(0,500)"
   chat_daily_calls: "int(0,500)?"
+  invest_daily_calls: "int(0,500)?"
   log_level: "list(debug|info|warning|error)"

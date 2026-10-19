@@ -53,5 +53,8 @@ configuration:
   chat_daily_calls:
     name: AI chat — daily call limit
     description: One question in the Ask tab takes 2 calls. 0 = chat disabled.
+  invest_daily_calls:
+    name: Blog offers — daily AI call limit
+    description: One blog post takes 1 call. 0 = blog offers disabled.
   log_level:
     name: Log level

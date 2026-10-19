@@ -8,7 +8,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import invest, invest_sources, piggy
+from budget import invest, invest_blogs, invest_sources, piggy
 from budget.spending import month_start
 from budget.web.common import Panel
 
@@ -79,6 +79,7 @@ def router(panel: Panel) -> APIRouter:
             hidden={o.id for o in offers if invest.is_hidden(o, clients)},
             sources_checked=invest_sources.checked(conn),
             sources_error=invest_sources.error(conn),
+            blogs_error=invest_blogs.error(conn),
             asset_kinds=invest.ASSET_KINDS,
             offer_kinds=invest.OFFER_KINDS,
         )
@@ -151,8 +152,16 @@ def router(panel: Panel) -> APIRouter:
 
     @r.post("/invest/offers/{offer_id}/confirm")
     async def confirm_offer(request: Request, offer_id: int) -> Response:
-        f = await request.form()
-        invest.confirm_offer(conn, offer_id, str(f.get("bank", "")))
+        f = {k: str(v) for k, v in (await request.form()).items()}
+        fields = (
+            {k: f.get(k, "") for k in ("rate", "limit_amount", "months", "conditions")}
+            if "rate" in f
+            else None
+        )
+        try:
+            invest.confirm_offer(conn, offer_id, f.get("bank", ""), fields)
+        except invest.InvestError as exc:
+            return panel.redirect(request, "/invest#offers", str(exc), "error")
         return panel.redirect(request, "/invest#offers", "Potwierdzono ofertę.")
 
     @r.post("/invest/banks")

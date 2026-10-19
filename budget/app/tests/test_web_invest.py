@@ -105,3 +105,24 @@ async def test_source_error_is_visible_on_the_page(
 
     await invest_sources.refresh(service.conn, NAIVE.replace(tzinfo=WARSAW), feed({}))
     assert "błąd odczytu od 19.10" in (await client.get("/invest")).text
+
+
+async def test_blog_offer_form_confirms_with_fixes_and_status_shows_accuracy(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    service.conn.execute(
+        "INSERT INTO invest_offer (kind, bank, rate, months, source, status, url, extracted, "
+        "created_at) VALUES ('deposit', 'Bank A', '5', 5, 'blog', 'review', 'https://x.example/a', "
+        '\'{"rate": "5", "limit_amount": null, "months": 5, "bank": "Bank A"}\', '
+        "'2026-10-19T07:00:00')"
+    )
+    page = (await client.get("/invest")).text
+    assert "z bloga (model AI)" in page and 'name="rate" value="5' in page
+    bad = await client.post("/invest/offers/1/confirm", data={"bank": "Bank A", "rate": "abc"})
+    assert bad.status_code == 303 and invest.all_offers(service.conn)[0].status == "review"
+    form = {"bank": "Bank A", "rate": "5,5", "months": "5", "limit_amount": "", "conditions": ""}
+    await client.post("/invest/offers/1/confirm", data=form)
+    assert invest.blog_accuracy(service.conn) == (0, 1)
+    service.settings = service.settings.model_copy(update={"ai_base_url": "http://r/v1"})
+    status = (await client.get("/status")).text
+    assert "Oferty z blogów — trafność" in status and "0 z 1 ocenionych" in status

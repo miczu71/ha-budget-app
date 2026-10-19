@@ -53,5 +53,8 @@ configuration:
   chat_daily_calls:
     name: Czat AI — limit wywołań na dobę
     description: Jedno pytanie w zakładce „Zapytaj” to 2 wywołania. 0 = czat wyłączony.
+  invest_daily_calls:
+    name: Oferty z blogów — limit wywołań AI na dobę
+    description: Jeden wpis bloga to 1 wywołanie. 0 = oferty z blogów wyłączone.
   log_level:
     name: Poziom logów

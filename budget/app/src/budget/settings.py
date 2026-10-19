@@ -53,6 +53,8 @@ class Settings(BaseModel):
     ai_model: str = "gemini-3.1-flash-lite"
     ai_daily_calls: int = Field(default=20, ge=0, le=500)
     chat_daily_calls: int = Field(default=40, ge=0, le=500)  # czat M12, 2 wywołania na pytanie
+    # oferty z blogów (M22 E3): jedno wywołanie na wpis
+    invest_daily_calls: int = Field(default=10, ge=0, le=500)
     dev: bool = False  # tylko env: panel bez allowlisty Ingress (lokalne testy)
     config_dir: Path = Path("/config")
     data_dir: Path = Path("/data")

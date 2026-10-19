@@ -9,7 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import ledger, report, sessions, summary, sync_service, year
+from budget import invest, invest_blogs, ledger, report, sessions, summary, sync_service, year
 from budget.ask import engine as ask
 from budget.categorize import engine, learn
 from budget.eb_client import PsuHeaders
@@ -100,6 +100,20 @@ def router(panel: Panel) -> APIRouter:
             "stats": suggest.stats(conn) if s.ai_enabled else {},
             "eval": db.kv_get(conn, suggest.EVAL_KEY),
             "busy": service.ai_lock.locked(),
+            "blog": blog_context() if s.ai_enabled else {},
+        }
+
+    def blog_context() -> dict[str, Any]:
+        s = service.settings
+        clean, total = invest.blog_accuracy(conn)
+        return {
+            "limit": s.invest_daily_calls,
+            "calls": suggest.usage(conn, service.now().date(), invest_blogs.USAGE_KEY).get(
+                "calls", 0
+            ),
+            "clean": clean,
+            "total": total,
+            "error": invest_blogs.error(conn),
         }
 
     @r.get("/status", response_class=HTMLResponse)
