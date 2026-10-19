@@ -168,3 +168,19 @@ zgodne z ekranem. Potem ROADMAP § Wynik i checkpoint użytkownika.
   76 676,79 zł za I–IX, każdy miesiąc zaniżony (−18…−36%). Wg tego planu: stop i decyzja usera.
 - Pytanie do czatu o rok: −1 744,20 zł = `sensor.budget_year_end`, pierwszy deficyt 2026-12.
 - Do oceny przez usera: tabela miesięcy na `/year` wobec nadchodzących opłat i wypłaty.
+
+## Diagnoza pomiaru i 0.56.1 (2026-10-19)
+- Wykluczone: nieskategoryzowane (pokrycie 100% w każdym miesiącu I.2025–IX.2026); wzrost wydatków ogółem
+  (śr. 2025 ok. 20 950 zł/mies., I–IX 2026 ok. 19 840 zł/mies., −5%).
+- Potwierdzone i naprawione (0.56.1): pierwszy miesiąc księgi (2024‑12, końcówka, 849 zł) wchodził do mediany
+  i średniej historii. Reguła: pomijany, gdy księga zaczyna się po 7. dniu (`year.PARTIAL_AFTER_DAY`); księga
+  krótsza niż miesiąc używa niepełnego. Pomiar po poprawce: **−19,8%** (było −24,5%), 11 mies. historii od 2025‑01.
+- Rozbicie (karta pomiaru od 0.56.1, I–IX 2026): Flex prognoza 5 718 zł/mies. (51 462 zł) vs fakt 73 736 zł
+  (śr. 8 193 zł) = **−22 274 zł (−30%)**; sezon (stałe+nieregularne bez serii) prognoza 10 048 zł vs fakt 2 942 zł
+  = **+7 106 zł** (zawyżony: rok wcześniej miał jednorazowe pozycje); razem −15 168 zł.
+- Interpretacja (hipoteza, niezweryfikowana): Flex w kategoriach „w prognozie” wzrósł z ok. 5,7 do 8,2 tys. zł/mies.,
+  choć w puli Budżetu (z kategoriami `year_skip`) wzrost to ok. 3% (8,6 → 8,9 tys.) — czyli udział pominiętych
+  kategorii skurczył się (ok. 2,9 → 0,7 tys. zł/mies.). Dzisiejsza mediana Flex (8 196 zł) zgadza się ze średnią
+  faktu 2026 (8 193 zł), więc bieżąca prognoza nie dziedziczy tego zaniżenia; backtest z 31.12.2025 mierzy zmianę
+  poziomu między pierwszym a drugim rokiem księgi.
+- Decyzja usera: otwarta (zaakceptować z adnotacją / ograniczyć sezon / ważyć świeższe miesiące).
