@@ -25,6 +25,12 @@ from budget.suggest import engine as suggest
 from budget.suggest.client import AIError
 
 KINDS = ("payments", "income", "balance", "manual")
+KIND_LABELS = {
+    "payments": "liczba płatności kartą",
+    "income": "suma wpływów (zł)",
+    "balance": "saldo na dzień (ręcznie)",
+    "manual": "inny krok (ręcznie)",
+}
 LEDGER_BANK = "millen"
 REMIND_DAYS = 7  # dzwonek: tyle dni przed końcem, gdy warunki niespełnione
 INCOME_KINDS = (Kind.TRANSFER_IN.value, Kind.OTHER.value)
@@ -83,6 +89,7 @@ class Condition:
 @dataclass(frozen=True)
 class Track:
     id: int
+    offer_id: int | None
     bank: str
     title: str
     start: date
@@ -146,6 +153,7 @@ def _track(conn: sqlite3.Connection, t: sqlite3.Row) -> Track:
     )
     return Track(
         t["id"],
+        t["offer_id"],
         t["bank"],
         t["title"],
         date.fromisoformat(t["start_date"]),
@@ -238,6 +246,13 @@ def toggle_condition(conn: sqlite3.Connection, condition_id: int) -> None:
     cur = conn.execute(
         "UPDATE promo_condition SET done = 1 - done, proposed = 0 WHERE id = ?", (condition_id,)
     )
+    if not cur.rowcount:
+        raise PromoError("Nie ma takiego warunku.")
+
+
+def confirm_condition(conn: sqlite3.Connection, condition_id: int) -> None:
+    """Zatwierdzenie propozycji LLM bez zmiany odhaczenia."""
+    cur = conn.execute("UPDATE promo_condition SET proposed = 0 WHERE id = ?", (condition_id,))
     if not cur.rowcount:
         raise PromoError("Nie ma takiego warunku.")
 

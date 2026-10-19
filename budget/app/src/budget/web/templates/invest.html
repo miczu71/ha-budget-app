@@ -104,6 +104,69 @@
   {% endif %}
 </section>
 
+<section class="card" id="promos">
+  <h2>Promocje w toku</h2>
+  {% set due, paid = promo_due %}
+  {% if promos %}<p class="small muted">Do odebrania: {{ due | money("PLN") }} · odebrane: {{ paid | money("PLN") }}. Płatności kartą i wpływy liczą się same tylko dla kont Millennium, resztę odhaczasz ręcznie.</p>{% endif %}
+  {% for t in promos %}
+  <div class="stats">
+    <div class="stat"><span class="stat-label">{{ t.bank }}</span><span class="stat-value">{{ t.title }}</span></div>
+    <div class="stat"><span class="stat-label">Okres</span><span class="stat-value">{{ t.start.strftime('%d.%m') }}–{{ t.end.strftime('%d.%m.%Y') }}</span><span class="small muted">{% if t.status == 'active' %}{% set d = t.days_left(today) %}{{ 'jeszcze ' ~ d ~ ' dni' if d >= 0 else 'minął termin' }}{% else %}{{ {'paid': 'premia odebrana', 'failed': 'nie wyszło', 'cancelled': 'porzucona'}[t.status] }}{% endif %}</span></div>
+    <div class="stat"><span class="stat-label">Premia</span><span class="stat-value">{{ (t.bonus | money("PLN")) if t.bonus else '—' }}</span></div>
+  </div>
+  <ul>
+    {% for c in t.conditions %}
+    <li>
+      {{ c.label }}{% if c.progress is not none %} — {{ c.progress | int }} / {{ c.target | int }}{% endif %}
+      {% if c.met %}<span class="badge">spełniony</span>{% endif %}{% if c.proposed %}<span class="badge warn">propozycja AI — sprawdź</span>{% endif %}
+      {% if t.status == 'active' %}
+      <div class="actions-row small">
+        {% if c.progress is none %}<form class="inline" method="post" action="{{ base }}/invest/promos/conditions/{{ c.id }}/toggle" hx-boost="false"><button class="link">{{ 'Cofnij' if c.done else 'Zrobione' }}</button></form>{% endif %}
+        {% if c.proposed %}<form class="inline" method="post" action="{{ base }}/invest/promos/conditions/{{ c.id }}/confirm" hx-boost="false"><button class="link">Zatwierdź</button></form>{% endif %}
+        <form class="inline" method="post" action="{{ base }}/invest/promos/conditions/{{ c.id }}/delete" hx-boost="false"><button class="link">Usuń</button></form>
+      </div>
+      {% endif %}
+    </li>
+    {% else %}
+    <li class="muted">Brak warunków — dodaj je poniżej.</li>
+    {% endfor %}
+  </ul>
+  {% if t.status == 'active' %}
+  <details class="piggy-new">
+    <summary>Warunki i premia</summary>
+    <form class="rule-form piggy-form" method="post" action="{{ base }}/invest/promos/{{ t.id }}/conditions" hx-boost="false">
+      <div class="inline">
+        <label>Rodzaj
+          <select name="kind">{% for k, label in condition_kinds.items() %}<option value="{{ k }}">{{ label }}</option>{% endfor %}</select>
+        </label>
+        <label>Opis<input name="label" maxlength="120" required placeholder="np. 5 płatności kartą"></label>
+        <label>Próg<input name="target" inputmode="decimal" size="8" placeholder="płatności / zł"></label>
+      </div>
+      <p class="actions-row"><button type="submit">Dodaj warunek</button></p>
+    </form>
+    <form class="rule-form piggy-form" method="post" action="{{ base }}/invest/promos/{{ t.id }}/bonus" hx-boost="false">
+      <label>Premia (zł)<input name="bonus" inputmode="decimal" size="8" value="{{ t.bonus or '' }}"></label>
+      <p class="actions-row"><button type="submit">Zapisz premię</button></p>
+    </form>
+  </details>
+  <div class="actions-row small">
+    {% if t.met %}
+    <form class="inline" method="post" action="{{ base }}/invest/promos/{{ t.id }}/paid" hx-boost="false">
+      <button name="paid_to" value="asset">Premia odebrana — dodaj do aktywów</button>
+      <button name="paid_to" value="income">Premia odebrana — tylko wpływ</button>
+    </form>
+    {% endif %}
+    <form class="inline" method="post" action="{{ base }}/invest/promos/{{ t.id }}/status" hx-boost="false">
+      <button class="link" name="status" value="failed">Nie wyszło</button>
+      <button class="link" name="status" value="cancelled">Porzuć</button>
+    </form>
+  </div>
+  {% endif %}
+  {% else %}
+  <p class="muted">Nic nie śledzisz. Przy potwierdzonej ofercie kliknij „Skorzystaj” — add-on zapisze okres promocji, wstępnie podpowie warunki i będzie przypominał przed końcem.</p>
+  {% endfor %}
+</section>
+
 <section class="card" id="offers">
   <h2>Oferty</h2>
   <p class="small muted">{% if sources_checked %}Obligacje, ranking lokat/kont i blogi pobrane {{ sources_checked.strftime('%d.%m %H:%M') }} (raz na dobę).{% else %}Obligacje, ranking lokat/kont i blogi zostaną pobrane przy najbliższym przebiegu add-onu (raz na dobę).{% endif %}{% if blogs_error %} <span class="badge warn">blogi: błąd od {{ blogs_error[1].strftime('%d.%m') }}</span> {{ blogs_error[0] }}{% endif %}{% if sources_error %} <span class="badge warn">błąd odczytu od {{ sources_error[1].strftime('%d.%m') }}</span> {{ sources_error[0] }}{% endif %}</p>
@@ -126,6 +189,11 @@
     </div>
     {% if o.source == 'blog' %}<label>Warunki<input name="conditions" value="{{ o.conditions }}" maxlength="300"></label>{% endif %}
     <p class="actions-row"><button type="submit">{{ 'Potwierdź (po poprawkach)' if o.source == 'blog' else 'Potwierdź' }}</button></p>
+  </form>
+  {% endif %}
+  {% if o.status == 'confirmed' and o.id not in tracked %}
+  <form class="actions-row small" method="post" action="{{ base }}/invest/offers/{{ o.id }}/track" hx-boost="false">
+    <button type="submit">Skorzystaj</button>
   </form>
   {% endif %}
   <form class="actions-row small" method="post" action="{{ base }}/invest/offers/{{ o.id }}/archive">

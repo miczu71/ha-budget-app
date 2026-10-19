@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import invest, invest_blogs, invest_sources, invest_why, piggy
+from budget import invest, invest_blogs, invest_sources, invest_why, piggy, promo_track
 from budget.web.common import Panel
 
 
@@ -61,6 +62,10 @@ def router(panel: Panel) -> APIRouter:
             assets=assets,
             edit_asset=next((a for a in assets if a.id == edit_asset), None),
             offers=offers,
+            promos=promo_track.tracks(conn),
+            promo_due=promo_track.register(conn),
+            tracked={t.offer_id for t in promo_track.tracks(conn, status="active")},
+            condition_kinds=promo_track.KIND_LABELS,
             banks=banks,
             hidden={o.id for o in offers if invest.is_hidden(o, clients)},
             sources_checked=invest_sources.checked(conn),
@@ -169,5 +174,83 @@ def router(panel: Panel) -> APIRouter:
     async def archive_offer(request: Request, offer_id: int) -> Response:
         invest.archive_offer(conn, offer_id)
         return panel.redirect(request, "/invest#offers", "Usunięto ofertę.")
+
+    def promo_action(request: Request, done: str, action: Callable[[], object]) -> Response:
+        try:
+            action()
+        except invest.InvestError as exc:
+            return panel.redirect(request, "/invest#promos", str(exc), "error")
+        return panel.redirect(request, "/invest#promos", done)
+
+    @r.post("/invest/offers/{offer_id}/track")
+    async def start_track(request: Request, offer_id: int) -> Response:
+        today = panel.service.now().date()
+        try:
+            track_id = promo_track.start(conn, offer_id, today)
+        except invest.InvestError as exc:
+            return panel.redirect(request, "/invest#offers", str(exc), "error")
+        note = await promo_track.propose(conn, panel.service.settings, today, track_id)
+        if note:
+            panel.flash.append(("warn", note))
+        return panel.redirect(request, "/invest#promos", "Dodano promocję do śledzenia.")
+
+    @r.post("/invest/promos/{track_id}/bonus")
+    async def set_bonus(request: Request, track_id: int) -> Response:
+        f = await request.form()
+        return promo_action(
+            request,
+            "Zapisano premię.",
+            lambda: promo_track.set_bonus(conn, track_id, str(f.get("bonus", ""))),
+        )
+
+    @r.post("/invest/promos/{track_id}/conditions")
+    async def add_condition(request: Request, track_id: int) -> Response:
+        f = {k: str(v) for k, v in (await request.form()).items()}
+        return promo_action(
+            request,
+            "Dodano warunek.",
+            lambda: promo_track.add_condition(
+                conn, track_id, f.get("kind", ""), f.get("label", ""), f.get("target")
+            ),
+        )
+
+    @r.post("/invest/promos/conditions/{condition_id}/toggle")
+    async def toggle_condition(request: Request, condition_id: int) -> Response:
+        return promo_action(
+            request, "Zapisano.", lambda: promo_track.toggle_condition(conn, condition_id)
+        )
+
+    @r.post("/invest/promos/conditions/{condition_id}/confirm")
+    async def confirm_condition(request: Request, condition_id: int) -> Response:
+        return promo_action(
+            request,
+            "Zatwierdzono warunek.",
+            lambda: promo_track.confirm_condition(conn, condition_id),
+        )
+
+    @r.post("/invest/promos/conditions/{condition_id}/delete")
+    async def delete_condition(request: Request, condition_id: int) -> Response:
+        return promo_action(
+            request, "Usunięto warunek.", lambda: promo_track.delete_condition(conn, condition_id)
+        )
+
+    @r.post("/invest/promos/{track_id}/status")
+    async def set_status(request: Request, track_id: int) -> Response:
+        f = await request.form()
+        return promo_action(
+            request,
+            "Zapisano.",
+            lambda: promo_track.set_status(conn, track_id, str(f.get("status", ""))),
+        )
+
+    @r.post("/invest/promos/{track_id}/paid")
+    async def mark_paid(request: Request, track_id: int) -> Response:
+        f = await request.form()
+        today = panel.service.now().date()
+        return promo_action(
+            request,
+            "Zapisano wypłatę premii.",
+            lambda: promo_track.mark_paid(conn, track_id, str(f.get("paid_to", "")), today),
+        )
 
     return r

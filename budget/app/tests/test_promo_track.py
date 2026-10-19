@@ -79,6 +79,16 @@ def test_other_bank_progress_is_manual(conn: sqlite3.Connection) -> None:
     assert promo_track.tracks(conn)[0].met
 
 
+def test_confirm_keeps_done_state(conn: sqlite3.Connection) -> None:
+    tid = promo_track.start(conn, offer(conn), TODAY)
+    cid = promo_track.add_condition(conn, tid, "manual", "Aplikacja", proposed=True)
+    promo_track.confirm_condition(conn, cid)
+    c = promo_track.tracks(conn)[0].conditions[0]
+    assert not c.proposed and not c.done
+    with pytest.raises(promo_track.PromoError):
+        promo_track.confirm_condition(conn, 999)
+
+
 def test_condition_validation(conn: sqlite3.Connection) -> None:
     tid = promo_track.start(conn, offer(conn), TODAY)
     for args in (("zły", "x", None), ("manual", " ", None), ("payments", "x", None)):

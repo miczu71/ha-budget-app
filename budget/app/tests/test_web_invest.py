@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 import httpx
 import pytest
 
-from budget import invest, invest_sources
+from budget import invest, invest_sources, promo_track
 from budget.service import Service
 
 from .test_web import INGRESS, _client
@@ -126,3 +126,36 @@ async def test_blog_offer_form_confirms_with_fixes_and_status_shows_accuracy(
     service.settings = service.settings.model_copy(update={"ai_base_url": "http://r/v1"})
     status = (await client.get("/status")).text
     assert "Oferty z blogów — trafność" in status and "0 z 1 ocenionych" in status
+
+
+async def test_promo_flow_from_offer_to_paid_bonus(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    await client.post(
+        "/invest/offers",
+        data={"kind": "account", "bank": "Bank X", "rate": "6", "months": "3", "conditions": "x"},
+    )
+    (offer,) = invest.all_offers(service.conn)
+    r = await client.post(f"/invest/offers/{offer.id}/track")
+    assert r.status_code == 303
+    page = (await client.get("/invest")).text
+    assert "Promocje w toku" in page and "Bank X" in page and "Skorzystaj" not in page
+    (track,) = promo_track.tracks(service.conn)
+    base = f"/invest/promos/{track.id}"
+    await client.post(f"{base}/conditions", data={"kind": "manual", "label": "Aplikacja"})
+    await client.post(f"{base}/bonus", data={"bonus": "250"})
+    cond = promo_track.tracks(service.conn)[0].conditions[0]
+    page = (await client.get("/invest")).text
+    assert "Aplikacja" in page and "Premia odebrana" not in page
+    await client.post(f"/invest/promos/conditions/{cond.id}/toggle")
+    assert "Premia odebrana" in (await client.get("/invest")).text
+    await client.post(f"{base}/paid", data={"paid_to": "asset"})
+    assert promo_track.tracks(service.conn)[0].status == "paid"
+    assert invest.assets_total(service.conn) == 250
+
+
+async def test_promo_errors_are_flashed_not_raised(client: httpx.AsyncClient) -> None:
+    r = await client.post("/invest/offers/999/track")
+    assert r.status_code == 303
+    r = await client.post("/invest/promos/999/paid", data={"paid_to": "asset"})
+    assert r.status_code == 303
