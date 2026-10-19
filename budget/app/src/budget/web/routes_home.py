@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import sqlite3
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -22,6 +21,7 @@ from budget import (
     spending,
     sync_service,
 )
+from budget.money import ZERO
 from budget.recurring import schedule
 from budget.spending import MONTHS, MONTHS_GEN, add_months, month_label, month_start, parse_month
 from budget.storage import db
@@ -76,21 +76,24 @@ class BalanceTiles:
 
 
 def balance_tiles(
-    panel: Panel, fc: forecast.Forecast | None, today: date, conn: sqlite3.Connection
+    panel: Panel,
+    fc: forecast.Forecast | None,
+    today: date,
+    sv: savings.Overview | None,
+    has_card: bool,
 ) -> BalanceTiles | None:
     """Salda nad hero (M31 E4): konto, karta, oszczędności ze skarbonkami; None bez sald."""
-    balances = fc.balances if fc else forecast.read_balances(conn)
+    balances = fc.balances if fc else forecast.read_balances(panel.conn)
     if balances is None:
         return None
     piggies = (
         fc.piggies if fc else piggy.statuses(panel.service.snapshot, today, month_start(today))
     )
-    sv = savings.overview(conn, today, 1)
-    in_piggies = sum((s.balance for s in piggies), Decimal(0))
+    in_piggies = sum((s.balance for s in piggies), ZERO)
     return BalanceTiles(
         account=balances.account,
-        card_debt=balances.card_debt if card.month_status(conn, today) else None,
-        savings=(sv.total if sv else Decimal(0)) + in_piggies,
+        card_debt=balances.card_debt if has_card else None,
+        savings=(sv.total if sv else ZERO) + in_piggies,
         piggy_total=in_piggies,
         piggies=sorted(piggies, key=lambda s: s.piggy.name.lower()),
     )
@@ -132,7 +135,9 @@ def router(panel: Panel) -> APIRouter:
                 )
             except Exception:
                 log.exception("Prognoza do wypłaty nieudana")
-        tiles = balance_tiles(panel, fc, today, conn) if f.is_current else None
+        sv = savings.overview(conn, today, 1)
+        cm = card.month_status(conn, today) if f.is_current else None
+        tiles = balance_tiles(panel, fc, today, sv, bool(cm)) if f.is_current else None
         sync_at = sync_service.last_success(conn)
         record = sessions.current(conn)
         return panel.render(
@@ -158,14 +163,14 @@ def router(panel: Panel) -> APIRouter:
             ),
             bars=charts.month_bars(spending.monthly_totals(conn, today), start),
             mv=mv,
-            sv=savings.overview(conn, today, 1),
+            sv=sv,
             upcoming=upcoming[:5],
             upcoming_more=max(len(upcoming) - 5, 0),
             recent=spending.recent(conn, start, nxt),
             sync_at=sync_at,
             stale=bool(sync_at and now - datetime.fromisoformat(sync_at) > STALE_AFTER),
             consent_days=record.days_left(now) if record and record.active else None,
-            cm=card.month_status(conn, today) if f.is_current else None,
+            cm=cm,
             cd=card.due_status(conn, today) if f.is_current else None,
             fc=fc,
             tiles=tiles,
