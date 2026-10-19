@@ -76,7 +76,7 @@ Wywiad 2026-10-19 rozszerzył go do pełnego doradcy i dołączył M17 (śledzen
 - Wydanie: `code-review` → `release` 0.57.0. Na żywo: stawki obligacji = obligacjeskarbowe.pl, 3 opcje = przeliczenie ręczne ±1 zł.
 - Rollback: backup add-onu z `ha_manage_updates` (backup=true) albo cofnięcie do 0.56.2.
 
-### E3 — RSS blogów + streszczenia LLM — ✅ 2026-10-19 (ab5811c, niewydane)
+### E3 — RSS blogów + streszczenia LLM — ✅ 2026-10-19 (ab5811c, wydane w 0.58.0)
 - Krok 0: sprawdzić kanały RSS 2–3 blogów (kandydaci: jakoszczedzacpieniadze.pl, subiektywnieofinansach.pl,
   bankier.pl/promocje) — lista do potwierdzenia w raporcie etapu. Parser RSS na stdlib `xml.etree` (bez nowej zależności).
 - Nowe wpisy → LLM (`suggest.metered_call`, osobny limit dzienny `invest_daily_calls`) → JSON wg schematu:
@@ -86,7 +86,7 @@ Wywiad 2026-10-19 rozszerzył go do pełnego doradcy i dołączył M17 (śledzen
 - Pomiar: karta na Status „Oferty z blogów — trafność” (potwierdzone bez poprawek / wszystkie); cel ≥ 8/10.
 - Rollback: `git revert`; opcja wyłączenia źródeł blogów w ustawieniach.
 
-### E4 — Dzwonek, push po wypłacie, czat → **wydanie 0.58.0**
+### E4 — Dzwonek, push po wypłacie, czat → **wydanie 0.58.0** — ✅ 2026-10-19 (44704c4, de614cf, 4043456)
 - Dostawcy dzwonka: `invest_better_offer` (oferta bije obecne miejsce o ≥ X zł/rok, X w ustawieniach,
   domyślnie 200 zł), `invest_maturity` (koniec lokaty lub wykup obligacji w ciągu 14 dni).
 - `summary`: wiadomość `invest_monthly` w dniu wypłaty (seria `payday_series_id`) przez istniejącą opcję
@@ -170,3 +170,19 @@ Wywiad 2026-10-19 rozszerzył go do pełnego doradcy i dołączył M17 (śledzen
   i Status); oferty z bloga starzeją się po 60 dniach (archiwizacja), wpisy starsze niż 30 dni pomijane; filtr wpisu = „lokat”
   lub „oszczędnościow” oraz „%”; blogi: 2 błędy modelu z rzędu kończą przebieg, 3 próby na wpis; kanały z DTD odrzucane (XXE).
 - Pominięte z `simplify`: wspólny helper błędów źródeł (też `wibor.py`), wspólny INSERT do `invest_offer`, rejestr źródeł.
+
+## Wynik E4 (2026-10-19, wydanie 0.58.0 razem z E3, 4043456)
+- Zrobione: `invest.advice` (wspólne dla `/invest`, pusha i czatu; opcjonalna kwota i horyzont), `better_offers`/`maturities`,
+  próg „lepsza oferta” w ustawieniach agenta (`better_offer`, domyślnie 200 zł/rok), dostawcy dzwonka `invest_better_offer`
+  i `invest_maturity` (14 dni), `summary.invest_message` + `Service.invest_due` (push `invest_monthly` w oknie 3 dni po
+  wykryciu wypłaty, raz na wypłatę), źródło czatu `invest` (do LLM rodzaje opcji, bez nazw), `invest_why` (2–3 zdania od
+  modelu z kwot zbiorczych; odcisk wejścia w kv, wywołanie tylko po zmianie rekomendacji, rezerwa +1 ponad `invest_daily_calls`).
+- Weryfikacja: 1060 testów, ruff i mypy czyste; devserve 390/1280 px bez przepełnienia, konsola czysta; `simplify` (4 agenci)
+  i `code-review` high (10 uwag, naprawione: `error_since` po wyzdrowieniu, link tylko http(s), dedup ofert z blogów,
+  okno pusha, redakcja nazw w czacie, `InvestError` przy złym limicie, try/except wokół watcherów). Na żywo (Ingress):
+  0.58.0, `/invest` 200, pole progu, „Do sprawdzenia (4)”, karta „Oferty z blogów — trafność” na Status, konsola czysta.
+- Do sprawdzenia przez usera: pomiar trafności „≥ 8/10” (potwierdzanie ofert z blogów); brak kart dzwonka na żywo jest
+  oczekiwany (brak potwierdzonej oferty bijącej konto o ≥ 200 zł i brak terminów w 14 dni); uzasadnienie pojawi się dopiero
+  przy nadwyżce (dziś deficyt −2 887 zł); pierwszy push po wypłacie — do zaobserwowania.
+- Znane ograniczenia: dzwonek liczy `better_offers` przy każdym renderze (tanie przy kilku kontach/ofertach, bez memo);
+  porównanie lokaty z kontem płynnym jest roczne (opis w karcie wspomina o blokadzie środków).
