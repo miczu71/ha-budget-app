@@ -228,3 +228,8 @@ async def test_two_sources_colliding_labels_restored(
     assert len({f["label"] for r in payload["results"] for f in r["facts"]}) == 2
     assert engine.restore(" ".join(labels), labels) == "Netflix Czynsz"
     assert labels["[Seria 1]"] == "Netflix"
+
+
+def test_answer_prompt_requires_saying_when_funds_fall_short() -> None:
+    prompt = engine.answer_prompt("Czy starczy?", {"source": "payday", "facts": []})
+    assert "Starczy do wypłaty: nie" in prompt and "wprost" in prompt

@@ -243,14 +243,19 @@ def set_budget(conn: sqlite3.Connection, month: date, amount: Decimal | None) ->
 # --- wyliczenie -------------------------------------------------------------------------------
 
 
-def first_month(conn: sqlite3.Connection) -> date | None:
+def first_day(conn: sqlite3.Connection) -> date | None:
     row = conn.execute(
         "SELECT min(coalesce(t.tx_date, t.booking_date)) FROM txn t "
         "JOIN account a ON a.id = t.account_id "
         "WHERE t.status = 'BOOK' AND a.include_in_budget = 1 AND t.currency = ?",
         (BASE_CURRENCY,),
     ).fetchone()
-    return month_start(date.fromisoformat(row[0][:10])) if row and row[0] else None
+    return date.fromisoformat(row[0][:10]) if row and row[0] else None
+
+
+def first_month(conn: sqlite3.Connection) -> date | None:
+    day = first_day(conn)
+    return month_start(day) if day else None
 
 
 def pool_series(snap: Snapshot) -> Pool:

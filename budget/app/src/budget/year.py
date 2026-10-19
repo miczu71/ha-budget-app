@@ -28,6 +28,7 @@ HISTORY_MONTHS = 12  # pełne miesiące historii do mediany Flex i sezonowości
 FLEX_KEY = "year_flex"  # kv: ręczny miesięczny Flex (zamiast mediany)
 BACKTEST_KEY = "year_backtest"  # kv: ostatni pomiar metody (Status)
 TARGET_KEY = "year_target"  # kv: cel salda na koniec horyzontu (domyślnie 0)
+PARTIAL_AFTER_DAY = 7  # księga zaczęta później ma w pierwszym miesiącu tylko końcówkę
 SEASONAL_GROUPS = ("non_monthly", "fixed")  # grupy, których wydatki bez serii są „roczne”
 PENDING = (schedule.EXPECTED, schedule.LATE)
 
@@ -166,9 +167,19 @@ class History:
     flex: Decimal = ZERO  # mediana miesięcznych wydatków elastycznych
     irregular: Decimal = ZERO  # (suma − n × mediana) / n: rzadkie duże wydatki po równo
     months: int = 0
+    first: date | None = None  # pierwszy miesiąc w historii
     seasonal: dict[date, Decimal] = field(default_factory=dict)  # roczne bez serii wg miesięcy
     skipped: Decimal = ZERO  # średnio miesięcznie w kategoriach z `year_skip` (poza prognozą)
     skipped_names: list[str] = field(default_factory=list)
+
+
+def _first_full_month(conn: sqlite3.Connection) -> date | None:
+    """Pierwszy miesiąc księgi, który ma pełną historię: gdy księga zaczyna się po
+    `PARTIAL_AFTER_DAY`, jej pierwszy miesiąc to końcówka i zaniżałby medianę oraz średnią."""
+    day = flex.first_day(conn)
+    if day is None:
+        return None
+    return add_months(month_start(day), 1) if day.day > PARTIAL_AFTER_DAY else month_start(day)
 
 
 def _lookback(month: date, today: date) -> date:
@@ -211,7 +222,7 @@ def history(
     """Mediana Flex i korekta z `HISTORY_MONTHS` pełnych miesięcy oraz sezonowe wydatki roczne
     bez serii (grupy `SEASONAL_GROUPS`, transakcje serii i skarbonek pomijane). `skip`/`skip_all`
     można podać, gdy wołający już je policzył."""
-    first = flex.first_month(snap.conn)
+    first = _first_full_month(snap.conn)
     cur = month_start(today)
     if first is None:
         return History()
@@ -223,7 +234,7 @@ def history(
         m for m in (add_months(cur, -n) for n in range(HISTORY_MONTHS, 0, -1)) if m >= first
     ]
     spent = [flex.spent_between(snap, m, add_months(m, 1), skip, flexible) for m in history_months]
-    out = History(months=len(spent))
+    out = History(months=len(spent), first=history_months[0] if history_months else None)
     if spent:
         median = Decimal(statistics.median(spent))
         out.flex = median.quantize(money.CENT)
@@ -304,28 +315,49 @@ def backtest(snap: Snapshot, today: date, at: str) -> dict[str, object]:
     skip, skip_all = flex.pool_series(snap).skip, _skip_all(snap)
     leaves, flexible = _in_forecast(snap.conn, list(taxonomy.leaves(snap.conn).values()))
     h = history(snap, date(today.year - 1, 12, 31), skip, skip_all)
-    rows: list[tuple[date, Decimal, Decimal]] = []
+
+    def cents(value: Decimal) -> str:
+        return str(value.quantize(money.CENT))
+
+    base = h.flex + h.irregular
+    rows: list[dict[str, str]] = []
+    total_predicted = total_actual = ZERO
     month = date(today.year, 1, 1)
     while month < month_start(today):
-        predicted = h.flex + h.irregular + h.seasonal.get(month, ZERO)
-        actual = flex.spent_between(
-            snap, month, add_months(month, 1), skip, flexible
-        ) + _seasonal_spent(snap, month, skip_all, leaves)
-        rows.append((month, predicted.quantize(money.CENT), actual.quantize(money.CENT)))
+        seasonal = h.seasonal.get(month, ZERO)
+        actual_flex = flex.spent_between(snap, month, add_months(month, 1), skip, flexible)
+        actual_seasonal = _seasonal_spent(snap, month, skip_all, leaves)
+        predicted, actual = base + seasonal, actual_flex + actual_seasonal
+        total_predicted += predicted.quantize(money.CENT)
+        total_actual += actual.quantize(money.CENT)
+        rows.append(
+            {
+                "month": f"{month:%Y-%m}",
+                "predicted": cents(predicted),
+                "actual": cents(actual),
+                "flex": cents(base),
+                "seasonal": cents(seasonal),
+                "actual_flex": cents(actual_flex),
+                "actual_seasonal": cents(actual_seasonal),
+            }
+        )
         month = add_months(month, 1)
-    predicted = sum((p for _, p, _ in rows), ZERO)
-    actual = sum((a for _, _, a in rows), ZERO)
-    error = round(float((predicted - actual) / actual * 100), 1) if actual else None
+    error = (
+        round(float((total_predicted - total_actual) / total_actual * 100), 1)
+        if total_actual
+        else None
+    )
     return {
         "at": at,
-        "months": [
-            {"month": f"{m:%Y-%m}", "predicted": str(p), "actual": str(a)} for m, p, a in rows
-        ],
-        "predicted": str(predicted),
-        "actual": str(actual),
+        "months": rows,
+        "predicted": str(total_predicted),
+        "actual": str(total_actual),
         "error_pct": error,
         "within_10": error is not None and abs(error) <= 10,
         "history_months": h.months,
+        "history_from": f"{h.first:%Y-%m}" if h.first else None,
+        "flex": str(h.flex),
+        "irregular": str(h.irregular),
     }
 
 

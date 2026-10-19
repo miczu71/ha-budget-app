@@ -16,7 +16,7 @@ from budget.snapshot import Snapshot
 from budget.spending import add_months
 from budget.storage import db
 
-from .test_categorize_engine import conn
+from .test_categorize_engine import add, conn
 from .test_flex import serie, spend
 from .test_forecast import snapshot
 from .test_recurring_schedule import make
@@ -177,6 +177,26 @@ def test_history_median_irregular_and_seasonal(conn: sqlite3.Connection) -> None
     assert h.seasonal[date(2026, 11, 1)] == D("0.00")
 
 
+def test_history_leaves_out_ledger_first_month_started_late(conn: sqlite3.Connection) -> None:
+    """Księga zaczęta pod koniec miesiąca ma w nim tylko końcówkę — to nie jest typowy miesiąc."""
+    t = add(conn, "-10.00", "transfer_out", "start", "ODBIORCA spozywcze", day="2025-10-28")
+    engine.set_manual(conn, t, _slug_id(conn, "spozywcze"))
+    for m in months(date(2025, 11, 1), 11):
+        spend(conn, "100.00", m, "spozywcze")
+    engine.recategorize(conn)
+    h = year.history(Snapshot(conn), TODAY)
+    assert (h.months, h.flex, h.irregular) == (11, D("100.00"), D("0.00"))
+
+
+def test_history_keeps_ledger_first_month_started_at_the_beginning(
+    conn: sqlite3.Connection,
+) -> None:
+    for m in months(date(2025, 10, 1), 12):  # `spend` księguje 7. dnia
+        spend(conn, "100.00", m, "spozywcze")
+    engine.recategorize(conn)
+    assert year.history(Snapshot(conn), TODAY).months == 12
+
+
 def test_seasonal_ignores_payments_covered_by_a_series(conn: sqlite3.Connection) -> None:
     seeded(conn)
     serie(conn, "ubezpieczenia", "600.00", cadence="Y")
@@ -276,6 +296,20 @@ def test_backtest_compares_non_series_spend_with_forecast_from_december(
     ]
     assert (out["predicted"], out["actual"], out["error_pct"]) == ("200.00", "250.00", -20.0)
     assert out["history_months"] == 12 and not out["within_10"]
+
+
+def test_backtest_shows_components_of_forecast_and_fact(conn: sqlite3.Connection) -> None:
+    for m in months(date(2024, 12, 1), 15):
+        spend(conn, "100.00", m, "spozywcze")
+    spend(conn, "600.00", "2025-02", "ubezpieczenia")
+    spend(conn, "50.00", "2026-02", "spozywcze")
+    spend(conn, "700.00", "2026-02", "ubezpieczenia")
+    engine.recategorize(conn)
+    out = year.backtest(Snapshot(conn), date(2026, 3, 10), "now")
+    feb = out["months"][1]  # type: ignore[index]
+    assert (feb["flex"], feb["seasonal"]) == ("100.00", "600.00")
+    assert (feb["actual_flex"], feb["actual_seasonal"]) == ("150.00", "700.00")
+    assert (out["flex"], out["irregular"], out["history_from"]) == ("100.00", "0.00", "2024-12")
 
 
 def test_backtest_leaves_out_skipped_categories(conn: sqlite3.Connection) -> None:
@@ -381,3 +415,28 @@ async def test_year_page_renders_and_saves_settings(service: Service) -> None:
     async with _client(service) as client:
         await client.post("/year/settings", data={"flex": "1200", "target": "500"})
     assert year.settings(service.conn) == (D("1200.00"), D("500.00"))
+
+
+@pytest.mark.asyncio
+async def test_status_year_eval_card_shows_components(service: Service) -> None:
+    service.conn.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (1, 'current', 'PLN', ?)",
+        ("2026-03-01T08:00:00+01:00",),
+    )
+    for m in months(date(2024, 12, 1), 15):
+        spend(service.conn, "100.00", m, "spozywcze")
+    engine.recategorize(service.conn)
+    db.kv_set(
+        service.conn,
+        year.BACKTEST_KEY,
+        year.backtest(Snapshot(service.conn), date(2026, 3, 10), "2026-03-10T08:00:00+01:00"),
+    )
+    async with _client(service) as client:
+        page = (await client.get("/status")).text
+    assert "historia od 2024-12" in page and "w tym sezon" in page
+    old = year.backtest(Snapshot(service.conn), date(2026, 3, 10), "2026-03-10T08:00:00+01:00")
+    for key in ("flex", "irregular", "history_from"):
+        old.pop(key)  # pomiar zapisany przez 0.56.0
+    db.kv_set(service.conn, year.BACKTEST_KEY, old)
+    async with _client(service) as client:
+        assert "w tym sezon" not in (await client.get("/status")).text
