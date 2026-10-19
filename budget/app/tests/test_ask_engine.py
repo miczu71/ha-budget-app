@@ -233,3 +233,9 @@ async def test_two_sources_colliding_labels_restored(
 def test_answer_prompt_requires_saying_when_funds_fall_short() -> None:
     prompt = engine.answer_prompt("Czy starczy?", {"source": "payday", "facts": []})
     assert "Starczy do wypłaty: nie" in prompt and "wprost" in prompt
+
+
+def test_plan_prompt_tells_model_two_screens_are_not_unsupported() -> None:
+    prompt = " ".join(engine.plan_prompt("?", [], TODAY, "2025-01").split())
+    assert "nie wpisuj unsupported" in prompt
+    assert "source: card, source2: payday" in prompt
