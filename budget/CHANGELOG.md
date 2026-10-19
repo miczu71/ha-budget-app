@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.59.0
+
+**Śledzenie promocji bankowych** (M22 E5, dawne M17, `docs/PLAN_M22.md`) — razem z 0.58.1 (nagłówek `User-Agent`
+w zapytaniach do routera LLM, bez zmian w działaniu).
+
+- „Inwestycje” → „Promocje w toku”: przy potwierdzonej ofercie przycisk „Skorzystaj” zapisuje okres promocji
+  (długość z oferty, domyślnie 3 mies.). Model wstępnie podpowiada premię i warunki z opisu oferty — to tylko
+  propozycje do zatwierdzenia lub poprawienia; gdy AI jest wyłączone albo zawiedzie, dodajesz warunki ręcznie.
+- Warunki: liczba płatności kartą, suma wpływów, saldo na dzień i inny krok. Płatności i wpływy liczą się
+  same z księgi tylko dla konta Millennium (wpływy bez przelewów własnych); reszta warunków i inne banki — ręczne
+  „Zrobione”. Warunki liczone w okresie całej promocji.
+- Przypomnienia: dzwonek (7 dni przed końcem, po spełnieniu warunków „odbierz premię”, po terminie „oznacz wynik”)
+  i push 5 oraz 1 dzień przed końcem, gdy warunki niespełnione.
+- Rejestr premii: należne i odebrane; odebraną premię dopisujesz do aktywów albo tylko do wpływów. Odebranej
+  promocji nie da się już cofnąć.
+- Migracja bazy 025 (addytywna): tabele `promo_track` i `promo_condition`.
+
 ## 0.58.1
 
 - Zapytania do routera LLM niosą nagłówek `User-Agent: ha-budget/<wersja>`, dzięki czemu panel LLM (:3004) pokazuje, który add-on używa którego modelu. Bez zmian w działaniu.

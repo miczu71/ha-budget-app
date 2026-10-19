@@ -106,7 +106,10 @@ Wywiad 2026-10-19 rozszerzył go do pełnego doradcy i dołączył M17 (śledzen
 - Wydanie: `code-review` → `release`. Na żywo: jedna promocja testowa z warunkiem ręcznym i z licznikiem z księgi.
 - Rollback: backup add-onu, cofnięcie do 0.58.0.
 
-### E5 — start (2026-10-19, wstrzymane przez limit; nic z E5 jeszcze nie napisane)
+### E5 — wynik (2026-10-19, **0.59.0**)
+Kroki 1–7 zrobione wg listy niżej; po `simplify` i `code-review` dodano: blokadę duplikatu śledzenia oferty, niezmienność odebranej promocji, wpływy bez przelewów własnych (`transfer_group`), obsługę `PiggyError` w trasach i propozycjach AI. Decyzje wykonawcze jak niżej. Nie zrobione świadomie: wspólny harmonogram przypomnień (dzwonek 7 dni, push 5 i 1), N+1 po warunkach.
+
+### E5 — start (plan kroków)
 Stan: `main` HEAD `d4725fe` (osobny commit `User-Agent` w `suggest/client.py`, niewypchnięty), produkcja 0.58.0.
 Kolejność po odnowieniu limitu (tdd, każdy krok: pytest + ruff + mypy):
 1. Migracja `025_promo_track.sql`: `promo_track` (offer_id, bank, tytuł, start, koniec, premia, `ledger`, status active/paid/failed/cancelled,
