@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.57.0
+
+**Agent inwestycyjny: oferty z sieci** (M22 E2, `docs/PLAN_M22.md`).
+
+- „Inwestycje”: raz na dobę add-on pobiera oprocentowanie obligacji skarbowych (EDO, COI, TOS, DOR, ROR — stawka
+  pierwszego roku i marża ze strony serii) oraz najlepsze oferty z rankingu lokat i kont oszczędnościowych.
+  Wszystko wchodzi do porównania netto obok nadpłaty kredytu i konta oszczędnościowego.
+- Ranking nie podaje banku jako osobnego pola — add-on rozpoznaje go po nazwie i adresie oferty. Oferty, których
+  banku nie rozpoznał, czekają w sekcji „Do sprawdzenia” (popraw nazwę i potwierdź albo odrzuć) i nie liczą się
+  w porównaniu. Każda oferta z rankingu ma link do opisu.
+- „Moje banki”: oferty „tylko dla nowych klientów” z banków z tej listy są pomijane w porównaniu.
+- Błąd odczytu któregokolwiek źródła nie blokuje pozostałych; po 3 dniach pojawia się karta w dzwonku.
+- Migracji bazy nie ma (tabele z 0.56.x dodane w E1).
+
 ## 0.56.2
 
 - Czat: pytania łączące dwa ekrany stanu (np. płatności kartą i kwota do wypłaty) nie kończą się już tak często
