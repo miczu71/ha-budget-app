@@ -428,7 +428,7 @@ def build(
                 plan,
                 safe,
             )
-            # minione i bieżący tydzień pokrywają dokładnie [start, jutro)
+            # minione i bieżący tydzień pokrywają dokładnie (start, jutro)
             spent_since = sum((w.spent for w in week_list), ZERO)
         else:
             spent_since = flex.spent_between(snap, start, today + timedelta(days=1), skip)
@@ -470,15 +470,17 @@ def weeks(
     plan: Decimal | None,
     safe: Decimal | None,
 ) -> list[Week]:
-    """Tygodnie pon–nd okresu [start, payday) (czysta logika; `spent(a, b)` = wydane w [a, b)).
+    """Tygodnie pon–nd okresu (`start`, `payday`] (czysta logika; `spent(a, b)` = wydane w [a, b)).
+    `start` to dzień ostatniej wypłaty, `payday` — następnej. Pensja przychodzi po południu, więc
+    dzień wypłaty kończy stary okres (w dniu wpływu nowy nie ma jeszcze bieżącego tygodnia).
     Minione mierzy limit z początku okresu (`plan`), a bieżący i przyszłe — dzisiejszy `safe`
     od jutra (dzisiejsze wydatki są już w saldzie), więc przekroczenie obniża kolejne tygodnie."""
     plan_day = None if plan is None else max(plan, ZERO)
     safe_day = None if safe is None else max(safe, ZERO)
     result: list[Week] = []
-    ws = start
-    while ws < payday:
-        we = min(ws + timedelta(days=6 - ws.weekday()), payday - timedelta(days=1))
+    ws = start + timedelta(days=1)
+    while ws <= payday:
+        we = min(ws + timedelta(days=6 - ws.weekday()), payday)
         days = (we - ws).days + 1
         if we < today:
             limit = None if plan_day is None else plan_day * days
