@@ -18,6 +18,8 @@ from typing import Any
 
 import httpx
 
+from .. import __version__
+
 MIN_MAX_TOKENS = 1500
 RETRY_STATUSES = frozenset({429, 502, 503})
 RETRY_DELAYS = (2.0, 6.0)
@@ -98,7 +100,7 @@ async def complete(
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> tuple[dict[str, Any], int]:
     """(odpowiedź jako dict, zużyte tokeny)."""
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "User-Agent": f"ha-budget/{__version__}"}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
     body = {
