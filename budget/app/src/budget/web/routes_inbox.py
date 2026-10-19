@@ -14,7 +14,7 @@ def router(panel: Panel) -> APIRouter:
 
     @r.get("/inbox", response_class=HTMLResponse)
     async def inbox_page(request: Request) -> HTMLResponse:
-        every = panel.service.inbox_all()
+        every = inbox.not_deleted(panel.conn, panel.service.inbox_all())
         shown = inbox.visible(panel.conn, every)
         return panel.render(
             request, "inbox.html", items=shown, hidden_count=len(every) - len(shown)
@@ -25,6 +25,14 @@ def router(panel: Panel) -> APIRouter:
         request: Request, key: str = Form(...), back: str = Form("/inbox")
     ) -> Response:
         inbox.dismiss(panel.conn, key, panel.service.inbox_all())
+        panel.service.refresh_soon()
+        return panel.redirect(request, back if back in ("/", "/inbox") else "/inbox")
+
+    @r.post("/inbox/delete")
+    async def inbox_delete(
+        request: Request, key: str = Form(...), back: str = Form("/inbox")
+    ) -> Response:
+        inbox.delete(panel.conn, key)
         panel.service.refresh_soon()
         return panel.redirect(request, back if back in ("/", "/inbox") else "/inbox")
 

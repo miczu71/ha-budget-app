@@ -23,5 +23,5 @@
 {% if hidden_count %}
 <form method="post" action="{{ base }}/inbox/restore"><button type="submit" class="secondary tap">Przywróć ukryte ({{ hidden_count }})</button></form>
 {% endif %}
-<p class="small muted">Karta znika, gdy sprawa zostanie załatwiona albo gdy ją ukryjesz (wróci, jeśli zmieni się jej tytuł). Ta sama lista jest w Home Assistant jako encja „Do decyzji w panelu”.</p>
+<p class="small muted">Karta znika, gdy sprawa zostanie załatwiona, gdy ją ukryjesz (wróci, jeśli zmieni się jej tytuł) albo gdy ją usuniesz (kosz — nie wraca, dopóki jej tytuł się nie zmieni). Ta sama lista jest w Home Assistant jako encja „Do decyzji w panelu”.</p>
 {% endblock %}

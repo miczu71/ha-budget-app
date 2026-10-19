@@ -478,6 +478,31 @@ async def test_inbox_dismiss_hides_card_and_restore_brings_it_back(
     assert "Przywróć ukryte" not in (await client.get("/inbox")).text
 
 
+async def test_inbox_delete_removes_card_for_good(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    service.settings = service.settings.model_copy(update={"forecast_buffer": 1_000_000})
+    card = next(i for i in service.inbox() if i.kind == "forecast_low")
+    assert "/inbox/delete" in (await client.get("/inbox")).text
+    resp = await client.post("/inbox/delete", data={"key": card.key, "back": "/"})
+    assert resp.status_code == 303
+    assert "forecast_low" not in [i.kind for i in service.inbox()]
+    page = (await client.get("/inbox")).text
+    assert card.title not in page and "Przywróć ukryte" not in page  # usunięta ≠ ukryta
+    await client.post("/inbox/restore")
+    assert "forecast_low" not in [i.kind for i in service.inbox()]
+    assert "forecast_low" in [i.kind for i in service.inbox_all()]
+
+
+def test_inbox_delete_survives_dismiss_pruning(service: Service) -> None:
+    gone = inbox.Item("promo_wait", "Profit: czekam na regulamin edycji 77", 1, "/piggy")
+    other = inbox.Item("series_proposed", "Nowe płatności cykliczne", 1, "/recurring")
+    inbox.delete(service.conn, gone.key)
+    inbox.dismiss(service.conn, other.key, [other])  # „gone” nie istnieje, a usunięcie zostaje
+    assert inbox.visible(service.conn, [gone, other]) == []
+
+
 def test_inbox_dismiss_is_per_title_and_forgets_gone_cards(service: Service) -> None:
     old = inbox.Item("promo_wait", "Profit: czekam na regulamin edycji 77", 1, "/piggy")
     new = inbox.Item("promo_wait", "Profit: czekam na regulamin edycji 78", 1, "/piggy")

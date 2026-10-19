@@ -40,6 +40,7 @@ from budget.storage import db
 
 Severity = Literal["info", "warn", "error"]
 DISMISSED_KEY = "inbox_dismissed"  # kv: klucze ręcznie ukrytych kart (`Item.key`)
+DELETED_KEY = "inbox_deleted"  # kv: klucze kart usuniętych na stałe (bez przywracania)
 CONSENT_DAYS = 30  # zgoda kończy się za mniej niż tyle dni → karta (push wg opcji add-onu)
 
 
@@ -436,9 +437,24 @@ def _dismissed(conn: sqlite3.Connection) -> set[str]:
     return set(db.kv_get(conn, DISMISSED_KEY) or [])
 
 
+def _deleted(conn: sqlite3.Connection) -> set[str]:
+    return set(db.kv_get(conn, DELETED_KEY) or [])
+
+
 def visible(conn: sqlite3.Connection, every: list[Item]) -> list[Item]:
-    hidden = _dismissed(conn)
+    hidden = _dismissed(conn) | _deleted(conn)
     return [i for i in every if i.key not in hidden]
+
+
+def not_deleted(conn: sqlite3.Connection, every: list[Item]) -> list[Item]:
+    gone = _deleted(conn)
+    return [i for i in every if i.key not in gone]
+
+
+def delete(conn: sqlite3.Connection, key: str) -> None:
+    """Usuwa kartę na stałe: klucz (rodzaj + tytuł) zostaje na liście także po zniknięciu karty,
+    więc karta o stałym tytule nie wróci, a zmiana tytułu to nowa karta."""
+    db.kv_set(conn, DELETED_KEY, sorted(_deleted(conn) | {key}))
 
 
 def dismiss(conn: sqlite3.Connection, key: str, current: list[Item]) -> None:
