@@ -131,7 +131,7 @@ def parse_feed(xml: str) -> list[Post]:
     for it in root.iterfind("./channel/item"):
         link, title = it.findtext("link"), it.findtext("title")
         stamp = it.findtext("pubDate")
-        if not (link and title and stamp):
+        if not (link and title and stamp and link.strip().startswith(("http://", "https://"))):
             continue
         try:
             published = parsedate_to_datetime(stamp).astimezone(UTC)
@@ -206,7 +206,7 @@ def parse_offers(result: dict[str, Any]) -> list[Extracted]:
             Extracted(
                 bank,
                 kind,
-                rate.normalize(),
+                Decimal(format(rate.normalize(), "f")),
                 limit if limit is not None and limit > 0 else None,
                 months,
                 " ".join(str(raw.get("conditions", "")).split())[:300],
@@ -234,6 +234,12 @@ def _store(conn: sqlite3.Connection, post: Post, found: list[Extracted]) -> None
     now = db.now_iso()
     for e in found:
         rate = str(e.rate)
+        if conn.execute(  # ta sama oferta z innego wpisu albo z rankingu nie wraca do kolejki
+            "SELECT 1 FROM invest_offer WHERE archived_at IS NULL AND kind = ? AND rate = ? "
+            "AND lower(bank) = lower(?)",
+            (e.kind, rate, e.bank),
+        ).fetchone():
+            continue
         limit = None if e.limit is None else str(e.limit)
         extracted = {"rate": rate, "limit_amount": limit, "months": e.months, "bank": e.bank}
         conn.execute(
@@ -327,7 +333,7 @@ async def refresh(
     raw["tries"] = {k: v for k, v in tries.items() if k not in seen}
     if errors:
         raw["error"] = "; ".join(errors)[:300]
-        raw.setdefault("error_since", now.isoformat())
+        raw["error_since"] = raw.get("error_since") or now.isoformat()
     else:
         raw.update(error=None, error_since=None)
     db.kv_set(conn, KEY, raw)

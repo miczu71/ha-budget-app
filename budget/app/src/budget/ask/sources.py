@@ -412,8 +412,18 @@ def _invest(c: Ctx) -> SourceResult:
         Fact("Nadwyżka miesięczna", f"brak ({surplus})" if adv.rec.state == "deficit" else surplus)
     )
     for p in adv.rec.parts:  # przy deficycie pusta
-        opt = p.option.label if p.option else "brak pasującej opcji"
-        facts.append(Fact(f"Odłóż w koszyku {p.bucket}", f"{pl(p.amount, 'PLN')} → {opt}"))
+        name = invest.BUCKET_NAMES.get(p.bucket, "cele")
+        if p.option is None:
+            facts.append(Fact(f"Odłóż: {name}", f"{pl(p.amount, 'PLN')} → brak pasującej opcji"))
+            continue
+        kind = invest.OPTION_KINDS.get(p.option.key, "oferta")
+        facts.append(  # nazwa banku, konta i kredytu zostaje w etykiecie, do modelu idzie rodzaj
+            Fact(
+                f"Odłóż: {name} → {p.option.label}",
+                f"{pl(p.amount, 'PLN')} → {kind}",
+                llm_label=f"Odłóż: {name} → [{kind}]",
+            )
+        )
     for i, o in enumerate(adv.options[:TOP_OPTIONS], 1):
         kind = invest.OPTION_KINDS.get(o.key, "oferta")
         access = "płynna" if o.liquid else "związana"

@@ -362,3 +362,30 @@ async def test_refresh_accepts_timezone_aware_now(conn: sqlite3.Connection) -> N
     aware = datetime(2026, 10, 19, 9, 0, tzinfo=ZoneInfo("Europe/Warsaw"))
     await blogs.refresh(conn, AI, aware, getter(feed(DEPOSIT)), Fake(ANSWER))
     assert len(rows(conn)) == 1 and blogs.error(conn) is None
+
+
+# --- poprawki z code-review (E3/E4) ---
+
+
+def test_feed_ignores_non_http_links() -> None:
+    bad = item("Lokata", "javascript:alert(1)", "Thu, 15 Oct 2026", "Lokata 5%.")
+    assert blogs.parse_feed(feed(bad)) == []
+
+
+def test_whole_ten_rate_is_not_scientific_notation() -> None:
+    raw = {**ANSWER["offers"][0], "rate": 10}
+    (e,) = blogs.parse_offers({"offers": [raw]})
+    assert str(e.rate) == "10"
+
+
+async def test_error_is_reported_again_after_a_recovery(conn: sqlite3.Connection) -> None:
+    await blogs.refresh(conn, AI, NOW, getter(feed(OFFTOPIC)), Fake())  # sukces: błąd wyczyszczony
+    assert blogs.error(conn) is None
+    await blogs.refresh(conn, AI, NOW, getter("nie xml"), Fake())
+    assert blogs.error(conn) is not None
+
+
+async def test_same_offer_from_second_post_is_stored_once(conn: sqlite3.Connection) -> None:
+    again = item("Ta sama lokata", "https://blog.example/inna/", "Fri, 16 Oct 2026", "Lokata 5%.")
+    await blogs.refresh(conn, AI, NOW, getter(feed(DEPOSIT, again)), Fake(ANSWER, ANSWER))
+    assert len(rows(conn)) == 1

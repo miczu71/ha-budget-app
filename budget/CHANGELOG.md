@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.58.0
+
+**Agent inwestycyjny: oferty z blogów, dzwonek, push po wypłacie, czat** (M22 E3 + E4, `docs/PLAN_M22.md`).
+
+- Blogi: raz na dobę add-on czyta kanały RSS pięciu blogów o oszczędzaniu, a model wyciąga z nowych wpisów
+  oferty lokat i kont (bank, stawka, limit, okres, warunki). Oferta czeka w „Do sprawdzenia” — możesz ją poprawić
+  i potwierdzić albo odrzucić; do porównania wchodzi dopiero po potwierdzeniu. Status → „Oferty z blogów —
+  trafność” liczy, ile potwierdzono bez poprawek. Opcja add-onu `invest_daily_calls` (domyślnie 10) ogranicza
+  liczbę wywołań modelu na dobę; do modelu idzie tylko tytuł i streszczenie wpisu.
+- Dzwonek: „Lepsza oferta” (potwierdzona lokata albo konto daje rocznie co najmniej tyle więcej niż Twoje konto —
+  próg w ustawieniach agenta, domyślnie 200 zł) i „termin” (lokata kończy się albo obligacje do wykupu w ciągu
+  14 dni).
+- Push po wypłacie (przez `summary_notify_service`): ile odłożyć i gdzie, albo „nadwyżki brak”.
+- Czat: nowe źródło „Inwestycje” (koszyki, rekomendacja, najlepsze opcje); do modelu idą kwoty i rodzaje opcji,
+  bez nazw banków, kont i kredytów.
+- Ekran „Inwestycje”: 2–3 zdania uzasadnienia rekomendacji od modelu (liczy add-on, model tylko opisuje wynik).
+- Migracja bazy 024 (addytywna): pola `extracted` i `verdict` w ofertach.
+
 ## 0.57.0
 
 **Agent inwestycyjny: oferty z sieci** (M22 E2, `docs/PLAN_M22.md`).

@@ -695,7 +695,10 @@ def _offer_fields(
 ) -> tuple[Decimal, Decimal | None, int | None, str]:
     """Stawka, limit, okres i warunki z pól formularza (dodanie i potwierdzenie oferty)."""
     pct = _pct(rate, "oprocentowanie", required=True)
-    cap = piggy.parse_amount(limit_amount, "limit kwoty")
+    try:
+        cap = piggy.parse_amount(limit_amount, "limit kwoty")
+    except PiggyError as exc:
+        raise InvestError(str(exc)) from exc
     try:
         period = int(months) if months and months.strip() else None
     except ValueError:

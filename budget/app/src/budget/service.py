@@ -46,6 +46,7 @@ from budget.suggest import engine as suggest
 from budget.sync_service import SyncResult
 
 log = logging.getLogger(__name__)
+PAYDAY_PUSH_DAYS = 3  # wypłata wykryta przy synchronizacji bywa o dzień spóźniona
 
 SESSION_CHECK_EVERY = timedelta(hours=6)
 REFRESH_DEBOUNCE = 2.0  # s — seria zapisów w panelu = jedno odświeżenie encji
@@ -276,9 +277,12 @@ class Service:
     async def watch_invest(self) -> None:
         """Oferty obligacji, rankingu i blogów (M22 E2/E3) — raz na dobę, mimo restartów."""
         now = self.now()
-        if invest_sources.due(self.conn, now):
-            await invest_sources.refresh(self.conn, now)
-            await invest_blogs.refresh(self.conn, self.settings, now)
+        try:
+            if invest_sources.due(self.conn, now):
+                await invest_sources.refresh(self.conn, now)
+                await invest_blogs.refresh(self.conn, self.settings, now)
+        except Exception:  # pętla podsumowań nie może umrzeć
+            log.exception("Błąd odczytu ofert inwestycyjnych")
 
     def invest_advice(self) -> invest.Advice | None:
         """Rekomendacja agenta inwestycyjnego (M22 E4); błąd nie blokuje podsumowań."""
@@ -291,9 +295,15 @@ class Service:
             return None
 
     def invest_due(self) -> summary.Message | None:
-        """Push agenta inwestycyjnego w dniu wypłaty; w inne dni bez liczenia rekomendacji."""
+        """Push agenta inwestycyjnego po wypłacie (do `PAYDAY_PUSH_DAYS` dni po jej wykryciu, raz
+        na wypłatę); poza oknem bez liczenia rekomendacji."""
         fc = self.forecast()
-        if fc is None or fc.period_start != self.now().date():
+        today = self.now().date()
+        if (
+            fc is None
+            or fc.period_start is None
+            or not 0 <= (today - fc.period_start).days <= PAYDAY_PUSH_DAYS
+        ):
             return None
         adv = self.invest_advice()
         return summary.invest_message(adv, invest_why.text(self.conn, adv)) if adv else None
@@ -301,8 +311,11 @@ class Service:
     async def watch_invest_why(self) -> None:
         """Uzasadnienie rekomendacji od modelu — tylko po zmianie rekomendacji (M22 E4)."""
         adv = self.invest_advice()
-        if adv:
-            await invest_why.refresh(self.conn, self.settings, adv, self.now())
+        try:
+            if adv:
+                await invest_why.refresh(self.conn, self.settings, adv, self.now())
+        except Exception:  # pętla podsumowań nie może umrzeć
+            log.exception("Błąd uzasadnienia rekomendacji")
 
     async def summaries(self) -> None:
         """Podsumowania o `summary.SEND_AT`; zaległe z dzisiaj zaraz po starcie."""

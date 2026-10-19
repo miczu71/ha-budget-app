@@ -435,7 +435,10 @@ def invest_better_offer(conn: sqlite3.Connection, ctx: Context, memo: BalanceMem
         rate = format(o.rate.normalize(), "f")
         detail = (
             f"{o.bank}: {rate}% zamiast obecnego oprocentowania „{b.holder}” — "
-            f"ok. {summary.zl(b.gain)} więcej rocznie netto. Sprawdź warunki oferty."
+            f"ok. {summary.zl(b.gain)} więcej rocznie netto. Sprawdź warunki oferty"
+            + (f" — lokata zamraża środki na {o.months or 12} mies." if o.kind == "deposit" else "")
+            + (f" — promocja trwa {o.months} mies." if o.kind == "account" and o.months else "")
+            + "."
         )
         title = f"Lepsza oferta: {o.bank} {rate}%"
         out.append(Item("invest_better_offer", title, 1, "/invest#offers", "info", detail))

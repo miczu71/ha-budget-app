@@ -28,6 +28,7 @@ log = logging.getLogger(__name__)
 KEY = "invest_why"
 SCHEMA_NAME = "uzasadnienie_rekomendacji"
 MAX_CHARS = 600
+RESERVE = 1  # jedno wywołanie ponad limit blogów, żeby wpisy nie zagłodziły uzasadnienia
 SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {"text": {"type": "string"}},
@@ -99,7 +100,8 @@ async def refresh(
     if (db.kv_get(conn, KEY) or {}).get("key") == key:
         return
     today = now.date()
-    if int(suggest.usage(conn, today, USAGE_KEY).get("calls", 0)) >= settings.invest_daily_calls:
+    used = int(suggest.usage(conn, today, USAGE_KEY).get("calls", 0))
+    if used >= settings.invest_daily_calls + RESERVE:
         return
     try:
         result = await suggest.metered_call(

@@ -191,3 +191,12 @@ def test_chat_source_is_registered_and_redacts_names(conn: sqlite3.Connection) -
     c = sources.Ctx(conn, Snapshot(conn), TODAY, NOW, date(2026, 10, 1))
     res = sources.run("invest", c)
     assert res.link == "/invest" and res.note  # pusta księga: brak prognozy
+
+
+# --- poprawki z code-review (E4) ---
+
+
+def test_confirm_with_bad_limit_is_an_invest_error_not_a_crash(conn: sqlite3.Connection) -> None:
+    oid = invest.save_offer(conn, "account", "Bank A", "5", "", "", "", "", False)
+    with pytest.raises(invest.InvestError):
+        invest.confirm_offer(conn, oid, "Bank A", {"rate": "5", "limit_amount": "abc"})
