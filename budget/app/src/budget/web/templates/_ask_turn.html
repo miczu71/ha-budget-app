@@ -14,14 +14,14 @@
   {% for sr in a.source_results %}
   {% if sr.facts %}<div class="table-wrap"><table class="ask-table">
     <tbody>{% for f in sr.facts %}<tr><th scope="row">{{ f.label }}</th><td class="num">{{ f.value }}</td></tr>{% endfor %}</tbody>
-  </table></div>{% endif %}
+  </table></div>{% elif sr.note %}<p class="small muted">{{ sr.note }}</p>{% endif %}
   {% endfor %}
   {% set how = a.source_results | map(attribute="filters") | sum(start=[]) %}
   {% if how %}<details class="ask-how">
     <summary>Jak policzono</summary>
     <ul class="small">{% for f in how %}<li>{{ f }}</li>{% endfor %}</ul>
   </details>{% endif %}
-  <p class="ask-links">{% for sr in a.source_results %}<a class="tap" href="{{ base }}{{ sr.link }}">{{ sr.link_label }}</a>{% endfor %}</p>
+  <p class="ask-links">{% for sr in a.source_results | unique(attribute="link") %}<a class="tap" href="{{ base }}{{ sr.link }}">{{ sr.link_label }}</a>{% endfor %}</p>
 </section>
 {% else %}
 {% set res = a.result %}{% set m = res.plan.metric %}

@@ -195,3 +195,20 @@ async def test_two_source_answer_renders_both_tables_and_links(
     assert "Starczy, karta w normie." in r.text and "Wolne środki dziś" in r.text
     assert r.text.count('class="ask-table"') == 2 and "Płatności kartą w miesiącu" in r.text
     assert r.text.count('class="tap"') == 2 and r.text.count("Jak policzono") == 1
+
+
+@respx.mock
+async def test_two_source_answer_shows_note_of_empty_source(
+    ai: httpx.AsyncClient, ai_service: Service
+) -> None:
+    from .test_forecast import snapshot
+
+    snapshot(ai_service.conn, 1, "ITAV", "5000.00", db.now_iso())
+    respx.post(f"{ROUTER}/chat/completions").mock(
+        side_effect=[
+            _reply({**PLAN, "source": "payday", "source2": "card", "month": ""}),
+            _reply({"answer": "Starczy."}),
+        ]
+    )
+    r = await ai.post("/ask", data={"q": "Czy starczy i ile na karcie?"}, headers=HX)
+    assert "Brak konta karty kredytowej w księdze." in r.text and r.text.count("ask-table") == 1

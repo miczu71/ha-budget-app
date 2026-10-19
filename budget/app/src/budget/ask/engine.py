@@ -322,7 +322,7 @@ def merge_results(results: Sequence[sources.SourceResult]) -> tuple[dict[str, An
     for i, r in enumerate(results):
         suffix = "abcd"[i]
         facts = [
-            replace(f, llm_label=f"{f.llm_label[:-1]}{suffix}]")
+            replace(f, llm_label=f"{f.llm_label.rstrip(']')}{suffix}]")
             if i and f.llm_label and f.llm_label != f.label
             else f
             for f in r.facts
