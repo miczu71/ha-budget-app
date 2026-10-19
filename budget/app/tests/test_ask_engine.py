@@ -152,7 +152,7 @@ async def test_source_flow_uses_registry(conn: sqlite3.Connection, tmp_path: Pat
     llm = FakeLLM(plan, {"answer": "Starczy."})
     a = await engine.ask(conn, settings(tmp_path), "Czy starczy do wypłaty?", today, llm, now=at(3))
     assert not a.error and not a.unsupported and a.text == "Starczy."
-    assert a.source_result is not None and a.result is None
+    assert len(a.source_results) == 1 and a.result is None
     assert "payday" in llm.prompts[0] and "Wolne środki dziś" in llm.prompts[1]
     assert suggest.usage(conn, today, engine.USAGE_KEY)["calls"] == 2
     entry = engine.history(conn)[0]
@@ -174,3 +174,57 @@ async def test_unknown_source_is_unsupported(conn: sqlite3.Connection, tmp_path:
     llm = FakeLLM({**PLAN, "source": "nie_ma", "month": ""})
     a = await engine.ask(conn, settings(tmp_path), "?", TODAY, llm)
     assert "nie_ma" in a.unsupported and len(llm.prompts) == 1
+
+
+async def test_two_sources_one_answer(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    from .test_forecast import at, seeded
+
+    seeded(conn)
+    today = date(2026, 10, 3)
+    plan = {**PLAN, "source": "payday", "source2": "card", "month": ""}
+    llm = FakeLLM(plan, {"answer": "Starczy, karta ok."})
+    a = await engine.ask(
+        conn, settings(tmp_path), "Czy starczy i ile karta?", today, llm, now=at(3)
+    )
+    assert not a.error and not a.unsupported and a.text == "Starczy, karta ok."
+    assert [r.source for r in a.source_results] == ["payday", "card"]
+    assert len(llm.prompts) == 2 and "results" in llm.prompts[1]
+    assert "Wolne środki dziś" in llm.prompts[1]
+    assert suggest.usage(conn, today, engine.USAGE_KEY)["calls"] == 2
+    entry = engine.history(conn)[0]
+    assert entry["plan"]["source2"] == "card" and entry["how"]
+
+
+async def test_second_source_ignored_when_same_or_transactions(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    from .test_forecast import at, seeded
+
+    seeded(conn)
+    today = date(2026, 10, 3)
+    same = FakeLLM({**PLAN, "source": "payday", "source2": "payday", "month": ""}, {"answer": "ok"})
+    a = await engine.ask(conn, settings(tmp_path), "?", today, same, now=at(3))
+    assert [r.source for r in a.source_results] == ["payday"]
+    tx = FakeLLM(
+        {**PLAN, "source": "transactions", "source2": "card", "month": ""}, {"answer": "ok"}
+    )
+    data(conn)
+    b = await engine.ask(conn, settings(tmp_path), "?", today, tx, now=at(3))
+    assert b.source_results == [] and b.result is not None
+
+
+async def test_two_sources_colliding_labels_restored(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    from budget.ask import sources
+
+    one = sources.SourceResult(
+        "recurring", facts=[sources.Fact("Netflix", "10 zł", llm_label="[Seria 1]")]
+    )
+    two = sources.SourceResult(
+        "year", facts=[sources.Fact("Czynsz", "5 zł", llm_label="[Seria 1]")]
+    )
+    payload, labels = engine.merge_results([one, two])
+    assert len({f["label"] for r in payload["results"] for f in r["facts"]}) == 2
+    assert engine.restore(" ".join(labels), labels) == "Netflix Czynsz"
+    assert labels["[Seria 1]"] == "Netflix"

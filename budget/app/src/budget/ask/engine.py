@@ -15,7 +15,7 @@ import json
 import logging
 import sqlite3
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
@@ -54,7 +54,8 @@ class Answer:
     question: str
     text: str = ""  # odpowiedź z prawdziwymi nazwami
     result: Result | None = None
-    source_result: sources.SourceResult | None = None  # źródło stanu zamiast transakcji (E3b)
+    # źródła stanu zamiast transakcji (E3b); do dwóch w jednym pytaniu (E3c)
+    source_results: list[sources.SourceResult] = field(default_factory=list)
     unsupported: str = ""  # „nie umiem” — czego brakuje
     error: str = ""
     plan: dict[str, Any] | None = None  # surowy plan od LLM (do logu)
@@ -116,13 +117,15 @@ def log_rows(conn: sqlite3.Connection, limit: int = 30) -> list[dict[str, Any]]:
 
 def _log(conn: sqlite3.Connection, a: Answer) -> None:
     entries = (kv_get(conn, LOG_KEY) or [])[-(LOG_MAX - 1) :]
-    shown = a.source_result or a.result
+    how = [f for r in a.source_results for f in r.filters] or (
+        a.result.filters if a.result else None
+    )
     entries.append(
         {
             "at": now_iso(),
             "q": a.question,
             "turn": a.turn,
-            "how": shown.filters if shown else None,
+            "how": how,
             "plan": a.plan,
             "unsupported": a.unsupported,
             "error": a.error,
@@ -175,6 +178,9 @@ def plan_prompt(
             "  źródło stanu na ekranie panelu; wybierz je, gdy pytanie dotyczy stanu (salda, kwoty",
             "  do spłaty, terminów, kredytu), a nie sum z historii transakcji:",
             *sources.prompt_lines(),
+            "- source2: drugie źródło stanu, tylko gdy pytanie łączy dwa ekrany (np. ile do",
+            "  wypłaty i ile w skarbonkach → payday + savings; kwota do spłaty i licznik płatności",
+            "  to jedno źródło card); inaczej pusty. Nie łącz źródła z transactions.",
             "- month: RRRR-MM dla źródeł z miesiącem; pusty = bieżący. Dla źródła innego niż",
             "  transactions resztę pól wypełnij domyślnie (pusty okres = ostatnie 12 miesięcy).",
             "- periods: jeden okres albo dwa do porównania; miesiące RRRR-MM, oba końce włącznie.",
@@ -221,7 +227,8 @@ def answer_prompt(question: str, payload: dict[str, Any]) -> str:
             "przepisuj bez zmian. Jeśli okres ma niepełny bieżący miesiąc, wspomnij o tym.",
             "Gdy transakcji jest 0, powiedz, że nie znaleziono pasujących transakcji.",
             "Wynik ze źródła stanu ma facts (label, value): wartości są już sformatowane —",
-            "przepisuj je, nie przeliczaj.",
+            "przepisuj je, nie przeliczaj. Gdy wynik ma results (dwa źródła), odpowiedz na obie",
+            "części pytania; pole note oznacza brak danych w tym źródle.",
             "",
             "Wynik (JSON): metric sum = suma w zł, count = liczba transakcji, avg_per_month =",
             "średnio na miesiąc w zł; rows = podział, values = wartość dla każdego okresu;",
@@ -270,7 +277,9 @@ async def _run(
         return
     name = str(a.plan.get("source") or sources.TRANSACTIONS)
     if name != sources.TRANSACTIONS:
-        await _run_source(conn, settings, a, name, a.plan, today, call, snap, now)
+        second = str(a.plan.get("source2") or "")
+        names = [name, second] if second and second != name else [name]
+        await _run_source(conn, settings, a, names, a.plan, today, call, snap, now)
         return
     try:
         plan = query.parse(a.plan, cats, today)
@@ -305,33 +314,55 @@ async def _answer(
     return restore(str(raw.get("answer") or "").strip(), labels)
 
 
+def merge_results(results: Sequence[sources.SourceResult]) -> tuple[dict[str, Any], dict[str, str]]:
+    """Payload dla modelu i etykiety z kilku źródeł. Etykiety kolejnych źródeł dostają literę
+    (`[Seria 1]` → `[Seria 1b]`), bo źródła numerują nazwy od 1; wyniki bez zmian."""
+    payloads: list[dict[str, Any]] = []
+    labels: dict[str, str] = {}
+    for i, r in enumerate(results):
+        suffix = "abcd"[i]
+        facts = [
+            replace(f, llm_label=f"{f.llm_label[:-1]}{suffix}]")
+            if i and f.llm_label and f.llm_label != f.label
+            else f
+            for f in r.facts
+        ]
+        renamed = replace(r, facts=facts)
+        labels |= renamed.labels
+        payloads.append({**renamed.for_llm(), **({"note": r.note} if r.note else {})})
+    return {"results": payloads}, labels
+
+
 async def _run_source(
     conn: sqlite3.Connection,
     settings: Settings,
     a: Answer,
-    name: str,
+    names: Sequence[str],
     plan: dict[str, Any],
     today: date,
     call: suggest.Call,
     snap: Snapshot,
     now: datetime,
 ) -> None:
-    """Źródło stanu (E3b): fakty z kodu ekranu, potem zdanie od modelu — chyba że brak danych."""
+    """Źródła stanu (E3b, do dwóch w E3c): fakty z kodu ekranu, potem zdanie od modelu — chyba że
+    żadne źródło nie ma danych."""
     ctx = sources.Ctx(
         conn, snap, today, now, today.replace(day=1), Decimal(settings.forecast_buffer)
     )
     try:
-        a.source_result = sources.run(name, ctx, str(plan.get("month") or ""))
+        a.source_results = [sources.run(n, ctx, str(plan.get("month") or "")) for n in names]
     except sources.SourceError as exc:
         a.unsupported = f"Nie udało się odczytać źródła ({exc})."
         return
     a.context = [*a.context, {"q": a.question, "plan": compact(plan)}][-CONTEXT_MAX:]
-    if a.source_result.note:
-        a.text = a.source_result.note
+    if all(r.note for r in a.source_results):
+        a.text = " ".join(r.note for r in a.source_results)
         return
-    a.text = await _answer(
-        conn, settings, a, today, call, a.source_result.for_llm(), a.source_result.labels
-    )
+    if len(a.source_results) == 1:
+        payload, labels = a.source_results[0].for_llm(), a.source_results[0].labels
+    else:
+        payload, labels = merge_results(a.source_results)
+    a.text = await _answer(conn, settings, a, today, call, payload, labels)
 
 
 async def ask(

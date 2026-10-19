@@ -56,6 +56,7 @@ SCHEMA: dict[str, Any] = {
     "properties": {
         "unsupported": {"type": "string"},
         "source": {"type": "string", "enum": [sources.TRANSACTIONS, *sources.NAMES]},
+        "source2": {"type": "string", "enum": ["", *sources.NAMES]},
         "month": _MONTH,
         "periods": {
             "type": "array",
@@ -78,6 +79,7 @@ SCHEMA: dict[str, Any] = {
     "required": [
         "unsupported",
         "source",
+        "source2",
         "month",
         "periods",
         "scope",
