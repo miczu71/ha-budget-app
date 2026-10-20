@@ -26,6 +26,9 @@ configuration:
   calendar_entity:
     name: Encja kalendarza płatności
     description: Opcjonalnie, np. calendar.<nazwa> — encja Remote Calendar czytająca /calendar.ics, odświeżana po każdej synchronizacji.
+  stocks_entity_prefix:
+    name: Prefiks encji akcji
+    description: Opcjonalnie, np. sensor.nokia_tracker_ — add-on czyta z niego wartość akcji, cenę i niezawiązane akcje do majątku netto. Puste = wyłączone.
   consent_warning_days:
     name: Ostrzeżenie o zgodzie (dni)
     description: Ile dni przed wygaśnięciem zgody bankowej przypominać o odnowieniu.

@@ -32,6 +32,7 @@ options:
   notify_service: ""
   summary_notify_service: ""
   calendar_entity: ""
+  stocks_entity_prefix: "sensor.nokia_tracker_"
   consent_warning_days: 14
   forecast_buffer: 0
   currency: "PLN"
@@ -53,6 +54,7 @@ schema:
   notify_service: "match(^(notify\\.[a-z0-9_]+)?$)?"
   summary_notify_service: "match(^(notify\\.[a-z0-9_]+)?$)?"
   calendar_entity: "match(^(calendar\\.[a-z0-9_]+)?$)?"
+  stocks_entity_prefix: "match(^(sensor\\.[a-z0-9_]+_)?$)?"
   consent_warning_days: "int(1,60)"
   forecast_buffer: "int(0,1000000)"
   currency: str

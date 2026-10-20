@@ -23,6 +23,7 @@ DEFAULT_EB_BASE_URL = "https://api.enablebanking.com"
 _TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _NOTIFY_RE = re.compile(r"^notify\.[a-z0-9_]+$")
 _CALENDAR_RE = re.compile(r"^calendar\.[a-z0-9_]+$")
+_STOCKS_PREFIX_RE = re.compile(r"^(sensor\.[a-z0-9_]+_)?$")
 _ENV_PREFIX = "BUDGET_"
 
 
@@ -46,6 +47,7 @@ class Settings(BaseModel):
     notify_service: str | None = None  # alias osoby, np. notify.<osoba>
     summary_notify_service: str | None = None  # podsumowania M6; None = wyłączone
     calendar_entity: str | None = None  # encja Remote Calendar odświeżana po synchronizacji
+    stocks_entity_prefix: str = ""  # prefiks encji akcji (M11), np. sensor.nokia_tracker_
     aspsp_name: str = "Bank Millennium"
     aspsp_country: str = "PL"
     ai_base_url: str | None = None  # router OpenAI-compatible (np. freellmapi); None = wyłączone
@@ -88,6 +90,13 @@ class Settings(BaseModel):
     def _check_calendar(cls, value: str | None) -> str | None:
         if value is not None and not _CALENDAR_RE.match(value):
             raise ValueError(f"calendar_entity: oczekiwane calendar.<nazwa>, a jest {value!r}")
+        return value
+
+    @field_validator("stocks_entity_prefix")
+    @classmethod
+    def _check_stocks_prefix(cls, value: str) -> str:
+        if not _STOCKS_PREFIX_RE.match(value):
+            raise ValueError(f"stocks_entity_prefix: oczekiwane sensor.<nazwa>_, a jest {value!r}")
         return value
 
     @field_validator(

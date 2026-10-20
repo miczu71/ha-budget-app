@@ -33,6 +33,7 @@ from budget import (
     promo_watch,
     savings,
     sessions,
+    stocks,
     summary,
     sync_service,
     wibor,
@@ -392,6 +393,10 @@ class Service:
         migawek), potem wpis na dziś; błąd nie zatrzymuje reszty."""
         today = self.now().date()
         try:
+            await stocks.refresh(self.conn, self.ha, self.settings.stocks_entity_prefix, self.now())
+        except Exception:
+            log.exception("Odczyt akcji nieudany")
+        try:
             await fx.refresh(self.conn, today)
             first = networth.first_day(self.conn)
             if first is not None and not networth.has_history(self.conn, today):
@@ -421,6 +426,10 @@ class Service:
     async def refresh(self) -> None:
         """Encje MQTT + powiadomienia z bieżącego stanu bazy."""
         now = self.now()
+        try:
+            await stocks.refresh(self.conn, self.ha, self.settings.stocks_entity_prefix, now)
+        except Exception:
+            log.exception("Odczyt akcji nieudany")
         if self.publisher is not None:
             await self.publisher.update(
                 ha_publisher.build_entities(

@@ -26,6 +26,9 @@ configuration:
   calendar_entity:
     name: Payment calendar entity
     description: Optional, e.g. calendar.<name> — Remote Calendar entity reading /calendar.ics, refreshed after each sync.
+  stocks_entity_prefix:
+    name: Stocks entity prefix
+    description: Optional, e.g. sensor.nokia_tracker_ — the add-on reads share value, price and unvested shares from it for net worth. Empty = off.
   consent_warning_days:
     name: Consent warning (days)
     description: How many days before the bank consent expires to remind about renewal.

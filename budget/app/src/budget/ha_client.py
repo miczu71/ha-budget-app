@@ -85,6 +85,16 @@ class HAClient:
     async def call_service(self, domain: str, service: str, data: dict[str, Any]) -> None:
         await self._request("POST", f"/core/api/services/{domain}/{service}", json=data)
 
+    async def get_state(self, entity_id: str) -> dict[str, Any] | None:
+        """Stan encji z Core; None, gdy encja nie istnieje (404)."""
+        try:
+            data = await self._request("GET", f"/core/api/states/{entity_id}")
+        except HAError as exc:
+            if str(exc).endswith("HTTP 404"):
+                return None
+            raise
+        return data if isinstance(data, dict) else None
+
     async def persistent_notification(self, notification_id: str, title: str, message: str) -> None:
         await self.call_service(
             "persistent_notification",
