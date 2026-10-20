@@ -69,3 +69,10 @@ zwrot netto bez węzła; deficyt dzielony proporcjonalnie) i `web/charts.py:sank
 Testy `tests/test_flow.py`, `tests/test_web_charts.py`. Commit 6730fcb. Orientacja pionowa (D) odrzucona — brak parametru.
 Pułapka: skaner prywatności blokuje nazwy własne przypominające ulice nawet w stringach testowych — używać neutralnych.
 E2 (≈5 edycji: routes_spending, spending.html, _charts.html, app.css, usunięcie trasy makiety): zrobić samemu lub sonnet-worker + verifier.
+
+## Wynik E2–E3 i wydanie (2026-10-20)
+- E2 be886b7 (sekcja w Wydatkach), E3 19bae8a (`flow=year`: rok kalendarzowy wybranego miesiąca, linki z zakresem roku, strzałki miesięcy niosą wybór).
+- Review: etykiety skrócone (`SK_CHARS` 14/12/9, kwoty w pełnych zł), w widoku roku „Inne” bez linku, „Bez kategorii” → `/review` bez miesiąca.
+- **0.62.0** (e00aa40, tag v0.62.0, 1157 testów). Pomiar 390/1280 px na kopii księgi dev: brak wyjść poza SVG i nakładania etykiet. Na żywo przez Ingress: 17/16 węzłów (miesiąc/rok), przełącznik działa, 0 błędów konsoli.
+- Świadomie pominięte z review: wpływy liczone per liść z `max(netto, 0)` (wg decyzji E0 zwrot netto nie tworzy węzła), podwójne `spending.sums` (koszt pomijalny), kolory grup z palety kategorii, dostępność linków w `role="img"`.
+- Follow-up (nie robione): komponent Sankey w systemie designu Claude Design (M20).
