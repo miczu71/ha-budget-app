@@ -57,7 +57,7 @@ def router(panel: Panel) -> APIRouter:
             else None,
             points=points,
             no_stocks_before=stocks.HISTORY_FROM
-            if stocks.load(conn) and points[0].day < stocks.HISTORY_FROM
+            if points[0].day < stocks.HISTORY_FROM and stocks.load(conn)
             else None,
             stale_days=networth.STALE_DAYS,
         )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import sqlite3
@@ -20,6 +21,7 @@ KEY = "stocks_nokia"
 HISTORY_FLAG = "stocks_history_done"
 HISTORY_FROM = date(2026, 7, 1)  # statystyki HA sięgają tylko lipca 2026 (E0)
 GROUP = "inwestycje"  # = networth.INVESTMENTS (stocks nie importuje networth)
+CENT = Decimal("0.01")
 NAME_VALUE = "Akcje Nokia"
 NAME_UNVESTED = "Akcje Nokia — niezawiązane"
 _TZ = ZoneInfo("Europe/Warsaw")
@@ -35,6 +37,10 @@ class Holding:
     next_vest_qty: Decimal | None
     fetched_at: datetime
 
+    @property
+    def unvested_value(self) -> Decimal:
+        return (self.unvested_qty * self.price).quantize(CENT)
+
 
 def _state(data: dict[str, Any] | None) -> str | None:
     if not data:
@@ -47,19 +53,22 @@ def _dec(value: str | None) -> Decimal | None:
     if value is None:
         return None
     try:
-        return Decimal(value)
+        number = Decimal(value)
     except InvalidOperation:
         return None
+    return number if number.is_finite() else None
 
 
 async def refresh(conn: sqlite3.Connection, ha: HAClient, prefix: str, now: datetime) -> None:
     """Zapis stanu encji do `kv`; brak encji / `unavailable` zostawia poprzedni wpis."""
     if not prefix or not ha.available:
         return
-    market = await ha.get_state(f"{prefix}market_value_pln")
-    price = await ha.get_state(f"{prefix}price_pln")
-    unvested = await ha.get_state(f"{prefix}unvested_qty")
-    vest = await ha.get_state(f"{prefix}next_vest_date")
+    market, price, unvested, vest = await asyncio.gather(
+        *(
+            ha.get_state(f"{prefix}{name}")
+            for name in ("market_value_pln", "price_pln", "unvested_qty", "next_vest_date")
+        )
+    )
     mv, pr, uq = _dec(_state(market)), _dec(_state(price)), _dec(_state(unvested))
     if mv is None or pr is None or uq is None:
         log.warning("Akcje: encje %s* niedostępne — zostaje poprzedni wpis", prefix)
@@ -155,7 +164,7 @@ async def backfill_history(conn: sqlite3.Connection, ha: HAClient, prefix: str, 
         price = _bucket_value(stats.get(ids[2], []), day.year, day.month, "state")
         if market is None or unvested is None or price is None:
             continue
-        value = (unvested * price).quantize(Decimal("0.01"))
+        value = (unvested * price).quantize(CENT)
         for name, amount in ((NAME_VALUE, market), (NAME_UNVESTED, value)):
             comps.append(
                 {

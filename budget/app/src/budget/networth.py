@@ -200,7 +200,7 @@ def _investments(conn: sqlite3.Connection, day: date, past: bool = False) -> lis
             Component(
                 INVESTMENTS,
                 stocks.NAME_UNVESTED,
-                (held.unvested_qty * held.price).quantize(money.CENT),
+                held.unvested_value,
                 note=note,
                 stale=stale,
             )

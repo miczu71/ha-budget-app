@@ -17,7 +17,9 @@ SUPERVISOR_URL = "http://supervisor"
 
 
 class HAError(Exception):
-    pass
+    def __init__(self, message: str, status: int | None = None) -> None:
+        super().__init__(message)
+        self.status = status
 
 
 class HAClient:
@@ -54,7 +56,7 @@ class HAClient:
         except httpx.HTTPError as exc:
             raise HAError(f"{method} {path}: {type(exc).__name__}") from exc
         if response.status_code >= 400:
-            raise HAError(f"{method} {path}: HTTP {response.status_code}")
+            raise HAError(f"{method} {path}: HTTP {response.status_code}", response.status_code)
         if not response.content:
             return None
         try:
@@ -94,7 +96,7 @@ class HAClient:
         try:
             data = await self._request("GET", f"/core/api/states/{entity_id}")
         except HAError as exc:
-            if str(exc).endswith("HTTP 404"):
+            if exc.status == 404:
                 return None
             raise
         return data if isinstance(data, dict) else None
