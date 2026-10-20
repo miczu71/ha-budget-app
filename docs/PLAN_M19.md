@@ -52,3 +52,12 @@ Skopiować ten plan do `/config/addons/ha-budget-app/docs/PLAN_M19.md`, wpis M19
 ## Weryfikacja
 pytest/ruff/mypy zielone; test zgodności sum Sankey = Wydatki; zrzuty dev przed wydaniem; na żywo: sekcja renderuje się
 w miesiącu i roku, liczba węzłów > 0, brak błędów konsoli, klik kategorii prowadzi do `/transactions?category=`.
+
+## Wynik E0 (2026-10-20)
+Makieta B (poziomo) i D (pionowo) na kopii księgi dev (skrypt w scratchpadzie sesji; worktree niepotrzebny, `wt drop`).
+**Decyzja usera: B poziomo + poprawki.** Wnioski do E1/E2:
+- drobne węzły nachodzą na etykiety → minimalna wysokość węzła, ukrywanie etykiet małych węzłów (kwota w `<title>`/dotyku), „Inne” per grupa;
+- D pionowy: etykiety nieczytelne na 390 px — odrzucony; na telefonie B w węższym viewBox z krótszymi etykietami albo przewijany poziomo;
+- kategoria z ujemnym saldem netto (zwrot > wydatki) nie może rysować węzła — pomijać i dopisać do „Inne”/nadwyżki (test);
+- „Bez kategorii” bywa największym węzłem (kopia 02.10) — węzeł z linkiem do kolejki przeglądu, osobny kolor `unc`;
+- kopia z 02.10 nie ma kategoryzacji — w makiecie potrzebne `engine.recategorize`.
