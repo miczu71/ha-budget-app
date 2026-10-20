@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import time
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -18,6 +22,32 @@ from budget.spending import month_label
 from budget.suggest import engine as suggest
 
 HERE = Path(__file__).parent
+_timings: ContextVar[dict[str, float] | None] = ContextVar("timings", default=None)
+
+
+@contextmanager
+def timed(step: str) -> Iterator[None]:
+    """Czas kroku żądania (ms) do nagłówka `Server-Timing`; poza żądaniem nic nie zapisuje."""
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        steps = _timings.get()
+        if steps is not None:
+            steps[step] = steps.get(step, 0.0) + (time.perf_counter() - start) * 1000
+
+
+def start_timings() -> dict[str, float]:
+    steps: dict[str, float] = {}
+    _timings.set(steps)
+    return steps
+
+
+def server_timing(steps: dict[str, float], total_ms: float) -> str:
+    parts = {"total": total_ms, **steps}
+    return ", ".join(f"{name};dur={ms:.0f}" for name, ms in parts.items())
+
+
 KIND_LABELS = {
     "card": "karta",
     "card_refund": "zwrot (karta)",
@@ -104,21 +134,23 @@ class Panel:
     def render(self, request: Request, name: str, **ctx: Any) -> HTMLResponse:
         messages = list(self.flash)
         self.flash.clear()
-        inbox_items = self.service.inbox()
-        return self.templates.TemplateResponse(
-            request,
-            name,
-            {
-                "base": self.base(request),
-                "messages": messages,
-                "page": name.removesuffix(".html"),
-                "inbox_items": inbox_items,
-                "inbox_count": len(inbox_items),
-                "tabs": [t for t in nav_layout.layout.load(self.conn) if not t.hidden],
-                "tab_defs": nav_layout.TABS,
-                **ctx,
-            },
-        )
+        with timed("inbox"):
+            inbox_items = self.service.inbox()
+        with timed("template"):
+            return self.templates.TemplateResponse(
+                request,
+                name,
+                {
+                    "base": self.base(request),
+                    "messages": messages,
+                    "page": name.removesuffix(".html"),
+                    "inbox_items": inbox_items,
+                    "inbox_count": len(inbox_items),
+                    "tabs": [t for t in nav_layout.layout.load(self.conn) if not t.hidden],
+                    "tab_defs": nav_layout.TABS,
+                    **ctx,
+                },
+            )
 
     def partial(self, request: Request, name: str, **ctx: Any) -> HTMLResponse:
         """Fragment dla htmx (bez komunikatów i bez strony bazowej)."""

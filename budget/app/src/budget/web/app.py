@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request
@@ -44,7 +45,7 @@ from budget.web import (
     routes_transactions,
     routes_year,
 )
-from budget.web.common import HERE, Panel, fmt_date, fmt_money
+from budget.web.common import HERE, Panel, fmt_date, fmt_money, server_timing, start_timings
 
 __all__ = ["create_app", "fmt_date", "fmt_money"]
 
@@ -74,7 +75,13 @@ def create_app(service: Service, *, dev: bool = False) -> FastAPI:
         sent = request.headers.get(PANEL_VERSION)
         if request.method == "GET" and request.headers.get("hx-request") and sent != __version__:
             return Response(headers={"HX-Refresh": "true", "Cache-Control": "no-store"})
+        steps = start_timings()
+        began = time.perf_counter()
         response = await call_next(request)
+        if not request.url.path.startswith("/static/"):
+            response.headers["Server-Timing"] = server_timing(
+                steps, (time.perf_counter() - began) * 1000
+            )
         if request.method == "POST" and response.status_code < 400:
             panel.service.refresh_soon()  # encje Flex po zapisie kwoty, grupy, kategorii
         if request.url.path.startswith("/static/"):

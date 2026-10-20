@@ -94,6 +94,15 @@ async def test_ingress_prefix_and_cache(client: httpx.AsyncClient) -> None:
     assert css.status_code == 200 and "immutable" in css.headers["cache-control"]
 
 
+async def test_server_timing_header(client: httpx.AsyncClient) -> None:
+    """Czasy kroków (dzwonek, szablon, całość) w nagłówku — pomiar wolnych ekranów na produkcji."""
+    r = await client.get("/")
+    names = {part.split(";")[0].strip() for part in r.headers["server-timing"].split(",")}
+    assert {"total", "inbox", "template"} <= names
+    css = await client.get("/static/app.css")
+    assert "server-timing" not in css.headers
+
+
 async def test_deep_link_guard_targets_inbox(client: httpx.AsyncClient) -> None:
     """`/app/<slug>/inbox` otwiera w HA tylko korzeń panelu — strona sama idzie do „Do decyzji”."""
     html = (await client.get("/")).text
