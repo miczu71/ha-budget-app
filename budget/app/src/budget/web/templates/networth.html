@@ -43,6 +43,7 @@
     {% for x, text in chart.x_labels %}<text class="axis" x="{{ '%.1f' | format(x) }}" y="{{ chart.baseline + 14 }}" text-anchor="{{ 'start' if loop.first else 'end' }}">{{ text }}</text>{% endfor %}
   </svg>
   <p class="small muted">Koniec każdego miesiąca, ostatni punkt to dziś. Puste punkty są odtworzone z historii transakcji, więc przybliżone.</p>
+  {% if no_stocks_before %}<p class="small muted">Przed {{ no_stocks_before.isoformat() | pldate }} brak danych o akcjach — punkty z tego okresu ich nie zawierają.</p>{% endif %}
   {% else %}
   <p class="muted">Wykres pojawi się, gdy będą co najmniej dwa punkty — historia odtwarza się po pierwszej synchronizacji z bankiem.</p>
   {% endif %}

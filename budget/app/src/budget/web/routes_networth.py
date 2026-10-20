@@ -7,7 +7,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from budget import networth
+from budget import networth, stocks
 from budget.web import charts
 from budget.web.common import Panel
 
@@ -56,6 +56,9 @@ def router(panel: Panel) -> APIRouter:
             if len(points) > 1
             else None,
             points=points,
+            no_stocks_before=stocks.HISTORY_FROM
+            if stocks.load(conn) and points[0].day < stocks.HISTORY_FROM
+            else None,
             stale_days=networth.STALE_DAYS,
         )
 

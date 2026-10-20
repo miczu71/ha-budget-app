@@ -31,6 +31,7 @@ from budget import (
     review,
     savings,
     sessions,
+    stocks,
     summary,
     sync_service,
     wibor,
@@ -460,6 +461,26 @@ def invest_maturity(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -
     return out
 
 
+VEST_SOON_DAYS = 14
+
+
+def vest_soon(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Vesting akcji w ciągu dwóch tygodni: niezawiązane przejdą do wartości rynkowej (M11 E3)."""
+    held = stocks.load(conn)
+    if held is None or held.next_vest is None or held.next_vest_qty is None:
+        return []
+    days = (held.next_vest - ctx.today).days
+    if not 0 <= days <= VEST_SOON_DAYS:
+        return []
+    value = (held.next_vest_qty * held.price).quantize(money.CENT)
+    title = f"Vesting akcji {held.next_vest:%d.%m}"
+    detail = (
+        f"{summary.when(days).capitalize()} przejdzie {held.next_vest_qty.normalize():f} akcji "
+        f"≈ {summary.zl(value)}."
+    )
+    return [Item("vest_soon", title, 1, "/networth", "info", detail)]
+
+
 def promo_track_due(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
     """Promocja w toku: warunki spełnione (odbierz premię) albo koniec blisko lub minął (M22 E5)."""
     out = []
@@ -504,6 +525,7 @@ PROVIDERS: tuple[Provider, ...] = (
     invest_source_error,
     invest_better_offer,
     invest_maturity,
+    vest_soon,
     promo_track_due,
 )
 SEVERITY_ORDER = {"error": 0, "warn": 1, "info": 2}

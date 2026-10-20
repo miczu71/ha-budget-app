@@ -11,6 +11,7 @@ import pytest
 
 from budget import invest, networth
 from budget.service import Service
+from budget.storage import db
 
 from .test_savings import make as make_savings
 from .test_web import INGRESS, _client
@@ -46,6 +47,32 @@ async def test_page_shows_balance_trend_and_stale(
     page = (await client.get("/networth")).text
     assert "EDO 2025" in page and "Do aktualizacji" in page
     assert "Zmiana m/m" in page and "przybliżone" in page and 'class="nw-dot approx"' in page
+
+
+async def test_page_marks_missing_stocks_history_and_shows_vesting(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    c = service.conn
+    c.execute(
+        "INSERT INTO networth_snapshot (day, total, assets, liabilities, components_json, approx) "
+        "VALUES ('2026-06-30', '1000', '1000', '0', '[]', 1)"
+    )
+    assert "brak danych o akcjach" not in (await client.get("/networth")).text
+    db.kv_set(
+        c,
+        "stocks_nokia",
+        {
+            "market_value": "1000",
+            "unvested_qty": "500",
+            "price": "20.5",
+            "next_vest": "2026-12-01",
+            "next_vest_qty": "100",
+            "fetched_at": service.now().isoformat(),
+        },
+    )
+    page = (await client.get("/networth")).text
+    assert "Przed 01.07.2026 brak danych o akcjach" in page
+    assert "vesting 01.12.2026: 100 akcji" in page
 
 
 async def test_home_tile_links_to_networth(client: httpx.AsyncClient, service: Service) -> None:

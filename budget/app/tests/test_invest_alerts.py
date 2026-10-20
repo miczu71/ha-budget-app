@@ -200,3 +200,44 @@ def test_confirm_with_bad_limit_is_an_invest_error_not_a_crash(conn: sqlite3.Con
     oid = invest.save_offer(conn, "account", "Bank A", "5", "", "", "", "", False)
     with pytest.raises(invest.InvestError):
         invest.confirm_offer(conn, oid, "Bank A", {"rate": "5", "limit_amount": "abc"})
+
+
+# --- vesting akcji (M11 E3) ---
+
+
+def hold(conn: sqlite3.Connection, vest: str | None, qty: str | None = "100") -> None:
+    db.kv_set(
+        conn,
+        "stocks_nokia",
+        {
+            "market_value": "1000",
+            "unvested_qty": "500",
+            "price": "20.5",
+            "next_vest": vest,
+            "next_vest_qty": qty,
+            "fetched_at": NOW.isoformat(),
+        },
+    )
+
+
+def test_vest_soon_within_two_weeks(conn: sqlite3.Connection) -> None:
+    hold(conn, "2026-10-30")
+    (item,) = inbox.vest_soon(conn, ctx(), None)  # type: ignore[arg-type]
+    assert item.title == "Vesting akcji 30.10" and item.link == "/networth"
+    assert (
+        "Za 11 dni" in item.detail
+        and "100 akcji" in item.detail
+        and summary.zl(D("2050")) in item.detail
+    )
+
+
+@pytest.mark.parametrize("vest", ["2026-11-10", "2026-10-18", None])
+def test_vest_soon_silent_when_far_past_or_unknown(
+    conn: sqlite3.Connection, vest: str | None
+) -> None:
+    hold(conn, vest)
+    assert inbox.vest_soon(conn, ctx(), None) == []  # type: ignore[arg-type]
+
+
+def test_vest_soon_silent_without_holding(conn: sqlite3.Connection) -> None:
+    assert inbox.vest_soon(conn, ctx(), None) == []  # type: ignore[arg-type]
