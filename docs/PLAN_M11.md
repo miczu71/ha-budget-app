@@ -90,3 +90,34 @@ Zakres poza planem: żadnych zmian w UI (E3), historii (E2), innych modułach.
 opcja `stocks_entity_prefix` (domyślnie `sensor.nokia_tracker_` w `config.yaml`, `""` w `settings.py`), 8 testów; 1126 testów, ruff i mypy czyste.
 Verifier: REJECT z jednym trafnym zarzutem (`stocks.refresh` w jednym `try` z migawką) — naprawione osobnym `try/except` w `record_networth`.
 Do sprawdzenia na żywo po wydaniu: brak ręcznego aktywa „Nokia” w Inwestycjach (podwójne liczenie).
+
+## Wykonawca E2 (prompt dla `sonnet-worker`; repo `/config/addons/ha-budget-app`, kod w `budget/app/src/budget/`)
+Cel: do przybliżonych migawek majątku (`approx=1`) z końców 07, 08, 09.2026 dopisać składniki akcji ze statystyk HA.
+Sondy WS nie da się uruchomić poza add-onem (brak `SUPERVISOR_TOKEN`), więc kod ma być odporny: każdy błąd WS = log.warning
+i brak zmian (flaga NIE ustawiona ⇒ ponowienie przy następnej migawce). Faktyczna sonda = pierwszy start po wydaniu (log).
+
+1. `budget/requirements.txt`: dopisz `websockets==15.0.1` (alfabetycznie, jak reszta). `app/pyproject.toml`: `"websockets>=13"` w dependencies.
+2. `ha_client.py`: `async def monthly_statistics(self, entity_ids: list[str], start: datetime, end: datetime) -> dict[str, list[dict[str, Any]]]`.
+   Połączenie `websockets.asyncio.client.connect(f"ws{base[4:]}/core/websocket")` (base `http://supervisor` ⇒ `ws://supervisor/core/websocket`);
+   protokół: odbierz `auth_required` → wyślij `{"type":"auth","access_token":token}` → oczekuj `auth_ok` → wyślij
+   `{"id":1,"type":"recorder/statistics_during_period","start_time":iso,"end_time":iso,"statistic_ids":[...],"period":"month","types":["state","mean"]}`
+   → odpowiedź `{"id":1,"success":true,"result":{id:[{"start":ms,"end":ms,"state":x,"mean":y},...]}}`. Timeout 15 s (`asyncio.timeout`),
+   każdy błąd/`success:false` ⇒ `HAError`. Bez tokenu ⇒ `HAError` jak `_request`. Parametr `base_url` zostaje punktem testowym.
+3. `stocks.py`: `async def backfill_history(conn, ha, prefix, today) -> int` — pusty prefiks / `not ha.available` / flaga `kv` `stocks_history_done`
+   ⇒ 0. Wybierz migawki `networth_snapshot WHERE approx = 1 AND day >= '2026-07-01' AND day < <pierwszy dzień bieżącego miesiąca>`
+   (końce miesięcy); brak takich ⇒ 0 (bez flagi). Pobierz statystyki `{prefix}market_value_pln`, `{prefix}unvested_qty`, `{prefix}price_pln`
+   (okno od 2026-07-01 do `today`); dla każdej migawki weź kubełek miesiąca (`start` ms → data lokalna Europe/Warsaw, miesiąc = miesiąc migawki),
+   `market = state(market_value)`, `unvested = state(unvested_qty)` (fallback `mean`), `price = state(price)`; brak któregoś ⇒ pomiń migawkę.
+   Pomiń też, gdy `components_json` ma już składnik „Akcje Nokia” (idempotencja). Dopisz dwa komponenty jak `networth._investments`
+   (nazwy, grupa `INVESTMENTS`, bez `note`, `stale=False`), przelicz `assets` i `total` (`total = assets − liabilities`, Decimal jako str),
+   `UPDATE networth_snapshot SET total, assets, components_json WHERE day = ? AND approx = 1`. Po udanym połączeniu WS ustaw flagę
+   (`db.kv_set(conn, "stocks_history_done", True)`), nawet gdy część migaw. pominięto (brak danych); błąd WS ⇒ nic, bez flagi.
+   `stocks` nie importuje `networth` (cykl) — nazwy grupy/komponentów przekaż parametrem albo stałą w `stocks`; zalecane: stałe
+   `GROUP`, `NAME_VALUE`, `NAME_UNVESTED` w `stocks.py`, a `networth._investments` ma z nich korzystać (jedno źródło nazw).
+4. `service.py::record_networth`: po `networth.backfill(...)`/przed `networth.save` wywołaj `await stocks.backfill_history(self.conn, self.ha, self.settings.stocks_entity_prefix, today)` we własnym `try/except Exception: log.exception`.
+5. Testy `tests/test_stocks.py` (atrapa `HAClient` z `monthly_statistics`; osobny test `ha_client` z fałszywym serwerem WS `websockets.asyncio.server`
+   na `127.0.0.1`, dla handshake'u auth + odpowiedzi): dopisanie składników do 3 migawek `approx=1` (neutralne kwoty), suma `total`/`assets` zgodna;
+   migawka `approx=0` nietknięta; ponowne wywołanie idempotentne (flaga + obecność komponentu); błąd WS ⇒ brak zmian i brak flagi; brak migawek ⇒ brak flagi;
+   migawka bez statystyk pominięta.
+Komenda: `cd budget/app && UV_LINK_MODE=copy uv run --extra dev pytest -q && uv run --extra dev ruff check . && uv run --extra dev mypy src`. Nie commituj, nie wydawaj.
+Zakres poza planem: UI i dzwonek (E3), inne moduły.
