@@ -84,3 +84,9 @@ komponenty buduje `networth._investments`.
    stale po 2×`STALE_DAYS`; pusty prefiks. Dołóż przypadek do `tests/test_networth*.py`, jeśli istnieje.
 Komenda: `cd budget/app && uv run pytest -q && uv run ruff check . && uv run mypy src`. Nie commituj, nie wydawaj.
 Zakres poza planem: żadnych zmian w UI (E3), historii (E2), innych modułach.
+
+## Wynik E1 (2026-10-20)
+`ca9b823` na `main` (lokalnie, bez pusha): `stocks.py`, `ha_client.get_state`, składniki „Akcje Nokia” i „Akcje Nokia — niezawiązane” w `networth._investments`,
+opcja `stocks_entity_prefix` (domyślnie `sensor.nokia_tracker_` w `config.yaml`, `""` w `settings.py`), 8 testów; 1126 testów, ruff i mypy czyste.
+Verifier: REJECT z jednym trafnym zarzutem (`stocks.refresh` w jednym `try` z migawką) — naprawione osobnym `try/except` w `record_networth`.
+Do sprawdzenia na żywo po wydaniu: brak ręcznego aktywa „Nokia” w Inwestycjach (podwójne liczenie).
