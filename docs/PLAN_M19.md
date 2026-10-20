@@ -61,3 +61,11 @@ Makieta B (poziomo) i D (pionowo) na kopii księgi dev (skrypt w scratchpadzie s
 - kategoria z ujemnym saldem netto (zwrot > wydatki) nie może rysować węzła — pomijać i dopisać do „Inne”/nadwyżki (test);
 - „Bez kategorii” bywa największym węzłem (kopia 02.10) — węzeł z linkiem do kolejki przeglądu, osobny kolor `unc`;
 - kopia z 02.10 nie ma kategoryzacji — w makiecie potrzebne `engine.recategorize`.
+
+## Wynik E1 (2026-10-20)
+`budget/flow.py` (`build(conn, start, end) -> Flow`: węzły 3 kolumn, krawędzie, deficyt/nadwyżka; top 8 kategorii + „Inne” per grupa;
+zwrot netto bez węzła; deficyt dzielony proporcjonalnie) i `web/charts.py:sankey(flow, period=, other_href=, review_href=) -> SankeyChart`
+(SVG 360 px, `SK_*` stałe, węzły `SankeyNode`, krzywe `SankeyLink` z `stroke-width`, min. wysokość 3, etykiety od 12 px, skrót etykiet).
+Testy `tests/test_flow.py`, `tests/test_web_charts.py`. Commit 6730fcb. Orientacja pionowa (D) odrzucona — brak parametru.
+Pułapka: skaner prywatności blokuje nazwy własne przypominające ulice nawet w stringach testowych — używać neutralnych.
+E2 (≈5 edycji: routes_spending, spending.html, _charts.html, app.css, usunięcie trasy makiety): zrobić samemu lub sonnet-worker + verifier.
