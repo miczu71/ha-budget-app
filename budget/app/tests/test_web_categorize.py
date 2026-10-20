@@ -78,6 +78,20 @@ async def test_spending_page(client: httpx.AsyncClient, service: Service) -> Non
     assert 'aria-label="następny miesiąc"' not in future
 
 
+async def test_spending_flow_year(client: httpx.AsyncClient, service: Service) -> None:
+    _seed(service.conn)
+    month = (await client.get("/spending")).text
+    year = (await client.get("/spending?flow=year")).text
+    assert 'aria-current="true">Miesiąc' in month and 'aria-current="true">Rok' in year
+    year_no = DAY[:4]
+    assert "&flow=year" in month
+    assert f"date_from={year_no}-01-01&amp;date_to={year_no}-12-31" in year
+    assert f"date_from={year_no}-01-01&date_to={year_no}-12-31" not in month
+    svg = year.split('<svg class="sk"', 1)[1].split("</svg>", 1)[0]
+    assert "sk-node" in svg
+    assert 'aria-label="następny miesiąc"' not in (await client.get("/spending?flow=zly")).text
+
+
 async def test_transactions_filters_and_manual_category(
     client: httpx.AsyncClient, service: Service
 ) -> None:

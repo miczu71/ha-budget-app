@@ -60,11 +60,15 @@
 
 <section class="card">
   <h2>Przepływ pieniędzy</h2>
+  <nav class="tabs" aria-label="zakres przepływu">
+    <a class="tap{{ '' if flow_year else ' on' }}" href="{{ base }}/spending?month={{ m.month.strftime('%Y-%m') }}"{% if not flow_year %} aria-current="true"{% endif %}>Miesiąc</a>
+    <a class="tap{{ ' on' if flow_year else '' }}" href="{{ base }}/spending?month={{ m.month.strftime('%Y-%m') }}&flow=year"{% if flow_year %} aria-current="true"{% endif %}>Rok {{ m.month.year }}</a>
+  </nav>
   {% if sankey.nodes %}
-  {{ sankey_chart(sankey, "Przepływ pieniędzy: wpływy, grupy budżetu i kategorie w " ~ label) }}
+  {{ sankey_chart(sankey, "Przepływ pieniędzy: wpływy, grupy budżetu i kategorie w " ~ flow_label) }}
   <p class="small muted">Wpływy → grupy budżetu → kategorie. Dotknij kategorii, by zobaczyć transakcje.</p>
   {% else %}
-  <p class="muted">brak przepływów w tym miesiącu</p>
+  <p class="muted">brak przepływów w tym {{ 'roku' if flow_year else 'miesiącu' }}</p>
   {% endif %}
 </section>
 
