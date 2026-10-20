@@ -99,6 +99,10 @@ async def test_server_timing_header(client: httpx.AsyncClient) -> None:
     r = await client.get("/")
     names = {part.split(";")[0].strip() for part in r.headers["server-timing"].split(",")}
     assert {"total", "inbox", "template"} <= names
+    assert {"h_flex", "h_year", "p_operational"} <= names  # kroki strony głównej i dzwonka
+    status = await client.get("/status")
+    steps = {part.split(";")[0].strip() for part in status.headers["server-timing"].split(",")}
+    assert {"s_summaries", "s_ai", "s_learned"} <= steps
     css = await client.get("/static/app.css")
     assert "server-timing" not in css.headers
 

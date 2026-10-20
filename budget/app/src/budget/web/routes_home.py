@@ -26,6 +26,7 @@ from budget.money import ZERO
 from budget.recurring import schedule
 from budget.spending import MONTHS, MONTHS_GEN, add_months, month_label, month_start, parse_month
 from budget.storage import db
+from budget.timing import timed
 from budget.web import charts
 from budget.web.common import Panel
 
@@ -110,13 +111,16 @@ def router(panel: Panel) -> APIRouter:
         start = parse_month(month, today)
         nxt = add_months(start, 1)
         ym = f"{start:%Y-%m}"
-        m = spending.build(conn, start, today)
-        f = flex.build(panel.service.snapshot, start, today)
+        with timed("h_spending"):
+            m = spending.build(conn, start, today)
+        with timed("h_flex"):
+            f = flex.build(panel.service.snapshot, start, today)
         period = f"date_from={start.isoformat()}&date_to={(nxt - timedelta(days=1)).isoformat()}"
         upcoming: list[schedule.Due] = []
         mv = None
         if f.is_current:  # nadchodzące płatności mają sens tylko dla bieżącego miesiąca
-            mv = schedule.for_month(panel.service.snapshot, start, today)
+            with timed("h_schedule"):
+                mv = schedule.for_month(panel.service.snapshot, start, today)
             upcoming = sorted(
                 (d for d in mv.rows if d.status in (schedule.EXPECTED, schedule.LATE)),
                 key=lambda d: d.sort_day,
@@ -124,16 +128,17 @@ def router(panel: Panel) -> APIRouter:
         fc, buffer = None, Decimal(panel.service.settings.forecast_buffer)
         if mv is not None:  # prognoza (tylko bieżący miesiąc) nie może zablokować strony głównej
             try:
-                fc = forecast.build(
-                    panel.service.snapshot,
-                    today,
-                    now,
-                    f,
-                    mv,
-                    buffer,
-                    forecast.payday_series_id(conn),
-                    forecast.include_card_debt(conn),
-                )
+                with timed("h_forecast"):
+                    fc = forecast.build(
+                        panel.service.snapshot,
+                        today,
+                        now,
+                        f,
+                        mv,
+                        buffer,
+                        forecast.payday_series_id(conn),
+                        forecast.include_card_debt(conn),
+                    )
             except Exception:
                 log.exception("Prognoza do wypłaty nieudana")
         sv = savings.overview(conn, today, 1)
@@ -146,10 +151,13 @@ def router(panel: Panel) -> APIRouter:
                 log.exception("Kafelki sald nieudane")
         nw = None
         try:  # kafelek majątku to dodatek: błąd nie może zablokować strony głównej
-            snap = networth.compute(conn, today)
-            nw = (snap, networth.change(conn, snap.total, today, 30))
+            with timed("h_networth"):
+                snap = networth.compute(conn, today)
+                nw = (snap, networth.change(conn, snap.total, today, 30))
         except Exception:
             log.exception("Kafelek majątku nieudany")
+        with timed("h_year"):
+            yr = panel.service.year_projection()
         sync_at = sync_service.last_success(conn)
         record = sessions.current(conn)
         return panel.render(
@@ -187,7 +195,7 @@ def router(panel: Panel) -> APIRouter:
             fc=fc,
             tiles=tiles,
             nw=nw,
-            yr=panel.service.year_projection(),
+            yr=yr,
             chart=charts.forecast_line(fc.days, buffer, fc.events, fc.payday) if fc else None,
             timeline=forecast_timeline(fc) if fc else [],
         )

@@ -459,6 +459,41 @@ def advice(
     )
 
 
+class AdviceMemo:
+    """Ostatnia rekomendacja z sygnaturą bazy, dnia, kwoty, horyzontu i użytych prognoz (po
+    tożsamości — same są memoizowane) — `/invest`, `/networth` i podsumowania liczą ją po tym
+    samym stanie bazy."""
+
+    def __init__(self) -> None:
+        self._key: tuple[object, ...] | None = None
+        self._inputs: tuple[Forecast | None, year.Projection | None] = (None, None)
+        self._value: Advice | None = None
+
+    def get(
+        self,
+        snap: Snapshot,
+        fc: Forecast | None,
+        proj: year.Projection | None,
+        today: date,
+        amount: Decimal | None = None,
+        years: Decimal = DEFAULT_YEARS,
+    ) -> Advice:
+        key = (snap.signature(), today, amount, years)
+        fresh = (
+            self._value is not None
+            and key == self._key
+            and fc is self._inputs[0]
+            and proj is self._inputs[1]
+        )
+        if fresh and not snap.conn.in_transaction:
+            assert self._value is not None
+            return self._value
+        value = advice(snap, fc, proj, today, amount, years)
+        if not snap.conn.in_transaction:
+            self._key, self._inputs, self._value = key, (fc, proj), value
+        return value
+
+
 @dataclass(frozen=True)
 class Better:
     holder: str  # konto M10 albo aktywo, które lepiej przenieść

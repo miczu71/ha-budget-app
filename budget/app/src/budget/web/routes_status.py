@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
+from collections.abc import Callable
 from typing import Any
 
 from fastapi import APIRouter, Form, Request
@@ -17,6 +18,7 @@ from budget.service import ServiceError
 from budget.storage import db
 from budget.suggest import engine as suggest
 from budget.suggest.client import AIError
+from budget.timing import timed
 from budget.web.common import Panel
 
 log = logging.getLogger(__name__)
@@ -34,6 +36,11 @@ def psu_from_request(request: Request) -> PsuHeaders:
         accept_language=h.get("accept-language"),
         accept_encoding=h.get("accept-encoding"),
     )
+
+
+def step[T](name: str, fn: Callable[[], T]) -> T:
+    with timed(name):
+        return fn()
 
 
 def router(panel: Panel) -> APIRouter:
@@ -62,14 +69,17 @@ def router(panel: Panel) -> APIRouter:
             "requests": requests,
             "limit": sync_service.DAILY_LIMIT,
             "balances": balances,
-            "checks": [(report.balance_line(c), c) for c in panel.service.balance_memo.get(conn)],
+            "checks": step(
+                "s_checks",
+                lambda: [(report.balance_line(c), c) for c in service.balance_memo.get(conn)],
+            ),
             "missing": service.missing_config(),
             "manual_needed": service.manual_sync_needed(),
             "busy": service.lock.locked(),
-            "ai": ai_context(),
-            "summaries": summaries_context(),
+            "ai": step("s_ai", ai_context),
+            "summaries": step("s_summaries", summaries_context),
             "learn": db.kv_get(conn, learn.EVAL_KEY),
-            "learned_stats": engine.learned_stats(conn),
+            "learned_stats": step("s_learned", lambda: engine.learned_stats(conn)),
             "year_eval": db.kv_get(conn, year.BACKTEST_KEY),
             "chat_log": chat_log,
             "chat_counts": Counter(e["outcome"] for e in chat_log),

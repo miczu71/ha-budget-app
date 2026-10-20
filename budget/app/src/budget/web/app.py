@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 
 from budget import __version__
 from budget.service import Service
+from budget.timing import server_timing, start_timings
 from budget.web import (
     routes_accounts,
     routes_ask,
@@ -45,7 +46,7 @@ from budget.web import (
     routes_transactions,
     routes_year,
 )
-from budget.web.common import HERE, Panel, fmt_date, fmt_money, server_timing, start_timings
+from budget.web.common import HERE, Panel, fmt_date, fmt_money
 
 __all__ = ["create_app", "fmt_date", "fmt_money"]
 

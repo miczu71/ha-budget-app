@@ -9,6 +9,7 @@ from decimal import Decimal
 import pytest
 
 from budget import invest, loan, loan_sim
+from budget.snapshot import Snapshot
 
 from .test_categorize_engine import conn
 from .test_loan import make
@@ -207,3 +208,27 @@ def test_offer_crud_validates_kind_and_rate(conn: sqlite3.Connection) -> None:
         invest.save_offer(conn, "deposit", "Bank A", "150", "", "", "12", "", False)
     with pytest.raises(invest.InvestError):
         invest.save_offer(conn, "deposit", "Bank A", "5", "", "", "", "", False)  # lokata: okres
+
+
+# --- memo rekomendacji (M14 E2) ---
+
+
+def test_advice_memo_computes_once_per_database_state(
+    conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    snap, calls = Snapshot(conn), []
+    real = invest.advice
+
+    def counting(*args: object, **kwargs: object) -> invest.Advice:
+        calls.append(1)
+        return real(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(invest, "advice", counting)
+    memo = invest.AdviceMemo()
+    first = memo.get(snap, None, None, TODAY)
+    assert memo.get(snap, None, None, TODAY) is first and len(calls) == 1
+    memo.get(snap, None, None, TODAY, D(5000))  # inna kwota porównania
+    assert len(calls) == 2
+    invest.save_settings(conn, "6", "1; 5; 8", "0,3", "2,5")  # zapis zmienia sygnaturę
+    memo.get(snap, None, None, TODAY, D(5000))
+    assert len(calls) == 3

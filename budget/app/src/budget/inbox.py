@@ -41,6 +41,7 @@ from budget.recurring import changes, series
 from budget.snapshot import Snapshot
 from budget.spending import add_months, month_label, month_start
 from budget.storage import db
+from budget.timing import timed
 
 Severity = Literal["info", "warn", "error"]
 DISMISSED_KEY = "inbox_dismissed"  # kv: klucze ręcznie ukrytych kart (`Item.key`)
@@ -536,7 +537,10 @@ def items(
 ) -> list[Item]:
     """Wszystkie bieżące karty, także ręcznie ukryte (te odfiltrowuje `visible`)."""
     ctx = Context(now, snap, forecast)
-    out = [item for provider in PROVIDERS for item in provider(snap.conn, ctx, memo)]
+    out = []
+    for provider in PROVIDERS:
+        with timed(f"p_{provider.__name__}"):
+            out.extend(provider(snap.conn, ctx, memo))
     return sorted(out, key=lambda i: SEVERITY_ORDER[i.severity])
 
 

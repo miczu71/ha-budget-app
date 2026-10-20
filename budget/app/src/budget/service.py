@@ -90,6 +90,7 @@ class Service:
         self.balance_memo = inbox.BalanceMemo()
         self.forecast_memo = forecast_mod.ForecastMemo()
         self.year_memo = year.Memo()
+        self.advice_memo = invest.AdviceMemo()
         self.snapshot = Snapshot(conn)
         self._eb_base_url = eb_base_url or settings.eb_base_url
 
@@ -290,7 +291,7 @@ class Service:
     def invest_advice(self) -> invest.Advice | None:
         """Rekomendacja agenta inwestycyjnego (M22 E4); błąd nie blokuje podsumowań."""
         try:
-            return invest.advice(
+            return self.advice_memo.get(
                 self.snapshot, self.forecast(), self.year_projection(), self.now().date()
             )
         except Exception:

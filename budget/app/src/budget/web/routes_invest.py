@@ -42,7 +42,7 @@ def router(panel: Panel) -> APIRouter:
         proj = panel.service.year_memo.get(snap, today, buffer)
         fc = panel.service.forecast()
         chosen, horizon = compare_args(amount, years)
-        adv = invest.advice(snap, fc, proj, today, chosen, horizon)
+        adv = panel.service.advice_memo.get(snap, fc, proj, today, chosen, horizon)
         assets = invest.all_assets(conn)
         offers = invest.all_offers(conn)
         promos = promo_track.tracks(conn)
