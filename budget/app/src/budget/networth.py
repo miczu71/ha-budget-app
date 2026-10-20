@@ -279,3 +279,38 @@ def backfill(conn: sqlite3.Connection, today: date) -> int:
             return n
         save(conn, reconstruct(conn, end), approx=True)
         n, day = n + 1, end + timedelta(days=1)
+
+
+@dataclass(frozen=True)
+class Point:
+    day: date
+    total: Decimal
+    approx: bool
+
+
+def history(conn: sqlite3.Connection) -> list[Point]:
+    """Ostatnia migawka każdego miesiąca (bieżący miesiąc kończy dzisiejsza), od najstarszej."""
+    rows = conn.execute(
+        "SELECT day, total, approx FROM networth_snapshot s WHERE day = "
+        "(SELECT max(day) FROM networth_snapshot WHERE substr(day, 1, 7) = substr(s.day, 1, 7)) "
+        "ORDER BY day"
+    )
+    return [Point(date.fromisoformat(r[0]), Decimal(r[1]), bool(r[2])) for r in rows]
+
+
+@dataclass(frozen=True)
+class Change:
+    delta: Decimal
+    since: date
+    approx: bool  # punkt odniesienia odtworzony, nie zapisany na bieżąco
+
+
+def change(conn: sqlite3.Connection, now: Decimal, today: date, days: int) -> Change | None:
+    """Zmiana wobec ostatniej migawki z dnia `today − days` lub wcześniejszej; None bez niej."""
+    row = conn.execute(
+        "SELECT day, total, approx FROM networth_snapshot WHERE day <= ? ORDER BY day DESC LIMIT 1",
+        ((today - timedelta(days=days)).isoformat(),),
+    ).fetchone()
+    if row is None:
+        return None
+    return Change(now - Decimal(row[1]), date.fromisoformat(row[0]), bool(row[2]))

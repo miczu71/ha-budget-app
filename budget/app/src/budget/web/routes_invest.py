@@ -9,7 +9,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import invest, invest_blogs, invest_sources, invest_why, piggy, promo_track
+from budget import invest, invest_blogs, invest_sources, invest_why, piggy, promo_track, savings
 from budget.web.common import Panel
 
 
@@ -73,6 +73,7 @@ def router(panel: Panel) -> APIRouter:
             sources_error=invest_sources.error(conn),
             blogs_error=invest_blogs.error(conn),
             asset_kinds=invest.ASSET_KINDS,
+            savings_accounts=savings.all_accounts(conn),
             offer_kinds=invest.OFFER_KINDS,
         )
 
@@ -95,7 +96,7 @@ def router(panel: Panel) -> APIRouter:
     async def save_asset(request: Request, asset_id: int | None) -> Response:
         f = {k: str(v) for k, v in (await request.form()).items()}
         try:
-            invest.save_asset(
+            saved = invest.save_asset(
                 conn,
                 asset_id,
                 f.get("kind", ""),
@@ -105,7 +106,10 @@ def router(panel: Panel) -> APIRouter:
                 f.get("start_date"),
                 f.get("maturity_date"),
                 bool(f.get("ike")),
+                f.get("valued_at"),
             )
+            link = f.get("savings_id", "")
+            invest.link_savings(conn, saved, int(link) if link.isdigit() else None)
         except invest.InvestError as exc:
             back = f"/invest?edit_asset={asset_id}#assets" if asset_id else "/invest#assets"
             return panel.redirect(request, back, str(exc), "error")

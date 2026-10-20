@@ -626,7 +626,10 @@ def save_asset(
     start: str | None,
     maturity: str | None,
     ike: bool,
+    valued_at: str | None = None,
 ) -> int:
+    """Zapis aktywa. `valued_at` = dzień wartości; puste albo bez zmiany → dziś przy zmianie
+    kwoty."""
     clean = " ".join(name.split())[:60]
     if kind not in ASSET_KINDS:
         raise InvestError("Wybierz rodzaj aktywa.")
@@ -637,6 +640,9 @@ def save_asset(
         raise InvestError("Podaj wartość aktywa, np. 5000.")
     pct = _pct(rate, "oprocentowanie")
     day, end = _day(start, "początek"), _day(maturity, "zapadalność")
+    valued = _day(valued_at, "datę wartości")
+    if valued and valued.isoformat() > now_iso()[:10]:
+        raise InvestError("Data wartości nie może być z przyszłości.")
     params = (
         kind,
         clean,
@@ -650,14 +656,24 @@ def save_asset(
         cur = conn.execute(
             "INSERT INTO invest_asset (kind, name, amount, rate, start_date, maturity_date, ike, "
             "created_at, valued_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (*params, now_iso(), now_iso()[:10]),
+            (*params, now_iso(), valued.isoformat() if valued else now_iso()[:10]),
         )
         return int(cur.lastrowid or 0)
+    old = conn.execute("SELECT valued_at FROM invest_asset WHERE id = ?", (asset_id,)).fetchone()
+    changed = valued is not None and (old is None or valued.isoformat() != old[0])
     cur = conn.execute(
         "UPDATE invest_asset SET kind = ?, name = ?, amount = ?, rate = ?, start_date = ?, "
-        "maturity_date = ?, ike = ?, valued_at = CASE WHEN amount != ? THEN ? ELSE valued_at END "
+        "maturity_date = ?, ike = ?, "
+        "valued_at = CASE WHEN ? THEN ? WHEN amount != ? THEN ? ELSE valued_at END "
         "WHERE id = ? AND archived_at IS NULL",
-        (*params, str(value), now_iso()[:10], asset_id),
+        (
+            *params,
+            int(changed),
+            valued and valued.isoformat(),
+            str(value),
+            now_iso()[:10],
+            asset_id,
+        ),
     )
     if not cur.rowcount:
         raise InvestError("Nie ma takiego aktywa.")

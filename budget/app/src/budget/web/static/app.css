@@ -1013,3 +1013,6 @@ form.lidl-map select { width: 100%; }
   .bal-pop-head { color: var(--text-3); border-bottom: 1px solid var(--line); margin-bottom: 2px; }
   .bal-has-pop:hover .bal-pop { display: block; }
 }
+.fc-line .nw-dot { fill: var(--text); stroke: var(--surface-1); stroke-width: 1.5; }
+.fc-line .nw-dot.approx { fill: var(--surface-1); stroke: var(--text); }
+@media (min-width: 720px) { .stats.stats-4 { grid-template-columns: repeat(4, 1fr); } }

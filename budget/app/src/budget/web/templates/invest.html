@@ -15,6 +15,13 @@
     <label>Zapadalność<input type="date" name="maturity_date" value="{{ a.maturity.isoformat() if a and a.maturity }}"></label>
     <label class="check"><input type="checkbox" name="ike" value="1" {{ "checked" if a and a.ike }}> w IKE</label>
   </div>
+  <div class="inline">
+    <label>Wartość z dnia<input type="date" name="valued_at" value="{{ a.valued_at.isoformat() if a and a.valued_at }}" max="{{ today.isoformat() }}"></label>
+    {% if savings_accounts %}<label>To samo co oszczędność
+      <select name="savings_id"><option value="">— nie —</option>{% for sa in savings_accounts %}<option value="{{ sa.id }}" {{ "selected" if a and a.savings_id == sa.id }}>{{ sa.name }}</option>{% endfor %}</select>
+    </label>{% endif %}
+  </div>
+  {% if savings_accounts %}<p class="small muted">Powiązane aktywo liczy się w Majątku raz — jako oszczędność.</p>{% endif %}
   <p class="actions-row">
     <button type="submit">{{ "Zapisz" if a else "Dodaj aktywo" }}</button>
     {% if a %}<a class="tap" href="{{ base }}/invest#assets">Anuluj</a>{% endif %}

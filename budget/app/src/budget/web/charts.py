@@ -323,3 +323,60 @@ def forecast_line(
         end2_x=x_at(len(values2) - 1) if values2 else 0.0,
         end2_y=y_at(values2[-1]) if values2 else 0.0,
     )
+
+
+# --- majątek netto (M26 E3) -----------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class NetDot:
+    x: float
+    y: float
+    approx: bool
+    day: date
+    total: Decimal
+
+
+@dataclass(frozen=True)
+class NetChart:
+    points: str  # linia łamana przez wszystkie miesiące
+    dots: list[NetDot]
+    zero_y: float | None
+    ticks: list[Tick]
+    x_labels: list[tuple[float, str]]
+    width: int = FC_WIDTH
+    height: int = FC_HEIGHT
+    plot_left: float = LEFT
+    plot_right: float = FC_WIDTH - RIGHT
+    baseline: float = FC_HEIGHT - BOTTOM
+
+
+def _month_label(d: date) -> str:
+    return f"{MONTH_ABBR[d.month - 1]} {d:%y}"
+
+
+def networth_line(rows: Sequence[tuple[date, Decimal, bool]]) -> NetChart:
+    """Majątek netto z końców miesięcy (day, total, approx) jako linia w skali od najniższej do
+    najwyższej wartości z zapasem 8%; punkty odtworzone (`approx`) są puste w środku."""
+    values = [float(t) for _, t, _ in rows]
+    lo, hi = min(values), max(values)
+    pad = ((hi - lo) or max(abs(hi), 1.0)) * 0.08
+    lo, hi = lo - pad, hi + pad
+    plot_h = FC_HEIGHT - TOP - BOTTOM
+    plot_w = FC_WIDTH - RIGHT - LEFT
+    last = max(len(values) - 1, 1)
+
+    def x_at(i: int) -> float:
+        return LEFT + i * plot_w / last
+
+    def y_at(value: float) -> float:
+        return TOP + (hi - value) / (hi - lo) * plot_h
+
+    dots = [NetDot(x_at(i), y_at(float(t)), a, d, t) for i, (d, t, a) in enumerate(rows)]
+    return NetChart(
+        points=" ".join(f"{p.x:.1f},{p.y:.1f}" for p in dots),
+        dots=dots,
+        zero_y=y_at(0.0) if lo <= 0.0 <= hi else None,
+        ticks=[Tick(_signed_compact(v), y_at(v)) for v in (min(values), max(values))],
+        x_labels=[(dots[0].x, _month_label(rows[0][0])), (dots[-1].x, _month_label(rows[-1][0]))],
+    )

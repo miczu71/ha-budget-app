@@ -15,6 +15,7 @@ from budget import (
     flex,
     forecast,
     home_layout,
+    networth,
     piggy,
     savings,
     sessions,
@@ -143,6 +144,12 @@ def router(panel: Panel) -> APIRouter:
                 tiles = balance_tiles(panel, fc, today, sv, bool(cm))
             except Exception:
                 log.exception("Kafelki sald nieudane")
+        nw = None
+        try:  # kafelek majątku to dodatek: błąd nie może zablokować strony głównej
+            snap = networth.compute(conn, today)
+            nw = (snap, networth.change(conn, snap.total, today, 30))
+        except Exception:
+            log.exception("Kafelek majątku nieudany")
         sync_at = sync_service.last_success(conn)
         record = sessions.current(conn)
         return panel.render(
@@ -179,6 +186,7 @@ def router(panel: Panel) -> APIRouter:
             cd=card.due_status(conn, today) if f.is_current else None,
             fc=fc,
             tiles=tiles,
+            nw=nw,
             yr=panel.service.year_projection(),
             chart=charts.forecast_line(fc.days, buffer, fc.events, fc.payday) if fc else None,
             timeline=forecast_timeline(fc) if fc else [],

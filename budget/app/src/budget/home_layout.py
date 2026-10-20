@@ -15,6 +15,7 @@ TILES: dict[str, str] = {  # domyślna kolejność
     "card": "Karta kredytowa",
     "piggy": "Skarbonki",
     "savings": "Oszczędności",
+    "networth": "Majątek netto",
     "year": "Rok",
     "upcoming": "Co jeszcze zejdzie",
     "recent": "Ostatnie transakcje",

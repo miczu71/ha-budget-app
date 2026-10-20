@@ -239,3 +239,28 @@ def test_backfill_month_ends_idempotent_and_keeps_exact_points(conn: sqlite3.Con
 
 def test_backfill_without_transactions_is_empty(conn: sqlite3.Connection) -> None:
     assert networth.first_day(conn) is None and networth.backfill(conn, DAY) == 0
+
+
+def test_history_keeps_last_snapshot_per_month(conn: sqlite3.Connection) -> None:
+    for day, total, approx in (
+        ("2026-08-31", "100", True),
+        ("2026-09-29", "150", False),
+        ("2026-09-30", "160", True),
+        ("2026-10-19", "190", False),
+        ("2026-10-20", "200", False),
+    ):
+        conn.execute(
+            "INSERT INTO networth_snapshot "
+            "(day, total, assets, liabilities, components_json, approx) "
+            "VALUES (?, ?, ?, '0', '[]', ?)",
+            (day, total, total, int(approx)),
+        )
+    pts = networth.history(conn)
+    assert [(p.day.isoformat(), p.total, p.approx) for p in pts] == [
+        ("2026-08-31", Decimal(100), True),
+        ("2026-09-30", Decimal(160), True),
+        ("2026-10-20", Decimal(200), False),
+    ]
+    m = networth.change(conn, Decimal(200), DAY, 30)  # 2026-09-20 → najbliższa wcześniejsza: 08-31
+    assert m == networth.Change(Decimal(100), date(2026, 8, 31), True)
+    assert networth.change(conn, Decimal(200), DAY, 365) is None

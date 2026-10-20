@@ -96,3 +96,11 @@ na starcie `daily_tick` i po każdej północy; błąd nie zatrzymuje pętli. 11
 Poprawka po E2 (notatka z review): backfill rusza dopiero, gdy `fx.covers` (kursy każdej waluty kont od pierwszego dnia); bez nich czeka
 i ponawia przy następnym `record_networth`, bo `has_history(conn, today)` ignoruje dzisiejszą migawkę. `fx.refresh` wiąże `fetch` przy
 wywołaniu (testy mogą go podmienić). Test z EUR i awarią NBP; 1105 testów.
+
+## Wynik E3 (2026-10-20)
+Zakładka „Majątek” (`web/routes_networth.py`, `networth.html`, wpis `networth` w `nav_layout` po „Inwestycjach”): hero z majątkiem netto, zmiana m/m i r/r
+(`networth.change` — ostatnia migawka sprzed `today − 30/365` dni, z flagą „przybliżone”), płynność i LTV, wykres miesięczny (`charts.networth_line`,
+puste punkty = odtworzone), bilans aktywa/pasywa wg grup, lista „Do aktualizacji” (`stale`), ostrzeżenie `missing_fx`. Kafel „Majątek netto” na
+Podsumowaniu (`home_layout.TILES["networth"]`, przed „Rok”). Formularz aktywa M22: „Wartość z dnia” (`valued_at`, nie z przyszłości) i „To samo co
+oszczędność” (`invest.link_savings`). `networth.history` = ostatnia migawka miesiąca; bieżący miesiąc zastępuje żywe `compute`.
+1111 testów, ruff i mypy czyste; Playwright 360/1280 px na syntetycznych danych, konsola bez błędów. Plan E3 wykonany bez workera (edycje robione bezpośrednio).

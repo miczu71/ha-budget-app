@@ -187,3 +187,19 @@ def test_forecast_line_low_label_and_payday_label() -> None:
         charts.forecast_line(days, Decimal(0), (), date(2026, 10, 4)).x_labels[-1][1]
         == "wypłata 04.10"
     )
+
+
+def test_networth_line_marks_approx_points_and_zero() -> None:
+    from datetime import date as d
+
+    c = charts.networth_line(
+        [
+            (d(2026, 8, 31), Decimal(-100), True),
+            (d(2026, 9, 30), Decimal(300), True),
+            (d(2026, 10, 20), Decimal(500), False),
+        ]
+    )
+    assert [p.approx for p in c.dots] == [True, True, False]
+    assert c.dots[0].y > c.dots[2].y and c.zero_y is not None
+    assert c.x_labels == [(c.dots[0].x, "sie 26"), (c.dots[2].x, "paź 26")]
+    assert len(c.points.split()) == 3

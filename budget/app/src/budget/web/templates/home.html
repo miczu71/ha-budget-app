@@ -134,6 +134,16 @@
     <p class="small"><a class="tap" href="{{ base }}/piggy#savings">Oszczędności »</a></p>
   </section>
   {% endif %}
+  {% elif t.key == "networth" %}{% if nw and (nw[0].components) %}{% set cur, mom = nw %}
+  <section class="card networth-tile">
+    <h2>Majątek netto</h2>
+    <div class="stats">
+      <div class="stat"><span class="stat-label">Dziś</span><span class="stat-value {{ 'neg' if cur.total < 0 }}">{{ cur.total | money("PLN") }}</span></div>
+      <div class="stat"><span class="stat-label">Zmiana m/m</span><span class="stat-value {{ 'pos' if mom and mom.delta > 0 else 'neg' if mom and mom.delta < 0 }}">{% if mom %}{{ '+' if mom.delta > 0 }}{{ mom.delta | money("PLN") }}{% else %}—{% endif %}</span>{% if mom and mom.approx %}<span class="small muted">przybliżone</span>{% endif %}</div>
+    </div>
+    <p class="small"><a class="tap" href="{{ base }}/networth">Majątek »</a></p>
+  </section>
+  {% endif %}
   {% elif t.key == "upcoming" %}{% if has_upcoming %}
   <section class="card">
     <h2>Co jeszcze zejdzie</h2>
