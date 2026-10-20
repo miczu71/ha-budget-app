@@ -93,3 +93,6 @@ zastępuje, przybliżona nigdy nie nadpisuje), `first_day`, `has_history`, `back
 `Service.record_networth` (kursy NBP → backfill z `fx.refresh(since=pierwszy dzień)` → migawka na dziś ze `spend` z `invest_advice`) wołane
 na starcie `daily_tick` i po każdej północy; błąd nie zatrzymuje pętli. 1104 testów, ruff i mypy czyste. Plan E2 wykonany bez workera
 (ok. 5 edycji w 3 plikach, robione bezpośrednio).
+Poprawka po E2 (notatka z review): backfill rusza dopiero, gdy `fx.covers` (kursy każdej waluty kont od pierwszego dnia); bez nich czeka
+i ponawia przy następnym `record_networth`, bo `has_history(conn, today)` ignoruje dzisiejszą migawkę. `fx.refresh` wiąże `fetch` przy
+wywołaniu (testy mogą go podmienić). Test z EUR i awarią NBP; 1105 testów.

@@ -143,3 +143,33 @@ async def test_record_networth_backfills_once_and_survives_nbp_failure(
     assert rows[-1]["day"] == today and rows[-1]["approx"] == 0
     assert rows[0]["day"] == "2026-01-31" and rows[0]["approx"] == 1
     assert len({r["day"] for r in rows}) == len(rows)
+
+
+async def test_record_networth_waits_for_eur_rates_before_backfill(
+    service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from budget import fx
+
+    calls = {"ok": False}
+
+    async def fetch(cur: str, start: date, end: date) -> dict[date, Decimal]:
+        if not calls["ok"]:
+            raise httpx.ConnectError("brak sieci")
+        return {date(2026, 1, 12): Decimal("4.20")}
+
+    monkeypatch.setattr(fx, "fetch", fetch)
+    conn = service.conn
+    conn.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (1, 'fx', 'EUR', 'x')"
+    )
+    conn.execute(
+        "INSERT INTO balance_snapshot (account_id, balance_type, amount, currency, fetched_at) "
+        "VALUES (1, 'ITAV', '100.00', 'EUR', '2026-01-01T06:00:00+00:00')"
+    )
+    add(conn, "-20", day="2026-01-10")
+    await service.record_networth()
+    days = [r["day"] for r in conn.execute("SELECT day FROM networth_snapshot")]
+    assert days == [service.now().date().isoformat()]  # tylko dziś, bez historii z EUR = 0 zł
+    calls["ok"] = True
+    await service.record_networth()
+    assert conn.execute("SELECT count(*) FROM networth_snapshot").fetchone()[0] > 1

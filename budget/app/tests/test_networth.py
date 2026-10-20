@@ -224,9 +224,9 @@ def test_backfill_month_ends_idempotent_and_keeps_exact_points(conn: sqlite3.Con
     balance(conn, 1, "ITAV", "1000.00")
     add(conn, "-50", "card", "zakup", "Y", day="2026-08-15")
     assert networth.first_day(conn) == date(2026, 8, 15)
-    assert not networth.has_history(conn)
+    assert not networth.has_history(conn, DAY)
     assert networth.backfill(conn, DAY) == 2  # 31.08 i 30.09
-    assert networth.has_history(conn)
+    assert networth.has_history(conn, DAY)
     rows = conn.execute("SELECT day, approx FROM networth_snapshot ORDER BY day").fetchall()
     assert [(r["day"], r["approx"]) for r in rows] == [("2026-08-31", 1), ("2026-09-30", 1)]
     assert networth.backfill(conn, DAY) == 0  # niepusta tabela = bez ponownego odtwarzania

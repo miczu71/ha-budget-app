@@ -90,7 +90,7 @@ class Rates:
 
 
 async def refresh(
-    conn: sqlite3.Connection, day: date, get: Fetch = fetch, since: date | None = None
+    conn: sqlite3.Connection, day: date, get: Fetch | None = None, since: date | None = None
 ) -> None:
     """Dociąga kursy walut kont potrzebne do wyceny na `day` (od `since`, domyślnie `LOOKBACK` dni
     wstecz), gdy ostatnia tabela jest starsza niż `FRESH_DAYS`. Nigdy nie rzuca — brak kursu
@@ -109,6 +109,20 @@ async def refresh(
         if since is None and found and found[0] >= day - timedelta(days=FRESH_DAYS):
             continue
         try:
-            store(conn, cur, await get(cur, since or day - timedelta(days=LOOKBACK), day))
+            store(
+                conn, cur, await (get or fetch)(cur, since or day - timedelta(days=LOOKBACK), day)
+            )
         except Exception as exc:  # sieć, NBP, baza
             log.warning("Kursy NBP %s nieudane: %s", cur, exc)
+
+
+def covers(conn: sqlite3.Connection, since: date) -> bool:
+    """Każda waluta kont ma zapisany kurs z `LOOKBACK` dni od `since` (wycena historii możliwa)."""
+    for (cur,) in conn.execute("SELECT DISTINCT currency FROM account WHERE currency != 'PLN'"):
+        stop = (since + timedelta(days=LOOKBACK)).isoformat()
+        if not conn.execute(
+            "SELECT 1 FROM fx_rate WHERE currency = ? AND day BETWEEN ? AND ?",
+            (cur, since.isoformat(), stop),
+        ).fetchone():
+            return False
+    return True

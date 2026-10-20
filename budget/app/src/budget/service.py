@@ -394,9 +394,12 @@ class Service:
         try:
             await fx.refresh(self.conn, today)
             first = networth.first_day(self.conn)
-            if first is not None and not networth.has_history(self.conn):
+            if first is not None and not networth.has_history(self.conn, today):
                 await fx.refresh(self.conn, today, since=first)
-                networth.backfill(self.conn, today)
+                if fx.covers(self.conn, first):  # bez kursów EUR wyszłoby 0 zł; ponowimy jutro
+                    networth.backfill(self.conn, today)
+                else:
+                    log.warning("Historia majątku czeka na kursy NBP")
             adv = self.invest_advice()
             spend = adv.inputs.spend if adv and adv.inputs.spend > 0 else None
             networth.save(self.conn, networth.compute(self.conn, today, spend))

@@ -248,8 +248,14 @@ def save(conn: sqlite3.Connection, nw: NetWorth, approx: bool = False) -> None:
     )
 
 
-def has_history(conn: sqlite3.Connection) -> bool:
-    return conn.execute("SELECT 1 FROM networth_snapshot LIMIT 1").fetchone() is not None
+def has_history(conn: sqlite3.Connection, before: date) -> bool:
+    """Są migawki sprzed `before` (dzisiejsza nie blokuje ponowienia odtwarzania)."""
+    return (
+        conn.execute(
+            "SELECT 1 FROM networth_snapshot WHERE day < ? LIMIT 1", (before.isoformat(),)
+        ).fetchone()
+        is not None
+    )
 
 
 def first_day(conn: sqlite3.Connection) -> date | None:
@@ -264,7 +270,7 @@ def backfill(conn: sqlite3.Connection, today: date) -> int:
     """Jednorazowe odtworzenie końców miesięcy od najstarszej transakcji do ostatniego przed
     `today` (`approx=1`). Nic nie robi, gdy migawki już są; zwraca liczbę zapisanych."""
     first = first_day(conn)
-    if first is None or has_history(conn):
+    if first is None or has_history(conn, today):
         return 0
     n, day = 0, month_start(first)
     while True:
