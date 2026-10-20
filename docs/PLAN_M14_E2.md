@@ -51,3 +51,30 @@ zmiana `ask/query.py` `plan_prompt` / `SCHEMA` z testem w `tests/test_ask_engine
 - Na żywo po 0.62.0: ten sam skrypt pomiaru w iframe Ingress (19 ścieżek, 5 prób, mediana) — każdy ekran < 400 ms,
   `/` < 600 ms; `/healthz` w trakcie `/` < 100 ms; konsola bez błędów panelu. M12: ponowny pomiar par < 100%
   (wszystkich, jeśli był E3). Wynik do ROADMAP (M12, M14) i obu planów.
+
+## Wynik E1 (2026-10-20, produkcja 0.61.1, `Server-Timing`, ciepłe żądania, mediana z 4)
+Kopia księgi z 02.10 nie odtworzyła regresu (wszystkie ekrany 2–140 ms) → profil zastąpiony pomiarem na produkcji
+(0.61.1 = tylko nagłówek `Server-Timing`: `total`, `inbox`, `template`; handler = total − inbox − template).
+
+| Ekran | total | dzwonek (`inbox`) | szablon | **handler** |
+|---|---|---|---|---|
+| `/` | 1047 | 186 | 27 | **~830** |
+| `/status` | 996 | 185 | 30 | **~780** |
+| `/invest` | 771 | 191 | 22 | **~560** |
+| `/networth` | 739 | 194 | 10 | **~535** |
+| `/recurring` | 387 | 190 | 17 | ~180 |
+| `/inbox` | 381 | 187 | 3 | ~190 (drugi przebieg dzwonka) |
+| `/budget` | 340 | 186 | 14 | ~140 |
+| `/review` | 315 | 188 | 3 | ~125 |
+
+Wnioski:
+1. **Dzwonek ~187 ms na każdej stronie** (w M14 E1 po poprawce ~130 ms całej strony `/status`) — próg 400 ms wymaga, by
+   handler ekranu mieścił się w ~200 ms; `inbox_all()` przestało być tanie po M18/M22/M26/M11.
+2. **`/` i `/status` ~800 ms w samym handlerze**, `/invest` i `/networth` ~550 ms — kandydat: wspólne, niememoizowane
+   obliczenie (majątek netto M26, agent M22, pomiar prognozy rocznej M18); do wskazania w E2 przez czytanie handlerów
+   (`routes_home.py`, `routes_status.py`, `routes_invest.py`, `routes_networth.py`) i `inbox.items`.
+3. Pierwsze żądanie po starcie: szablon 200–570 ms (kompilacja Jinja) — jednorazowe, bez poprawki.
+4. Progi M14 (< 400 ms; `/` < 600) spełnione dziś tylko przez `/budget`, `/review`, `/recurring`, `/inbox`, `/accounts`, `/card`.
+
+Następny krok (E2, TDD): `Server-Timing` per krok w handlerach `/` i `/status` albo czytanie kodu → memo po sygnaturze
+`Snapshot` dla wskazanych obliczeń; osobno dzwonek (187 ms).
