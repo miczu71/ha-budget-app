@@ -18,6 +18,7 @@ from budget import fx, invest, ledger, loan, money, piggy, savings, stocks, year
 from budget.forecast import Forecast
 from budget.snapshot import Snapshot
 from budget.spending import month_start
+from budget.timing import timed
 
 ZERO = money.ZERO
 STALE_DAYS = 90  # wartość aktywa z Inwestycji starsza niż tyle dni = „zaktualizuj”
@@ -170,10 +171,10 @@ def _piggies_at(conn: sqlite3.Connection, day: date) -> list[Component]:
     ]
 
 
-def _piggies(conn: sqlite3.Connection, day: date) -> list[Component]:
+def _piggies(snap: Snapshot, day: date) -> list[Component]:
     return [
         Component(PIGGIES, s.piggy.name, s.balance)
-        for s in piggy.statuses(Snapshot(conn), day, month_start(day))
+        for s in piggy.statuses(snap, day, month_start(day))
     ]
 
 
@@ -225,19 +226,28 @@ def _loans(conn: sqlite3.Connection, day: date) -> list[Component]:
 
 
 def compute(
-    conn: sqlite3.Connection, day: date, spend: Decimal | None = None, past: bool = False
+    conn: sqlite3.Connection,
+    day: date,
+    spend: Decimal | None = None,
+    past: bool = False,
+    snap: Snapshot | None = None,
 ) -> NetWorth:
     """Majątek netto na `day` z bieżących danych (salda z ostatnich migawek, kurs NBP z `fx_rate`).
     `spend` = miesięczne wydatki do wskaźnika płynności (z prognozy); bez niego płynność jest
-    nieznana. `past`: dzień z przeszłości — salda kont cofnięte o późniejsze transakcje,
-    skarbonki z przelewów do tego dnia, aktywa Inwestycji dopiero od startu."""
-    parts = (
-        _accounts(conn, day, past),
-        _savings(conn, day),
-        _piggies_at(conn, day) if past else _piggies(conn, day),
-        _investments(conn, day, past),
-        _loans(conn, day),
-    )
+    nieznana. `snap`: `Snapshot` serwisu (jego memo serii; bez niego świeży, więc drożej).
+    `past`: dzień z przeszłości — salda kont cofnięte o późniejsze transakcje, skarbonki
+    z przelewów do tego dnia, aktywa Inwestycji dopiero od startu."""
+    with timed("n_accounts"):
+        accounts = _accounts(conn, day, past)
+    with timed("n_savings"):
+        savings_parts = _savings(conn, day)
+    with timed("n_piggies"):
+        piggies = _piggies_at(conn, day) if past else _piggies(snap or Snapshot(conn), day)
+    with timed("n_investments"):
+        investments = _investments(conn, day, past)
+    with timed("n_loans"):
+        loans = _loans(conn, day)
+    parts = (accounts, savings_parts, piggies, investments, loans)
     return NetWorth(day, tuple(c for part in parts for c in part), spend)
 
 
@@ -249,7 +259,7 @@ def live(
         spend = invest.advice(snap, fc, proj, today).inputs.spend
     except Exception:
         spend = ZERO
-    return compute(snap.conn, today, spend if spend > 0 else None)
+    return compute(snap.conn, today, spend if spend > 0 else None, snap=snap)
 
 
 def reconstruct(conn: sqlite3.Connection, day: date) -> NetWorth:

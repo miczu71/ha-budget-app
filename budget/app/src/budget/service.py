@@ -414,7 +414,7 @@ class Service:
                 log.exception("Historia akcji nieudana")
             adv = self.invest_advice()
             spend = adv.inputs.spend if adv and adv.inputs.spend > 0 else None
-            networth.save(self.conn, networth.compute(self.conn, today, spend))
+            networth.save(self.conn, networth.compute(self.conn, today, spend, snap=self.snapshot))
         except Exception:
             log.exception("Migawka majątku netto nieudana")
 

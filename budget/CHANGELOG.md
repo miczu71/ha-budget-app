@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.61.3
+
+**Szybsza strona główna, Majątek i Status** (M14, `docs/PLAN_M14_E2.md`) — pomiar na produkcji wskazał obliczenie majątku netto
+(~430 ms) jako główny koszt: skarbonki liczyły się na świeżym `Snapshot`, więc pamięć serii nie działała. Teraz używają
+`Snapshot` serwisu. `Server-Timing` ma też kroki wewnątrz majątku (`n_*`). Bez zmian wyglądu i danych.
+
 ## 0.61.2
 
 **Szybsze Inwestycje i Majątek** (M14, `docs/PLAN_M14_E2.md`) — rekomendacja agenta inwestycyjnego liczy się raz na stan bazy

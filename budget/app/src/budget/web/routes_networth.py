@@ -41,7 +41,7 @@ def router(panel: Panel) -> APIRouter:
         today = panel.service.now().date()
         adv = panel.service.invest_advice()
         spend = adv.inputs.spend if adv and adv.inputs.spend > 0 else None
-        nw = networth.compute(conn, today, spend)
+        nw = networth.compute(conn, today, spend, snap=panel.service.snapshot)
         hist = [p for p in networth.history(conn) if p.day < today.replace(day=1)]
         points = [*hist, networth.Point(today, nw.total, False)]
         return panel.render(

@@ -152,7 +152,7 @@ def router(panel: Panel) -> APIRouter:
         nw = None
         try:  # kafelek majątku to dodatek: błąd nie może zablokować strony głównej
             with timed("h_networth"):
-                snap = networth.compute(conn, today)
+                snap = networth.compute(conn, today, snap=panel.service.snapshot)
                 nw = (snap, networth.change(conn, snap.total, today, 30))
         except Exception:
             log.exception("Kafelek majątku nieudany")

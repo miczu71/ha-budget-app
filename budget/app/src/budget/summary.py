@@ -187,7 +187,7 @@ def monthly(snap: Snapshot, today: date) -> Message:
 def _networth_lines(snap: Snapshot, today: date) -> list[str]:
     """Majątek netto z m/m i przypomnienie o przeterminowanych wartościach (M26 E4)."""
     try:
-        nw = networth.compute(snap.conn, today)
+        nw = networth.compute(snap.conn, today, snap=snap)
         mom = networth.change(snap.conn, nw.total, today, 30)
     except Exception:
         return []

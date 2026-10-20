@@ -265,3 +265,23 @@ def test_history_keeps_last_snapshot_per_month(conn: sqlite3.Connection) -> None
     m = networth.change(conn, Decimal(200), DAY, 30)  # 2026-09-20 → najbliższa wcześniejsza: 08-31
     assert m == networth.Change(Decimal(100), date(2026, 8, 31), True)
     assert networth.change(conn, Decimal(200), DAY, 365) is None
+
+
+def test_compute_reuses_given_snapshot(
+    conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Skarbonki liczone na przekazanym `Snapshot` (jego memo serii), nie na świeżym (M14 E2)."""
+    from budget import piggy
+    from budget.snapshot import Snapshot
+
+    seen: list[object] = []
+    real = piggy.statuses
+
+    def spy(snap: Snapshot, *args: object, **kwargs: object) -> list[piggy.Status]:
+        seen.append(snap)
+        return real(snap, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(piggy, "statuses", spy)
+    shared = Snapshot(conn)
+    networth.compute(conn, DAY, snap=shared)
+    assert seen == [shared]
