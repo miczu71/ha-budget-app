@@ -7,6 +7,7 @@ from decimal import Decimal
 
 import pytest
 
+from budget import flow
 from budget.categorize.taxonomy import Category
 from budget.spending import MainLine, MonthTotals
 from budget.web import charts
@@ -203,3 +204,56 @@ def test_networth_line_marks_approx_points_and_zero() -> None:
     assert c.dots[0].y > c.dots[2].y and c.zero_y is not None
     assert c.x_labels == [(c.dots[0].x, "sie 26"), (c.dots[2].x, "paź 26")]
     assert len(c.points.split()) == 3
+
+
+def sk(f: flow.Flow) -> charts.SankeyChart:
+    return charts.sankey(f, **KW)  # type: ignore[arg-type]
+
+
+def node(key: str, col: int, amount: str, **kw: object) -> flow.Node:
+    return flow.Node(key, key, col, Decimal(amount), kw.pop("color", "c1"), **kw)  # type: ignore[arg-type]
+
+
+def test_sankey_empty_flow() -> None:
+    chart = sk(flow.Flow())
+    assert chart.nodes == [] and chart.links == []
+
+
+def test_sankey_min_height_fit_and_links() -> None:
+    f = flow.Flow(
+        nodes=[
+            node("in", 0, "1000"),
+            node("g-fixed", 1, "999"),
+            node("unc", 1, "1", color="unc"),
+            node("cat-1-fixed", 2, "998", category_id=1),
+            node("other-fixed", 2, "1", color="other"),
+        ],
+        edges=[
+            flow.Edge("in", "g-fixed", Decimal(999)),
+            flow.Edge("in", "unc", Decimal(1)),
+            flow.Edge("g-fixed", "cat-1-fixed", Decimal(998)),
+            flow.Edge("g-fixed", "other-fixed", Decimal(1)),
+        ],
+    )
+    chart = sk(f)
+    nodes = {n.key: n for n in chart.nodes}
+    assert nodes["unc"].h >= charts.SK_MIN_H and not nodes["unc"].show_label
+    assert nodes["g-fixed"].show_label
+    assert all(n.y + n.h <= chart.height for n in chart.nodes)
+    assert nodes["cat-1-fixed"].href == f"/transactions?category=1&{PERIOD}"
+    assert nodes["other-fixed"].href == KW["other_href"] and nodes["unc"].href == "/review"
+    assert len(chart.links) == 4 and all(lk.d.startswith("M") for lk in chart.links)
+    # węzły jednej kolumny nie nachodzą na siebie
+    col1 = sorted((n for n in chart.nodes if n.column == 1), key=lambda n: n.y)
+    assert col1[0].y + col1[0].h <= col1[1].y
+
+
+def test_sankey_label_clipped() -> None:
+    f = flow.Flow(
+        nodes=[node("in", 0, "10"), node("g-fixed", 1, "10"), node("c", 2, "10", category_id=2)],
+        edges=[flow.Edge("in", "g-fixed", Decimal(10)), flow.Edge("g-fixed", "c", Decimal(10))],
+    )
+    f.nodes[2] = flow.Node("c", "Kategoria o bardzo rozbudowanej nazwie", 2, Decimal(10), "c1", 2)
+    n = {n.key: n for n in sk(f).nodes}["c"]
+    assert len(n.label) <= charts.SK_CHARS[2] and n.label.endswith("…")
+    assert n.full_label == "Kategoria o bardzo rozbudowanej nazwie"

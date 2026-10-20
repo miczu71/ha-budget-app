@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
+from budget.flow import Flow
 from budget.forecast import Event
 from budget.spending import MainLine, MonthTotals
 
@@ -380,3 +381,121 @@ def networth_line(rows: Sequence[tuple[date, Decimal, bool]]) -> NetChart:
         ticks=[Tick(_signed_compact(v), y_at(v)) for v in (min(values), max(values))],
         x_labels=[(dots[0].x, _month_label(rows[0][0])), (dots[-1].x, _month_label(rows[-1][0]))],
     )
+
+
+# --- przepływy (Sankey, M19) -----------------------------------------------------------------
+
+SK_W, SK_H = 360, 300
+SK_NODE_W, SK_PAD, SK_MIN_H, SK_LABEL_H = 8, 6.0, 3.0, 12.0
+SK_X = (0.0, 128.0, 252.0)  # lewa krawędź węzłów kolumn 0, 1, 2
+SK_CHARS = (16, 16, 13)  # maks. długość etykiety w kolumnie (reszta „…”)
+
+
+@dataclass(frozen=True)
+class SankeyNode:
+    key: str
+    label: str  # skrócona do etykiety w SVG
+    full_label: str
+    amount: Decimal
+    color: str
+    x: float
+    y: float
+    h: float
+    w: float
+    column: int
+    href: str | None
+    show_label: bool  # za niski węzeł nie ma etykiety (kwota w `<title>`)
+
+    @property
+    def label_x(self) -> float:
+        return self.x + self.w + 4
+
+
+@dataclass(frozen=True)
+class SankeyLink:
+    src: str
+    dst: str
+    amount: Decimal
+    color: str  # kolor węzła docelowego
+    d: str
+    width: float
+
+
+@dataclass(frozen=True)
+class SankeyChart:
+    width: int
+    height: int
+    nodes: list[SankeyNode]
+    links: list[SankeyLink]
+
+
+def _clip(label: str, limit: int) -> str:
+    return label if len(label) <= limit else label[: limit - 1].rstrip() + "…"
+
+
+def sankey(flow: Flow, *, period: str, other_href: str, review_href: str) -> SankeyChart:
+    """Układ poziomy 3 kolumn: węzły z minimalną wysokością, krawędzie jako krzywe Béziera
+    (obrys o grubości proporcjonalnej do kwoty). Pusty przepływ daje pusty wykres."""
+    if not flow.nodes:
+        return SankeyChart(SK_W, SK_H, [], [])
+    columns = [[n for n in flow.nodes if n.column == c] for c in range(3)]
+
+    # skala: najwyższa kolumna (z minimalnymi wysokościami) mieści się w SK_H
+    def tallest(k: float) -> float:
+        return max(
+            sum(max(float(n.amount) * k, SK_MIN_H) for n in col) + SK_PAD * (len(col) - 1)
+            for col in columns
+            if col
+        )
+
+    k = SK_H / max(sum(float(n.amount) for n in col) for col in columns if col)
+    for _ in range(8):  # minima podnoszą wysokość: zmniejszaj skalę aż się zmieści
+        if (worst := tallest(k)) <= SK_H:
+            break
+        k *= SK_H / worst * 0.98
+
+    hrefs: dict[str, str | None] = {"unc": review_href}
+    pos: dict[str, SankeyNode] = {}
+    for c, col in enumerate(columns):
+        y = 0.0
+        for n in col:
+            h = max(float(n.amount) * k, SK_MIN_H)
+            if n.category_id is not None:
+                href: str | None = f"/transactions?category={n.category_id}&{period}"
+            elif n.key.startswith("other-"):
+                href = other_href
+            else:
+                href = hrefs.get(n.key)
+            pos[n.key] = SankeyNode(
+                n.key,
+                _clip(n.label, SK_CHARS[c]),
+                n.label,
+                n.amount,
+                n.color,
+                SK_X[c],
+                y,
+                h,
+                SK_NODE_W,
+                c,
+                href,
+                h >= SK_LABEL_H,
+            )
+            y += h + SK_PAD
+
+    out_off: dict[str, float] = {}
+    in_off: dict[str, float] = {}
+    links: list[SankeyLink] = []
+    order = {key: i for i, key in enumerate(pos)}
+    for e in sorted(flow.edges, key=lambda e: (order[e.src], order[e.dst])):
+        a, b = pos[e.src], pos[e.dst]
+        width = float(e.amount) * k
+        y0 = a.y + out_off.get(a.key, 0.0) + width / 2
+        y1 = b.y + in_off.get(b.key, 0.0) + width / 2
+        out_off[a.key] = out_off.get(a.key, 0.0) + width
+        in_off[b.key] = in_off.get(b.key, 0.0) + width
+        x0, x1 = a.x + a.w, b.x
+        mid = (x0 + x1) / 2
+        d = f"M{x0:.1f},{y0:.1f} C{mid:.1f},{y0:.1f} {mid:.1f},{y1:.1f} {x1:.1f},{y1:.1f}"
+        links.append(SankeyLink(e.src, e.dst, e.amount, b.color, d, max(width, 0.5)))
+    height = int(max(n.y + n.h for n in pos.values())) + 2
+    return SankeyChart(SK_W, height, list(pos.values()), links)
