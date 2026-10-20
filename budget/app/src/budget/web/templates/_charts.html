@@ -25,6 +25,24 @@
 </div>
 {% endmacro %}
 
+{# Przepływ pieniędzy (Sankey, M19): wpływy → grupy → kategorie; węzeł z `href` jest linkiem #}
+{% macro sankey_chart(chart, label) %}
+<svg class="sk" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-label="{{ label }}">
+  <g class="sk-links">
+    {% for l in chart.links %}
+    <path class="sk-link {{ l.color }}" d="{{ l.d }}" stroke-width="{{ '%.1f' | format(l.width) }}" />
+    {% endfor %}
+  </g>
+  {% for n in chart.nodes %}
+  {% if n.href %}<a href="{{ base }}{{ n.href }}">{% else %}<g>{% endif %}
+    <rect class="sk-node {{ n.color }}" x="{{ '%.1f' | format(n.x) }}" y="{{ '%.1f' | format(n.y) }}" width="{{ n.w }}" height="{{ '%.1f' | format(n.h) }}" rx="2" />
+    {% if n.show_label %}<text class="sk-label" x="{{ '%.1f' | format(n.label_x) }}" y="{{ '%.1f' | format(n.y + n.h / 2) }}" dominant-baseline="central">{{ n.label }} <tspan class="sk-amount">{{ n.amount | money("PLN") }}</tspan></text>{% endif %}
+    <title>{{ n.full_label }}: {{ n.amount | money("PLN") }}</title>
+  {% if n.href %}</a>{% else %}</g>{% endif %}
+  {% endfor %}
+</svg>
+{% endmacro %}
+
 {# Słupki wpływów i wydatków z ostatnich miesięcy; słupek = link do tego miesiąca #}
 {% macro month_chart(chart) %}
 <svg class="bars" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-label="Wpływy i wydatki w ostatnich {{ chart.bars | length }} miesiącach">

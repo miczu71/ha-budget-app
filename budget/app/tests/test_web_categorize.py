@@ -55,7 +55,8 @@ async def test_nav_and_empty_pages(client: httpx.AsyncClient) -> None:
         assert r.headers["cache-control"] == "no-store"
     page = (await client.get("/")).text
     assert f'href="{INGRESS}/spending"' in page and f'href="{INGRESS}/rules"' in page
-    assert "brak wydatków" in (await client.get("/spending")).text
+    empty = (await client.get("/spending")).text
+    assert "brak wydatków" in empty and "brak przepływów" in empty and 'class="sk"' not in empty
     rules_page = (await client.get("/rules")).text
     assert "Zawsze dla" not in rules_page and "utwórz regułę" in rules_page
 
@@ -69,6 +70,9 @@ async def test_spending_page(client: httpx.AsyncClient, service: Service) -> Non
     assert "przypisz kategorie" not in page
     assert f"{INGRESS}/transactions?category=2&date_from={DAY}" in page
     assert "bez kategorii" in page  # pensja bez reguły
+    svg = page.split('<svg class="sk"', 1)[1].split("</svg>", 1)[0]  # M19: sekcja Sankey
+    assert "sk-node" in svg and "sk-link" in svg
+    assert f"{INGRESS}/transactions?category=2&amp;date_from={DAY}" in svg  # węzeł kategorii → link
     # przyszły miesiąc → bieżący; brak strzałki „dalej”
     future = (await client.get("/spending?month=2999-01")).text
     assert 'aria-label="następny miesiąc"' not in future

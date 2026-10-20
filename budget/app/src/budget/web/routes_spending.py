@@ -7,8 +7,9 @@ from datetime import date
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from budget import spending
+from budget import flow, spending
 from budget.spending import month_label, parse_month
+from budget.web import charts
 from budget.web.common import Panel
 
 
@@ -20,7 +21,16 @@ def router(panel: Panel) -> APIRouter:
         today = panel.service.now().date()
         start = parse_month(month, today)
         m = spending.build(panel.conn, start, today)
-        end = spending.add_months(start, 1).toordinal() - 1
+        nxt = spending.add_months(start, 1)
+        end = nxt.toordinal() - 1
+        period = f"date_from={start.isoformat()}&date_to={date.fromordinal(end).isoformat()}"
+        ym = start.strftime("%Y-%m")
+        sankey = charts.sankey(
+            flow.build(panel.conn, start, nxt),
+            period=period,
+            other_href=f"/spending?month={ym}",
+            review_href=f"/review?month={ym}",
+        )
         return panel.render(
             request,
             "spending.html",
@@ -28,6 +38,7 @@ def router(panel: Panel) -> APIRouter:
             label=month_label(start),
             prev_label=month_label(m.prev_month),
             next_label=month_label(m.next_month) if m.next_month else "",
+            sankey=sankey,
             date_from=start.isoformat(),
             date_to=date.fromordinal(end).isoformat(),
         )
