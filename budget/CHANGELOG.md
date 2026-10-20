@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.61.4
+
+**Szybszy dzwonek i Inwestycje** (M14, `docs/PLAN_M14_E2.md`) — dzwonek na każdej stronie liczył przypisanie transakcji do serii
+od nowa (zmiany serii, rata kredytu); teraz korzysta z pamięci `Snapshot`. Uzasadnienie rekomendacji na `/invest` liczy majątek
+netto na `Snapshot` serwisu (wcześniej ~390 ms na świeżym). Bez zmian wyglądu i danych.
+
 ## 0.61.3
 
 **Szybsza strona główna, Majątek i Status** (M14, `docs/PLAN_M14_E2.md`) — pomiar na produkcji wskazał obliczenie majątku netto

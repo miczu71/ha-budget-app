@@ -56,7 +56,7 @@ def router(panel: Panel) -> APIRouter:
             inp=adv.inputs,
             buckets=adv.buckets,
             rec=adv.rec,
-            why=invest_why.text(conn, adv),
+            why=invest_why.text(conn, adv, snap),
             options=adv.options,
             amount=adv.amount,
             years=int(horizon),

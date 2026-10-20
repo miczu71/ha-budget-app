@@ -310,7 +310,11 @@ class Service:
         ):
             return None
         adv = self.invest_advice()
-        return summary.invest_message(adv, invest_why.text(self.conn, adv)) if adv else None
+        return (
+            summary.invest_message(adv, invest_why.text(self.conn, adv, self.snapshot))
+            if adv
+            else None
+        )
 
     async def watch_invest_why(self) -> None:
         """Uzasadnienie rekomendacji od modelu — tylko po zmianie rekomendacji (M22 E4)."""

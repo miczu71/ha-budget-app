@@ -138,3 +138,37 @@ def test_ack_and_accept_amount_in_db(tmp_path: Path) -> None:
     S.set_status(conn, sid, "end")
     with pytest.raises(SeriesError):
         ch.accept_amount(conn, sid, Decimal("120"))
+
+
+def test_for_db_assigns_once_per_database_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`Snapshot` liczy przypisanie transakcji do serii raz (dzwonek woła `for_db` co stronę)."""
+    from budget.snapshot import Snapshot
+
+    conn = db.connect(tmp_path / "ledger.db")
+    S.insert(
+        conn,
+        name="Seria",
+        direction="out",
+        cadence="M",
+        conditions=make().conditions,
+        expected=Decimal("100.00"),
+        tolerance=Decimal("5.00"),
+        anchor_day=10,
+        status="active",
+        origin="manual",
+        key=None,
+    )
+    calls: list[int] = []
+    real = S.assign
+
+    def counting(*args, **kwargs):  # type: ignore[no-untyped-def]
+        calls.append(1)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(S, "assign", counting)
+    snap = Snapshot(conn)
+    ch.for_db(snap, TODAY)
+    ch.for_db(snap, TODAY)
+    assert len(calls) == 1

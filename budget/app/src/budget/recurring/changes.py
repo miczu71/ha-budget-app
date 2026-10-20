@@ -115,7 +115,7 @@ def for_db(snap: Snapshot, today: date) -> list[Change]:
     active = S.all_series(snap.conn, ("active",))
     if not active:
         return []
-    members = S.assign(active, snap.candidates())
+    members = snap.members()  # to samo co `S.assign(active, …)`, ale liczone raz do zapisu
     acks, overrides = schedule.acks_from_db(snap.conn), schedule.overrides_from_db(snap.conn)
     return detect(active, members, acks, today, overrides)
 

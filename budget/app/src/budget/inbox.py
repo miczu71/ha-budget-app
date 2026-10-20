@@ -363,8 +363,7 @@ def loan_rate(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list
     for lo in loan.all_loans(conn):
         if lo.series_id is None:
             continue
-        live = [s for s in series.all_series(conn, ("active",)) if s.id == lo.series_id]
-        paid = series.assign(live, ctx.snap.candidates()).get(lo.series_id, [])
+        paid = ctx.snap.members().get(lo.series_id, [])
         d = loan.drift(loan.schedule(lo), paid[-1].day, abs(paid[-1].amount)) if paid else None
         if d is None:
             continue

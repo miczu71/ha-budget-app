@@ -18,6 +18,7 @@ from typing import Any
 from budget import invest, networth
 from budget.invest_blogs import USAGE_KEY
 from budget.settings import Settings
+from budget.snapshot import Snapshot
 from budget.storage import db
 from budget.suggest import client
 from budget.suggest import engine as suggest
@@ -37,9 +38,11 @@ SCHEMA: dict[str, Any] = {
 }
 
 
-def _context(conn: sqlite3.Connection, adv: invest.Advice) -> networth.NetWorth | None:
+def _context(
+    conn: sqlite3.Connection, adv: invest.Advice, snap: Snapshot | None = None
+) -> networth.NetWorth | None:
     try:
-        return networth.compute(conn, date.today(), adv.inputs.spend)
+        return networth.compute(conn, date.today(), adv.inputs.spend, snap=snap)
     except Exception:  # majątek to dodatek do uzasadnienia, nie jego warunek
         log.exception("Majątek netto do uzasadnienia nieudany")
         return None
@@ -91,9 +94,9 @@ def build_prompt(data: dict[str, Any]) -> str:
     )
 
 
-def text(conn: sqlite3.Connection, adv: invest.Advice) -> str | None:
+def text(conn: sqlite3.Connection, adv: invest.Advice, snap: Snapshot | None = None) -> str | None:
     """Zapisane uzasadnienie, o ile dotyczy dzisiejszej rekomendacji."""
-    data = facts(adv, _context(conn, adv))
+    data = facts(adv, _context(conn, adv, snap))
     raw = db.kv_get(conn, KEY)
     if data is None or not raw or raw.get("key") != fingerprint(data):
         return None
