@@ -468,11 +468,15 @@ def net_worth_entities(
     snap: Snapshot, fc: forecast_mod.Forecast | None, proj: year_mod.Projection | None, today: date
 ) -> list[Entity]:
     """Majątek netto (M26 E4); bez żadnego składnika nie ma encji."""
-    nw = networth.live(snap, fc, proj, today)
+    try:
+        nw = networth.live(snap, fc, proj, today)
+        mom = networth.change(snap.conn, nw.total, today, 30)
+        yoy = networth.change(snap.conn, nw.total, today, 365)
+    except Exception:  # błąd majątku nie może zablokować sald i statusu synchronizacji
+        log.exception("Encja majątku netto pominięta")
+        return []
     if not nw.components:
         return []
-    mom = networth.change(snap.conn, nw.total, today, 30)
-    yoy = networth.change(snap.conn, nw.total, today, 365)
     return [
         _flex_sensor(
             "net_worth",

@@ -7,6 +7,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from budget import ha_publisher, invest, invest_why, networth, summary
 from budget.ask import sources
 from budget.snapshot import Snapshot
@@ -84,3 +86,14 @@ def test_why_facts_have_coarse_liquidity_and_ltv() -> None:
     assert data is not None
     assert data["plynnosc_miesiecy_wydatkow"] == 6 and data["kredyty_do_aktywow_proc"] == 35
     assert "plynnosc_miesiecy_wydatkow" not in (invest_why.facts(advice()) or {})
+
+
+def test_sensor_failure_does_not_block_other_entities(
+    conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(*_a: object, **_k: object) -> None:
+        raise RuntimeError("zepsuty kredyt")
+
+    monkeypatch.setattr(networth, "live", boom)
+    ents = ha_publisher.build_entities(Snapshot(conn), now=NOW, today=TODAY)
+    assert ents and "net_worth" not in {e.key for e in ents}
