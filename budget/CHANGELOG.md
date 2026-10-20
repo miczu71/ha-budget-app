@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.62.0
+
+**Przepływ pieniędzy** (M19, `docs/PLAN_M19.md`) — na ekranie Wydatki nowa sekcja z wykresem Sankey: wpływy → grupy budżetu
+(stałe, elastyczne, nieregularne, oszczędności) → kategorie główne, z węzłami „Bez kategorii”, „Nadwyżka” i „Z oszczędności /
+deficyt”. Przełącznik Miesiąc / Rok (rok kalendarzowy wybranego miesiąca, strzałki miesięcy zachowują wybór). Dotknięcie
+kategorii otwiera jej transakcje, „Bez kategorii” — kolejkę przeglądu. Sumy z tego samego źródła co reszta ekranu.
+
 ## 0.61.4
 
 **Szybszy dzwonek i Inwestycje** (M14, `docs/PLAN_M14_E2.md`) — dzwonek na każdej stronie liczył przypisanie transakcji do serii
