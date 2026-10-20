@@ -81,6 +81,11 @@
     <label>Limit promocji<input name="promo_limit" inputmode="decimal" size="10" value="{{ a.promo_limit if a and a.promo_limit }}" placeholder="puste = całe saldo"></label>
     <label>Promocja do<input type="date" name="promo_until" value="{{ a.promo_until.isoformat() if a and a.promo_until }}"></label>
   </div>
+  {% set parents = accounts | map(attribute=0) | rejectattr("parking_for") | rejectattr("id", "equalto", a.id if a else 0) | list %}
+  {% if parents %}<div class="inline">
+    <label>Parking dla<select name="parking_for"><option value="">— zwykłe konto —</option>{% for p in parents %}<option value="{{ p.id }}" {{ "selected" if a and a.parking_for == p.id }}>{{ p.name }}</option>{% endfor %}</select></label>
+  </div>
+  <p class="small muted">Parking to konto, na którym przeczekujesz przerwę w promocji: przelew z konta nadrzędnego (np. Profit) na parking w ciągu 7 dni liczy się jako przeniesienie, a nie wypłata z oszczędności.</p>{% endif %}
   <p class="small muted">Panel nie widzi tego konta w banku: saldo = wpisane saldo + przelewy na konto i z konta po tej dacie. Gdy różni się od banku, wpisz nowe saldo na nowy dzień.</p>
   <p class="actions-row">
     <button type="submit">{{ "Zapisz" if a else "Dodaj konto" }}</button>
@@ -145,7 +150,7 @@
       <ul class="subcats">
         {% for name, net, rows in m.by_account %}
         <li><strong>{{ name }}</strong><span class="cat-amount">{{ net | money("PLN") }}</span></li>
-        {% for mv in rows %}<li class="small muted"><span>{{ mv.day.strftime('%d.%m') }} · {{ "wpłata" if mv.amount > 0 else "wypłata" }}</span><span class="cat-amount">{{ mv.amount | money("PLN") }}</span></li>{% endfor %}
+        {% for mv in rows %}<li class="small muted"><span>{{ mv.day.strftime('%d.%m') }} · {{ "przeniesienie" if mv.transfer else "wpłata" if mv.amount > 0 else "wypłata" }}</span><span class="cat-amount">{{ mv.amount | money("PLN") }}</span></li>{% endfor %}
         {% else %}<li class="small muted"><span>Brak przelewów na konta oszczędnościowe.</span></li>{% endfor %}
       </ul>
     </details></li>

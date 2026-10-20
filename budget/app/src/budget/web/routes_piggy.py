@@ -100,6 +100,7 @@ def router(panel: Panel) -> APIRouter:
                 promo_rate=field.get("promo_rate"),
                 promo_limit=field.get("promo_limit"),
                 promo_until=field.get("promo_until"),
+                parking_for=int(field["parking_for"]) if field.get("parking_for") else None,
             )
         except piggy.PiggyError as exc:
             back = f"/piggy?edit_savings={account_id}" if account_id else "/piggy"

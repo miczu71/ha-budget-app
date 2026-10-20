@@ -205,3 +205,61 @@ def test_activate_promo_validates(conn: sqlite3.Connection) -> None:
             savings.activate_promo(conn, aid, **{**ok, **bad})  # type: ignore[arg-type]
     with pytest.raises(savings.SavingsError, match="Nie ma takiego"):
         savings.activate_promo(conn, 999, **ok)  # type: ignore[arg-type]
+
+
+PARKING = "33 4444 5555 6666 7777 8888 9999"  # fikcyjny
+PARKING_PL = "PL33444455556666777788889999"
+
+
+def parking(conn: sqlite3.Connection) -> tuple[int, int]:
+    profit = make(conn, name="Profit")
+    return profit, make(conn, name="Parking", account_number=PARKING, parking_for=profit)
+
+
+def test_parking_validates(conn: sqlite3.Connection) -> None:
+    profit, park = parking(conn)
+    assert savings.get(conn, park).parking_for == profit
+    assert savings.get(conn, profit).parking_for is None
+    with pytest.raises(savings.SavingsError, match="siebie"):
+        make(conn, account_id=park, name="Parking", account_number="", parking_for=park)
+    with pytest.raises(savings.SavingsError, match="Nie ma"):
+        make(conn, name="Inne", account_number="44 1111 2222 3333 4444 5555 6666", parking_for=99)
+    with pytest.raises(savings.SavingsError, match="parkingiem"):
+        make(
+            conn,
+            name="Trzecie",
+            account_number="44 1111 2222 3333 4444 5555 6666",
+            parking_for=park,
+        )
+
+
+def test_parking_pairs_withdrawal_and_deposit_across_months(conn: sqlite3.Connection) -> None:
+    add(conn, "5000", "transfer_in", "wypłata", "PRACODAWCA", day="2026-09-05")
+    parking(conn)
+    move(conn, "5000", "2026-09-30")  # wypłata z Profit
+    move(conn, "-5000", "2026-10-02", number=PARKING_PL)  # wpłata na parking
+    rates = {m.month: m for m in savings.monthly_rates(conn, date(2026, 10, 12))}
+    sep, octo = rates[date(2026, 9, 1)], rates[date(2026, 10, 1)]
+    assert (sep.saved, octo.saved) == (Decimal(0), Decimal(0))
+    assert all(mv.transfer for mv in (*sep.moves, *octo.moves))
+    assert savings.overview(conn, date(2026, 10, 12)).total == Decimal(2000)  # type: ignore[union-attr]
+
+
+def test_parking_does_not_pair_distant_or_different_amounts(conn: sqlite3.Connection) -> None:
+    parking(conn)
+    move(conn, "5000", "2026-09-01")
+    move(conn, "-5000", "2026-09-20", number=PARKING_PL)  # za późno (>7 dni)
+    move(conn, "3000", "2026-09-22")
+    move(conn, "-2500", "2026-09-23", number=PARKING_PL)  # inna kwota
+    sep = next(m for m in savings.monthly_rates(conn, date(2026, 10, 12)) if m.month.month == 9)
+    assert not any(mv.transfer for mv in sep.moves)
+    assert sep.saved == Decimal(-500)
+
+
+def test_parking_pairs_each_movement_once(conn: sqlite3.Connection) -> None:
+    parking(conn)
+    move(conn, "1000", "2026-09-10")
+    move(conn, "1000", "2026-09-11")
+    move(conn, "-1000", "2026-09-12", number=PARKING_PL)
+    sep = next(m for m in savings.monthly_rates(conn, date(2026, 10, 12)) if m.month.month == 9)
+    assert sum(mv.transfer for mv in sep.moves) == 2 and sep.saved == Decimal(-1000)

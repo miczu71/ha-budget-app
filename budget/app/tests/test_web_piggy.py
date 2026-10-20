@@ -264,3 +264,31 @@ async def test_activate_promo_from_account_card(client: httpx.AsyncClient) -> No
         data={"new_funds": "999999", "start": "2026-10-20", "promo_rate": "5,25"},
     )
     assert "do 200 000" in (await client.get("/piggy")).text
+
+
+async def test_parking_form_and_transfer_label(client: httpx.AsyncClient, service: Service) -> None:
+    month = service.now().strftime("%Y-%m")
+    park_number = "33 4444 5555 6666 7777 8888 9999"
+    base = {"opening_balance": "0", "opening_date": f"{month}-01"}
+    assert 'name="parking_for"' not in (await client.get("/piggy")).text  # brak konta nadrzędnego
+    await client.post("/savings", data={**base, "name": "Profit", "account_number": NUMBER})
+    await client.post(
+        "/savings",
+        data={**base, "name": "Parking", "account_number": park_number, "parking_for": "1"},
+    )
+    page = (await client.get("/piggy")).text
+    assert 'name="parking_for"' in page
+    edit = (await client.get("/piggy?edit_savings=2")).text
+    assert '<option value="1" selected>Profit</option>' in edit
+    for amount, number in (("500", NUMBER), ("-500", park_number)):
+        add(
+            service.conn,
+            amount,
+            "transfer_out",
+            "przenosiny",
+            "JA",
+            day=f"{month}-03",
+            counterparty_account="PL" + number.replace(" ", ""),
+        )
+    page = (await client.get("/piggy")).text
+    assert f"03.{month[5:]} · przeniesienie" in page and "wypłata</span>" not in page

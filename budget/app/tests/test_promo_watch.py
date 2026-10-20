@@ -225,3 +225,29 @@ async def test_gap_is_recorded_and_flagged_when_window_was_too_narrow(
     w = promo_watch.load(conn)
     assert w and w.gap == 13
     assert "13 dni przed końcem" in summary._gap_note(w.gap)
+
+
+async def test_new_edition_push_reminds_about_parked_funds(conn: sqlite3.Connection) -> None:
+    from decimal import Decimal
+
+    from .test_savings import PARKING
+
+    profit = make(conn, name="Profit")
+    make(conn, name="Parking", account_number=PARKING, opening_balance="5000", parking_for=profit)
+    await fetch(conn, text(), now(12))
+    await fetch(conn, NEXT, now(22))
+    w = promo_watch.load(conn)
+    assert w
+    day = date(2026, 10, 22)
+    parked = [("Parking", Decimal(5000))]
+    confirm = [m for m in summary.promo_messages(w, day, parked) if m.kind == "promo_confirm"]
+    assert (
+        "Parking" in confirm[0].text
+        and "5\xa0000" in confirm[0].text
+        and "16.10" in confirm[0].text
+    )
+    plain = [m for m in summary.promo_messages(w, day) if m.kind == "promo_confirm"]
+    assert "Parking" not in plain[0].text
+    from budget import savings
+
+    assert savings.parked(conn, day) == [("Parking", Decimal(5000))]

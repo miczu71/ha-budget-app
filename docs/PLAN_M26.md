@@ -32,7 +32,7 @@ i **wejście dla decyzji** (agent M22, kalkulator nadpłaty M9, czat).
 
 ## Repo i pliki
 `/config/addons/ha-budget-app`, gałąź `main`; kod w `budget/app/src/budget/` (dalej `B/`).
-- Nowe: `B/networth.py`, `B/storage/migrations/026_networth.sql`, `B/web/routes_networth.py` + szablon,
+- Nowe: `B/networth.py`, `B/storage/migrations/027_networth.sql`, `B/web/routes_networth.py` + szablon,
   `B/fx.py` (kurs NBP — odzyskany z `82ce0ff^`, tabela `fx_rate` z migracji 020 już istnieje, nieużywana).
 - Zmieniane: `B/service.py` (`daily_tick` → migawka), `B/summary.py` (`monthly`), `B/ha_publisher.py`
   (`build_entities`), `B/ask/sources.py` (źródło „majatek”), `B/invest.py` / `invest_why.py` (wskaźniki
@@ -42,15 +42,15 @@ i **wejście dla decyzji** (agent M22, kalkulator nadpłaty M9, czat).
 
 ## Etapy (każdy = commit, TDD; wydanie jedno na końcu: **0.60.0**)
 - **E0 Dokumenty:** `docs/PLAN_M26.md` (ten plan + sekcje Wykonawca), wiersz M26 i decyzja 31 w ROADMAP.
-- **E0b Parking M10:** migracja 026 `savings_account.parking_for`; w formularzu konta oszczędnościowego
+- **E0b Parking M10 ✅ 2026-10-20:** migracja 026 `savings_account.parking_for`; w formularzu konta oszczędnościowego
   „parking dla …”; parowanie przeniesień w `savings.movements`/`monthly_rates` (ruchy pokazane jako
   „przeniesienie”, nie wypłata/wpłata); dzwonek w `promo_watch` przy nowej edycji, gdy parking ma saldo > 0.
   Po wdrożeniu user dodaje konto docelowe z saldem 0 na dzień przed przelewem. Rollback: revert, kolumna
   addytywna.
 - **E1 Model:** `fx.py` (NBP z odzyskanego kodu M23, cache w `fx_rate`, fallback na ostatni znany kurs),
-  `networth.compute(conn, day) -> NetWorth` (składniki, sumy, płynność, LTV, flaga approx); migracja 026:
+  `networth.compute(conn, day) -> NetWorth` (składniki, sumy, płynność, LTV, flaga approx); migracja 027:
   `invest_asset.savings_id`, `invest_asset.valued_at`, tabela `networth_snapshot(day PK, total, assets,
-  liabilities, components_json, approx)`. Testy jednostkowe na fixturach (w tym dubel M10↔M22, EUR, 2 kredyty).
+  liabilities, components_json, approx)` (migracja 027). Testy jednostkowe na fixturach (w tym dubel M10↔M22, EUR, 2 kredyty).
   Rollback: revert; migracja addytywna (starsza wersja ignoruje).
 - **E2 Historia:** migawka w `daily_tick`; jednorazowe odtworzenie końców miesięcy od najstarszej transakcji
   (saldo = dzisiejsze − transakcje po dacie; M10/skarbonki z przelewów; kredyt z harmonogramu; M22 = dzisiejsza
@@ -72,3 +72,9 @@ i **wejście dla decyzji** (agent M22, kalkulator nadpłaty M9, czat).
 - Parking: po dodaniu konta docelowego suma oszczędności M10 = stan sprzed wyprowadzenia (± odsetki), ruchy
   widoczne jako „przeniesienie”, stopa oszczędności za ten miesiąc bez spadku.
 - Checkpoint usera: porównanie salda kont/oszczędności z bankiem na dziś.
+
+## Wynik E0b (2026-10-20)
+`savings_account.parking_for` (026), parowanie przeniesień w `savings._paired` (≤7 dni, ±1 zł, każdy ruch w jednej parze;
+oznaczone ruchy nie liczą się do `MonthRate.saved`), pole „Parking dla” w formularzu konta, etykieta „przeniesienie”
+w rozwiniętym miesiącu, dopisek o zaparkowanych środkach w pushu `promo_confirm` (`savings.parked`). 1087 testów,
+ruff i mypy czyste. Podgląd w przeglądarce dopiero przy E3/wydaniu (zmiana formularza jest mała, pokryta testem renderu).

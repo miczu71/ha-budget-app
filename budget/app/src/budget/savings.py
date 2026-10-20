@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -23,6 +23,8 @@ ZERO = money.ZERO
 BELKA = Decimal("0.19")  # podatek od odsetek, potrącany przy kapitalizacji
 PROMO_FUNDS_MAX = Decimal(200_000)  # limit nowych środków w promocji Profit
 PROMO_DAYS = 91  # okres promocyjny Profit liczony od dnia przystąpienia (ed. 77)
+PARK_DAYS = 7  # wypłata z konta nadrzędnego i wpłata na parking w tylu dniach = przeniesienie
+PARK_TOLERANCE = Decimal(1)  # dopuszczalna różnica kwot (zł) przy parowaniu przeniesienia
 PROMO_REMIND_DAYS = (14, 3)  # push o końcu promocji tyle dni przed; dzwonek od pierwszego z nich
 
 
@@ -41,6 +43,7 @@ class Account:
     promo_rate: Decimal | None = None
     promo_limit: Decimal | None = None  # promocja obejmuje saldo do tej kwoty (None = całe)
     promo_until: date | None = None
+    parking_for: int | None = None  # id konta, z którego pochodzą zaparkowane tu środki
 
     @property
     def masked(self) -> str:
@@ -64,6 +67,7 @@ def _row(r: sqlite3.Row) -> Account:
         promo_rate=Decimal(r["promo_rate"]) if r["promo_rate"] else None,
         promo_limit=Decimal(r["promo_limit"]) if r["promo_limit"] else None,
         promo_until=date.fromisoformat(r["promo_until"]) if r["promo_until"] else None,
+        parking_for=r["parking_for"],
     )
 
 
@@ -115,6 +119,7 @@ def save(
     promo_rate: str | None = None,
     promo_limit: str | None = None,
     promo_until: str | None = None,
+    parking_for: int | None = None,
 ) -> int:
     """Nowe konto (`account_id` None) albo zmiana (pusty numer = bez zmiany — panel pokazuje go
     zamaskowany). Nowe saldo na nowy dzień to korekta względem banku."""
@@ -132,6 +137,7 @@ def save(
     until = _date(promo_until, "Podaj datę końca promocji.") if promo_until else None
     if promo is not None and until is None:
         raise SavingsError("Do stopy promocyjnej podaj datę końca promocji.")
+    _check_parking(conn, account_id, parking_for)
     rates = (base, promo, limit, until.isoformat() if until else None)
     params = (
         clean,
@@ -139,20 +145,21 @@ def save(
         str(opening),
         day.isoformat(),
         *(None if v is None else str(v) for v in rates),
+        parking_for,
     )
     try:
         if account_id is None:
             cur = conn.execute(
                 "INSERT INTO savings_account (name, account_number, opening_balance, "
-                "opening_date, base_rate, promo_rate, promo_limit, promo_until, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "opening_date, base_rate, promo_rate, promo_limit, promo_until, parking_for, "
+                "created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (*params, now_iso()),
             )
             return int(cur.lastrowid or 0)
         cur = conn.execute(
             "UPDATE savings_account SET name = ?, account_number = ?, opening_balance = ?, "
-            "opening_date = ?, base_rate = ?, promo_rate = ?, promo_limit = ?, promo_until = ? "
-            "WHERE id = ?",
+            "opening_date = ?, base_rate = ?, promo_rate = ?, promo_limit = ?, promo_until = ?, "
+            "parking_for = ? WHERE id = ?",
             (*params, account_id),
         )
     except sqlite3.IntegrityError as exc:
@@ -160,6 +167,15 @@ def save(
     if not cur.rowcount:
         raise SavingsError("Nie ma takiego konta oszczędnościowego.")
     return account_id
+
+
+def _check_parking(conn: sqlite3.Connection, account_id: int | None, parent: int | None) -> None:
+    if parent is None:
+        return
+    if parent == account_id:
+        raise SavingsError("Konto nie może być parkingiem dla siebie.")
+    if get(conn, parent).parking_for is not None:
+        raise SavingsError("To konto samo jest parkingiem — wybierz konto nadrzędne.")
 
 
 def activate_promo(
@@ -224,6 +240,13 @@ def txn_ids(conn: sqlite3.Connection) -> set[int]:
     return {r["id"] for r in piggy.transfers(conn, _numbers(conn))}
 
 
+def parked(conn: sqlite3.Connection, today: date) -> list[tuple[str, Decimal]]:
+    """Konta-parkingi z dodatnim saldem (nazwa, saldo z odsetkami) — środki do zwrotu na konto
+    nadrzędne przy nowej edycji promocji."""
+    out = [(a.name, estimate(conn, a, today).total) for a in all_accounts(conn) if a.parking_for]
+    return [(name, bal) for name, bal in out if bal > 0]
+
+
 @dataclass(frozen=True)
 class Interest:
     balance: Decimal  # saldo z odsetkami skapitalizowanymi na koniec zamkniętych miesięcy
@@ -277,6 +300,32 @@ class Move:
     day: date
     amount: Decimal  # + wpłata na konto oszczędnościowe, − wypłata z niego
     account: str
+    transfer: bool = (
+        False  # przeniesienie między kontem a jego parkingiem (poza stopą oszczędności)
+    )
+
+
+def _paired(rows: list[tuple[int, Move]], parking: dict[int, int]) -> set[int]:
+    """Indeksy `rows` (konto, ruch) sparowane jako przeniesienie: ruch na koncie nadrzędnym i
+    przeciwny ruch na jego parkingu, do `PARK_DAYS` dni od siebie i z kwotą różną o najwyżej
+    `PARK_TOLERANCE`. Każdy ruch w jednej parze."""
+    paired: set[int] = set()
+    for park_id, parent_id in parking.items():
+        by_day = sorted(range(len(rows)), key=lambda k: rows[k][1].day)
+        parks = [k for k in by_day if rows[k][0] == park_id]
+        for i in (k for k in by_day if rows[k][0] == parent_id):
+            a = rows[i][1]
+            for j in parks:
+                b = rows[j][1]
+                if (
+                    j not in paired
+                    and abs((a.day - b.day).days) <= PARK_DAYS
+                    and a.amount * b.amount < 0
+                    and abs(a.amount + b.amount) <= PARK_TOLERANCE
+                ):
+                    paired |= {i, j}
+                    break
+    return paired
 
 
 @dataclass(frozen=True)
@@ -287,8 +336,9 @@ class MonthRate:
 
     @property
     def saved(self) -> Decimal:
-        """Wpłaty na konta oszczędnościowe minus wypłaty z nich (skarbonki się nie liczą)."""
-        return sum((m.amount for m in self.moves), ZERO)
+        """Wpłaty na konta oszczędnościowe minus wypłaty z nich (skarbonki i przeniesienia do
+        parkingu się nie liczą)."""
+        return sum((m.amount for m in self.moves if not m.transfer), ZERO)
 
     @property
     def by_account(self) -> list[tuple[str, Decimal, list[Move]]]:
@@ -314,12 +364,26 @@ class MonthRate:
 def monthly_rates(conn: sqlite3.Connection, today: date, n: int = 12) -> list[MonthRate]:
     """Stopa oszczędności ostatnich `n` miesięcy do bieżącego włącznie, od najstarszego. Wpływy
     bez przelewów z kont oszczędnościowych i skarbonek — wypłata z nich nie jest dochodem."""
-    names = dict(conn.execute("SELECT account_number, name FROM savings_account").fetchall())
-    transfers = piggy.transfers(conn, list(names))
+    accts = conn.execute("SELECT id, account_number, name, parking_for FROM savings_account")
+    info = {r["account_number"]: r for r in accts.fetchall()}
+    transfers = piggy.transfers(conn, list(info))
+    rows = [
+        (
+            info[r["number"]]["id"],
+            Move(
+                date.fromisoformat(r["day"]),
+                -Decimal(r["amount"]),
+                info[r["number"]]["name"],
+            ),
+        )
+        for r in transfers
+    ]
+    parking = {i["id"]: i["parking_for"] for i in info.values() if i["parking_for"] is not None}
+    paired = _paired(rows, parking)
     moves: dict[date, list[Move]] = defaultdict(list)
-    for r in transfers:
-        day = date.fromisoformat(r["day"])
-        moves[month_start(day)].append(Move(day, -Decimal(r["amount"]), names[r["number"]]))
+    for idx, (_, mv) in enumerate(rows):
+        flagged = replace(mv, transfer=True) if idx in paired else mv
+        moves[month_start(mv.day)].append(flagged)
     skip = {r["id"] for r in transfers} | piggy.txn_ids(conn)
     return [
         MonthRate(t.month, t.income, tuple(moves[t.month]))

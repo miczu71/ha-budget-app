@@ -270,7 +270,16 @@ def _gap_note(gap: int | None) -> str:
     )
 
 
-def promo_messages(watch: promo_watch.Watch, today: date) -> list[Message]:
+def _parked_note(parked: list[tuple[str, Decimal]] | None, ed: promo_watch.Edition) -> str:
+    if not parked:
+        return ""
+    funds = ", ".join(f"{name} {zl(bal)}" for name, bal in parked)
+    return f" Zaparkowane środki ({funds}) przenieś na Profit po {_short(ed.baseline)}."
+
+
+def promo_messages(
+    watch: promo_watch.Watch, today: date, parked: list[tuple[str, Decimal]] | None = None
+) -> list[Message]:
     """Push o oknie badania sald następnej edycji Profit i o nowej edycji regulaminu (M10 E7)."""
     ed = watch.edition
     if ed is None:
@@ -299,7 +308,9 @@ def promo_messages(watch: promo_watch.Watch, today: date) -> list[Message]:
                 f"Millennium Profit — edycja {ed.number}",
                 f"Bank opublikował regulamin: dzień badania sald {_short(ed.baseline)}, "
                 f"nowe środki wpłać po tym dniu, najpóźniej {_short(ed.deadline)} "
-                f"(okres promocyjny {ed.days} dni)." + _gap_note(watch.gap),
+                f"(okres promocyjny {ed.days} dni)."
+                + _gap_note(watch.gap)
+                + _parked_note(parked, ed),
             )
         )
     return out
@@ -390,7 +401,8 @@ def due(
     if pay and sent.get(INVEST) != pay.period:
         out.append(pay)
     watch = promo_watch.load(snap.conn)
-    for msg in promo_messages(watch, today) if watch else []:
+    parked = savings.parked(snap.conn, today) if watch and watch.pending_confirm else []
+    for msg in promo_messages(watch, today, parked) if watch else []:
         if sent.get(msg.kind) != msg.period:
             out.append(msg)
     for msg in loan_reset_messages(snap.conn, today):
