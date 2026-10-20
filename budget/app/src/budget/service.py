@@ -405,6 +405,12 @@ class Service:
                     networth.backfill(self.conn, today)
                 else:
                     log.warning("Historia majątku czeka na kursy NBP")
+            try:
+                await stocks.backfill_history(
+                    self.conn, self.ha, self.settings.stocks_entity_prefix, today
+                )
+            except Exception:
+                log.exception("Historia akcji nieudana")
             adv = self.invest_advice()
             spend = adv.inputs.spend if adv and adv.inputs.spend > 0 else None
             networth.save(self.conn, networth.compute(self.conn, today, spend))

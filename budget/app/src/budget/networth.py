@@ -195,11 +195,11 @@ def _investments(conn: sqlite3.Connection, day: date, past: bool = False) -> lis
             note = f"vesting {held.next_vest:%d.%m.%Y}"
             if held.next_vest_qty is not None:
                 note += f": {held.next_vest_qty.normalize():f} akcji"
-        out.append(Component(INVESTMENTS, "Akcje Nokia", held.market_value, stale=stale))
+        out.append(Component(INVESTMENTS, stocks.NAME_VALUE, held.market_value, stale=stale))
         out.append(
             Component(
                 INVESTMENTS,
-                "Akcje Nokia — niezawiązane",
+                stocks.NAME_UNVESTED,
                 (held.unvested_qty * held.price).quantize(money.CENT),
                 note=note,
                 stale=stale,

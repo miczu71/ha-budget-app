@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
+from datetime import datetime
 from typing import Any
 
 import httpx
+from websockets.asyncio.client import connect
 
 log = logging.getLogger(__name__)
 
@@ -94,6 +98,47 @@ class HAClient:
                 return None
             raise
         return data if isinstance(data, dict) else None
+
+    async def monthly_statistics(
+        self, entity_ids: list[str], start: datetime, end: datetime
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Statystyki miesięczne (recorder/statistics_during_period) przez WebSocket Core."""
+        if not self._token:
+            raise HAError("brak SUPERVISOR_TOKEN (uruchomienie poza Supervisorem)")
+        url = f"ws{self._base[4:]}/core/websocket"
+        try:
+            async with asyncio.timeout(15):
+                async with connect(url) as ws:
+                    first = json.loads(await ws.recv())
+                    if first.get("type") != "auth_required":
+                        raise HAError("WS: oczekiwano auth_required")
+                    await ws.send(json.dumps({"type": "auth", "access_token": self._token}))
+                    if json.loads(await ws.recv()).get("type") != "auth_ok":
+                        raise HAError("WS: autoryzacja odrzucona")
+                    await ws.send(
+                        json.dumps(
+                            {
+                                "id": 1,
+                                "type": "recorder/statistics_during_period",
+                                "start_time": start.isoformat(),
+                                "end_time": end.isoformat(),
+                                "statistic_ids": entity_ids,
+                                "period": "month",
+                                "types": ["state", "mean"],
+                            }
+                        )
+                    )
+                    reply = json.loads(await ws.recv())
+        except HAError:
+            raise
+        except Exception as exc:
+            raise HAError(f"WS statistics: {type(exc).__name__}") from exc
+        if not isinstance(reply, dict) or not reply.get("success"):
+            raise HAError("WS statistics: success=false")
+        result = reply.get("result")
+        if not isinstance(result, dict):
+            raise HAError("WS statistics: brak wyniku")
+        return {str(k): v for k, v in result.items() if isinstance(v, list)}
 
     async def persistent_notification(self, notification_id: str, title: str, message: str) -> None:
         await self.call_service(

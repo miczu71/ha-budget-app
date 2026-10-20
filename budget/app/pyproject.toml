@@ -19,6 +19,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "aiomqtt>=2.3",
     "pypdf>=6.20.0",
+    "websockets>=13",
 ]
 
 [project.optional-dependencies]
