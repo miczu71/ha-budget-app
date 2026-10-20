@@ -6,9 +6,9 @@
 {% set period = "date_from=" ~ date_from ~ "&date_to=" ~ date_to %}
 {% block content %}
 <div class="month-nav">
-  <a class="month-link tap" href="{{ base }}/spending?month={{ m.prev_month.strftime('%Y-%m') }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
+  <a class="month-link tap" href="{{ base }}/spending?month={{ m.prev_month.strftime('%Y-%m') }}{{ '&flow=year' if flow_year }}" aria-label="poprzedni miesiąc">« {{ prev_label.split(" ")[0] }}</a>
   <h1>Wydatki — {{ label }}</h1>
-  {% if m.next_month %}<a class="month-link tap" href="{{ base }}/spending?month={{ m.next_month.strftime('%Y-%m') }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
+  {% if m.next_month %}<a class="month-link tap" href="{{ base }}/spending?month={{ m.next_month.strftime('%Y-%m') }}{{ '&flow=year' if flow_year }}" aria-label="następny miesiąc">{{ next_label.split(" ")[0] }} »</a>{% else %}<span class="month-link"></span>{% endif %}
 </div>
 
 <div class="grid summary">

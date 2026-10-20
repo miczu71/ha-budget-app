@@ -39,8 +39,8 @@ def router(panel: Panel) -> APIRouter:
         sankey = charts.sankey(
             flow.build(panel.conn, flow_start, flow_nxt),
             period=period,
-            other_href=f"/spending?month={ym}",
-            review_href=f"/review?month={ym}",
+            other_href=None if year else f"/spending?month={ym}",
+            review_href="/review" if year else f"/review?month={ym}",
         )
         return panel.render(
             request,

@@ -88,7 +88,8 @@ async def test_spending_flow_year(client: httpx.AsyncClient, service: Service) -
     assert f"date_from={year_no}-01-01&amp;date_to={year_no}-12-31" in year
     assert f"date_from={year_no}-01-01&date_to={year_no}-12-31" not in month
     svg = year.split('<svg class="sk"', 1)[1].split("</svg>", 1)[0]
-    assert "sk-node" in svg
+    assert "sk-node" in svg and "/review?month=" not in svg and "/spending?month=" not in svg
+    assert "&flow=year" in year.split('aria-label="poprzedni miesiąc"')[0].rsplit("<a", 1)[1]
     assert 'aria-label="następny miesiąc"' not in (await client.get("/spending?flow=zly")).text
 
 

@@ -388,7 +388,7 @@ def networth_line(rows: Sequence[tuple[date, Decimal, bool]]) -> NetChart:
 SK_W, SK_H = 360, 300
 SK_NODE_W, SK_PAD, SK_MIN_H, SK_LABEL_H = 8, 6.0, 3.0, 12.0
 SK_X = (0.0, 128.0, 252.0)  # lewa krawędź węzłów kolumn 0, 1, 2
-SK_CHARS = (16, 16, 13)  # maks. długość etykiety w kolumnie (reszta „…”)
+SK_CHARS = (14, 12, 9)  # maks. długość etykiety w kolumnie (reszta „…”)
 
 
 @dataclass(frozen=True)
@@ -433,7 +433,7 @@ def _clip(label: str, limit: int) -> str:
     return label if len(label) <= limit else label[: limit - 1].rstrip() + "…"
 
 
-def sankey(flow: Flow, *, period: str, other_href: str, review_href: str) -> SankeyChart:
+def sankey(flow: Flow, *, period: str, other_href: str | None, review_href: str) -> SankeyChart:
     """Układ poziomy 3 kolumn: węzły z minimalną wysokością, krawędzie jako krzywe Béziera
     (obrys o grubości proporcjonalnej do kwoty). Pusty przepływ daje pusty wykres."""
     if not flow.nodes:

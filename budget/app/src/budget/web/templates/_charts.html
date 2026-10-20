@@ -36,7 +36,7 @@
   {% for n in chart.nodes %}
   {% if n.href %}<a href="{{ base }}{{ n.href }}">{% else %}<g>{% endif %}
     <rect class="sk-node {{ n.color }}" x="{{ '%.1f' | format(n.x) }}" y="{{ '%.1f' | format(n.y) }}" width="{{ n.w }}" height="{{ '%.1f' | format(n.h) }}" rx="2" />
-    {% if n.show_label %}<text class="sk-label" x="{{ '%.1f' | format(n.label_x) }}" y="{{ '%.1f' | format(n.y + n.h / 2) }}" dominant-baseline="central">{{ n.label }} <tspan class="sk-amount">{{ n.amount | money("PLN") }}</tspan></text>{% endif %}
+    {% if n.show_label %}<text class="sk-label" x="{{ '%.1f' | format(n.label_x) }}" y="{{ '%.1f' | format(n.y + n.h / 2) }}" dominant-baseline="central">{{ n.label }} <tspan class="sk-amount">{{ n.amount | money("PLN", whole=True) }}</tspan></text>{% endif %}
     <title>{{ n.full_label }}: {{ n.amount | money("PLN") }}</title>
   {% if n.href %}</a>{% else %}</g>{% endif %}
   {% endfor %}
