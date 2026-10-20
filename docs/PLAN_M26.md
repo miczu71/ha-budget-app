@@ -47,7 +47,7 @@ i **wejście dla decyzji** (agent M22, kalkulator nadpłaty M9, czat).
   „przeniesienie”, nie wypłata/wpłata); dzwonek w `promo_watch` przy nowej edycji, gdy parking ma saldo > 0.
   Po wdrożeniu user dodaje konto docelowe z saldem 0 na dzień przed przelewem. Rollback: revert, kolumna
   addytywna.
-- **E1 Model:** `fx.py` (NBP z odzyskanego kodu M23, cache w `fx_rate`, fallback na ostatni znany kurs),
+- **E1 Model ✅ 2026-10-20:** `fx.py` (NBP z odzyskanego kodu M23, cache w `fx_rate`, fallback na ostatni znany kurs),
   `networth.compute(conn, day) -> NetWorth` (składniki, sumy, płynność, LTV, flaga approx); migracja 027:
   `invest_asset.savings_id`, `invest_asset.valued_at`, tabela `networth_snapshot(day PK, total, assets,
   liabilities, components_json, approx)` (migracja 027). Testy jednostkowe na fixturach (w tym dubel M10↔M22, EUR, 2 kredyty).
@@ -78,3 +78,10 @@ i **wejście dla decyzji** (agent M22, kalkulator nadpłaty M9, czat).
 oznaczone ruchy nie liczą się do `MonthRate.saved`), pole „Parking dla” w formularzu konta, etykieta „przeniesienie”
 w rozwiniętym miesiącu, dopisek o zaparkowanych środkach w pushu `promo_confirm` (`savings.parked`). 1087 testów,
 ruff i mypy czyste. Podgląd w przeglądarce dopiero przy E3/wydaniu (zmiana formularza jest mała, pokryta testem renderu).
+
+## Wynik E1 (2026-10-20)
+`fx.py` (odzyskane z `82ce0ff^`, bez części kartowej: `Rates.at`, `refresh(conn, day, get, since)` — jeszcze niepodpięte,
+wywoła je `daily_tick` w E2), `networth.py` (`compute(conn, day, spend)` → `NetWorth`: składniki per grupa, aktywa/pasywa/total,
+płynność, LTV, `stale`, `missing_fx`), migracja 027 (`invest_asset.savings_id`/`valued_at`, `networth_snapshot`),
+`invest.link_savings` (formularz powiązania dopiero w E3), `valued_at` ustawiane przy zmianie kwoty. 1099 testów, ruff i mypy czyste.
+Uwaga dla E2: `compute` bierze salda z OSTATNICH migawek, więc przeszłe dni trzeba liczyć osobną ścieżką odtwarzania, nie `compute`.

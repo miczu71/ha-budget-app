@@ -111,6 +111,8 @@ class Asset:
     start: date | None = None
     maturity: date | None = None
     ike: bool = False
+    savings_id: int | None = None  # to samo co konto oszczędnościowe M10 (liczone tam, nie tu)
+    valued_at: date | None = None  # dzień, na który wpisano `amount`
 
 
 @dataclass(frozen=True)
@@ -596,6 +598,8 @@ def _asset(r: sqlite3.Row) -> Asset:
         date.fromisoformat(r["start_date"]) if r["start_date"] else None,
         date.fromisoformat(r["maturity_date"]) if r["maturity_date"] else None,
         bool(r["ike"]),
+        r["savings_id"],
+        date.fromisoformat(r["valued_at"]) if r["valued_at"] else None,
     )
 
 
@@ -645,18 +649,35 @@ def save_asset(
     if asset_id is None:
         cur = conn.execute(
             "INSERT INTO invest_asset (kind, name, amount, rate, start_date, maturity_date, ike, "
-            "created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (*params, now_iso()),
+            "created_at, valued_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (*params, now_iso(), now_iso()[:10]),
         )
         return int(cur.lastrowid or 0)
     cur = conn.execute(
         "UPDATE invest_asset SET kind = ?, name = ?, amount = ?, rate = ?, start_date = ?, "
-        "maturity_date = ?, ike = ? WHERE id = ? AND archived_at IS NULL",
-        (*params, asset_id),
+        "maturity_date = ?, ike = ?, valued_at = CASE WHEN amount != ? THEN ? ELSE valued_at END "
+        "WHERE id = ? AND archived_at IS NULL",
+        (*params, str(value), now_iso()[:10], asset_id),
     )
     if not cur.rowcount:
         raise InvestError("Nie ma takiego aktywa.")
     return asset_id
+
+
+def link_savings(conn: sqlite3.Connection, asset_id: int, savings_id: int | None) -> None:
+    """Oznacza aktywo jako to samo co konto oszczędnościowe M10 (majątek liczy je raz, z M10);
+    None zdejmuje powiązanie."""
+    if (
+        savings_id is not None
+        and not conn.execute("SELECT 1 FROM savings_account WHERE id = ?", (savings_id,)).fetchone()
+    ):
+        raise InvestError("Nie ma takiego konta oszczędnościowego.")
+    cur = conn.execute(
+        "UPDATE invest_asset SET savings_id = ? WHERE id = ? AND archived_at IS NULL",
+        (savings_id, asset_id),
+    )
+    if not cur.rowcount:
+        raise InvestError("Nie ma takiego aktywa.")
 
 
 def archive_asset(conn: sqlite3.Connection, asset_id: int) -> None:
