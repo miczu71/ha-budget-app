@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.61.2
+
+**Szybsze Inwestycje i Majątek** (M14, `docs/PLAN_M14_E2.md`) — rekomendacja agenta inwestycyjnego liczy się raz na stan bazy
+(wcześniej przy każdym wejściu na `/invest` i `/networth`). Nagłówek `Server-Timing` ma teraz kroki strony głównej (`h_*`),
+Statusu (`s_*`) i dzwonka (`p_*`), żeby wskazać resztę wolnych miejsc. Bez zmian wyglądu i danych.
+
 ## 0.61.1
 
 **Pomiar wolnych ekranów** (M14, `docs/PLAN_M14_E2.md`) — każda odpowiedź panelu niesie nagłówek `Server-Timing`
