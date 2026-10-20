@@ -60,3 +60,27 @@ Każdy etap kodu ma w `docs/PLAN_M11.md` sekcję **Wykonawca** (pliki, zmiana, `
   jako `invest_asset`. Do potwierdzenia w E1 przez ekran „Inwestycje” (zero ręcznych aktywów o nazwie z „Nokia”).
 - Nie sprawdzone (wymaga uruchomienia w add-onie): przepuszczalność WebSocket `/core/websocket` przez Supervisor. Sonda jest pierwszym
   krokiem E2; fallback = `POST /core/api/…` nie ma endpointu statystyk, więc wtedy historia odpada, a wykres zaczyna się od dnia wydania.
+
+## Wykonawca E1 (prompt dla `sonnet-worker`; repo `/config/addons/ha-budget-app`, kod w `budget/app/src/budget/`)
+Cel: akcje Nokia jako dwa składniki grupy `networth.INVESTMENTS`, odczyt z encji HA, bez migracji.
+Projekt: `networth.compute` jest synchroniczne i wołane z wielu miejsc (web, summary, czat), więc odczyt HTTP robi osobna
+funkcja async, a wynik leży w `kv`; `compute` czyta tylko `kv`. `stocks.py` NIE importuje `networth` (cykl) — zwraca `Holding`,
+komponenty buduje `networth._investments`.
+
+1. `ha_client.py`: `async def get_state(self, entity_id) -> dict | None` — `GET /core/api/states/<id>`; 404 → `None`, inne błędy `HAError`.
+2. NOWY `stocks.py`: `@dataclass Holding(market_value, unvested_qty, price, next_vest, next_vest_qty, fetched_at)` (Decimal/date);
+   `KEY = "stocks_nokia"`; `async refresh(conn, ha, prefix, now)` — czyta `{prefix}market_value_pln`, `{prefix}price_pln`,
+   `{prefix}unvested_qty`, `{prefix}next_vest_date` (+ atrybut `next_vest_qty`); `unavailable`/`unknown`/brak encji ⇒ nie nadpisuje
+   poprzedniego wpisu; pusty prefiks ⇒ nic nie robi; `load(conn) -> Holding | None` (przez `db.kv_get`/`kv_set` z `budget.storage.db`).
+3. `networth.py::_investments`: gdy `not past`, dołóż z `stocks.load(conn)`: „Akcje Nokia” = `market_value`, „Akcje Nokia — niezawiązane” =
+   `unvested_qty × price` (note: `vesting DD.MM.RRRR: N akcji`, jeśli `next_vest`), `stale` gdy `fetched_at` starsze niż `STALE_DAYS`.
+   Dla `past=True` nic (historia = E2). Grupa INVESTMENTS zostaje poza `LIQUID_GROUPS`.
+4. `settings.py` + `config.yaml` (options `stocks_entity_prefix: "sensor.nokia_tracker_"`, schema
+   `"match(^(sensor\\.[a-z0-9_]+_)?$)?"`) + `translations/pl.yaml` i `en.yaml` (nazwa + opis) — wzór: `calendar_entity`. Walidator jak przy `calendar_entity`.
+5. `service.py`: `await stocks.refresh(self.conn, self.ha, self.settings.stocks_entity_prefix, self.now())` na początku `record_networth`
+   (w istniejącym `try`) oraz na początku `refresh()` (osobny `try/except Exception: log.exception`, nie zatrzymuje encji).
+6. Testy `tests/test_stocks.py` (httpx MockTransport/atrapa `HAClient`): odczyt i zapis do `kv`; `unavailable` zachowuje stary wpis;
+   komponenty mają sumę `market_value + unvested×price` (neutralne kwoty, np. 100 akcji po 10,00 zł); `past=True` bez akcji;
+   stale po 2×`STALE_DAYS`; pusty prefiks. Dołóż przypadek do `tests/test_networth*.py`, jeśli istnieje.
+Komenda: `cd budget/app && uv run pytest -q && uv run ruff check . && uv run mypy src`. Nie commituj, nie wydawaj.
+Zakres poza planem: żadnych zmian w UI (E3), historii (E2), innych modułach.
