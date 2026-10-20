@@ -2,6 +2,7 @@
 {% from "_charts.html" import sankey_chart with context %}
 {% macro pct(x) %}{{ "%.0f" | format(x * 100) }}%{% endmacro %}
 {% macro delta(line) %}{% if line.prev %}{% set d = line.delta %}<span class="delta {{ 'up' if d > 0 else 'down' if d < 0 else '' }}" title="{{ prev_label }}: {{ line.prev | money('PLN') }}">{{ "+" if d > 0 }}{{ d | money('PLN') }}</span>{% else %}<span class="delta muted" title="brak w {{ prev_label }}">nowe</span>{% endif %}{% endmacro %}
+{% set ym = m.month.strftime('%Y-%m') %}
 {% set period = "date_from=" ~ date_from ~ "&date_to=" ~ date_to %}
 {% block content %}
 <div class="month-nav">
@@ -61,8 +62,8 @@
 <section class="card">
   <h2>Przepływ pieniędzy</h2>
   <nav class="tabs" aria-label="zakres przepływu">
-    <a class="tap{{ '' if flow_year else ' on' }}" href="{{ base }}/spending?month={{ m.month.strftime('%Y-%m') }}"{% if not flow_year %} aria-current="true"{% endif %}>Miesiąc</a>
-    <a class="tap{{ ' on' if flow_year else '' }}" href="{{ base }}/spending?month={{ m.month.strftime('%Y-%m') }}&flow=year"{% if flow_year %} aria-current="true"{% endif %}>Rok {{ m.month.year }}</a>
+    <a class="tap{{ '' if flow_year else ' on' }}" href="{{ base }}/spending?month={{ ym }}"{% if not flow_year %} aria-current="true"{% endif %}>Miesiąc</a>
+    <a class="tap{{ ' on' if flow_year else '' }}" href="{{ base }}/spending?month={{ ym }}&flow=year"{% if flow_year %} aria-current="true"{% endif %}>Rok {{ m.month.year }}</a>
   </nav>
   {% if sankey.nodes %}
   {{ sankey_chart(sankey, "Przepływ pieniędzy: wpływy, grupy budżetu i kategorie w " ~ flow_label) }}

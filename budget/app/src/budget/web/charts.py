@@ -454,7 +454,6 @@ def sankey(flow: Flow, *, period: str, other_href: str, review_href: str) -> San
             break
         k *= SK_H / worst * 0.98
 
-    hrefs: dict[str, str | None] = {"unc": review_href}
     pos: dict[str, SankeyNode] = {}
     for c, col in enumerate(columns):
         y = 0.0
@@ -465,7 +464,7 @@ def sankey(flow: Flow, *, period: str, other_href: str, review_href: str) -> San
             elif n.key.startswith("other-"):
                 href = other_href
             else:
-                href = hrefs.get(n.key)
+                href = review_href if n.key == "unc" else None
             pos[n.key] = SankeyNode(
                 n.key,
                 _clip(n.label, SK_CHARS[c]),

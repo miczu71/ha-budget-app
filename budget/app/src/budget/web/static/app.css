@@ -630,7 +630,8 @@ button.inbox-x:hover { color: var(--text); filter: none; }
 .dot.c8 { color: var(--chart-8); }
 /* przepływ pieniędzy (Sankey, M19): kolory węzłów i krzywych z tokenów motywu */
 .sk { display: block; width: 100%; height: auto; }
-.sk-link { fill: none; opacity: 0.32; }
+.sk-node { fill: currentColor; }
+.sk-link { fill: none; stroke: currentColor; opacity: 0.32; }
 .sk a:hover .sk-node, .sk a:focus-visible .sk-node { opacity: 0.8; }
 .sk-label {
   font-size: 9px;
@@ -641,40 +642,23 @@ button.inbox-x:hover { color: var(--text); filter: none; }
   stroke-linejoin: round;
 }
 .sk-amount { fill: var(--text-2); font-variant-numeric: tabular-nums; }
-.sk-node.in { fill: var(--pos); }
-.sk-link.in { stroke: var(--pos); }
-.sk-node.deficit { fill: var(--neg); }
-.sk-link.deficit { stroke: var(--neg); }
-.sk-node.surplus { fill: var(--chart-5); }
-.sk-link.surplus { stroke: var(--chart-5); }
-.sk-node.g-fixed { fill: var(--chart-4); }
-.sk-link.g-fixed { stroke: var(--chart-4); }
-.sk-node.g-flexible { fill: var(--chart-1); }
-.sk-link.g-flexible { stroke: var(--chart-1); }
-.sk-node.g-non_monthly { fill: var(--chart-7); }
-.sk-link.g-non_monthly { stroke: var(--chart-7); }
-.sk-node.g-savings { fill: var(--chart-5); }
-.sk-link.g-savings { stroke: var(--chart-5); }
-.sk-node.unc { fill: var(--chart-unc); }
-.sk-link.unc { stroke: var(--chart-unc); }
-.sk-node.other { fill: var(--chart-other); }
-.sk-link.other { stroke: var(--chart-other); }
-.sk-node.c1 { fill: var(--chart-1); }
-.sk-link.c1 { stroke: var(--chart-1); }
-.sk-node.c2 { fill: var(--chart-2); }
-.sk-link.c2 { stroke: var(--chart-2); }
-.sk-node.c3 { fill: var(--chart-3); }
-.sk-link.c3 { stroke: var(--chart-3); }
-.sk-node.c4 { fill: var(--chart-4); }
-.sk-link.c4 { stroke: var(--chart-4); }
-.sk-node.c5 { fill: var(--chart-5); }
-.sk-link.c5 { stroke: var(--chart-5); }
-.sk-node.c6 { fill: var(--chart-6); }
-.sk-link.c6 { stroke: var(--chart-6); }
-.sk-node.c7 { fill: var(--chart-7); }
-.sk-link.c7 { stroke: var(--chart-7); }
-.sk-node.c8 { fill: var(--chart-8); }
-.sk-link.c8 { stroke: var(--chart-8); }
+.sk-node.in, .sk-link.in { color: var(--pos); }
+.sk-node.deficit, .sk-link.deficit { color: var(--neg); }
+.sk-node.surplus, .sk-link.surplus { color: var(--chart-5); }
+.sk-node.g-fixed, .sk-link.g-fixed { color: var(--chart-4); }
+.sk-node.g-flexible, .sk-link.g-flexible { color: var(--chart-1); }
+.sk-node.g-non_monthly, .sk-link.g-non_monthly { color: var(--chart-7); }
+.sk-node.g-savings, .sk-link.g-savings { color: var(--chart-5); }
+.sk-node.unc, .sk-link.unc { color: var(--chart-unc); }
+.sk-node.other, .sk-link.other { color: var(--chart-other); }
+.sk-node.c1, .sk-link.c1 { color: var(--chart-1); }
+.sk-node.c2, .sk-link.c2 { color: var(--chart-2); }
+.sk-node.c3, .sk-link.c3 { color: var(--chart-3); }
+.sk-node.c4, .sk-link.c4 { color: var(--chart-4); }
+.sk-node.c5, .sk-link.c5 { color: var(--chart-5); }
+.sk-node.c6, .sk-link.c6 { color: var(--chart-6); }
+.sk-node.c7, .sk-link.c7 { color: var(--chart-7); }
+.sk-node.c8, .sk-link.c8 { color: var(--chart-8); }
 .donut-center {
   position: absolute;
   inset: 0;
