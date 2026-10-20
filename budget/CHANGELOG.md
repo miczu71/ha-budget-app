@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.60.0
+
+**Majątek netto** (M26, `docs/PLAN_M26.md`) — jeden obraz finansów: konta (EUR po kursie średnim NBP), oszczędności,
+skarbonki i inwestycje minus kredyty i zadłużenie karty. Tylko majątek finansowy, bez nieruchomości i aut.
+
+- Nowa zakładka „Majątek”: bilans aktywa/pasywa, wykres miesięczny (odtworzona historia oznaczona jako przybliżona),
+  zmiana m/m i r/r, płynność (miesiące wydatków), LTV i lista wartości do aktualizacji (starszych niż 90 dni).
+  Kafel „Majątek netto” na Podsumowaniu.
+- Historia: migawka dzienna i jednorazowe odtworzenie końców miesięcy od najstarszej transakcji.
+- Aktywa z Inwestycji: pole „Wartość z dnia” i „To samo co oszczędność” (bez liczenia podwójnie).
+- Parking oszczędności: konto M10 oznaczone „parking dla …”; przelewy Profit ↔ parking to „przeniesienie”,
+  nie wypłata ani wpłata.
+- `sensor.budget_net_worth` (atrybuty: assets, liabilities, liquidity_months, ltv, change_mom, change_yoy, stale).
+- Podsumowanie miesięczne: linijka majątku z m/m i przypomnienie „Zaktualizuj wartość: …”.
+- Czat: źródło „majatek”; do modelu idą tylko sumy i wskaźniki, bez nazw pozycji.
+- Agent inwestycyjny: płynność i LTV w uzasadnieniu rekomendacji (jednorazowe odświeżenie tekstu po aktualizacji).
+- Migracje bazy 026 i 027 (addytywne): `parking_for`, `savings_id`, `valued_at`, `networth_snapshot`, kursy NBP.
+
 ## 0.59.0
 
 **Śledzenie promocji bankowych** (M22 E5, dawne M17, `docs/PLAN_M22.md`) — razem z 0.58.1 (nagłówek `User-Agent`
