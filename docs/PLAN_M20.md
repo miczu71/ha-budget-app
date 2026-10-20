@@ -106,3 +106,11 @@ Znaleziska poza M20: plakietka w `.row-title` prognozy rozciągała się na cał
 — naprawione regułą `.row-title > .badge { align-self: flex-start; }` w `app.css` (pomiar: 734 → 81 px; wejdzie w
 życie z następnym wydaniem add-onu), `bundle.css` zsynchronizowany; w publicznym fixture `millenet_sample.csv` jest
 prawdziwy adres e-mail (linia 45, opis płatności BLIK), anonimizator nie ma kategorii e-mail — sprawa otwarta.
+
+## Re-sync 2026-10-20 (follow-up M19)
+Dodany komponent `SankeyChart` (grupa „Wykresy”, 39 komponentów): podgląd z prawdziwego kodu (`charts.sankey` +
+makro `sankey_chart`) na syntetycznym przepływie — miesiąc i rok z deficytem, nazwy neutralne; sprawdzony
+na 390 i 1280 px (`reducedMotion`, konsola czysta). `bundle.css` zsynchronizowany z `app.css` 0.62.0
+(+139 linii od poprzedniego syncu), `:root` bez zmian, więc `tokens.json` tylko `meta.ref`/`synced`.
+Opublikowane jako wersja 17 artefaktu. Nowe ekrany z 0.4x–0.6x (kafelki sald, Inwestycje, Majątek, Rok)
+nie mają podglądów — świadomie, osobny re-sync na życzenie.

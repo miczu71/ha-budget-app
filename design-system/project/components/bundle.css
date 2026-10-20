@@ -224,7 +224,9 @@ button:disabled, .htmx-request button { opacity: 0.6; cursor: progress; }
 .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline; }
 .pager { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
 .tx-desc { max-width: 380px; overflow-wrap: anywhere; }
-.flags { white-space: nowrap; }
+.flags { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; max-width: 100%; }
+.flags .badge { max-width: 100%; overflow-wrap: anywhere; }
+td.meta { max-width: 320px; overflow-wrap: anywhere; }
 td.date { white-space: nowrap; }
 .steps { margin: 0; padding-left: 20px; }
 .steps li { margin-bottom: 6px; }
@@ -256,7 +258,7 @@ td.date { white-space: nowrap; }
   table.tx td.date { grid-column: 1; color: var(--muted); font-size: 12px; }
   table.tx td.num { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 15px; }
   table.tx td.tx-desc { grid-column: 1; max-width: none; }
-  table.tx td.meta { grid-column: 1 / span 2; color: var(--muted); font-size: 12px; }
+  table.tx td.meta { grid-column: 1 / span 2; max-width: none; color: var(--muted); font-size: 12px; }
   .kv dd { text-align: left; }
 }
 
@@ -535,6 +537,11 @@ form.move.add-fixed select { max-width: 100%; flex: 1 1 200px; }
 .inbox-item.warn { border-color: var(--warn); }
 .inbox-item.error { border-color: var(--error); }
 .inbox-item a { display: flex; justify-content: space-between; gap: 12px; text-decoration: none; color: var(--text); font-weight: 600; }
+.inbox-row { display: flex; align-items: center; gap: 4px; }
+.inbox-row a { flex: 1; }
+.inbox-row form { margin: 0; }
+button.inbox-x { display: inline-flex; align-items: center; justify-content: center; width: var(--tap); padding: 0; background: none; color: var(--text-3); }
+button.inbox-x:hover { color: var(--text); filter: none; }
 .inbox-item p { margin: 4px 0 0; }
 .inbox-count { font-variant-numeric: tabular-nums; color: var(--link); }
 
@@ -606,6 +613,37 @@ form.move.add-fixed select { max-width: 100%; flex: 1 1 200px; }
 .dot.c7 { color: var(--chart-7); }
 .slice.c8 { stroke: var(--chart-8); }
 .dot.c8 { color: var(--chart-8); }
+/* przepływ pieniędzy (Sankey, M19): kolory węzłów i krzywych z tokenów motywu */
+.sk { display: block; width: 100%; height: auto; }
+.sk-node { fill: currentColor; }
+.sk-link { fill: none; stroke: currentColor; opacity: 0.32; }
+.sk a:hover .sk-node, .sk a:focus-visible .sk-node { opacity: 0.8; }
+.sk-label {
+  font-size: 9px;
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--surface-1);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.sk-amount { fill: var(--text-2); font-variant-numeric: tabular-nums; }
+.sk-node.in, .sk-link.in { color: var(--pos); }
+.sk-node.deficit, .sk-link.deficit { color: var(--neg); }
+.sk-node.surplus, .sk-link.surplus { color: var(--chart-5); }
+.sk-node.g-fixed, .sk-link.g-fixed { color: var(--chart-4); }
+.sk-node.g-flexible, .sk-link.g-flexible { color: var(--chart-1); }
+.sk-node.g-non_monthly, .sk-link.g-non_monthly { color: var(--chart-7); }
+.sk-node.g-savings, .sk-link.g-savings { color: var(--chart-5); }
+.sk-node.unc, .sk-link.unc { color: var(--chart-unc); }
+.sk-node.other, .sk-link.other { color: var(--chart-other); }
+.sk-node.c1, .sk-link.c1 { color: var(--chart-1); }
+.sk-node.c2, .sk-link.c2 { color: var(--chart-2); }
+.sk-node.c3, .sk-link.c3 { color: var(--chart-3); }
+.sk-node.c4, .sk-link.c4 { color: var(--chart-4); }
+.sk-node.c5, .sk-link.c5 { color: var(--chart-5); }
+.sk-node.c6, .sk-link.c6 { color: var(--chart-6); }
+.sk-node.c7, .sk-link.c7 { color: var(--chart-7); }
+.sk-node.c8, .sk-link.c8 { color: var(--chart-8); }
 .donut-center {
   position: absolute;
   inset: 0;
@@ -705,8 +743,11 @@ a.row:hover .row-title { text-decoration: underline; }
 .row-title > .badge { align-self: flex-start; }
 .row-amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bar-rows .row { grid-template-columns: 1fr auto; row-gap: 6px; }  /* wiersz z paskiem pod spodem (M21 E4, M10 E1) */
+.loan-rows .row { grid-template-columns: 4.6em 1fr auto; }  /* harmonogram kredytu: data z rokiem (M9 E1) */
 .bar-rows .flex-bar { grid-column: 1 / -1; height: 8px; margin: 0; }
 .fc-weeks .week-now .row-date { color: var(--text); font-weight: 600; }
+.year-rows .block { display: block; }  /* podpis pod tytułem/kwotą wiersza (Rok) */
+.fc-weeks .over-note { display: block; }  /* „+X zł ponad plan” w osobnej linii — w jednej poszerzał kartę na 390 px */
 .week-line { margin-bottom: 0; }
 .bars { display: block; width: 100%; max-width: 520px; height: auto; }
 .bars .grid-line { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 3; }
@@ -748,7 +789,7 @@ a.tap {
   display: inline-flex;
   align-items: center;
 }
-.cat-form .rv-ai button.chip { min-height: var(--tap); display: inline-flex; align-items: center; }
+.cat-form .rv-ai button.chip, .lidl-pick button.chip { min-height: var(--tap); display: inline-flex; align-items: center; }
 .pager a { padding: 0 8px; }
 
 /* M13 E3: ekran „Reguły” — pola wyboru formularza, tabela na telefonie */
@@ -808,6 +849,9 @@ select, textarea, button { min-height: var(--tap); }
 .leaf form { margin: 6px 0 0 22px; }
 .leaf form.move select { flex: 1; min-width: 0; max-width: none; padding: 9px 12px; font-size: inherit; }
 .leaf form.move button { padding: 9px 12px; font-size: inherit; }
+.leaf form.year-skip { align-items: center; }
+.leaf form.year-skip label { flex: 1; min-width: 0; display: flex; flex-direction: row; align-items: center; gap: 10px; font-size: 14px; }
+.leaf form.year-skip input[type="checkbox"] { flex: none; width: 18px; height: 18px; margin: 0; padding: 0; }
 .leaf[open] { padding-bottom: 10px; }
 /* Wiersze serii (link na cały wiersz) */
 a.row { min-height: var(--tap); align-content: center; }
@@ -849,6 +893,8 @@ a.row { min-height: var(--tap); align-content: center; }
 .fc-line .zero { stroke: var(--neg); stroke-dasharray: none; opacity: 0.5; }
 .fc-line .buffer { stroke: var(--warn); stroke-dasharray: 4 3; }
 .fc-line .fc-path { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.fc-line .fc-scenario { stroke: var(--accent); stroke-dasharray: 5 4; }
+.fc-line .fc-end2 { fill: var(--accent); }
 .fc-line .fc-low { fill: var(--accent); stroke: var(--surface-1); stroke-width: 2; }
 .fc-line .fc-end { fill: var(--text); }
 .fc-foot { margin-top: 8px; }
@@ -893,7 +939,96 @@ label.switch input[type="checkbox"]:checked::after { transform: translateX(16px)
 .piggy-form label, .piggy-form select { min-width: 0; max-width: 100%; }  /* długie nazwy serii w opcjach */
 .piggy-pick { display: inline-block; }
 .piggy-new > summary { line-height: var(--tap); cursor: pointer; font-weight: 600; }
-.piggy-pick select { min-height: var(--tap); }
+.piggy-pick select { min-height: var(--tap); max-width: 100%; }
+td.meta .piggy-pick select { max-width: 280px; }
 .piggy-tile .flex-bar { height: 6px; }
 .fc-strip > div:nth-child(5):last-child { grid-column: 1 / -1; }
 @media (min-width: 720px) { .fc-strip:has(> div:nth-child(5)) { grid-template-columns: repeat(5, 1fr); } .fc-strip > div:nth-child(5):last-child { grid-column: auto; } }
+
+/* Kalkulator kredytu (M9 E3b) */
+.calc-form { margin-bottom: 12px; }
+.calc-range { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.calc-range-row { display: flex; align-items: center; gap: 12px; min-height: var(--tap); }
+.calc-range-row input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.calc-range-row output { min-width: 5.5em; text-align: right; font-variant-numeric: tabular-nums; }
+.calc-verdict { font: 400 18px / 1.35 var(--font-display); margin: 0 0 12px; text-wrap: balance; }
+.calc-out h3 { margin: 16px 0 4px; font-size: 15px; }
+.loan-table th, .loan-table td { padding: 8px 3px; }
+.loan-table th { font-size: 12px; }
+.loan-table th.num { white-space: normal; }
+.loan-table td.num { font-size: 12px; }  /* trzy kolumny wariantów mieszczą się na 360 px */
+
+/* M29 E3: podział transakcji na podkategorie (karta kategorii w Transakcjach) */
+.cat-chip.split svg { margin-right: 6px; flex: none; }
+.split-parts { display: block; margin-top: 2px; }
+td.cat:has(.split-form) { min-width: 440px; }
+.split-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-input);
+}
+.split-head { margin: 0; font-size: 13px; color: var(--text-2); }
+.split-head strong { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+.split-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.split-row { display: grid; grid-template-columns: minmax(0, 1fr) 7rem var(--tap); gap: 8px; align-items: center; }
+.split-row select { width: 100%; min-width: 0; }
+.split-row input { width: 100%; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.split-row input[data-auto] { background: transparent; color: var(--text-2); border-style: dashed; }
+button.split-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  padding: 0;
+  background: none;
+  color: var(--text-3);
+}
+button.split-x:hover { color: var(--neg); filter: none; }
+button.split-x:disabled { visibility: hidden; }
+button.split-add { justify-self: start; display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); }
+.split-rest {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+}
+.split-rest output { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.split-rest[data-state="over"] { color: var(--neg); }
+.split-rest[data-state="done"] output { color: var(--pos); }
+.split-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button.split-clear { margin-left: auto; min-height: var(--tap); color: var(--neg); }
+@media (max-width: 640px) {
+  td.cat:has(.split-form) { min-width: 0; }
+  .split-form { padding: 12px; }
+  .split-row { grid-template-columns: minmax(0, 1fr) 5.25rem var(--tap); gap: 4px; }
+  .split-row input { padding: 9px 10px; }
+}
+
+/* M29 E5: paragony Lidl — link w komórce kategorii, wybór paragonu, mapa kategorii */
+a.lidl-link { display: inline-flex; align-items: center; min-height: var(--tap); margin-right: 6px; color: var(--link); }
+.lidl-pick { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+form.lidl-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; }
+form.lidl-map select { width: 100%; }
+
+/* M31 E4: kafelki sald nad hero — mały pasek */
+.bal-tiles { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-bottom: 8px; }
+.bal-tile { position: relative; display: flex; flex-direction: column; min-width: 0; padding: 5px 10px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; color: inherit; text-decoration: none; }
+.bal-label { color: var(--text-3); font-size: 11px; line-height: 1.2; }
+.bal-value { font: 600 14px / 1.2 var(--font-display); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bal-pop { display: none; }
+@media (hover: hover) {
+  .bal-pop { position: absolute; z-index: 5; top: 100%; right: 0; min-width: 200px; margin: 4px 0 0; padding: 8px 12px; list-style: none; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--elev); }
+  .bal-pop li { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; font-size: 14px; }
+  .bal-pop-head { color: var(--text-3); border-bottom: 1px solid var(--line); margin-bottom: 2px; }
+  .bal-has-pop:hover .bal-pop { display: block; }
+}
+.fc-line .nw-dot { fill: var(--text); stroke: var(--surface-1); stroke-width: 1.5; }
+.fc-line .nw-dot.approx { fill: var(--surface-1); stroke: var(--text); }
+@media (min-width: 720px) { .stats.stats-4 { grid-template-columns: repeat(4, 1fr); } }

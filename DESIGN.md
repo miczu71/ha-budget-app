@@ -85,7 +85,7 @@ dwuwarstwowy cień (`--elev`). Siatka 4 px, padding karty 20 px (16 na telefonie
 
 ## System designu w Claude Design (M20)
 Przeglądalne lustro tego pliku i `app.css`: https://claude.ai/artifact/GgbLCb6vkcwtvKAEQ3wwzr (prywatny artefakt typu
-Design System: tokeny, fonty, ikony, README, 38 komponentów z podglądami). Służy do makiet nowych ekranów i planowania
+Design System: tokeny, fonty, ikony, README, 39 komponentów z podglądami). Służy do makiet nowych ekranów i planowania
 refaktorów. **Kod jest źródłem prawdy** (`app.css`, ten plik), artefakt nie dyktuje stylu. Źródła artefaktu leżą w
 `design-system/project/` (poza kontekstem builda add-onu); plan i historia etapów: `docs/PLAN_M20.md`.
 
