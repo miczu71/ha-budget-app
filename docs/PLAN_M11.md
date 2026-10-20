@@ -121,3 +121,10 @@ i brak zmian (flaga NIE ustawiona ⇒ ponowienie przy następnej migawce). Fakty
    migawka bez statystyk pominięta.
 Komenda: `cd budget/app && UV_LINK_MODE=copy uv run --extra dev pytest -q && uv run --extra dev ruff check . && uv run --extra dev mypy src`. Nie commituj, nie wydawaj.
 Zakres poza planem: UI i dzwonek (E3), inne moduły.
+
+## Wynik E2 (2026-10-20)
+`362f997` na `main` (lokalnie, bez pusha): `ha_client.monthly_statistics` (WS `recorder/statistics_during_period`), `stocks.backfill_history`
+(flaga `stocks_history_done` w `kv`, tylko migawki `approx=1` od 07.2026, wywołanie w `record_networth` we własnym `try`), `websockets==15.0.1`
+w `requirements.txt`, nazwy komponentów jako stałe w `stocks`. 1134 testy, ruff/mypy czyste; verifier ACCEPT.
+Ryzyko: flaga ustawia się też, gdy WS się udał, a statystyk brak (bez ponowienia). Sonda WS na żywo = pierwszy start po wydaniu (szukać w logu
+„Akcje: historia statystyk niedostępna”).
