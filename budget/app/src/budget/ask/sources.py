@@ -22,6 +22,7 @@ from budget import (
     invest,
     loan,
     loan_sim,
+    networth,
     piggy,
     savings,
     year,
@@ -436,6 +437,44 @@ def _invest(c: Ctx) -> SourceResult:
     return res
 
 
+# --- Majątek netto ---------------------------------------------------------------------------
+
+
+def _networth(c: Ctx) -> SourceResult:
+    res = SourceResult("majatek", link="/networth", link_label="Otwórz Majątek")
+    fc = forecast.for_today(c.snap, c.today, c.now, c.buffer)
+    nw = networth.live(c.snap, fc, year.build(c.snap, c.today, c.buffer), c.today)
+    if not nw.components:
+        res.note = "Brak danych do majątku netto — dodaj konta, oszczędności albo aktywa."
+        return res
+    facts = res.facts
+    facts.append(Fact("Majątek netto", pl(nw.total, "PLN")))
+    facts.append(Fact("Aktywa", pl(nw.assets, "PLN")))
+    facts.append(Fact("Pasywa", pl(nw.liabilities, "PLN")))
+    for group in (*networth.LIQUID_GROUPS, networth.INVESTMENTS, networth.LOANS, networth.CARD):
+        total = sum((x.amount for x in nw.components if x.group == group), ZERO)
+        if total:
+            facts.append(Fact(f"Grupa: {group}", pl(total, "PLN")))
+    if nw.liquidity_months is not None:
+        facts.append(Fact("Płynność", f"{nw.liquidity_months} mies. wydatków"))
+    if nw.ltv is not None:
+        facts.append(
+            Fact("Kredyty do aktywów (LTV)", f"{(nw.ltv * 100).quantize(Decimal('0.1'))}%")
+        )
+    for label, days in (("Zmiana m/m", 30), ("Zmiana r/r", 365)):
+        ch = networth.change(c.conn, nw.total, c.today, days)
+        if ch is not None:
+            note = f" (od {_date(ch.since)}{', przybliżone' if ch.approx else ''})"
+            facts.append(Fact(label, pl(ch.delta, "PLN") + note))
+    if nw.stale:
+        facts.append(Fact("Wartości do aktualizacji", str(len(nw.stale))))
+    res.filters = [
+        "Tylko majątek finansowy: konta, oszczędności, skarbonki, inwestycje minus kredyty i karta",
+        "EUR po kursie średnim NBP; historia częściowo odtworzona (przybliżona)",
+    ]
+    return res
+
+
 REGISTRY: tuple[Source, ...] = (
     Source(
         "payday",
@@ -490,6 +529,12 @@ REGISTRY: tuple[Source, ...] = (
         "agent inwestycyjny: koszyki (poduszka, cele, długi termin), ile odłożyć z nadwyżki, "
         "gdzie, najlepsze opcje (lokaty, konta, obligacje, nadpłata kredytu)",
         _invest,
+    ),
+    Source(
+        "majatek",
+        "Majątek",
+        "majątek netto: aktywa, pasywa, płynność (miesiące wydatków), LTV, zmiana m/m i r/r",
+        _networth,
     ),
 )
 NAMES = tuple(s.name for s in REGISTRY)

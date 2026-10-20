@@ -14,7 +14,8 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 
-from budget import fx, invest, ledger, loan, money, piggy, savings
+from budget import fx, invest, ledger, loan, money, piggy, savings, year
+from budget.forecast import Forecast
 from budget.snapshot import Snapshot
 from budget.spending import month_start
 
@@ -212,6 +213,17 @@ def compute(
         _loans(conn, day),
     )
     return NetWorth(day, tuple(c for part in parts for c in part), spend)
+
+
+def live(
+    snap: Snapshot, fc: Forecast | None, proj: year.Projection | None, today: date
+) -> NetWorth:
+    """Majątek netto na dziś z wydatkami z agenta M22 (płynność); błąd agenta = bez płynności."""
+    try:
+        spend = invest.advice(snap, fc, proj, today).inputs.spend
+    except Exception:
+        spend = ZERO
+    return compute(snap.conn, today, spend if spend > 0 else None)
 
 
 def reconstruct(conn: sqlite3.Connection, day: date) -> NetWorth:

@@ -12,10 +12,10 @@ import hashlib
 import json
 import logging
 import sqlite3
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
-from budget import invest
+from budget import invest, networth
 from budget.invest_blogs import USAGE_KEY
 from budget.settings import Settings
 from budget.storage import db
@@ -37,13 +37,28 @@ SCHEMA: dict[str, Any] = {
 }
 
 
-def facts(adv: invest.Advice) -> dict[str, Any] | None:
-    """Wejście dla modelu; None, gdy nie ma czego uzasadniać (brak nadwyżki albo danych)."""
+def _context(conn: sqlite3.Connection, adv: invest.Advice) -> networth.NetWorth | None:
+    try:
+        return networth.compute(conn, date.today(), adv.inputs.spend)
+    except Exception:  # majątek to dodatek do uzasadnienia, nie jego warunek
+        log.exception("Majątek netto do uzasadnienia nieudany")
+        return None
+
+
+def facts(adv: invest.Advice, nw: networth.NetWorth | None = None) -> dict[str, Any] | None:
+    """Wejście dla modelu; None, gdy nie ma czego uzasadniać (brak nadwyżki albo danych).
+    Płynność w pełnych miesiącach i LTV co 5 pp, żeby odcisk nie zmieniał się co dzień (M26 E4)."""
     rec = adv.rec
     if rec.state != "invest" or rec.surplus is None:
         return None
     cushion = adv.buckets[0]
+    extra: dict[str, Any] = {}
+    if nw is not None and nw.liquidity_months is not None:
+        extra["plynnosc_miesiecy_wydatkow"] = int(nw.liquidity_months)
+    if nw is not None and nw.ltv is not None:
+        extra["kredyty_do_aktywow_proc"] = int(nw.ltv * 100 / 5) * 5
     return {
+        **extra,
         "nadwyzka_miesieczna_zl": int(rec.surplus),
         "poduszka_cel_zl": int(cushion.target or 0),
         "poduszka_stan_zl": int(cushion.have),
@@ -69,7 +84,8 @@ def build_prompt(data: dict[str, Any]) -> str:
     return (
         "Jesteś doradcą domowego budżetu. Poniżej wynik obliczeń: ile można odkładać co miesiąc "
         "i gdzie. Napisz po polsku 2–3 krótkie zdania uzasadnienia: dlaczego najpierw poduszka, "
-        "a reszta na długi termin, i co daje wybrana opcja. Używaj wyłącznie podanych liczb, "
+        "a reszta na długi termin, i co daje wybrana opcja; jeśli podano płynność albo "
+        "kredyty do aktywów, odnieś się do nich jednym zdaniem. Używaj wyłącznie podanych liczb, "
         "niczego nie wymyślaj, nie obiecuj zysków, nie dawaj innych rekomendacji. "
         'Zwróć JSON {"text": "..."}.\n\n' + json.dumps(data, ensure_ascii=False)
     )
@@ -77,7 +93,7 @@ def build_prompt(data: dict[str, Any]) -> str:
 
 def text(conn: sqlite3.Connection, adv: invest.Advice) -> str | None:
     """Zapisane uzasadnienie, o ile dotyczy dzisiejszej rekomendacji."""
-    data = facts(adv)
+    data = facts(adv, _context(conn, adv))
     raw = db.kv_get(conn, KEY)
     if data is None or not raw or raw.get("key") != fingerprint(data):
         return None
@@ -93,7 +109,7 @@ async def refresh(
 ) -> None:
     """Nowe uzasadnienie po zmianie rekomendacji; nigdy nie rzuca. Wspólny dzienny limit
     `invest_daily_calls` z blogami."""
-    data = facts(adv)
+    data = facts(adv, _context(conn, adv))
     if data is None or not settings.ai_enabled or settings.invest_daily_calls <= 0:
         return
     key = fingerprint(data)

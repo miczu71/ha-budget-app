@@ -27,6 +27,7 @@ from budget import (
     loan,
     loan_sim,
     money,
+    networth,
     promo_track,
     promo_watch,
     review,
@@ -179,7 +180,27 @@ def monthly(snap: Snapshot, today: date) -> Message:
         lines = [f"Wydane {zl(fm.spent)} z {zl(fm.budget)} — ponad pulę o {zl(-fm.remaining)}"]
     lines.append(_top_line("Najwięcej", top_categories(snap, month, month_start(today))))
     lines.append(f"Do przejrzenia: {review.pending_count(snap.conn)}")
+    lines += _networth_lines(snap, today)
     return Message(MONTHLY, f"{month:%Y-%m}", f"Budżet — {name}", "\n".join(lines))
+
+
+def _networth_lines(snap: Snapshot, today: date) -> list[str]:
+    """Majątek netto z m/m i przypomnienie o przeterminowanych wartościach (M26 E4)."""
+    try:
+        nw = networth.compute(snap.conn, today)
+        mom = networth.change(snap.conn, nw.total, today, 30)
+    except Exception:
+        return []
+    if not nw.components:
+        return []
+    line = f"Majątek netto: {zl(nw.total)}"
+    if mom is not None:
+        line += f" ({'+' if mom.delta >= 0 else '−'}{zl(abs(mom.delta))} m/m)"
+    lines = [line]
+    if nw.stale:
+        names = ", ".join(c.name for c in nw.stale)
+        lines.append(f"Zaktualizuj wartość: {names} (starsza niż {networth.STALE_DAYS} dni)")
+    return lines
 
 
 def card_reminder(cm: card.CardMonth, today: date) -> Message:

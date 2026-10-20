@@ -59,7 +59,7 @@ i **wejście dla decyzji** (agent M22, kalkulator nadpłaty M9, czat).
 - **E3 Ekran:** zakładka „Majątek” (bilans aktywa/pasywa, wykres miesięczny z oznaczeniem przybliżeń, m/m, r/r,
   płynność, LTV, „wartość z dnia X”), kafel na Podsumowaniu, w formularzu aktywa M22 pole „to samo co
   oszczędność” + data wartości. Projekt skillem `impeccable` (system Monarch), weryfikacja Playwright 360/1280 px.
-- **E4 Integracje:** `sensor.budget_net_worth` (atrybuty: assets, liabilities, liquidity_months, ltv, change_mom,
+- **E4 Integracje ✅ 2026-10-20:** `sensor.budget_net_worth` (atrybuty: assets, liabilities, liquidity_months, ltv, change_mom,
   change_yoy), linijka w podsumowaniu miesięcznym + przypomnienie o starych wartościach, źródło czatu „majatek”,
   płynność i LTV w uzasadnieniu agenta M22.
 - **Koniec:** `simplify` → `code-review` → `release` 0.60.0 (backup add-onu przez `ha_manage_updates`).
@@ -104,3 +104,9 @@ puste punkty = odtworzone), bilans aktywa/pasywa wg grup, lista „Do aktualizac
 Podsumowaniu (`home_layout.TILES["networth"]`, przed „Rok”). Formularz aktywa M22: „Wartość z dnia” (`valued_at`, nie z przyszłości) i „To samo co
 oszczędność” (`invest.link_savings`). `networth.history` = ostatnia migawka miesiąca; bieżący miesiąc zastępuje żywe `compute`.
 1111 testów, ruff i mypy czyste; Playwright 360/1280 px na syntetycznych danych, konsola bez błędów. Plan E3 wykonany bez workera (edycje robione bezpośrednio).
+
+## Wynik E4 (2026-10-20)
+`networth.live(snap, fc, proj, today)` (majątek z wydatkami agenta M22), `sensor.budget_net_worth` (`ha_publisher.net_worth_entities`; atrybuty assets,
+liabilities, liquidity_months, ltv [%], change_mom, change_yoy, stale), linijka „Majątek netto … m/m” i „Zaktualizuj wartość: …” w `summary.monthly`,
+źródło czatu `majatek` (kwoty zbiorcze bez nazw pozycji), płynność (pełne miesiące) i LTV (co 5 pp) w `invest_why.facts` — odcisk stabilny dzień do dnia,
+jednorazowe odświeżenie uzasadnienia po wdrożeniu. 1117 testów, ruff i mypy (src) czyste. Edycje robione bezpośrednio, bez workera.

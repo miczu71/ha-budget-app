@@ -31,6 +31,7 @@ from budget import (
     loan,
     loan_sim,
     money,
+    networth,
     sessions,
     sync_service,
 )
@@ -204,6 +205,7 @@ def build_entities(
     entities += loan_entities(snap.conn, today)
     entities += forecast_entities(forecast)
     entities += year_entities(year_proj)
+    entities += net_worth_entities(snap, forecast, year_proj, today)
     if inbox_items is not None:
         entities.append(inbox_entity(inbox_items))
     entities.append(
@@ -460,6 +462,32 @@ def loan_entities(conn: sqlite3.Connection, today: date) -> list[Entity]:
             )
         )
     return out
+
+
+def net_worth_entities(
+    snap: Snapshot, fc: forecast_mod.Forecast | None, proj: year_mod.Projection | None, today: date
+) -> list[Entity]:
+    """Majątek netto (M26 E4); bez żadnego składnika nie ma encji."""
+    nw = networth.live(snap, fc, proj, today)
+    if not nw.components:
+        return []
+    mom = networth.change(snap.conn, nw.total, today, 30)
+    yoy = networth.change(snap.conn, nw.total, today, 365)
+    return [
+        _flex_sensor(
+            "net_worth",
+            "Majątek netto",
+            "mdi:scale-balance",
+            _amount(nw.total),
+            assets=_amount(nw.assets),
+            liabilities=_amount(nw.liabilities),
+            liquidity_months=None if nw.liquidity_months is None else str(nw.liquidity_months),
+            ltv=None if nw.ltv is None else round(float(nw.ltv) * 100, 1),
+            change_mom=_amount(mom.delta) if mom else None,
+            change_yoy=_amount(yoy.delta) if yoy else None,
+            stale=[c.name for c in nw.stale],
+        )
+    ]
 
 
 def recurring_entities(snap: Snapshot, today: date) -> list[Entity]:
