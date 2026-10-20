@@ -213,7 +213,8 @@ def test_reconstruct_piggy_from_transfers_and_skips_future_sources(
     make_loan(conn, principal="5000", principal_date="2026-09-15", last_payment_date="2030-01-20")
     invest.save_asset(conn, None, "deposit", "Lokata", "700", None, "2026-09-25", None, False)
     aug = total_at(conn, date(2026, 8, 31))
-    assert not by_group(aug, networth.SAVINGS) and not by_group(aug, networth.LOANS)
+    assert not by_group(aug, networth.SAVINGS)
+    assert by_group(aug, networth.LOANS)[0].amount == Decimal(5000)  # kredyt stały wstecz
     sep20 = total_at(conn, date(2026, 9, 20))
     assert by_group(sep20, networth.SAVINGS) and by_group(sep20, networth.LOANS)
     assert not by_group(sep20, networth.INVESTMENTS)

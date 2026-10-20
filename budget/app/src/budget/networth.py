@@ -191,10 +191,18 @@ def _investments(conn: sqlite3.Connection, day: date, past: bool = False) -> lis
 
 
 def _loans(conn: sqlite3.Connection, day: date) -> list[Component]:
+    """Kapitał wg harmonogramu; przed `principal_date` (data wpisanego kapitału, nie zaciągnięcia
+    kredytu) zostaje kapitał z tej daty — inaczej historia pokazywałaby dług dopiero od wpisu."""
     return [
-        Component(LOANS, lo.name, loan.summary(lo, loan.schedule(lo), day).principal, True)
+        Component(
+            LOANS,
+            lo.name,
+            lo.principal
+            if day < lo.principal_date
+            else loan.summary(lo, loan.schedule(lo), day).principal,
+            True,
+        )
         for lo in loan.all_loans(conn)
-        if lo.principal_date <= day
     ]
 
 

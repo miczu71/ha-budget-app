@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.60.1
+
+Poprawka M26: kredyt liczył się w historii majątku dopiero od daty wpisanego kapitału, więc zmiana m/m i r/r
+pokazywała fałszywy skok o wartość kredytu. Teraz przed tą datą zostaje kapitał z dnia wpisu (punkt przybliżony).
+Migracja 028 kasuje tylko odtworzone punkty historii; add-on odtworzy je od nowa przy najbliższym odświeżeniu.
+
 ## 0.60.0
 
 **Majątek netto** (M26, `docs/PLAN_M26.md`) — jeden obraz finansów: konta (EUR po kursie średnim NBP), oszczędności,
