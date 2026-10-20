@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -12,6 +13,7 @@ import pytest
 from budget import service as service_mod
 from budget.service import Service, next_midnight
 
+from .test_categorize_engine import add
 from .test_web import _client, service
 
 __all__ = ["service"]
@@ -114,3 +116,30 @@ async def test_session_check_survives_refresh_error(
     monkeypatch.setattr(service, "missing_config", lambda: ["klucz"])
     monkeypatch.setattr(service, "refresh", broken_refresh)
     await service.session_check()
+
+
+async def test_record_networth_backfills_once_and_survives_nbp_failure(
+    service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from budget import fx
+
+    async def boom(cur: str, start: date, end: date) -> dict[date, Decimal]:
+        raise httpx.ConnectError("brak sieci")
+
+    monkeypatch.setattr(fx, "fetch", boom)
+    conn = service.conn
+    conn.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (1, 'current', 'PLN', 'x')"
+    )
+    conn.execute(
+        "INSERT INTO balance_snapshot (account_id, balance_type, amount, currency, fetched_at) "
+        "VALUES (1, 'ITAV', '500.00', 'PLN', '2026-01-01T06:00:00+00:00')"
+    )
+    add(conn, "-20", day="2026-01-10")
+    await service.record_networth()
+    await service.record_networth()
+    rows = conn.execute("SELECT day, approx FROM networth_snapshot ORDER BY day").fetchall()
+    today = service.now().date().isoformat()
+    assert rows[-1]["day"] == today and rows[-1]["approx"] == 0
+    assert rows[0]["day"] == "2026-01-31" and rows[0]["approx"] == 1
+    assert len({r["day"] for r in rows}) == len(rows)

@@ -8,6 +8,7 @@ skarbonki) / miesięczne wydatki; LTV = kredyty / aktywa.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -94,7 +95,28 @@ def _balance(conn: sqlite3.Connection, account_id: int) -> Decimal | None:
     return Decimal(found["amount"]) if found else None
 
 
-def _accounts(conn: sqlite3.Connection, day: date) -> list[Component]:
+def _after(conn: sqlite3.Connection, account_id: int, day: date) -> Decimal:
+    """Suma zaksięgowanych transakcji konta po `day` (do cofania salda z migawki)."""
+    rows = conn.execute(
+        "SELECT amount FROM txn WHERE account_id = ? AND status = 'BOOK' "
+        "AND coalesce(booking_date, tx_date) > ?",
+        (account_id, day.isoformat()),
+    )
+    return sum((Decimal(r[0]) for r in rows), ZERO)
+
+
+def _card_started(conn: sqlite3.Connection, account_id: int, day: date) -> bool:
+    return (
+        conn.execute(
+            "SELECT 1 FROM txn WHERE account_id = ? AND status = 'BOOK' "
+            "AND coalesce(booking_date, tx_date) <= ? LIMIT 1",
+            (account_id, day.isoformat()),
+        ).fetchone()
+        is not None
+    )
+
+
+def _accounts(conn: sqlite3.Connection, day: date, past: bool) -> list[Component]:
     rates = fx.Rates(conn)
     out: list[Component] = []
     rows = conn.execute("SELECT * FROM account ORDER BY id").fetchall()
@@ -103,12 +125,17 @@ def _accounts(conn: sqlite3.Connection, day: date) -> list[Component]:
         if r["kind"] == "card":
             debt = ledger.latest_balances(conn, r["id"]).get("ITBD")
             amount = max(Decimal(debt["amount"]), ZERO) if debt else ZERO
+            if past:  # dług = dzisiejszy + wydatki po dniu (kwoty ujemne); przed kartą 0
+                started = _card_started(conn, r["id"], day)
+                amount = max(amount + _after(conn, r["id"], day), ZERO) if started else ZERO
             if amount > 0:
                 out.append(Component(CARD, name, amount, liability=True))
             continue
         bal = _balance(conn, r["id"])
         if bal is None:
             continue
+        if past:
+            bal -= _after(conn, r["id"], day)
         if r["currency"] == "PLN":
             out.append(Component(ACCOUNTS, name, bal))
             continue
@@ -125,6 +152,20 @@ def _savings(conn: sqlite3.Connection, day: date) -> list[Component]:
     return [
         Component(SAVINGS, a.name, savings.estimate(conn, a, day).total)
         for a in savings.all_accounts(conn)
+        if a.opening_date <= day
+    ]
+
+
+def _piggies_at(conn: sqlite3.Connection, day: date) -> list[Component]:
+    """Saldo skarbonki na `day`: stan otwarcia + wpłaty netto do tego dnia (jak `statuses`)."""
+    piggies = piggy.all_piggies(conn)
+    paid: dict[str, Decimal] = {}
+    for r in piggy.transfers(conn, [p.account_number for p in piggies]):
+        if r["day"] <= day.isoformat():
+            paid[r["number"]] = paid.get(r["number"], ZERO) - Decimal(r["amount"])
+    return [
+        Component(PIGGIES, p.name, p.opening_balance + paid.get(p.account_number, ZERO))
+        for p in piggies
     ]
 
 
@@ -135,11 +176,13 @@ def _piggies(conn: sqlite3.Connection, day: date) -> list[Component]:
     ]
 
 
-def _investments(conn: sqlite3.Connection, day: date) -> list[Component]:
+def _investments(conn: sqlite3.Connection, day: date, past: bool = False) -> list[Component]:
     out = []
     for a in invest.all_assets(conn):
         if a.savings_id is not None:
             continue  # liczone raz, jako oszczędność M10
+        if past and a.start is not None and a.start > day:
+            continue  # dzisiejsza wartość od startu, wcześniej 0
         stale = a.valued_at is None or a.valued_at < day - timedelta(days=STALE_DAYS)
         note = f"wartość z {a.valued_at:%d.%m.%Y}" if a.valued_at else None
         out.append(Component(INVESTMENTS, a.name, a.amount, note=note, stale=stale))
@@ -150,12 +193,83 @@ def _loans(conn: sqlite3.Connection, day: date) -> list[Component]:
     return [
         Component(LOANS, lo.name, loan.summary(lo, loan.schedule(lo), day).principal, True)
         for lo in loan.all_loans(conn)
+        if lo.principal_date <= day
     ]
 
 
-def compute(conn: sqlite3.Connection, day: date, spend: Decimal | None = None) -> NetWorth:
+def compute(
+    conn: sqlite3.Connection, day: date, spend: Decimal | None = None, past: bool = False
+) -> NetWorth:
     """Majątek netto na `day` z bieżących danych (salda z ostatnich migawek, kurs NBP z `fx_rate`).
     `spend` = miesięczne wydatki do wskaźnika płynności (z prognozy); bez niego płynność jest
-    nieznana."""
-    parts = (_accounts, _savings, _piggies, _investments, _loans)
-    return NetWorth(day, tuple(c for part in parts for c in part(conn, day)), spend)
+    nieznana. `past`: dzień z przeszłości — salda kont cofnięte o późniejsze transakcje,
+    skarbonki z przelewów do tego dnia, aktywa Inwestycji dopiero od startu."""
+    parts = (
+        _accounts(conn, day, past),
+        _savings(conn, day),
+        _piggies_at(conn, day) if past else _piggies(conn, day),
+        _investments(conn, day, past),
+        _loans(conn, day),
+    )
+    return NetWorth(day, tuple(c for part in parts for c in part), spend)
+
+
+def reconstruct(conn: sqlite3.Connection, day: date) -> NetWorth:
+    """Przybliżony majątek na dzień z przeszłości (bez płynności — brak wydatków z tamtego dnia)."""
+    return compute(conn, day, past=True)
+
+
+def save(conn: sqlite3.Connection, nw: NetWorth, approx: bool = False) -> None:
+    """Zapis migawki dnia. Dokładna (`approx=False`) zastępuje wpis; przybliżona nigdy nie
+    nadpisuje istniejącego."""
+    comps = [
+        {
+            "group": c.group,
+            "name": c.name,
+            "amount": str(c.amount),
+            "liability": c.liability,
+            "note": c.note,
+            "stale": c.stale,
+        }
+        for c in nw.components
+    ]
+    verb = "INSERT OR IGNORE" if approx else "INSERT OR REPLACE"
+    conn.execute(
+        f"{verb} INTO networth_snapshot (day, total, assets, liabilities, components_json, approx) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            nw.day.isoformat(),
+            str(nw.total),
+            str(nw.assets),
+            str(nw.liabilities),
+            json.dumps(comps, ensure_ascii=False),
+            int(approx),
+        ),
+    )
+
+
+def has_history(conn: sqlite3.Connection) -> bool:
+    return conn.execute("SELECT 1 FROM networth_snapshot LIMIT 1").fetchone() is not None
+
+
+def first_day(conn: sqlite3.Connection) -> date | None:
+    """Dzień najstarszej zaksięgowanej transakcji — początek odtwarzanej historii."""
+    row = conn.execute(
+        "SELECT min(coalesce(booking_date, tx_date)) FROM txn WHERE status = 'BOOK'"
+    ).fetchone()
+    return date.fromisoformat(row[0]) if row and row[0] else None
+
+
+def backfill(conn: sqlite3.Connection, today: date) -> int:
+    """Jednorazowe odtworzenie końców miesięcy od najstarszej transakcji do ostatniego przed
+    `today` (`approx=1`). Nic nie robi, gdy migawki już są; zwraca liczbę zapisanych."""
+    first = first_day(conn)
+    if first is None or has_history(conn):
+        return 0
+    n, day = 0, month_start(first)
+    while True:
+        end = (day + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        if end >= today:
+            return n
+        save(conn, reconstruct(conn, end), approx=True)
+        n, day = n + 1, end + timedelta(days=1)

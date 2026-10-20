@@ -18,6 +18,7 @@ import httpx
 
 from budget import forecast as forecast_mod
 from budget import (
+    fx,
     ha_publisher,
     inbox,
     invest,
@@ -27,6 +28,7 @@ from budget import (
     ledger,
     lidl_link,
     loan,
+    networth,
     notifications,
     promo_watch,
     savings,
@@ -385,11 +387,29 @@ class Service:
         except Exception:  # odświeżenie w tle nie może zatrzymać add-onu
             log.exception("Błąd odświeżania encji")
 
+    async def record_networth(self) -> None:
+        """Migawka majątku netto (M26): kursy NBP, jednorazowe odtworzenie historii (gdy brak
+        migawek), potem wpis na dziś; błąd nie zatrzymuje reszty."""
+        today = self.now().date()
+        try:
+            await fx.refresh(self.conn, today)
+            first = networth.first_day(self.conn)
+            if first is not None and not networth.has_history(self.conn):
+                await fx.refresh(self.conn, today, since=first)
+                networth.backfill(self.conn, today)
+            adv = self.invest_advice()
+            spend = adv.inputs.spend if adv and adv.inputs.spend > 0 else None
+            networth.save(self.conn, networth.compute(self.conn, today, spend))
+        except Exception:
+            log.exception("Migawka majątku netto nieudana")
+
     async def daily_tick(self) -> None:
-        """Encje Flex zależą od dnia: odświeżenie tuż po północy."""
+        """Encje Flex zależą od dnia: odświeżenie tuż po północy (i migawka majątku netto)."""
+        await self.record_networth()
         while True:
             now = self.now()  # timestamp(): różnica w czasie rzeczywistym także przy zmianie czasu
             await asyncio.sleep(max(next_midnight(now).timestamp() - now.timestamp(), 1))
+            await self.record_networth()
             try:
                 await self.refresh()
             except Exception:

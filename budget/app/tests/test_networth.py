@@ -10,9 +10,10 @@ import pytest
 
 from budget import fx, invest, networth
 
-from .test_categorize_engine import conn
+from .test_categorize_engine import add, conn
 from .test_loan import make as make_loan
 from .test_piggy import make as make_piggy
+from .test_piggy import move
 from .test_savings import PARKING
 from .test_savings import make as make_savings
 
@@ -174,3 +175,67 @@ def test_nbp_parse_and_spans() -> None:
     chunks = fx.spans(date(2026, 1, 1), date(2026, 6, 30))
     assert chunks[0] == (date(2026, 1, 1), date(2026, 4, 3))
     assert chunks[-1][1] == date(2026, 6, 30) and len(chunks) == 2
+
+
+# --- E2: historia (odtwarzanie wstecz i migawki) ---------------------------------------------
+
+
+def total_at(c: sqlite3.Connection, day: date) -> networth.NetWorth:
+    return networth.reconstruct(c, day)
+
+
+def test_reconstruct_account_and_card_walk_back_through_transactions(
+    conn: sqlite3.Connection,
+) -> None:
+    balance(conn, 1, "ITAV", "1000.00")
+    balance(conn, 2, "ITBD", "300.00")
+    add(conn, "200", "transfer_in", "wpływ", "X", day="2026-10-10")
+    add(conn, "-50", "card", "zakup", "Y", day="2026-09-20")
+    add(conn, "-100", "card", "zakup karta", "Z", day="2026-09-10", account=2)
+    add(conn, "-100", "card", "zakup karta", "Z", day="2026-10-05", account=2)
+    sep30 = total_at(conn, date(2026, 9, 30))
+    assert by_group(sep30, networth.ACCOUNTS)[0].amount == Decimal(800)
+    assert by_group(sep30, networth.CARD)[0].amount == Decimal(200)
+    sep1 = total_at(conn, date(2026, 9, 1))
+    assert by_group(sep1, networth.ACCOUNTS)[0].amount == Decimal(850)
+    assert not by_group(sep1, networth.CARD)  # przed pierwszą transakcją kartą
+    assert networth.compute(conn, DAY).total == Decimal(700)  # dziś: tylko ostatnie migawki
+
+
+def test_reconstruct_piggy_from_transfers_and_skips_future_sources(
+    conn: sqlite3.Connection,
+) -> None:
+    make_piggy(conn, opening_balance="100")
+    move(conn, "-50", "2026-09-20")
+    assert by_group(total_at(conn, date(2026, 9, 30)), networth.PIGGIES)[0].amount == Decimal(150)
+    assert by_group(total_at(conn, date(2026, 9, 10)), networth.PIGGIES)[0].amount == Decimal(100)
+    make_savings(conn, opening_balance="1000", opening_date="2026-09-01")
+    make_loan(conn, principal="5000", principal_date="2026-09-15", last_payment_date="2030-01-20")
+    invest.save_asset(conn, None, "deposit", "Lokata", "700", None, "2026-09-25", None, False)
+    aug = total_at(conn, date(2026, 8, 31))
+    assert not by_group(aug, networth.SAVINGS) and not by_group(aug, networth.LOANS)
+    sep20 = total_at(conn, date(2026, 9, 20))
+    assert by_group(sep20, networth.SAVINGS) and by_group(sep20, networth.LOANS)
+    assert not by_group(sep20, networth.INVESTMENTS)
+    assert by_group(total_at(conn, date(2026, 9, 30)), networth.INVESTMENTS)
+
+
+def test_backfill_month_ends_idempotent_and_keeps_exact_points(conn: sqlite3.Connection) -> None:
+    balance(conn, 1, "ITAV", "1000.00")
+    add(conn, "-50", "card", "zakup", "Y", day="2026-08-15")
+    assert networth.first_day(conn) == date(2026, 8, 15)
+    assert not networth.has_history(conn)
+    assert networth.backfill(conn, DAY) == 2  # 31.08 i 30.09
+    assert networth.has_history(conn)
+    rows = conn.execute("SELECT day, approx FROM networth_snapshot ORDER BY day").fetchall()
+    assert [(r["day"], r["approx"]) for r in rows] == [("2026-08-31", 1), ("2026-09-30", 1)]
+    assert networth.backfill(conn, DAY) == 0  # niepusta tabela = bez ponownego odtwarzania
+    networth.save(conn, networth.compute(conn, date(2026, 9, 30)))
+    networth.save(conn, networth.reconstruct(conn, date(2026, 9, 30)), approx=True)
+    row = conn.execute("SELECT * FROM networth_snapshot WHERE day = '2026-09-30'").fetchone()
+    assert row["approx"] == 0 and Decimal(row["total"]) == Decimal(1000)
+    assert '"group": "konta"' in row["components_json"]
+
+
+def test_backfill_without_transactions_is_empty(conn: sqlite3.Connection) -> None:
+    assert networth.first_day(conn) is None and networth.backfill(conn, DAY) == 0

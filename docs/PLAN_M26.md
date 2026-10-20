@@ -52,7 +52,7 @@ i **wejście dla decyzji** (agent M22, kalkulator nadpłaty M9, czat).
   `invest_asset.savings_id`, `invest_asset.valued_at`, tabela `networth_snapshot(day PK, total, assets,
   liabilities, components_json, approx)` (migracja 027). Testy jednostkowe na fixturach (w tym dubel M10↔M22, EUR, 2 kredyty).
   Rollback: revert; migracja addytywna (starsza wersja ignoruje).
-- **E2 Historia:** migawka w `daily_tick`; jednorazowe odtworzenie końców miesięcy od najstarszej transakcji
+- **E2 Historia ✅ 2026-10-20:** migawka w `daily_tick`; jednorazowe odtworzenie końców miesięcy od najstarszej transakcji
   (saldo = dzisiejsze − transakcje po dacie; M10/skarbonki z przelewów; kredyt z harmonogramu; M22 = dzisiejsza
   wartość od `start_date`, karta przed pierwszą transakcją = 0; wszystko `approx=1`). Idempotentne.
   Rollback: revert + `DELETE FROM networth_snapshot`.
@@ -85,3 +85,11 @@ wywoła je `daily_tick` w E2), `networth.py` (`compute(conn, day, spend)` → `N
 płynność, LTV, `stale`, `missing_fx`), migracja 027 (`invest_asset.savings_id`/`valued_at`, `networth_snapshot`),
 `invest.link_savings` (formularz powiązania dopiero w E3), `valued_at` ustawiane przy zmianie kwoty. 1099 testów, ruff i mypy czyste.
 Uwaga dla E2: `compute` bierze salda z OSTATNICH migawek, więc przeszłe dni trzeba liczyć osobną ścieżką odtwarzania, nie `compute`.
+
+## Wynik E2 (2026-10-20)
+`networth.compute(..., past=True)` / `reconstruct(conn, day)` (salda kont cofnięte o późniejsze transakcje BOOK, karta = dług − wydatki po dniu,
+0 przed pierwszą transakcją; skarbonki z przelewów do dnia; oszczędności/kredyty/aktywa dopiero od daty otwarcia/startu), `save` (dokładna migawka
+zastępuje, przybliżona nigdy nie nadpisuje), `first_day`, `has_history`, `backfill` (końce miesięcy od najstarszej transakcji, tylko gdy tabela pusta).
+`Service.record_networth` (kursy NBP → backfill z `fx.refresh(since=pierwszy dzień)` → migawka na dziś ze `spend` z `invest_advice`) wołane
+na starcie `daily_tick` i po każdej północy; błąd nie zatrzymuje pętli. 1104 testów, ruff i mypy czyste. Plan E2 wykonany bez workera
+(ok. 5 edycji w 3 plikach, robione bezpośrednio).
