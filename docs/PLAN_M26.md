@@ -110,3 +110,8 @@ oszczędność” (`invest.link_savings`). `networth.history` = ostatnia migawka
 liabilities, liquidity_months, ltv [%], change_mom, change_yoy, stale), linijka „Majątek netto … m/m” i „Zaktualizuj wartość: …” w `summary.monthly`,
 źródło czatu `majatek` (kwoty zbiorcze bez nazw pozycji), płynność (pełne miesiące) i LTV (co 5 pp) w `invest_why.facts` — odcisk stabilny dzień do dnia,
 jednorazowe odświeżenie uzasadnienia po wdrożeniu. 1117 testów, ruff i mypy (src) czyste. Edycje robione bezpośrednio, bez workera.
+
+## Wydanie (2026-10-20)
+0.60.0 (`4862dfc`) i 0.60.1 (kredyt stały wstecz, migracja 028 kasuje tylko punkty `approx=1`; backfill odtwarza je od nowa). Na żywo: `/networth` 200 `no-store`,
+stopka v0.60.1, konsola bez błędów, `sensor.budget_net_worth` zgodny z ekranem. Pułapka: `loan.principal_date` to data wpisanego kapitału, nie zaciągnięcia kredytu.
+Checkpoint usera: dodać konto parkingowe M10, wpisać oszczędności i aktywa (LTV 141684% to dziś dane: aktywa ~540 zł).
