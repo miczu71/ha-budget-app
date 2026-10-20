@@ -479,17 +479,17 @@ class AdviceMemo:
         years: Decimal = DEFAULT_YEARS,
     ) -> Advice:
         key = (snap.signature(), today, amount, years)
-        fresh = (
-            self._value is not None
+        settled = not snap.conn.in_transaction
+        if (
+            settled
+            and self._value is not None
             and key == self._key
             and fc is self._inputs[0]
             and proj is self._inputs[1]
-        )
-        if fresh and not snap.conn.in_transaction:
-            assert self._value is not None
+        ):
             return self._value
         value = advice(snap, fc, proj, today, amount, years)
-        if not snap.conn.in_transaction:
+        if settled:
             self._key, self._inputs, self._value = key, (fc, proj), value
         return value
 
