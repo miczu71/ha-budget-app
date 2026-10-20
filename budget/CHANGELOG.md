@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.61.1
+
+**Pomiar wolnych ekranów** (M14, `docs/PLAN_M14_E2.md`) — każda odpowiedź panelu niesie nagłówek `Server-Timing`
+(`total`, `inbox`, `template`, w ms), żeby na produkcji wskazać, co spowalnia Podsumowanie i Status. Bez zmian logiki i danych.
+
 ## 0.61.0
 
 **Akcje Nokia w majątku netto** (M11, `docs/PLAN_M11.md`) — dwa nowe składniki grupy Inwestycje: „Akcje Nokia”
