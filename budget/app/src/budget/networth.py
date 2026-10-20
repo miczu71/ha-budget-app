@@ -189,7 +189,7 @@ def _investments(conn: sqlite3.Connection, day: date, past: bool = False) -> lis
         out.append(Component(INVESTMENTS, a.name, a.amount, note=note, stale=stale))
     held = None if past else stocks.load(conn)
     if held is not None:  # historia akcji = M11 E2
-        stale = held.fetched_at.date() < day - timedelta(days=STALE_DAYS)
+        stale = held.fetched_at.date() < day - timedelta(days=stocks.STALE_DAYS)
         note = None
         if held.next_vest is not None:
             note = f"vesting {held.next_vest:%d.%m.%Y}"
@@ -346,9 +346,15 @@ class Change:
 def change(conn: sqlite3.Connection, now: Decimal, today: date, days: int) -> Change | None:
     """Zmiana wobec ostatniej migawki z dnia `today − days` lub wcześniejszej; None bez niej."""
     row = conn.execute(
-        "SELECT day, total, approx FROM networth_snapshot WHERE day <= ? ORDER BY day DESC LIMIT 1",
+        "SELECT day, total, approx, components_json FROM networth_snapshot "
+        "WHERE day <= ? ORDER BY day DESC LIMIT 1",
         ((today - timedelta(days=days)).isoformat(),),
     ).fetchone()
     if row is None:
         return None
+    held = stocks.load(conn)
+    if held is not None and not any(
+        c.get("name") == stocks.NAME_VALUE for c in json.loads(row[3])
+    ):  # migawka sprzed M11: porównujemy bez akcji, inaczej fałszywy skok o ich wartość
+        now -= held.market_value + held.unvested_value
     return Change(now - Decimal(row[1]), date.fromisoformat(row[0]), bool(row[2]))

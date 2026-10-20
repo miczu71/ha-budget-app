@@ -12,6 +12,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from budget import money
 from budget.ha_client import HAClient, HAError
 from budget.storage import db
 
@@ -21,7 +22,7 @@ KEY = "stocks_nokia"
 HISTORY_FLAG = "stocks_history_done"
 HISTORY_FROM = date(2026, 7, 1)  # statystyki HA sięgają tylko lipca 2026 (E0)
 GROUP = "inwestycje"  # = networth.INVESTMENTS (stocks nie importuje networth)
-CENT = Decimal("0.01")
+STALE_DAYS = 3  # wartość odświeżana automatycznie — awaria encji ma być widoczna szybko
 NAME_VALUE = "Akcje Nokia"
 NAME_UNVESTED = "Akcje Nokia — niezawiązane"
 _TZ = ZoneInfo("Europe/Warsaw")
@@ -39,7 +40,7 @@ class Holding:
 
     @property
     def unvested_value(self) -> Decimal:
-        return (self.unvested_qty * self.price).quantize(CENT)
+        return (self.unvested_qty * self.price).quantize(money.CENT)
 
 
 def _state(data: dict[str, Any] | None) -> str | None:
@@ -61,7 +62,10 @@ def _dec(value: str | None) -> Decimal | None:
 
 async def refresh(conn: sqlite3.Connection, ha: HAClient, prefix: str, now: datetime) -> None:
     """Zapis stanu encji do `kv`; brak encji / `unavailable` zostawia poprzedni wpis."""
-    if not prefix or not ha.available:
+    if not prefix:
+        db.kv_set(conn, KEY, None)  # opcja wyłączona — stary wpis nie liczy się do majątku
+        return
+    if not ha.available:
         return
     market, price, unvested, vest = await asyncio.gather(
         *(
@@ -80,8 +84,12 @@ async def refresh(conn: sqlite3.Connection, ha: HAClient, prefix: str, now: date
             next_vest = date.fromisoformat(vest_state[:10])
         except ValueError:
             next_vest = None
+    if next_vest is None and (prev := load(conn)) is not None:
+        next_vest, prev_qty = prev.next_vest, prev.next_vest_qty  # data chwilowo niedostępna
+    else:
+        prev_qty = None
     qty_raw = (vest or {}).get("attributes", {}).get("next_vest_qty")
-    qty = _dec(str(qty_raw)) if qty_raw is not None else None
+    qty = _dec(str(qty_raw)) if qty_raw is not None else prev_qty
     db.kv_set(
         conn,
         KEY,
@@ -159,12 +167,12 @@ async def backfill_history(conn: sqlite3.Connection, ha: HAClient, prefix: str, 
         comps = json.loads(row["components_json"])
         if any(c.get("name") == NAME_VALUE for c in comps):
             continue
-        market = _bucket_value(stats.get(ids[0], []), day.year, day.month, "state")
+        market = _bucket_value(stats.get(ids[0], []), day.year, day.month, "state", "mean")
         unvested = _bucket_value(stats.get(ids[1], []), day.year, day.month, "state", "mean")
-        price = _bucket_value(stats.get(ids[2], []), day.year, day.month, "state")
+        price = _bucket_value(stats.get(ids[2], []), day.year, day.month, "state", "mean")
         if market is None or unvested is None or price is None:
             continue
-        value = (unvested * price).quantize(CENT)
+        value = (unvested * price).quantize(money.CENT)
         for name, amount in ((NAME_VALUE, market), (NAME_UNVESTED, value)):
             comps.append(
                 {

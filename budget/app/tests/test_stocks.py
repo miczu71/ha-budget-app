@@ -308,3 +308,47 @@ async def test_ws_client_failure_is_haerror() -> None:
 
 def test_group_matches_networth() -> None:
     assert stocks.GROUP == networth.INVESTMENTS
+
+
+# --- poprawki z code-review ----------------------------------------------------------------------
+
+
+@respx.mock
+async def test_change_ignores_stocks_missing_in_reference_snapshot(
+    conn: sqlite3.Connection, ha: HAClient
+) -> None:
+    _snap(conn, "2026-09-20", 0)  # migawka sprzed M11: bez akcji, total 3000
+    mock_states(GOOD)
+    await stocks.refresh(conn, ha, PFX, NOW)
+    ch = networth.change(conn, Decimal("5500"), DAY, 30)  # dziś 3500 + akcje 1000 + 1000
+    assert ch is not None and ch.delta == Decimal("500")  # 5500 − 2000 (akcje) − 3000
+
+
+@respx.mock
+async def test_empty_prefix_clears_previous_entry(conn: sqlite3.Connection, ha: HAClient) -> None:
+    mock_states(GOOD)
+    await stocks.refresh(conn, ha, PFX, NOW)
+    await stocks.refresh(conn, ha, "", NOW + timedelta(days=1))
+    assert stocks.load(conn) is None
+
+
+@respx.mock
+async def test_unavailable_vest_date_keeps_previous_date(
+    conn: sqlite3.Connection, ha: HAClient
+) -> None:
+    mock_states(GOOD)
+    await stocks.refresh(conn, ha, PFX, NOW)
+    mock_states({**GOOD, "next_vest_date": "unavailable"})
+    await stocks.refresh(conn, ha, PFX, NOW + timedelta(days=1))
+    held = stocks.load(conn)
+    assert held is not None and held.next_vest == date(2026, 12, 1)
+    assert held.next_vest_qty == Decimal("25")
+
+
+@respx.mock
+async def test_stale_after_stocks_stale_days(conn: sqlite3.Connection, ha: HAClient) -> None:
+    mock_states(GOOD)
+    await stocks.refresh(conn, ha, PFX, NOW)
+    later = DAY + timedelta(days=stocks.STALE_DAYS + 1)
+    comps = [c for c in networth.compute(conn, later).components if "Akcje" in c.name]
+    assert len(comps) == 2 and all(c.stale for c in comps)
