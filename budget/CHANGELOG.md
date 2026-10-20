@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.61.0
+
+**Akcje Nokia w majątku netto** (M11, `docs/PLAN_M11.md`) — dwa nowe składniki grupy Inwestycje: „Akcje Nokia”
+(wartość rynkowa) i „Akcje Nokia — niezawiązane” (niezawiązane akcje po bieżącej cenie, z podpisem „vesting DD.MM.RRRR: N akcji”).
+Dane czyta add-on z encji integracji trackera akcji (opcja `stocks_entity_prefix`, puste = wyłączone).
+
+- Historia: przybliżone migawki z końców 07–09.2026 dostają akcje ze statystyk HA (jednorazowo, idempotentnie);
+  wcześniej statystyk nie ma — wykres informuje „brak danych o akcjach”.
+- Zmiana m/m i r/r nie liczy akcji jako skoku, gdy migawka odniesienia powstała przed M11.
+- Dzwonek „Vesting akcji DD.MM” 14 dni przed najbliższym vestingiem (ile akcji i ≈ wartość).
+- Wartość akcji starsza niż 3 dni jest oznaczana jako nieaktualna; wyłączenie opcji usuwa składniki z majątku.
+- Nowa zależność: `websockets` (klient statystyk HA).
+
 ## 0.60.1
 
 Poprawka M26: kredyt liczył się w historii majątku dopiero od daty wpisanego kapitału, więc zmiana m/m i r/r

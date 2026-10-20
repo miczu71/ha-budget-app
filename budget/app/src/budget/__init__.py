@@ -1,3 +1,3 @@
 """Budżet Domowy — add-on Home Assistant."""
 
-__version__ = "0.60.1"
+__version__ = "0.61.0"
