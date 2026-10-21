@@ -243,6 +243,13 @@ def test_plan_prompt_separates_savings_state_from_invest_decision() -> None:
     assert "nadpłac" in invest and "gdzie odłożyć" in invest
 
 
+def test_plan_prompt_routes_invest_decisions_not_savings_state() -> None:
+    prompt = " ".join(engine.plan_prompt("?", [], TODAY, "2025-01").split())
+    assert "nadpłacać kredyt → loan + invest" in prompt
+    assert "savings = ile już jest" in prompt and "invest = co zrobić" in prompt
+    assert "savings (odkładanie oszczędności)" not in prompt
+
+
 def test_plan_prompt_tells_model_two_screens_are_not_unsupported() -> None:
     prompt = " ".join(engine.plan_prompt("?", [], TODAY, "2025-01").split())
     assert "nie wpisuj unsupported" in prompt
