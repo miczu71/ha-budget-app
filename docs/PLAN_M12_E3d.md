@@ -23,3 +23,20 @@ Cel: ≥ 90% odpowiedzi z obiema właściwymi tabelami (8 par × 3 próby), popr
 - Wniosek wstępny: jedyna słaba para to kredyt + inwestycje (opis źródła `savings` i `invest` zachodzą na „odłożyć”).
   Poprawka (E3) dotyczy opisów źródeł w `ask/sources.py`, nie schematu; test: pytanie o „odłożyć z nadwyżki zamiast
   nadpłacać” wskazuje `invest`.
+
+## Wynik E3 (2026-10-21, produkcja 0.62.1, iframe Ingress, POST `/ask`, `ctx=[]`)
+
+Poprawka: opisy `savings` (stan oszczędności) i `invest` (decyzje: ile i gdzie odłożyć, nadpłata kredytu) w `ask/sources.py`
+(30a0f6d, 276a5e0; test promptu). Wydane jako 0.62.1.
+
+| Para | Próby | Oba właściwe źródła |
+|---|---|---|
+| kredyt + inwestycje | 3 | **2/3** (przed: 1/3) — próba 3: Kredyt + Skarbonki |
+
+- „nie umiem”: 0; błędy techniczne: 0. Cel 3/3 dla słabej pary **niespełniony**; próba mała (3), a pytanie samo jest mieszane
+  („odłożyć … zamiast nadpłacać kredyt”).
+- Nie zmierzono: pozostałych par z `savings` (majątek + skarbonki, skarbonki + do wypłaty), kontroli karta + do wypłaty,
+  zgodności liczb z ekranami (limit dzienny czatu `chat_daily_calls` — zużyto 6 z 40 wywołań).
+- Następny krok (druga próba, tryb planu/Opus wg zasady porażek): zmiana `plan_prompt` w `ask/query.py` (np. wskazówka, że
+  „odłożyć/nadpłacać/gdzie lokować” = `invest`, „ile mam na kontach/skarbonkach” = `savings`), test w `tests/test_ask_engine.py`,
+  pomiar 5 prób tej pary + pozostałe pary.
