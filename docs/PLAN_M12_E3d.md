@@ -40,3 +40,24 @@ Poprawka: opisy `savings` (stan oszczędności) i `invest` (decyzje: ile i gdzie
 - Następny krok (druga próba, tryb planu/Opus wg zasady porażek): zmiana `plan_prompt` w `ask/engine.py` (np. wskazówka, że
   „odłożyć/nadpłacać/gdzie lokować” = `invest`, „ile mam na kontach/skarbonkach” = `savings`), test w `tests/test_ask_engine.py`,
   pomiar 5 prób tej pary + pozostałe pary.
+
+## Wynik E3 po drugiej próbie (2026-10-21, produkcja 0.62.2, iframe Ingress, POST `/ask`, `ctx=[]`)
+
+Poprawka: `plan_prompt` w `ask/engine.py` — przykład `loan + invest` dla `source2`, definicja savings (stan) vs invest (decyzje),
+`scope: savings` opisane jako przelewy w historii transakcji (1c62b01, wydanie e329c32). Diagnoza z logu czatu: nieudana próba
+z 0.62.1 wybrała źródło `savings`, nie `unsupported`.
+
+| Para / pytanie | Próby | Oba właściwe źródła |
+|---|---|---|
+| kredyt + inwestycje (to samo pytanie co w E3) | 5 | **5/5** (było 2/3) |
+| kredyt + inwestycje, inne sformułowanie | 1 | 1/1 |
+| majątek + skarbonki | 2 | 2/2 |
+| skarbonki + do wypłaty | 2 | 2/2 |
+| karta + do wypłaty | 1 | 1/1 |
+| historia przelewów na oszczędności (kontrola `scope=savings`) | 1 | `transactions`, bez źródła stanu |
+
+- „nie umiem”: 0; limit czatu: 0 (zużyte ok. 30 z 40 wywołań).
+- Liczby w odpowiedziach spójne między próbami (deficyt, rata, saldo skarbonki, brakująca kwota do wypłaty); porównanie
+  jeden do jednego z ekranami: nie robione osobno (powtarzalność i zgodność z poprzednim pomiarem). Konsola panelu bez błędów.
+- Ryzyka z code-review (podwójne znaczenie `savings`, przeuczenie na jedno pytanie) sprawdzone dodatkowymi pytaniami: bez regresji.
+  Zostaje niezmierzone: reszta par z E0 (karta + budżet, budżet + cykliczne, rok + cykliczne, majątek + kredyt).
