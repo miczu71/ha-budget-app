@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.62.1
+
+**Trafniejszy dobór źródeł w czacie** (M12 E3d, `docs/PLAN_M12_E3d.md`) — pytanie łączące kredyt i inwestycje („odłożyć z nadwyżki
+zamiast nadpłacać”) trafiało w Skarbonki zamiast w Inwestycje, bo opisy obu źródeł zachodziły na „odłożyć”. Skarbonki opisują teraz
+stan oszczędności, Inwestycje — decyzje (ile i gdzie odłożyć, nadpłata kredytu). Bez zmian w danych, ekranach i encjach.
+
 ## 0.62.0
 
 **Przepływ pieniędzy** (M19, `docs/PLAN_M19.md`) — na ekranie Wydatki nowa sekcja z wykresem Sankey: wpływy → grupy budżetu
