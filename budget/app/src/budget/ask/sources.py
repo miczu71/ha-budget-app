@@ -527,8 +527,8 @@ REGISTRY: tuple[Source, ...] = (
     Source(
         "invest",
         "Inwestycje",
-        "agent inwestycyjny, decyzje: ile i gdzie odłożyć nadwyżkę, w co (lokaty, konta, "
-        "obligacje), czy nadpłacić kredyt zamiast oszczędzać; koszyki (poduszka, cele, "
+        "agent inwestycyjny, decyzje: ile i gdzie odłożyć nadwyżkę, w co (najlepsze lokaty, "
+        "konta, obligacje), czy nadpłacić kredyt zamiast oszczędzać; koszyki (poduszka, cele, "
         "długi termin)",
         _invest,
     ),
