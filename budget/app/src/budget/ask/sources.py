@@ -514,7 +514,8 @@ REGISTRY: tuple[Source, ...] = (
     Source(
         "savings",
         "Skarbonki",
-        "konta oszczędnościowe (salda, odsetki, stopa oszczędności) i skarbonki (cel, postęp)",
+        "stan oszczędności: salda kont oszczędnościowych, odsetki, stopa oszczędności i skarbonki "
+        "(cel, postęp)",
         _savings,
     ),
     Source(
@@ -526,8 +527,9 @@ REGISTRY: tuple[Source, ...] = (
     Source(
         "invest",
         "Inwestycje",
-        "agent inwestycyjny: koszyki (poduszka, cele, długi termin), ile odłożyć z nadwyżki, "
-        "gdzie, najlepsze opcje (lokaty, konta, obligacje, nadpłata kredytu)",
+        "agent inwestycyjny, decyzje: ile i gdzie odłożyć nadwyżkę, w co (lokaty, konta, "
+        "obligacje), czy nadpłacić kredyt zamiast oszczędzać; koszyki (poduszka, cele, "
+        "długi termin)",
         _invest,
     ),
     Source(

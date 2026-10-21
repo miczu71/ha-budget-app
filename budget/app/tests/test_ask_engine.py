@@ -235,6 +235,14 @@ def test_answer_prompt_requires_saying_when_funds_fall_short() -> None:
     assert "Starczy do wypłaty: nie" in prompt and "wprost" in prompt
 
 
+def test_plan_prompt_separates_savings_state_from_invest_decision() -> None:
+    lines = engine.plan_prompt("?", [], TODAY, "2025-01").splitlines()
+    savings = next(ln for ln in lines if ln.strip().startswith("- savings:"))
+    invest = next(ln for ln in lines if ln.strip().startswith("- invest:"))
+    assert "odłoż" not in savings
+    assert "nadpłac" in invest and "gdzie odłożyć" in invest
+
+
 def test_plan_prompt_tells_model_two_screens_are_not_unsupported() -> None:
     prompt = " ".join(engine.plan_prompt("?", [], TODAY, "2025-01").split())
     assert "nie wpisuj unsupported" in prompt
