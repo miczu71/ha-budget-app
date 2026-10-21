@@ -37,6 +37,6 @@ Poprawka: opisy `savings` (stan oszczędności) i `invest` (decyzje: ile i gdzie
   („odłożyć … zamiast nadpłacać kredyt”).
 - Nie zmierzono: pozostałych par z `savings` (majątek + skarbonki, skarbonki + do wypłaty), kontroli karta + do wypłaty,
   zgodności liczb z ekranami (limit dzienny czatu `chat_daily_calls` — zużyto 6 z 40 wywołań).
-- Następny krok (druga próba, tryb planu/Opus wg zasady porażek): zmiana `plan_prompt` w `ask/query.py` (np. wskazówka, że
+- Następny krok (druga próba, tryb planu/Opus wg zasady porażek): zmiana `plan_prompt` w `ask/engine.py` (np. wskazówka, że
   „odłożyć/nadpłacać/gdzie lokować” = `invest`, „ile mam na kontach/skarbonkach” = `savings`), test w `tests/test_ask_engine.py`,
   pomiar 5 prób tej pary + pozostałe pary.

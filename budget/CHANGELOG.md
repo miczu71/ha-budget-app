@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.62.2
+
+**Czat: pytania o nadwyżkę i kredyt** (M12 E3d, `docs/PLAN_M12_E3d.md`) — pytanie „ile odłożyć z nadwyżki zamiast nadpłacać kredyt”
+w jednej próbie z trzech trafiało w Skarbonki zamiast w Inwestycje. Prompt planu rozróżnia teraz stan (Skarbonki: ile jest na kontach
+i w skarbonkach) od decyzji (Inwestycje: ile i gdzie odłożyć, nadpłata kredytu) i podaje przykład pary Kredyt + Inwestycje.
+Bez zmian w danych, ekranach i encjach.
+
 ## 0.62.1
 
 **Trafniejszy dobór źródeł w czacie** (M12 E3d, `docs/PLAN_M12_E3d.md`) — pytanie łączące kredyt i inwestycje („odłożyć z nadwyżki
