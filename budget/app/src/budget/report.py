@@ -31,6 +31,7 @@ class AccountSummary:
     display_name: str | None
     include_in_budget: bool
     sources: list[SourceRange]
+    bank: str | None = None
 
 
 @dataclass(frozen=True)
@@ -72,6 +73,7 @@ def accounts(conn: sqlite3.Connection) -> list[AccountSummary]:
                 display_name=acc["display_name"],
                 include_in_budget=bool(acc["include_in_budget"]),
                 sources=[SourceRange(r["source"], int(r["n"]), r["d0"], r["d1"]) for r in rows],
+                bank=acc["bank"],
             )
         )
     return out

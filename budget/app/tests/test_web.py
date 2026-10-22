@@ -289,3 +289,52 @@ async def test_stale_page_gets_full_reload(client: httpx.AsyncClient) -> None:
 async def test_transactions_tab_is_active(client: httpx.AsyncClient) -> None:
     page = (await client.get("/transactions")).text
     assert f'href="{INGRESS}/transactions" class="on">Transakcje' in page
+
+
+def _second_bank_session() -> SessionResponse:
+    acc = {
+        **SESSION["accounts"][2],
+        "uid": "b-uid-1",
+        "account_id": {"iban": "PL10105000997603123456789123", "other": None},
+        "identification_hash": "hash-b-1",
+        "product": "Konto Premiowe",
+    }
+    data = {**SESSION, "session_id": "s-b", "aspsp": {"name": "Bank Drugi", "country": "PL"}}
+    return SessionResponse.from_api({**data, "accounts": [acc]})
+
+
+async def test_bank_page_lists_every_connected_bank(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    sessions.store_session(service.conn, SessionResponse.from_api(SESSION))
+    sessions.store_session(service.conn, _second_bank_session())
+    page = (await client.get("/bank")).text
+    assert "Mock ASPSP" in page and "Bank Drugi" in page and "Konto Premiowe" in page
+    assert not re.search(r"PL\d{26}", page)
+    # formularz łączenia podpowiada banki z opcji i połączone
+    assert '<datalist id="banks">' in page and 'value="Bank Millennium"' in page
+    assert "Odnów zgodę albo dodaj bank" in page
+
+
+async def test_bank_page_empty_defaults_to_configured_bank(client: httpx.AsyncClient) -> None:
+    page = (await client.get("/bank")).text
+    assert 'name="aspsp" value="Bank Millennium"' in page and "Brak połączenia" in page
+
+
+async def test_accounts_show_bank_and_kind_is_editable(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    sessions.store_session(service.conn, _second_bank_session())
+    account_id = service.conn.execute("SELECT id FROM account").fetchone()[0]
+    page = (await client.get("/accounts")).text
+    assert "Bank Drugi" in page and 'name="kind"' in page
+    await client.post(
+        f"/accounts/{account_id}", data={"display_name": "Oszczędności", "kind": "savings"}
+    )
+    kind = service.conn.execute("SELECT kind FROM account WHERE id = ?", (account_id,)).fetchone()
+    assert kind[0] == "savings"
+    r = await client.post(f"/accounts/{account_id}", data={"display_name": "x", "kind": "zly"})
+    assert "Nieznany rodzaj" in (await client.get("/accounts")).text and r.status_code == 303
+    await client.post(f"/accounts/{account_id}", data={"display_name": "y"})  # bez pola: bez zmian
+    kind = service.conn.execute("SELECT kind FROM account WHERE id = ?", (account_id,)).fetchone()
+    assert kind[0] == "savings"

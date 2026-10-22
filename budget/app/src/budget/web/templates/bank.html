@@ -4,21 +4,21 @@
 
 <section class="card">
   <h2>Połączenie</h2>
-  {% if record %}
+  {% for record, days_left in records %}
+  <h2 {% if not loop.first %}style="margin-top:16px"{% endif %}>{{ record.aspsp }}</h2>
   <dl class="kv">
-    <dt>Bank</dt><dd>{{ record.aspsp }}</dd>
     <dt>Status</dt><dd><span class="badge {{ 'ok' if record.active else 'error' }}">{{ record.status }}</span></dd>
     <dt>Zgoda ważna do</dt><dd>{{ record.valid_until.strftime("%d.%m.%Y") }} ({{ days_left }} dni)</dd>
   </dl>
-  <h2 style="margin-top:12px">Konta w zgodzie</h2>
+  <h3 style="margin-top:12px">Konta w zgodzie</h3>
   <ul class="small">
-    {% for a in accounts %}
+    {% for a in record.accounts %}
     <li>{{ a.product or a.name or "konto" }} · {{ a.currency }} · {{ a.iban | iban or "bez IBAN" }}</li>
     {% endfor %}
   </ul>
   {% else %}
   <p class="muted">Brak połączenia z bankiem.</p>
-  {% endif %}
+  {% endfor %}
 </section>
 
 <section class="card">
@@ -44,7 +44,7 @@
 </section>
 
 <section class="card">
-  <h2>2b. {{ "Odnów zgodę" if record else "Połącz bank" }}</h2>
+  <h2>2b. {{ "Odnów zgodę albo dodaj bank" if records else "Połącz bank" }}</h2>
   {% if auth_url %}
   <ol class="steps">
     <li>Otwórz link i zaloguj się w banku (potwierdzenie w aplikacji mobilnej):
@@ -60,9 +60,10 @@
   </form>
   {% endif %}
   <form class="inline" method="post" action="{{ base }}/bank/auth" hx-boost="false" style="margin-top:10px">
-    <label>Bank<input type="text" name="aspsp" value="{{ aspsp }}" required></label>
+    <label>Bank<input type="text" name="aspsp" value="{{ default_bank }}" list="banks" required></label>
+    <datalist id="banks">{% for b in banks %}<option value="{{ b }}">{% endfor %}</datalist>
     <button type="submit" class="{{ 'secondary' if pending else '' }}" {{ "disabled" if missing }}>{{ "Nowy link" if pending else "Przejdź do banku" }}</button>
   </form>
-  <p class="small muted">Nowa zgoda zastępuje obecną. Po połączeniu add-on pobierze 90 dni historii (z nagłówkami PSU, poza limitem). W trybie Restricted konta muszą być wcześniej podlinkowane w Control Panelu Enable Banking.</p>
+  <p class="small muted">Nowa zgoda zastępuje obecną tego samego banku; zgody pozostałych banków zostają. Po połączeniu add-on pobierze 90 dni historii (z nagłówkami PSU, poza limitem). W trybie Restricted konta muszą być wcześniej podlinkowane w Control Panelu Enable Banking.</p>
 </section>
 {% endblock %}

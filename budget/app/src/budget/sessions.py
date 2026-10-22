@@ -13,10 +13,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
 from pydantic import ValidationError
 
 from budget import ledger
-from budget.eb_client import EBClient, find_aspsp, parse_redirect
+from budget.eb_client import EBClient, EBError, find_aspsp, parse_redirect
 from budget.eb_models import Account, SessionResponse
 from budget.storage.db import kv_get, kv_set, now_iso
 
@@ -71,8 +72,9 @@ def store_session(
     until = (valid_until or session.access.valid_until).astimezone(UTC)
     with ledger.transaction(conn):
         for acc in session.accounts:
-            ledger.upsert_eb_account(conn, acc)
-        conn.execute("UPDATE eb_session SET is_current = 0")
+            ledger.upsert_eb_account(conn, acc, bank=session.aspsp.name)
+        # bieżąca jest jedna sesja na bank — sesje innych banków zostają nietknięte
+        conn.execute("UPDATE eb_session SET is_current = 0 WHERE aspsp = ?", (session.aspsp.name,))
         conn.execute(
             "INSERT INTO eb_session (session_id, aspsp, valid_until, created_at, raw_json, "
             "status, is_current, checked_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?) "
@@ -89,15 +91,12 @@ def store_session(
                 now_iso(),
             ),
         )
-    record = current(conn)
+    record = current(conn, session.aspsp.name)
     assert record is not None
     return record
 
 
-def current(conn: sqlite3.Connection) -> SessionRecord | None:
-    row = conn.execute("SELECT * FROM eb_session WHERE is_current = 1").fetchone()
-    if row is None:
-        return None
+def _record(row: sqlite3.Row) -> SessionRecord:
     raw: dict[str, Any] = json.loads(row["raw_json"] or "{}")
     return SessionRecord(
         session_id=row["session_id"],
@@ -109,6 +108,26 @@ def current(conn: sqlite3.Connection) -> SessionRecord | None:
     )
 
 
+def current_all(conn: sqlite3.Connection) -> list[SessionRecord]:
+    """Bieżące sesje wszystkich banków (po nazwie banku)."""
+    rows = conn.execute("SELECT * FROM eb_session WHERE is_current = 1 ORDER BY aspsp").fetchall()
+    return [_record(r) for r in rows]
+
+
+def current(conn: sqlite3.Connection, aspsp: str | None = None) -> SessionRecord | None:
+    """Bieżąca sesja banku `aspsp` (bez wielkości liter).
+
+    Bez nazwy: sesja najpilniejsza — nieaktywna, a w razie remisu ta, która wygasa pierwsza
+    (alerty i encja zgody pokazują najgorszy przypadek).
+    """
+    records = current_all(conn)
+    if aspsp is not None:
+        records = [r for r in records if r.aspsp.casefold() == aspsp.casefold()]
+    if not records:
+        return None
+    return min(records, key=lambda r: (r.active, r.valid_until))
+
+
 def set_status(conn: sqlite3.Connection, session_id: str, status: str) -> None:
     conn.execute(
         "UPDATE eb_session SET status = ?, checked_at = ? WHERE session_id = ?",
@@ -117,20 +136,30 @@ def set_status(conn: sqlite3.Connection, session_id: str, status: str) -> None:
 
 
 async def refresh_status(conn: sqlite3.Connection, eb: EBClient) -> SessionRecord | None:
-    """Status bieżącej sesji z `GET /sessions/{id}` (bez limitu PSD2)."""
-    record = current(conn)
-    if record is None:
-        return None
-    info = await eb.get_session(record.session_id)
-    conn.execute(
-        "UPDATE eb_session SET status = ?, valid_until = ?, checked_at = ? WHERE session_id = ?",
-        (
-            info.status,
-            info.access.valid_until.astimezone(UTC).isoformat(timespec="seconds"),
-            now_iso(),
-            record.session_id,
-        ),
-    )
+    """Status bieżących sesji wszystkich banków z `GET /sessions/{id}` (bez limitu PSD2).
+
+    Zwraca najpilniejszą sesję (jak `current`). Błąd jednego banku nie pomija pozostałych:
+    pierwszy wyjątek idzie dalej dopiero po sprawdzeniu reszty.
+    """
+    first_error: Exception | None = None
+    for record in current_all(conn):
+        try:
+            info = await eb.get_session(record.session_id)
+        except (EBError, httpx.HTTPError) as exc:
+            first_error = first_error or exc
+            continue
+        conn.execute(
+            "UPDATE eb_session SET status = ?, valid_until = ?, checked_at = ? "
+            "WHERE session_id = ?",
+            (
+                info.status,
+                info.access.valid_until.astimezone(UTC).isoformat(timespec="seconds"),
+                now_iso(),
+                record.session_id,
+            ),
+        )
+    if first_error is not None:
+        raise first_error
     return current(conn)
 
 
@@ -154,7 +183,10 @@ async def start_auth(
     country: str = "PL",
     redirect_url: str | None = None,
 ) -> str:
-    """`POST /auth` → link do banku; `state` czeka w bazie na wklejony adres zwrotny."""
+    """`POST /auth` → link do banku; `state` czeka w bazie na wklejony adres zwrotny.
+
+    Naraz trwa jedna autoryzacja (jeden bank); nowy start zastępuje poprzedni `pending_auth`.
+    """
     aspsp = find_aspsp(await eb.get_aspsps(country), aspsp_name, country)
     redirect = redirect_url or next(iter((await eb.get_application()).redirect_urls), None)
     if not redirect:
@@ -174,7 +206,7 @@ def pending_auth(conn: sqlite3.Connection) -> dict[str, Any] | None:
 
 
 async def finish_auth(conn: sqlite3.Connection, eb: EBClient, pasted: str) -> SessionRecord:
-    """Wklejony adres zwrotny (albo sam kod) → `POST /sessions` → nowa bieżąca sesja."""
+    """Wklejony adres zwrotny (albo sam kod) → `POST /sessions` → nowa bieżąca sesja tego banku."""
     pending = pending_auth(conn)
     if pending is None:
         raise SessionError("brak rozpoczętej autoryzacji — najpierw „Połącz bank”")
