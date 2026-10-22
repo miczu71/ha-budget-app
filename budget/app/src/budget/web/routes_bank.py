@@ -23,17 +23,23 @@ def router(panel: Panel) -> APIRouter:
     service, conn = panel.service, panel.conn
 
     def render_bank(request: Request, **extra: str) -> HTMLResponse:
-        record = sessions.current(conn)
+        records = sessions.current_all(conn)
+        connected = {r.aspsp.casefold() for r in records if r.active}
+        banks = list(service.settings.banks)
+        banks += [
+            r.aspsp for r in records if r.aspsp.casefold() not in {b.casefold() for b in banks}
+        ]
+        # domyślny wybór: pierwszy bank bez aktywnej zgody (inaczej odnowienie pierwszego)
+        default = next((b for b in banks if b.casefold() not in connected), banks[0])
         return panel.render(
             request,
             "bank.html",
-            record=record,
-            days_left=record.days_left() if record else None,
-            accounts=record.accounts if record else [],
+            records=[(r, r.days_left()) for r in records],
+            banks=banks,
+            default_bank=default,
             key_present=service.settings.private_key_path.is_file(),
             app_id=service.settings.eb_application_id,
             pending=sessions.pending_auth(conn),
-            aspsp=service.settings.aspsp_name,
             missing=service.missing_config(),
             **extra,
         )
@@ -115,7 +121,9 @@ def router(panel: Panel) -> APIRouter:
             )
         # Pełne okno 90 dni z nagłówkami PSU — użytkownik jest obecny, limit nie obowiązuje
         try:
-            result = await service.sync("backfill", psu=psu_from_request(request), full=True)
+            result = await service.sync(
+                "backfill", psu=psu_from_request(request), full=True, only=record.aspsp
+            )
             note = f"pobrano {result.new} transakcji ({result.status})"
         except ServiceError as exc:
             note = f"pobieranie historii nieudane: {exc}"

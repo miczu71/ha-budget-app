@@ -23,6 +23,9 @@ przelewy między kontami, uzgadnianie salda.
    - **przenieś sesję** z CLI (plik `sessions/<id>.json`) — bez ponownego logowania w banku,
      albo **Połącz bank**: otwórz link, potwierdź w aplikacji banku, wklej adres zwrotny.
      Po nowym połączeniu add-on pobiera 90 dni historii.
+   - **kilka banków**: dopisz kolejne w opcji `aspsp_names` (np. `VeloBank`) i połącz każdy osobno —
+     zgoda i odnowienie dotyczą tylko wybranego banku. Rodzaj konta (np. oszczędnościowe) ustaw
+     w **Konta**, jeśli bank go nie podaje.
 3. **Import CSV** (opcjonalnie): eksport historii z bankowości internetowej. Starsze transakcje
    uzupełniają historię sprzed 90 dni dostępnych w API. Import można powtarzać — nic się nie
    zdubluje.

@@ -121,11 +121,16 @@ class Service:
         return datetime.now(self.tz)
 
     async def sync(
-        self, trigger: str, *, psu: PsuHeaders | None = None, full: bool = False
+        self,
+        trigger: str,
+        *,
+        psu: PsuHeaders | None = None,
+        full: bool = False,
+        only: str | None = None,
     ) -> SyncResult:
         async with self.lock, self.eb_client() as eb:
             result = await sync_service.sync(
-                self.conn, eb, tz=self.tz, trigger=trigger, psu=psu, full=full
+                self.conn, eb, tz=self.tz, trigger=trigger, psu=psu, full=full, only=only
             )
         self.last_result = result
         self.link_lidl()
