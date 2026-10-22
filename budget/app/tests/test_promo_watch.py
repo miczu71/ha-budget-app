@@ -66,6 +66,19 @@ def test_parse_edition() -> None:
     assert ed.window() == (date(2026, 10, 15), date(2026, 10, 21))
 
 
+def test_parse_edition_78_wording_without_przez() -> None:
+    """Od ed. 78 bank pisze „Okres promocyjny trwa 91 dni” (bez „przez”)."""
+    body = text(78, "22 października 2026", "24 listopada 2026", "16 października 2026")
+    ed = promo_watch.parse(body.replace("trwa przez 91", "trwa 91"))
+    assert (ed.number, ed.baseline, ed.start, ed.deadline, ed.days) == (
+        78,
+        date(2026, 10, 16),
+        date(2026, 10, 22),
+        date(2026, 11, 24),
+        91,
+    )
+
+
 def test_parse_reports_what_is_missing() -> None:
     with pytest.raises(promo_watch.WatchError, match="baseline, range"):
         promo_watch.parse("edycja 78\ntrwa przez 91 dni")

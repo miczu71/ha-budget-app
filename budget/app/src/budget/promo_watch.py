@@ -87,7 +87,7 @@ def parse(text: str) -> Edition:
         "number": re.search(r"edycja (\d{1,3})", flat) or re.search(r"(\d{1,3}) edycji", flat),
         "baseline": re.search(_DATE + r" (?:roku|r\.) ?\(dzień badania sald\)", flat),
         "range": re.search(r"przystąpić od " + _DATE + r" (?:roku|r\.) do " + _DATE, flat),
-        "days": re.search(r"trwa przez (\d{1,3}) dni", flat),
+        "days": re.search(r"trwa (?:przez )?(\d{1,3}) dni", flat),
     }
     missing = [k for k, m in found.items() if m is None]
     if missing:
