@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.62.3
+
+**Monitor promocji Profit czyta regulamin ed. 78** — bank zmienił zdanie „Okres promocyjny trwa przez 91 dni” na „trwa 91 dni”,
+przez co parser nie znajdował długości okresu i panel pokazywał błąd odczytu regulaminu. Parser przyjmuje oba sformułowania.
+Bez zmian w danych, ekranach i encjach.
+
 ## 0.62.2
 
 **Czat: pytania o nadwyżkę i kredyt** (M12 E3d, `docs/PLAN_M12_E3d.md`) — pytanie „ile odłożyć z nadwyżki zamiast nadpłacać kredyt”
