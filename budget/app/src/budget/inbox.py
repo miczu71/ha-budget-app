@@ -28,6 +28,7 @@ from budget import (
     notifications,
     promo_track,
     promo_watch,
+    promo_watch_velo,
     review,
     savings,
     sessions,
@@ -357,6 +358,43 @@ def promo_cards(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> li
     return out
 
 
+def _pct(x: float) -> str:
+    return f"{x:g}".replace(".", ",") + "%"
+
+
+def velo_promo_cards(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Monitor regulaminu Velobanku (M32 E3): karta „nowa edycja" do wglądu, wstrzymanie, błąd."""
+    watch = promo_watch_velo.load(conn)
+    if watch is None:
+        return []
+    link = "/piggy#promo"
+    out = []
+    if watch.held:
+        detail = f"{watch.error}. Rekomendacja rotacji wstrzymana do poprawnego odczytu."
+        title = "Velobank: nie rozumiem regulaminu — rekomendacja wstrzymana"
+        out.append(Item("velo_held", title, 1, link, "warn", detail))
+    elif (
+        watch.error_since
+        and (ctx.now - watch.error_since).days >= promo_watch_velo.ERROR_ALERT_DAYS
+    ):
+        detail = f"Od {watch.error_since:%d.%m}: {watch.error}. Sprawdź warunki na stronie banku."
+        title = "Nie mogę odczytać regulaminu promocji Velobanku"
+        out.append(Item("velo_error", title, 1, link, "warn", detail))
+    o = watch.offer
+    if o is None or watch.held or ctx.today > o.ends_by():
+        return out
+    ways = ", ".join({"card": "karta", "blik": "BLIK"}[m] for m in o.methods)
+    detail = (
+        f"Stawka {_pct(o.promo_rate)} (bez warunku {_pct(o.base_rate)}) do {o.cap // 1000} tys. zł,"
+        f" gdy w miesiącu min. {o.min_transactions} transakcji bezgotówkowych ({ways})."
+        f" Wpłata nowych środków do {o.join_until:%d.%m.%Y}, okres {o.days} dni."
+        " Odczytane automatycznie — porównaj z regulaminem; nic nie zostało zapisane na koncie."
+    )
+    title = f"Velobank: nowa edycja promocji {o.label} — sprawdź warunki"
+    out.append(Item("velo_new_edition", title, 1, link, "info", detail))
+    return out
+
+
 def loan_rate(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
     """Rata kredytu w księdze inna niż w harmonogramie — zmienił się WIBOR albo marża (M9 E2)."""
     out = []
@@ -519,6 +557,7 @@ PROVIDERS: tuple[Provider, ...] = (
     piggy_transfer,
     savings_promo,
     promo_cards,
+    velo_promo_cards,
     loan_rate,
     loan_reset,
     wibor_error,
