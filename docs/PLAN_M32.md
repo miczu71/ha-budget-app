@@ -40,6 +40,7 @@ weryfikuję lokalnie przed mergem.
   nazwę i dostępne scope/limity, nie klucze ani nagłówki. Sprawdzić też limit kont aplikacji EB (tryb ograniczony).
 - Wynik zapisać w tym pliku. Velobank jest na liście → E1 jak niżej. Brak → zatrzymuję się i wracam do usera
   (konto ręczne + CSV jak Profit w M10 zmienia E1/E2).
+- **Wynik (2026-10-22):** VeloBank jest na liście PL (24 banki), `beta=True`, maksymalna zgoda 15552000 s (180 dni) jak Bank Millennium; aplikacja EB ma 1 redirect URL. → E1 jak niżej (sesja per bank; uwaga: konektor w becie).
 - Rollback: brak zmian w kodzie.
 
 ## E1 — Wielobankowość PSD2
