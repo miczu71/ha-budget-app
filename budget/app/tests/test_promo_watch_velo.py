@@ -156,3 +156,46 @@ async def test_network_error_keeps_offer_and_alarms_after_error_days(
 async def test_card_disappears_after_offer_ends(conn: sqlite3.Connection) -> None:
     await fetch(conn, PAGE, now(22))
     assert cards(conn, datetime(2027, 2, 13, 8, tzinfo=WAW)) == []  # 12.11 + 92 dni = 14.02
+
+
+async def test_unexpected_parse_exception_holds_not_network_error(
+    conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await fetch(conn, PAGE, now(22))
+
+    def broken(text: str, today: date) -> promo_watch_velo.Offer:
+        raise AttributeError("zmieniony układ")
+
+    monkeypatch.setattr(promo_watch_velo, "parse", broken)
+    await fetch(conn, PAGE, now(23))
+    w = promo_watch_velo.load(conn)
+    assert w and w.held and w.offer is None and w.error and "AttributeError" in w.error
+    assert promo_watch_velo.rates(conn) is None  # stara edycja nie zostaje aktywna
+    assert [i.kind for i in cards(conn, now(23))] == ["velo_held"]
+
+
+def test_corrupt_state_loads_as_held(conn: sqlite3.Connection) -> None:
+    from budget.storage import db
+
+    db.kv_set(conn, promo_watch_velo.KEY, {"offer": {"label": "12/2026"}, "checked": "nie-data"})
+    w = promo_watch_velo.load(conn)
+    assert w and w.held and w.offer is None and w.error
+    assert promo_watch_velo.rates(conn) is None
+    assert [i.kind for i in cards(conn, now(23))] == ["velo_held"]
+
+
+def test_offer_still_running_after_join_deadline_is_valid() -> None:
+    # 12.11 + 92 dni = 14.02.2027: 60 dni po terminie przystąpienia okres trwa, to nie błąd
+    assert parsed(today=date(2027, 1, 11)).label == "12/2026"
+    with pytest.raises(promo_watch.WatchError):  # >30 dni po końcu okresu — nota wygasła
+        parsed(today=date(2027, 3, 20))
+
+
+async def test_held_card_key_changes_per_episode(conn: sqlite3.Connection) -> None:
+    bad = PAGE.replace("pozostałych klientów", "inni")
+    await fetch(conn, bad, now(23))
+    [first] = [i for i in cards(conn, now(23)) if i.kind == "velo_held"]
+    await fetch(conn, PAGE, now(24))
+    await fetch(conn, bad, now(26))
+    [second] = [i for i in cards(conn, now(26)) if i.kind == "velo_held"]
+    assert first.key != second.key  # ukrycie jednego wstrzymania nie wycisza następnego

@@ -31,7 +31,10 @@ KEY = "promo_watch_velo"
 MAX_RATE = 10.0  # stawka w % — wyżej to prawie na pewno błąd parsowania
 MIN_TX, MAX_TX = 1, 31  # próg transakcji w miesiącu
 MAX_DAYS = 400  # długość okresu promocyjnego
-JOIN_PAST_DAYS, JOIN_FUTURE_DAYS = 30, 400  # termin przystąpienia „niedaleko dziś"
+END_PAST_DAYS, JOIN_FUTURE_DAYS = (
+    30,
+    400,
+)  # koniec okresu najwyżej tyle dni temu; termin „niedaleko"
 METHODS = {"kart": "card", "blik": "blik"}  # słowa definicji → rodzaje operacji
 _SKIP = {"script", "style", "noscript"}
 _RATE = r"(\d{1,3}(?:,\d+)?)"
@@ -177,9 +180,12 @@ def _validate(o: Offer, today: date) -> None:
         raise WatchError(f"Próg transakcji poza normą {MIN_TX}–{MAX_TX}: {o.min_transactions}")
     if not 1 <= o.days <= MAX_DAYS:
         raise WatchError(f"Długość okresu poza normą 1–{MAX_DAYS} dni: {o.days}")
-    lo, hi = today - timedelta(days=JOIN_PAST_DAYS), today + timedelta(days=JOIN_FUTURE_DAYS)
-    if not lo <= o.join_until <= hi:
-        raise WatchError(f"Termin przystąpienia {o.join_until} poza oknem daty {lo}–{hi}")
+    # okres trwa do join_until + days: nota starej edycji bywa na stronie aż do końca promocji
+    lo, hi = today - timedelta(days=END_PAST_DAYS), today + timedelta(days=JOIN_FUTURE_DAYS)
+    if not lo <= o.ends_by() or o.join_until > hi:
+        raise WatchError(
+            f"Termin przystąpienia {o.join_until} (koniec {o.ends_by()}) poza oknem daty {lo}–{hi}"
+        )
     if not o.methods:
         raise WatchError(f"Nierozpoznana definicja operacji: {o.definition[:80]}")
 
@@ -189,18 +195,22 @@ def _raw(conn: sqlite3.Connection) -> dict[str, object]:
 
 
 def load(conn: sqlite3.Connection) -> Watch | None:
-    """Stan monitora; None, dopóki nie było żadnego odczytu."""
+    """Stan monitora; None, dopóki nie było żadnego odczytu. Uszkodzony zapis = wstrzymana."""
     raw = _raw(conn)
     if not raw:
         return None
-    offer, checked, since = raw.get("offer"), raw.get("checked"), raw.get("error_since")
-    return Watch(
-        Offer.from_json(offer) if isinstance(offer, dict) else None,
-        datetime.fromisoformat(str(checked)) if checked else None,
-        str(raw["error"]) if raw.get("error") else None,
-        datetime.fromisoformat(str(since)) if since else None,
-        bool(raw.get("held")),
-    )
+    try:
+        offer, checked, since = raw.get("offer"), raw.get("checked"), raw.get("error_since")
+        return Watch(
+            Offer.from_json(offer) if isinstance(offer, dict) else None,
+            datetime.fromisoformat(str(checked)) if checked else None,
+            str(raw["error"]) if raw.get("error") else None,
+            datetime.fromisoformat(str(since)) if since else None,
+            bool(raw.get("held")),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        log.exception("Uszkodzony stan monitora Velobanku")
+        return Watch(None, None, f"Uszkodzony stan monitora: {type(exc).__name__}", None, True)
 
 
 def rates(conn: sqlite3.Connection) -> Offer | None:
@@ -231,18 +241,30 @@ async def refresh(
     """
     raw = _raw(conn)
     raw["checked"] = now.isoformat()
+    held = False
+    err: Exception
     try:
         page = await get_page()
-        offer = parse(html_text(page), now.date())
-    except Exception as exc:  # sieć, HTTP, zmiana układu — wszystko ma być widoczne w panelu
+    except (httpx.HTTPError, OSError) as exc:  # sieć — ostatnia edycja zostaje
         log.warning("Odczyt regulaminu Velobanku nieudany: %s", exc)
-        raw["error"] = f"{type(exc).__name__}: {exc}"[:200]
-        if not raw.get("error_since"):
-            raw["error_since"] = now.isoformat()
-        if isinstance(exc, WatchError):
-            raw["held"] = True
-            raw["offer"] = None
-        db.kv_set(conn, KEY, raw)
-        return
-    raw.update(offer=offer.to_json(), error=None, error_since=None, held=False)
+        err = exc
+    else:
+        try:
+            offer = parse(html_text(page), now.date())
+        except WatchError as exc:  # zmiana układu / wartości poza normą
+            log.warning("Regulamin Velobanku nieczytelny: %s", exc)
+            err, held = exc, True
+        except Exception as exc:  # błąd parsera to też nieczytelny regulamin, nie awaria sieci
+            log.exception("Nieoczekiwany błąd parsowania regulaminu Velobanku")
+            err, held = exc, True
+        else:
+            raw.update(offer=offer.to_json(), error=None, error_since=None, held=False)
+            db.kv_set(conn, KEY, raw)
+            return
+    raw["error"] = f"{type(err).__name__}: {err}"[:200]
+    if not raw.get("error_since"):
+        raw["error_since"] = now.isoformat()
+    if held:
+        raw["held"] = True
+        raw["offer"] = None
     db.kv_set(conn, KEY, raw)

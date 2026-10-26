@@ -371,14 +371,15 @@ def velo_promo_cards(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) 
     out = []
     if watch.held:
         detail = f"{watch.error}. Rekomendacja rotacji wstrzymana do poprawnego odczytu."
-        title = "Velobank: nie rozumiem regulaminu — rekomendacja wstrzymana"
+        since = f" (od {watch.error_since:%d.%m})" if watch.error_since else ""
+        title = f"Velobank: nie rozumiem regulaminu{since} — rekomendacja wstrzymana"
         out.append(Item("velo_held", title, 1, link, "warn", detail))
     elif (
         watch.error_since
         and (ctx.now - watch.error_since).days >= promo_watch_velo.ERROR_ALERT_DAYS
     ):
         detail = f"Od {watch.error_since:%d.%m}: {watch.error}. Sprawdź warunki na stronie banku."
-        title = "Nie mogę odczytać regulaminu promocji Velobanku"
+        title = f"Nie mogę odczytać regulaminu promocji Velobanku (od {watch.error_since:%d.%m})"
         out.append(Item("velo_error", title, 1, link, "warn", detail))
     o = watch.offer
     if o is None or watch.held or ctx.today > o.ends_by():

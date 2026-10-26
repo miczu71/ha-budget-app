@@ -273,7 +273,10 @@ class Service:
 
     async def watch_promo_velo(self) -> None:
         """Odczyt regulaminu promocji Velobanku (M32 E3) — raz na obieg pętli podsumowań."""
-        await promo_watch_velo.refresh(self.conn, self.now())
+        try:
+            await promo_watch_velo.refresh(self.conn, self.now())
+        except Exception:  # pętla podsumowań nie może umrzeć
+            log.exception("Monitor regulaminu Velobanku padł")
 
     async def watch_wibor(self) -> None:
         """Odczyt notowań WIBOR 3M (M9 E4) — tylko gdy jest kredyt."""
