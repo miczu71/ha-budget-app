@@ -106,4 +106,9 @@ Repo/worktree: `wt new /config/addons/ha-budget-app m32-e7`. Katalog testów: `b
   na decyzję usera): `kinds.from_api` zdejmuje prefiks `BLIK:`; `card.count_purchases(bank=…)` + `promo_track._ledger_bank`.
   Migracja danych niepotrzebna — `ledger.ingest_api` przelicza `kind` (`kind_source='heuristic'`) przy każdym syncu.
   Weryfikacja: pytest 1253 ok, ruff, ruff format, mypy czyste (+3 testy, fixture `test_promo_track` z bankiem EB).
-- E7–E9: do zrobienia. Commit planu: `72ece2a`.
+- **E7 zrobione 2026-10-26** (`b41a2a4`, lokalnie): `savings.linked_ledger_id`/`bank_snapshot`, `Interest.pending`/`as_of`;
+  `estimate` powiązanego konta = saldo API (odsetki „do dopisania” poza `total`); Majątek pomija duplikat z księgi
+  (tylko gdy jest migawka); `rotation.velo_balance` z powiązanych; `piggy.html` „Saldo z banku”. sonnet-worker + verifier
+  APPROVE; pytest 1260 ok, ruff ok, mypy 73 błędy = stan `main` (sprawdzone). Nieblokujące: pending zaniża przy migawce
+  z poprzedniego miesiąca; brak limitu wieku migawki w `estimate`/Majątku (jest w `velo_balance`).
+- E8–E9: do zrobienia. Commit planu: `72ece2a`.
