@@ -199,3 +199,12 @@ async def test_held_card_key_changes_per_episode(conn: sqlite3.Connection) -> No
     await fetch(conn, bad, now(26))
     [second] = [i for i in cards(conn, now(26)) if i.kind == "velo_held"]
     assert first.key != second.key  # ukrycie jednego wstrzymania nie wycisza następnego
+
+
+async def test_any_fetch_exception_sets_error_state(conn: sqlite3.Connection) -> None:
+    async def broken() -> str:
+        raise RuntimeError("zły certyfikat")
+
+    await promo_watch_velo.refresh(conn, now(22), broken)  # nie rzuca
+    w = promo_watch_velo.load(conn)
+    assert w and w.error and "RuntimeError" in w.error and w.error_since and not w.held

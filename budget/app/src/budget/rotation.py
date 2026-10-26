@@ -17,6 +17,7 @@ from budget import ledger, money, promo_watch_velo, savings
 WINDOW_DAYS = 14  # rekomendacja w tylu ostatnich dniach promocji
 MIN_GAIN = Decimal(1)  # zysk netto poniżej tej kwoty (zł) nie jest wart przelewu
 DEFAULT_HORIZON = 30  # dni, gdy konto docelowe nie ma przyszłego końca promocji
+STALE_DAYS = 7  # starsza migawka salda (np. wygasła zgoda) nie jest podstawą przelewu
 VELO_BANK = "%velo%"  # nazwa banku (ASPSP z Enable Banking) na koncie w księdze, bez wielkości
 BALANCE_TYPES = ("ITAV", "ITBD", "CLAV", "CLBD")  # preferowane typy salda
 
@@ -35,7 +36,7 @@ class Recommendation:
     @property
     def text(self) -> str:
         return (
-            f"Promocja Velobanku kończy się {self.ends_by:%d.%m}. "
+            f"Promocja Velobanku kończy się najpóźniej do {self.ends_by:%d.%m}. "
             f"Przelej {money.pl(self.amount, 'PLN')}"
             f" na {self.account} ({money.pl(self.rate)}% zamiast {money.pl(self.base_rate)}%) — "
             f"zysk netto ok. {money.pl(self.gain, 'PLN')} w {self.horizon} dni. "
@@ -43,8 +44,9 @@ class Recommendation:
         )
 
 
-def velo_balance(conn: sqlite3.Connection) -> Decimal:
+def velo_balance(conn: sqlite3.Connection, today: date) -> Decimal:
     """Saldo oszczędnościowych kont Velobanku z ostatnich migawek; ZERO bez salda.
+    Migawka starsza niż `STALE_DAYS` dni nie liczy się.
 
     Tylko `savings`: ROR z wpływami to środki na bieżące wydatki, nie do przelania.
     """
@@ -55,7 +57,10 @@ def velo_balance(conn: sqlite3.Connection) -> Decimal:
     for row in rows:
         snaps = ledger.latest_balances(conn, row["id"])
         kind = next((t for t in BALANCE_TYPES if t in snaps), None)
-        if kind is not None:
+        if kind is None:
+            continue
+        age = (today - date.fromisoformat(snaps[kind]["fetched_at"][:10])).days
+        if age <= STALE_DAYS:
             total += Decimal(snaps[kind]["amount"])
     return total
 
@@ -93,7 +98,7 @@ def recommend(conn: sqlite3.Connection, today: date) -> Recommendation | None:
         return None
     if not 0 <= (offer.ends_by() - today).days <= WINDOW_DAYS:
         return None
-    balance = velo_balance(conn)
+    balance = velo_balance(conn, today)
     if balance <= 0:
         return None
     found = (_candidate(a, balance, offer, today) for a in savings.all_accounts(conn))

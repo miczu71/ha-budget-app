@@ -260,7 +260,8 @@ def promo_track_messages(conn: sqlite3.Connection, today: date) -> list[Message]
         days = t.days_left(today)
         counter = t.cashless
         if counter and days >= 0:
-            out += cashless_messages(t, counter, today, days)
+            if t.start <= today:  # przed startem edycji nic nie brakuje
+                out += cashless_messages(t, counter, today, days)
             continue
         if t.met or days not in card.REMIND_DAYS:
             continue

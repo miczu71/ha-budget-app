@@ -242,3 +242,14 @@ async def test_promo_card_section(service) -> None:  # type: ignore[no-untyped-d
     async with _client(service) as client:
         page = (await client.get("/invest")).text
     assert "Dokąd przelać" in page and "Konto X" in page and "Przelej sam" in page
+
+
+def test_stale_velo_balance_gives_none(setup: sqlite3.Connection) -> None:
+    """Migawka salda starsza niż tydzień (np. wygasła zgoda) nie daje przelewu „na ślepo”."""
+    setup.execute("UPDATE balance_snapshot SET fetched_at = '2027-01-20T06:00:00'")
+    assert rotation.recommend(setup, TODAY) is None
+
+
+def test_text_says_latest_end(setup: sqlite3.Connection) -> None:
+    rec = rotation.recommend(setup, TODAY)
+    assert rec is not None and "najpóźniej do 12.02" in rec.text

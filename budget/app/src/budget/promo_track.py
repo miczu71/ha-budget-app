@@ -265,6 +265,10 @@ def start_edition(
     clean_bank, clean_title = " ".join(bank.split())[:40], " ".join(title.split())[:80]
     if not clean_bank:
         raise PromoError("Podaj bank.")
+    banks = {b.casefold(): b for b in known_banks(conn)}
+    if clean_bank.casefold() not in banks:
+        raise PromoError(f"Nieznany bank: {clean_bank}. Wybierz z listy banków w księdze.")
+    clean_bank = banks[clean_bank.casefold()]
     if end_day < start_day:
         raise PromoError("Koniec promocji nie może być przed jej początkiem.")
     if not 1 <= threshold <= 100:

@@ -279,3 +279,23 @@ async def test_web_edition_errors_flash(service: Service) -> None:
         )
         assert r.status_code == 303
     assert promo_track.tracks(service.conn) == []
+
+
+# --- poprawki po review wydania M32 -----------------------------------------------------------
+
+
+def test_edition_unknown_bank_rejected(ledger: sqlite3.Connection) -> None:
+    with pytest.raises(promo_track.PromoError, match="Nieznany bank"):
+        promo_track.start_edition(ledger, "Bnak A", "x", START, END, 5)
+    promo_track.start_edition(ledger, "bank a", "x", START, END, 5)  # wielkość liter bez znaczenia
+
+
+def test_no_cashless_reminders_before_edition_starts(ledger: sqlite3.Connection) -> None:
+    edition(ledger)
+    today = date(2026, 11, 28)  # 3 dni przed startem edycji
+    snap = Snapshot(ledger)
+    now = datetime(2026, 11, 28, 8, tzinfo=WAW)
+    assert not [
+        i for i in inbox.items(snap, now, inbox.BalanceMemo()) if i.kind.startswith("promo")
+    ]
+    assert summary.promo_track_messages(ledger, today) == []

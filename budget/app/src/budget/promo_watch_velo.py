@@ -244,7 +244,7 @@ async def refresh(
     err: Exception
     try:
         page = await get_page()
-    except (httpx.HTTPError, OSError) as exc:  # sieć — ostatnia edycja zostaje
+    except Exception as exc:  # sieć i wszystko inne z pobrania — ostatnia edycja zostaje
         log.warning("Odczyt regulaminu Velobanku nieudany: %s", exc)
         err = exc
     else:

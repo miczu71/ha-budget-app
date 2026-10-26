@@ -551,7 +551,7 @@ def promo_track_due(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -
         days = t.days_left(ctx.today)
         counter = t.cashless
         if counter and days >= 0:  # edycja z licznikiem miesięcznym (M32 E2): „zrób jeszcze N”
-            if not counter.met:
+            if not counter.met and t.start <= ctx.today:  # przed startem edycji nic nie brakuje
                 out.append(cashless_card(t, counter, ctx.today))
             continue
         if not t.remind(ctx.today):
