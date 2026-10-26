@@ -114,7 +114,7 @@
 <section class="card" id="promos">
   <h2>Promocje w toku</h2>
   {% set due, paid = promo_due %}
-  {% if promos %}<p class="small muted">Do odebrania: {{ due | money("PLN") }} · odebrane: {{ paid | money("PLN") }}. Płatności kartą i wpływy liczą się same tylko dla kont Millennium, resztę odhaczasz ręcznie.</p>{% endif %}
+  {% if promos %}<p class="small muted">Do odebrania: {{ due | money("PLN") }} · odebrane: {{ paid | money("PLN") }}. Płatności kartą i wpływy liczą się same tylko dla kont Millennium, transakcje bezgotówkowe (karta, BLIK) edycji — dla kont wskazanego banku; resztę odhaczasz ręcznie.</p>{% endif %}
   {% for t in promos %}
   <div class="stats">
     <div class="stat"><span class="stat-label">{{ t.bank }}</span><span class="stat-value">{{ t.title }}</span></div>
@@ -172,6 +172,21 @@
   {% else %}
   <p class="muted">Nic nie śledzisz. Przy potwierdzonej ofercie kliknij „Skorzystaj” — add-on zapisze okres promocji, wstępnie podpowie warunki i będzie przypominał przed końcem.</p>
   {% endfor %}
+  <details class="piggy-new">
+    <summary>Dodaj edycję promocji z licznikiem transakcji</summary>
+    <form class="rule-form piggy-form" method="post" action="{{ base }}/invest/promos/edition" hx-boost="false">
+      <p class="small muted">Wpisz termin i próg z regulaminu edycji — add-on liczy karty i BLIK z księgi (bez przelewów własnych), pokaże „zrób jeszcze N” w dzwonku i przypomni przed końcem.</p>
+      <div class="inline">
+        <label>Bank (jak na koncie w księdze)<input name="bank" list="edition-banks" maxlength="40" required></label>
+        <datalist id="edition-banks">{% for b in edition_banks %}<option value="{{ b }}">{% endfor %}</datalist>
+        <label>Nazwa<input name="title" maxlength="80" placeholder="np. Edycja 12/2026"></label>
+        <label>Początek<input name="start" type="date" required></label>
+        <label>Koniec<input name="end" type="date" required></label>
+        <label>Próg w miesiącu<input name="threshold" inputmode="numeric" size="4" value="5" required></label>
+      </div>
+      <p class="actions-row"><button type="submit">Dodaj edycję</button></p>
+    </form>
+  </details>
 </section>
 
 <section class="card" id="offers">

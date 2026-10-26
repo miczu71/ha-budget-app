@@ -194,14 +194,17 @@ async def sync(
         status, detail = await _sync_session(
             conn, eb, record, result, budget, today, headers, fetched_at, with_psu, full
         )
-        if len(active) > 1 and detail:
+        if len(records) > 1 and detail:
             detail = f"{record.aspsp}: {detail}"
         if detail:
             details.append(detail)
         if _RANK[status] > _RANK[result.status]:
             result.status = status
     result.detail = "; ".join(details)
-    if result.status == "ok" and any(r.note for r in result.accounts):
+    # Nieaktywna zgoda któregokolwiek banku to nie „ok” — inaczej awaria byłaby niewidoczna.
+    if result.status == "ok" and (
+        len(active) < len(records) or any(r.note for r in result.accounts)
+    ):
         result.status = "partial"
     if result.status == "ok" or result.status == "partial":
         result.detail = _join(
@@ -297,6 +300,9 @@ async def _sync_session(
         return "error", f"błąd API {exc.status} {exc.code}"
     except httpx.HTTPError as exc:
         return "error", f"błąd sieci: {type(exc).__name__}"
+    except Exception as exc:  # błąd jednego banku (np. baza, walidacja) nie zatrzymuje pozostałych
+        log.exception("Nieoczekiwany błąd synchronizacji banku %s", record.aspsp)
+        return "error", f"błąd wewnętrzny ({type(exc).__name__})"
     return "ok", ""
 
 

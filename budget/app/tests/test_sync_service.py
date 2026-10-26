@@ -6,13 +6,14 @@ import json
 import sqlite3
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
 import respx
 
-from budget import sessions, sync_service
+from budget import ledger, sessions, sync_service
 from budget.eb_client import EBClient, PsuHeaders
 from budget.eb_models import SessionResponse, Transaction
 from budget.storage import db
@@ -369,7 +370,8 @@ async def test_one_bank_expired_other_still_synced(conn: sqlite3.Connection, eb:
     assert b is not None and b.active
     # następny przebieg: pierwszy bank pominięty, drugi nadal działa
     result = await sync_service.sync(conn, eb, tz=TZ, now=NOW)
-    assert result.status == "ok" and routes_b["bal_b"].call_count == 2
+    assert result.status == "partial" and routes_b["bal_b"].call_count == 2
+    assert "Mock ASPSP: sesja EXPIRED" in result.detail
 
 
 @respx.mock
@@ -393,3 +395,71 @@ async def test_millennium_regression_single_session_unchanged(
     sessions.set_status(conn, SESSION["session_id"], "EXPIRED")
     result = await sync_service.sync(conn, eb, tz=TZ, now=NOW)
     assert result.status == "no_session" and result.detail == "sesja EXPIRED"
+
+
+@respx.mock
+async def test_inactive_bank_makes_result_partial_not_ok(
+    conn: sqlite3.Connection, eb: EBClient
+) -> None:
+    """Nieaktywna zgoda jednego banku nie może dać `ok` — inaczej awaria jest niewidoczna."""
+    _store_bank_b(conn)
+    sessions.set_status(conn, SESSION["session_id"], "EXPIRED")
+    _mock_b()
+    result = await sync_service.sync(conn, eb, tz=TZ, now=NOW)
+    assert result.status == "partial" and not result.ok
+    assert "Mock ASPSP: sesja EXPIRED" in result.detail
+    last = sync_service.recent(conn, 1)[0]
+    assert last["status"] == "partial"
+
+
+@respx.mock
+async def test_error_prefix_depends_on_record_count_not_active_count(
+    conn: sqlite3.Connection, eb: EBClient
+) -> None:
+    """Błąd jedynego aktywnego banku obok nieaktywnego też wskazuje, o który bank chodzi."""
+    _store_bank_b(conn)
+    sessions.set_status(conn, SESSION["session_id"], "EXPIRED")
+    respx.get(f"{BASE}/accounts/{UID_B}/balances").mock(
+        return_value=httpx.Response(500, json={"code": "X", "message": "x"})
+    )
+    result = await sync_service.sync(conn, eb, tz=TZ, now=NOW)
+    assert result.status == "error"
+    assert f"{BANK_B}: błąd API 500" in result.detail
+
+
+@respx.mock
+async def test_unexpected_error_in_one_bank_does_not_stop_others(
+    conn: sqlite3.Connection, eb: EBClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Wyjątek spoza EB*/HTTPError (np. sqlite3.Error) w jednym banku: sync_log i reszta banków."""
+    _store_bank_b(conn)
+    _mock_ok()
+    routes_b = _mock_b()
+    real = ledger.ingest_balances
+
+    def boom(c: sqlite3.Connection, account_id: int, *a: Any, **k: Any) -> None:
+        if account_id == _account(c, UID_MAIN):
+            raise sqlite3.OperationalError("disk I/O error")
+        real(c, account_id, *a, **k)
+
+    monkeypatch.setattr(ledger, "ingest_balances", boom)
+    result = await sync_service.sync(conn, eb, tz=TZ, now=NOW)
+    assert result.status == "error"
+    assert "Mock ASPSP: błąd wewnętrzny (OperationalError)" in result.detail
+    assert routes_b["bal_b"].call_count == 1  # drugi bank zsynchronizowany
+    assert sync_service.recent(conn, 1)[0]["status"] == "error"
+
+
+@respx.mock
+async def test_unexpected_error_single_bank_is_logged_not_raised(
+    conn: sqlite3.Connection, eb: EBClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _mock_ok()
+
+    def boom(*a: object, **k: object) -> None:
+        raise ValueError("zły kształt danych")
+
+    monkeypatch.setattr(ledger, "ingest_balances", boom)
+    result = await sync_service.sync(conn, eb, tz=TZ, now=NOW)
+    assert result.status == "error" and "błąd wewnętrzny (ValueError)" in result.detail
+    assert sync_service.consecutive_failures(conn) == 1
