@@ -1,9 +1,9 @@
-"""Synchronizacja z bankiem: salda + transakcje dla kont bieżącej sesji, z limitem PSD2.
+"""Synchronizacja z bankami: salda + transakcje kont bieżących sesji każdego banku, z limitem PSD2.
 
 Limit: bank może odmówić więcej niż 4 zapytań na konto na dobę bez obecności użytkownika
-(SPEC §2.3). Licznik (`api_request`) liczy każde zapytanie osobno per endpoint — także każdą
-stronę transakcji — i nie wyśle zapytania ponad limit. Zapytania z nagłówkami PSU (użytkownik
-w panelu) liczą się osobno i nie są ograniczane.
+(SPEC §2.3); liczy się per konto, nie per bank ani sesja. Licznik (`api_request`) liczy każde
+zapytanie osobno per endpoint — także każdą stronę transakcji — i nie wyśle zapytania ponad
+limit. Zapytania z nagłówkami PSU (użytkownik w panelu) liczą się osobno i nie są ograniczane.
 
 Okno transakcji: od ostatniego księgowania konta − `OVERLAP_DAYS`, nie dalej niż
 `API_HISTORY_DAYS` wstecz. Millennium ignoruje `date_from` (zawsze 90 dni, ~8 stron rachunku),
@@ -156,21 +156,87 @@ async def sync(
     psu: PsuHeaders | None = None,
     full: bool = False,
     now: datetime | None = None,
+    only: str | None = None,
 ) -> SyncResult:
-    """Jeden przebieg synchronizacji; wynik zapisany w `sync_log`."""
+    """Jeden przebieg synchronizacji wszystkich banków (albo tylko `only`); wynik w `sync_log`.
+
+    Każdy bank ma własną sesję i konta; błąd jednego (wygasła zgoda, limit, sieć) nie
+    wstrzymuje pozostałych. Status przebiegu to najgorszy ze statusów banków.
+    """
     now = (now or datetime.now(tz)).astimezone(tz)
     today = now.date()
     result = SyncResult(status="ok", trigger=trigger, started_at=now_iso())
-    record = sessions.current(conn)
-    if record is None or not record.active:
+    records = [
+        r
+        for r in sessions.current_all(conn)
+        if only is None or r.aspsp.casefold() == only.casefold()
+    ]
+    active = [r for r in records if r.active]
+    if not active:
         result.status = "no_session"
-        result.detail = "brak połączenia z bankiem" if record is None else f"sesja {record.status}"
+        if not records:
+            result.detail = "brak połączenia z bankiem"
+        elif len(records) == 1:
+            result.detail = f"sesja {records[0].status}"
+        else:
+            result.detail = "; ".join(f"sesja {r.aspsp} {r.status}" for r in records)
         return _log(conn, result)
 
     budget = RequestBudget(conn, today)
     with_psu = psu is not None
     headers = psu.as_headers() if psu else None
     fetched_at = now_iso()
+    details = []
+    for record in records:
+        if not record.active:  # nieaktywny bank nie blokuje pozostałych
+            details.append(f"{record.aspsp}: sesja {record.status}")
+            continue
+        status, detail = await _sync_session(
+            conn, eb, record, result, budget, today, headers, fetched_at, with_psu, full
+        )
+        if len(records) > 1 and detail:
+            detail = f"{record.aspsp}: {detail}"
+        if detail:
+            details.append(detail)
+        if _RANK[status] > _RANK[result.status]:
+            result.status = status
+    result.detail = "; ".join(details)
+    # Nieaktywna zgoda któregokolwiek banku to nie „ok” — inaczej awaria byłaby niewidoczna.
+    if result.status == "ok" and (
+        len(active) < len(records) or any(r.note for r in result.accounts)
+    ):
+        result.status = "partial"
+    if result.status == "ok" or result.status == "partial":
+        result.detail = _join(
+            result.detail,
+            "; ".join(f"#{r.account_id}: {r.note}" for r in result.accounts if r.note),
+        )
+    return _log(conn, result)
+
+
+_RANK: dict[Status, int] = {
+    "ok": 0,
+    "partial": 1,
+    "no_session": 2,
+    "rate_limited": 3,
+    "error": 4,
+    "expired": 5,
+}
+
+
+async def _sync_session(
+    conn: sqlite3.Connection,
+    eb: EBClient,
+    record: sessions.SessionRecord,
+    result: SyncResult,
+    budget: RequestBudget,
+    today: date,
+    headers: dict[str, str] | None,
+    fetched_at: str,
+    with_psu: bool,
+    full: bool,
+) -> tuple[Status, str]:
+    """Konta jednej sesji; zwraca (status, szczegół błędu) — liczniki trafiają do `result`."""
     try:
         for acc in record.accounts:
             account_id = ledger.account_by_alias(conn, "eb_uid", acc.uid)
@@ -227,21 +293,17 @@ async def sync(
             result.updated += stats.updated
     except EBSessionExpired as exc:
         sessions.set_status(conn, record.session_id, "EXPIRED")
-        result.status, result.detail = "expired", f"sesja wygasła lub cofnięta ({exc.code})"
+        return "expired", f"sesja wygasła lub cofnięta ({exc.code})"
     except EBRateLimited as exc:
-        result.status, result.detail = "rate_limited", f"bank odrzucił: limit zapytań ({exc.code})"
+        return "rate_limited", f"bank odrzucił: limit zapytań ({exc.code})"
     except EBError as exc:
-        result.status, result.detail = "error", f"błąd API {exc.status} {exc.code}"
+        return "error", f"błąd API {exc.status} {exc.code}"
     except httpx.HTTPError as exc:
-        result.status, result.detail = "error", f"błąd sieci: {type(exc).__name__}"
-    if result.status == "ok" and any(r.note for r in result.accounts):
-        result.status = "partial"
-    if result.status == "ok" or result.status == "partial":
-        result.detail = _join(
-            result.detail,
-            "; ".join(f"#{r.account_id}: {r.note}" for r in result.accounts if r.note),
-        )
-    return _log(conn, result)
+        return "error", f"błąd sieci: {type(exc).__name__}"
+    except Exception as exc:  # błąd jednego banku (np. baza, walidacja) nie zatrzymuje pozostałych
+        log.exception("Nieoczekiwany błąd synchronizacji banku %s", record.aspsp)
+        return "error", f"błąd wewnętrzny ({type(exc).__name__})"
+    return "ok", ""
 
 
 def _join(a: str, b: str) -> str:

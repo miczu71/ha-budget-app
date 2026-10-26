@@ -49,6 +49,7 @@ class Settings(BaseModel):
     calendar_entity: str | None = None  # encja Remote Calendar odświeżana po synchronizacji
     stocks_entity_prefix: str = ""  # prefiks encji akcji (M11), np. sensor.nokia_tracker_
     aspsp_name: str = "Bank Millennium"
+    aspsp_names: tuple[str, ...] = ()  # M32: dodatkowe banki obok `aspsp_name`
     aspsp_country: str = "PL"
     ai_base_url: str | None = None  # router OpenAI-compatible (np. freellmapi); None = wyłączone
     ai_api_key: str | None = None
@@ -77,6 +78,16 @@ class Settings(BaseModel):
         if bad:
             raise ValueError(f"nieprawidłowe godziny w sync_times (oczekiwane HH:MM): {bad}")
         return tuple(sorted(set(value)))
+
+    @field_validator("aspsp_names", mode="before")
+    @classmethod
+    def _split_banks(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            value = value.split(",")
+        if isinstance(value, list | tuple):
+            names = (str(v).strip() for v in value)
+            return tuple(dict.fromkeys(n for n in names if n))  # bez pustych i duplikatów
+        return value
 
     @field_validator("notify_service", "summary_notify_service")
     @classmethod
@@ -126,6 +137,11 @@ class Settings(BaseModel):
     @classmethod
     def _strip_slash(cls, value: str | None) -> str | None:
         return value.rstrip("/") if value else value
+
+    @property
+    def banks(self) -> tuple[str, ...]:
+        """Banki do połączenia w panelu: `aspsp_name` (domyślny) i dodatkowe `aspsp_names`."""
+        return tuple(dict.fromkeys((self.aspsp_name, *self.aspsp_names)))
 
     @property
     def ai_enabled(self) -> bool:

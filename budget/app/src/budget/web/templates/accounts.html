@@ -6,12 +6,14 @@
   <h2>#{{ a.id }} {{ a.display_name or account_kinds.get(a.kind, a.kind) }}</h2>
   <dl class="kv">
     <dt>Rodzaj</dt><dd>{{ account_kinds.get(a.kind, a.kind) }}</dd>
+    {% if a.bank %}<dt>Bank</dt><dd>{{ a.bank }}</dd>{% endif %}
     <dt>Waluta</dt><dd>{{ a.currency }}</dd>
     <dt>Numer</dt><dd>{{ a.iban_masked or "—" }}</dd>
     <dt>Transakcje</dt><dd>{% for s in a.sources %}{{ "API" if s.source == "eb" else "CSV" }} {{ s.count }}{{ ", " if not loop.last }}{% else %}0{% endfor %}</dd>
   </dl>
   <form class="inline" method="post" action="{{ base }}/accounts/{{ a.id }}" hx-boost="false" style="margin-top:10px">
     <label>Nazwa<input type="text" name="display_name" value="{{ a.display_name or '' }}" maxlength="60"></label>
+    <label>Rodzaj<select name="kind">{% for k, label in account_kinds.items() %}<option value="{{ k }}" {{ "selected" if a.kind == k }}>{{ label }}</option>{% endfor %}</select></label>
     <label class="check"><input type="checkbox" name="include_in_budget" {{ "checked" if a.include_in_budget }}> w budżecie</label>
     <button type="submit">Zapisz</button>
   </form>

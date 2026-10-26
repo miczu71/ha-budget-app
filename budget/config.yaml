@@ -27,6 +27,7 @@ options:
   eb_private_key_file: "enablebanking.pem"
   eb_redirect_url: ""
   aspsp_name: "Bank Millennium"
+  aspsp_names: []
   aspsp_country: "PL"
   sync_times: ["06:30", "13:30", "21:30"]
   notify_service: ""
@@ -49,6 +50,7 @@ schema:
   eb_private_key_file: str
   eb_redirect_url: str?
   aspsp_name: str
+  aspsp_names: ["str?"]
   aspsp_country: "match(^[A-Z]{2}$)"
   sync_times: ["match(^([01]\\d|2[0-3]):[0-5]\\d$)"]
   notify_service: "match(^(notify\\.[a-z0-9_]+)?$)?"

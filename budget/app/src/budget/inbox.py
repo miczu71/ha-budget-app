@@ -519,13 +519,34 @@ def vest_soon(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list
     return [Item("vest_soon", title, 1, "/networth", "info", detail)]
 
 
+def cashless_card(t: promo_track.Track, counter: promo_track.Condition, today: date) -> Item:
+    """Karta „zrób jeszcze N transakcji”; warn w ostatnim tygodniu miesiąca lub edycji."""
+    missing = counter.missing
+    last = card.last_day(today)
+    urgent = (last - today).days < 7 or t.days_left(today) < 7
+    return Item(
+        "promo_cashless",
+        f"{t.bank}: zrób jeszcze {missing} transakcji bezgotówkowych",
+        missing,
+        "/invest#promos",
+        "warn" if urgent else "info",
+        f"{t.title}: {int(counter.progress or 0)} z {int(counter.target or 0)} w tym miesiącu "
+        f"(karta, BLIK; bez przelewów własnych). Promocja do {t.end:%d.%m}.",
+    )
+
+
 def promo_track_due(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
     """Promocja w toku: warunki spełnione (odbierz premię) albo koniec blisko lub minął (M22 E5)."""
     out = []
-    for t in promo_track.tracks(conn, status="active"):
+    for t in promo_track.tracks(conn, status="active", today=ctx.today):
+        days = t.days_left(ctx.today)
+        counter = t.cashless
+        if counter and days >= 0:  # edycja z licznikiem miesięcznym (M32 E2): „zrób jeszcze N”
+            if not counter.met:
+                out.append(cashless_card(t, counter, ctx.today))
+            continue
         if not t.remind(ctx.today):
             continue
-        days = t.days_left(ctx.today)
         bonus = f" Premia {summary.zl(t.bonus)}." if t.bonus else ""
         severity: Severity = "warn"
         if t.met:
