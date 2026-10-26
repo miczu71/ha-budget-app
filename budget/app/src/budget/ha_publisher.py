@@ -186,7 +186,7 @@ def build_entities(
     failures = sync_service.consecutive_failures(conn)
     per_bank = sync_service.bank_failures(conn)
     problem = (
-        record is None
+        not all_records
         or any(not r.active for r in all_records)
         or failures > 0
         or any(per_bank.values())

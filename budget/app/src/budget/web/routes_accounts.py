@@ -28,15 +28,10 @@ def router(panel: Panel) -> APIRouter:
         name = display_name.strip()[:60] or None
         if kind is not None and kind not in ACCOUNT_KINDS:
             return panel.redirect(request, "/accounts", "Nieznany rodzaj konta.", "error")
-        sets, params = (
-            ["display_name = ?", "include_in_budget = ?"],
-            [name, int(include_in_budget is not None)],
-        )
-        if kind is not None:  # M32: rodzaj kont z API (np. oszczędnościowe) ustawia się ręcznie
-            sets.append("kind = ?")
-            params.append(kind)
-        cur = conn.execute(
-            f"UPDATE account SET {', '.join(sets)} WHERE id = ?", (*params, account_id)
+        cur = conn.execute(  # M32: rodzaj kont z API (np. oszczędnościowe) ustawia się ręcznie
+            "UPDATE account SET display_name = ?, include_in_budget = ?, kind = coalesce(?, kind) "
+            "WHERE id = ?",
+            (name, int(include_in_budget is not None), kind, account_id),
         )
         if not cur.rowcount:
             return panel.redirect(request, "/accounts", "Nie ma takiego konta.", "error")
