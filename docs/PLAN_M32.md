@@ -128,7 +128,8 @@ Wykonawca:
 | E1 | zmergowane 2026-10-26 (squash `53805ba`) | PR #1; review: brak blokujących |
 | E2 | gotowe, **czeka na CI i merge** | PR #3 (`m32-e2-licznik`): +557/−21, 8 plików, pytest 1201 ok / 2 faile jak na `main`, ruff czysty, mypy bez nowych błędów, +26 testów |
 | E3 | gotowe, **czeka na review i merge** | PR #2 (`m32-e3-parser`) |
-| E4 | czeka na merge E2 i E3 | — |
+| E4 | zmergowane na `main` (6d1fc49, simplify 237eff8) | — |
+| E5 | zrobione 2026-10-26 (`f6e3181`), plan: `PLAN_M32_E5.md` | prognoza do wypłaty bez Flexu (pytest 1245 ok, ruff, mypy czyste; verifier APPROVE) |
 
 **Dwa faile na czystym `main`** (nie z E1/E2): `test_web_recurring::test_recurring_flow`, `::test_reject_proposal`.
 mypy: 75 błędów w testach, stan sprzed prac M32.
