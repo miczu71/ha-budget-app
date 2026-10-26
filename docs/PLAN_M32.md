@@ -159,6 +159,10 @@ mypy: 75 błędów w testach, stan sprzed prac M32.
 - Inwestycje → „Promocje w toku”: renderuje się; brak śledzonej edycji Velo, więc karta rotacji i licznik nie mają jeszcze danych (nie sprawdzone na żywo).
 
 ### Następne kroki
-1. User: test sesji na claude.ai/code (kredyt cloud 100 USD do 5.11) → wynik do tego pliku.
-2. Follow-up z review, niewykonane: `partial` a `consecutive_failures`, alerty zgód per bank (`notifications.py:32`, `ha_publisher.py:144`), `velo_new_edition` bez odrzucenia, `END_PAST_DAYS`, id `promo_cashless`, atomowość `kind`, cel rekomendacji = konto Velo w `savings`.
+1. ~~Test sesji na claude.ai/code (kredyt cloud)~~ — anulowany przez usera 2026-10-26.
+2. Follow-up z review — zrobione w 0.66.0 (`PLAN_M32_M14_E2c.md`): alerty zgód i nieudanych synchronizacji osobno per bank
+   (licznik per bank w kv `sync_bank_failures`, klucze `rodzaj:bank`, atrybuty `banks`/`bank_failures`), jeden UPDATE konta (atomowość `kind`).
+   Świadomie bez zmian: `partial` nie podbija `consecutive_failures` (jak dotąd, opisane w `bank_failures`); `velo_new_edition` da się
+   odrzucić od 0.65.0 („Widziałem”); `END_PAST_DAYS` (dzwonek i rotacja i tak pomijają zakończoną edycję); id `promo_cashless`
+   (klucz karty zawiera bank); cel rekomendacji = konto Velo (naprawione w E6, `rotation.velo_balance`).
 3. Jeśli user doda edycję Velo w „Promocje w toku”: sprawdzić licznik, kartę rotacji i powiadomienia 14/7/2.

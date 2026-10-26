@@ -70,3 +70,13 @@ DONE: `s_summaries` < 50 ms przy ciepłym memo, pierwsze wejście bez regresji.
   z atrybutem `bank_failures`, `sensor.budget_consent_days_left` z `banks` (Millennium + Velobank).
 - Velo: „Widziałem” ukrywa kartę nowej edycji (jeśli jest), konsola czysta, 390 px bez przepełnienia.
 - Log add-onu po synchronizacji bez błędów.
+
+
+## Wynik (2026-10-26, 0.66.0 wydane i zainstalowane)
+- Etap A (alerty per bank) i B (memo podglądów) wykonane; pytest 1306, ruff czysty, mypy: tylko wcześniejszy błąd `routes_home.py:121`.
+  Review: pierwsza wersja A odrzucona przez verifiera (ręczny backfill jednego banku kasował liczniki pozostałych) — poprawione i przetestowane.
+- Na żywo (produkcja 0.66.0): `s_summaries` 404 ms przy 1. wejściu (`s_weekly` 189 + `s_monthly` 214), **0 ms** przy kolejnych — memo działa.
+- **Cel `/status` < 400 ms NIEOSIĄGNIĘTY:** `/status` ~1250 ms, `/` ~1640 ms, `/inbox` ~2400 ms. Winny nie jest `s_summaries`, tylko dzwonek
+  (`inbox` ~1100 ms na każdej stronie): `p_rotation_card` ~500 ms i `p_promo_track_due` ~500 ms (providery M32 z 0.62–0.65), `p_series_changes` ~75 ms.
+  Hipoteza (niezweryfikowana profilem na danych produkcyjnych): oba wołają `ledger.savings_transfer_ids(conn)` (skan księgi) na każde renderowanie
+  (`promo_track.tracks`, `promo_track.active_for_bank`). Następny krok = osobna poprawka (memo na `Snapshot` po sygnaturze), pomiar `Server-Timing` po wydaniu.
