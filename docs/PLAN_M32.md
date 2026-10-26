@@ -94,6 +94,19 @@ Wykonawca:
 - Zmiana: z aktualnych stóp (E3) i sald kont porównanie „zostań vs przelej X zł na konto Y” z zyskiem w zł do końca okna;
   wstrzymana, gdy E3 w stanie „wstrzymana”; tekst „przelej sam” (Budżet nie przelewa).
 - Test jak w E1.
+- **Doprecyzowanie (2026-10-26, po merge E1–E3 do `main`):**
+  - Wejścia: edycja Velo = `promo_watch_velo.rates(conn)` (None = wstrzymana/brak → `rotation` zwraca None, alarm daje już
+    `inbox.velo_promo_cards`); koniec promocji Velo = `Offer.ends_by()`; saldo Velo z księgi dla konta z kluczem banku
+    Velobanku (E1, kolumna banku z migracji 029; zob. `Snapshot`/`BalanceMemo`); konto docelowe = `savings.Account`
+    (Profit/KOP): stopa efektywna = `promo_rate`, gdy `promo_days_left(today)` nie jest None, inaczej `base_rate`
+    (None = brak stopy → brak rekomendacji).
+  - Reguła: rekomendacja tylko w ostatnich 14 dniach do `ends_by()` (progi 14/7/2 jak E2) i gdy stopa efektywna konta
+    docelowego > stopa bazowa Velo po końcu promocji. Kwota = saldo Velo (w limicie promocji konta docelowego, jeśli
+    `promo_limit`). Zysk netto = `savings.net(...)` za horyzont: od `ends_by()` do `promo_until` konta docelowego, gdy jest w
+    przyszłości, inaczej 30 dni; pomijaj rekomendację przy zysku < 1 zł. Pieniądze: `Decimal`, nigdy `float`.
+  - Wyjście: `rotation.recommend(conn, today) -> Recommendation | None` (kwota, konto docelowe, zysk, dni do końca,
+    tekst „przelej sam — Budżet nie przelewa”); karta w dzwonku (`inbox.py`), powiadomienie jak
+    `summary.cashless_messages` (klucz deduplikacji per próg), sekcja w karcie promocji (`routes_invest.py`/`invest.html`).
 - DONE: scenariusz Velo kończy promocję za 7 dni → rekomendacja przelewu na Profit z kwotą i zyskiem; edycja wstrzymana →
   brak rekomendacji + alarm.
 - NIE RÓB: wywołań przelewów/PIS; zmiany prognozy odsetek (M10 E3).
