@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.64.0
+
+**M32 cd.: VeloBank w Budżecie** — `docs/PLAN_M32_E6.md`.
+- BLIK Velobanku (`BLIK: /OPT/…`) liczy się jako zakup BLIK; licznik promocji i warunek karty Millennium liczą transakcje
+  tylko kont właściwego banku.
+- Oszczędności powiązane z kontem z księgi po numerze: saldo z banku (stan z dnia migawki), odsetki „do dopisania” osobno,
+  poza sumą; Majątek liczy takie konto raz (historia Majątku nadal z szacunku ręcznego); rekomendacja rotacji bierze saldo
+  Velo z powiązanych kont.
+- Hero „Do wypłaty”: zamiast „Starczy · zapas” porównanie wydatków elastycznych od wypłaty z tym samym dniem okresu rok temu.
+- Kafelek „Akcje” (wolne akcje pracownicze) obok Konto/Karta/Oszczędności; na telefonie układ 2×2.
+
 ## 0.63.0
 
 **M32: rotacja środków między kontami promocyjnymi (Velobank + Millennium)** — `docs/PLAN_M32.md`.
