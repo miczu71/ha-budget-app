@@ -147,4 +147,9 @@ Repo/worktree: `wt new /config/addons/ha-budget-app m32-e9`. Skille: `tdd`, `add
   (tylko gdy jest migawka); `rotation.velo_balance` z powiązanych; `piggy.html` „Saldo z banku”. sonnet-worker + verifier
   APPROVE; pytest 1260 ok, ruff ok, mypy 73 błędy = stan `main` (sprawdzone). Nieblokujące: pending zaniża przy migawce
   z poprzedniego miesiąca; brak limitu wieku migawki w `estimate`/Majątku (jest w `velo_balance`).
-- E8–E9: do zrobienia. Commit planu: `72ece2a`.
+- **E8 zrobione 2026-10-26** (`3720b23`): `flex.spent_year_ago`, `Forecast.spent_year_ago/yoy_delta/yoy_pct`, linia r/r w hero
+  (stan OK); okres rok temu = `last_payday` dla tego samego dnia rok wcześniej (`add_months` dawał 1. dzień miesiąca). haiku-worker +
+  verifier APPROVE; pytest 1265 ok. Nieblokujące: delta 0 → „o 0,00 zł więcej”.
+- **E9 zrobione 2026-10-26** (`596fc0d`): kafelek „Akcje” (wolne akcje, podpis niezawiązane · zawiązanie, nieaktualność po dacie jak w Majątku
+  + prefiks „nieaktualne”), 2×2 ≤600 px. verifier APPROVE; pytest 1268 ok; Playwright 1280/390 px: 4 w rzędzie / 2×2, bez przepełnienia, konsola czysta.
+- Dalej: simplify → code-review (+ recenzenci) → release 0.64.0. Commit planu: `72ece2a`.
