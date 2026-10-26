@@ -42,9 +42,17 @@ def _account(conn: sqlite3.Connection) -> None:
 
 def _subscription(conn: sqlite3.Connection, name: str = "Qwertyflix Sp") -> None:
     today = date.today()
+    pay_day = min(today.day, 28)  # dzień dzisiejszy: seria nie jest spóźniona o dni w miesiącu
     for back in range(4, 0, -1):
         y, m = divmod(today.year * 12 + today.month - 1 - back, 12)
-        add(conn, "-43.00", "transfer_out", f"Abonament {back}", name, day=f"{y}-{m + 1:02}-10")
+        add(
+            conn,
+            "-43.00",
+            "transfer_out",
+            f"Abonament {back}",
+            name,
+            day=f"{y}-{m + 1:02}-{pay_day:02}",
+        )
 
 
 def test_inbox_items(service: Service) -> None:
