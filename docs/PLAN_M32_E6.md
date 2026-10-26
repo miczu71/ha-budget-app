@@ -73,3 +73,10 @@ Najpierw: ten plan → `docs/PLAN_M32_E6.md`, wpis w `docs/ROADMAP.md` (M32 cd.,
 4. Docs: `PLAN_M32.md` § Wyniki, `ROADMAP.md`, pamięć `project_budget_app.md`; follow-upy: `/status` pokazuje zgody
    wszystkich banków; zgoda z 0 kont → ostrzeżenie zamiast cichego `ok`; pułapka „najpierw link kont w Control Panelu
    EB, potem zgoda”.
+
+## Stan wykonania
+- **E6 zrobione 2026-10-26** (`7f7e440`, lokalnie — push na `origin/main` zablokowany przez klasyfikator uprawnień, czeka
+  na decyzję usera): `kinds.from_api` zdejmuje prefiks `BLIK:`; `card.count_purchases(bank=…)` + `promo_track._ledger_bank`.
+  Migracja danych niepotrzebna — `ledger.ingest_api` przelicza `kind` (`kind_source='heuristic'`) przy każdym syncu.
+  Weryfikacja: pytest 1253 ok, ruff, ruff format, mypy czyste (+3 testy, fixture `test_promo_track` z bankiem EB).
+- E7–E9: do zrobienia. Commit planu: `72ece2a`.
