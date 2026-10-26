@@ -354,3 +354,58 @@ async def test_velo_account_shows_promo_card_without_profit_form(
     assert "Aktywuj promocję" not in velo and "/invest#promos" in velo
     millennium = page.split('id="savings-2"', 1)[1]
     assert "Aktywuj promocję" in millennium
+
+
+VELO_PAGE = (Path(__file__).parent / "fixtures" / "velobank_ror_oferta_2026_12.html").read_text(
+    "utf8"
+)
+
+
+@respx.mock
+async def test_velo_section_refresh_and_ack(client: httpx.AsyncClient, service: Service) -> None:
+    assert 'id="velo"' not in (await client.get("/piggy")).text  # bez konta oszczędnościowego
+    await client.post(
+        "/savings",
+        data={
+            "name": "Konto Velo",
+            "account_number": NUMBER,
+            "opening_balance": "0",
+            "opening_date": "2026-10-01",
+        },
+    )
+    page = (await client.get("/piggy")).text
+    assert 'id="velo"' in page and "Promocja Nowe środki w VeloBanku" in page
+    assert "/promo/velo/refresh" in page and "/promo/velo/ack" not in page
+    respx.get(promo_watch_velo.URL).mock(return_value=httpx.Response(200, text=VELO_PAGE))
+    r = await client.post("/promo/velo/refresh")
+    assert r.status_code == 303
+    page = (await client.get("/piggy")).text
+    velo = page.split('id="velo"', 1)[1]
+    assert "Edycja 12/2026" in velo and "4,5%" in velo and "/invest#promos" in velo
+    assert "/promo/velo/ack" not in velo  # pierwszy odczyt = edycja bazowa
+    db.kv_set(
+        service.conn,
+        promo_watch_velo.KEY,
+        {**db.kv_get(service.conn, promo_watch_velo.KEY), "acked": "11/2026"},
+    )
+    assert "/promo/velo/ack" in (await client.get("/piggy")).text
+    r = await client.post("/promo/velo/ack")
+    assert r.status_code == 303
+    assert "/promo/velo/ack" not in (await client.get("/piggy")).text
+
+
+@respx.mock
+async def test_velo_refresh_failure_is_shown(client: httpx.AsyncClient) -> None:
+    await client.post(
+        "/savings",
+        data={
+            "name": "Konto Velo",
+            "account_number": NUMBER,
+            "opening_balance": "0",
+            "opening_date": "2026-10-01",
+        },
+    )
+    respx.get(promo_watch_velo.URL).mock(return_value=httpx.Response(503))
+    await client.post("/promo/velo/refresh")
+    velo = (await client.get("/piggy")).text.split('id="velo"', 1)[1]
+    assert "Błąd odczytu regulaminu" in velo and "503" in velo

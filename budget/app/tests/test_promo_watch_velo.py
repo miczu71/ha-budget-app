@@ -96,21 +96,38 @@ async def test_refresh_stores_offer_and_creates_review_card(conn: sqlite3.Connec
     w = promo_watch_velo.load(conn)
     assert w and w.offer and w.offer.label == "12/2026" and not w.held and not w.error
     assert promo_watch_velo.rates(conn) == w.offer
-    [card] = cards(conn, now(22))
-    assert card.kind == "velo_new_edition" and "12/2026" in card.title
+    assert w.acked == "12/2026" and not w.new_edition and cards(conn, now(22)) == []
+    await fetch(conn, PAGE.replace("edycja 12/2026", "edycja 1/2027"), now(23))
+    [card] = cards(conn, now(23))
+    assert card.kind == "velo_new_edition" and "1/2027" in card.title and card.link == "/piggy#velo"
     assert "4,5%" in card.detail and "5" in card.detail and "12.11" in card.detail
     assert card.severity == "info"
 
 
+async def test_ack_clears_new_edition(conn: sqlite3.Connection) -> None:
+    promo_watch_velo.ack(conn)  # bez odczytu nic nie robi
+    assert promo_watch_velo.load(conn) is None
+    await fetch(conn, PAGE, now(22))
+    await fetch(conn, PAGE.replace("edycja 12/2026", "edycja 1/2027"), now(23))
+    w = promo_watch_velo.load(conn)
+    assert w and w.new_edition and w.acked == "12/2026"
+    promo_watch_velo.ack(conn)
+    w = promo_watch_velo.load(conn)
+    assert w and not w.new_edition and w.acked == "1/2027" and cards(conn, now(23)) == []
+    await fetch(conn, PAGE.replace("edycja 12/2026", "edycja 1/2027"), now(24))  # acked zostaje
+    assert not promo_watch_velo.load(conn).new_edition  # type: ignore[union-attr]
+
+
 async def test_new_edition_makes_new_card_key(conn: sqlite3.Connection) -> None:
     await fetch(conn, PAGE, now(22))
-    [old] = cards(conn, now(22))
+    await fetch(conn, PAGE.replace("edycja 12/2026", "edycja 1/2027"), now(23))
+    [old] = cards(conn, now(23))
     inbox.dismiss(conn, old.key, [old])
-    assert inbox.visible(conn, cards(conn, now(23))) == []  # obejrzana, ukryta
-    nxt = PAGE.replace("edycja 12/2026", "edycja 1/2027")
-    await fetch(conn, nxt, now(24))
-    [card] = inbox.visible(conn, cards(conn, now(24)))
-    assert "1/2027" in card.title and card.key != old.key
+    assert inbox.visible(conn, cards(conn, now(24))) == []  # obejrzana, ukryta
+    nxt = PAGE.replace("edycja 12/2026", "edycja 2/2027")
+    await fetch(conn, nxt, now(25))
+    [card] = inbox.visible(conn, cards(conn, now(25)))
+    assert "2/2027" in card.title and card.key != old.key
 
 
 async def test_format_change_holds_and_alarms_at_once(conn: sqlite3.Connection) -> None:

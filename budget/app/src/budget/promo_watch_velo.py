@@ -85,6 +85,15 @@ class Watch:
     error: str | None
     error_since: datetime | None
     held: bool  # układ strony/wartości poza normą → rekomendacja wstrzymana
+    acked: str | None = (
+        None  # etykieta edycji oznaczonej „Widziałem" (None = brak odczytu bazowego)
+    )
+
+    @property
+    def new_edition(self) -> bool:
+        """Jest poprawnie odczytana edycja, której użytkownik jeszcze nie potwierdził."""
+        o = self.offer
+        return o is not None and not self.held and self.acked is not None and o.label != self.acked
 
 
 class _Text(HTMLParser):
@@ -206,10 +215,20 @@ def load(conn: sqlite3.Connection) -> Watch | None:
             str(raw["error"]) if raw.get("error") else None,
             datetime.fromisoformat(str(since)) if since else None,
             bool(raw.get("held")),
+            str(raw["acked"]) if raw.get("acked") else None,
         )
     except (KeyError, TypeError, ValueError) as exc:
         log.exception("Uszkodzony stan monitora Velobanku")
         return Watch(None, None, f"Uszkodzony stan monitora: {type(exc).__name__}", None, True)
+
+
+def ack(conn: sqlite3.Connection) -> None:
+    """„Widziałem": bieżąca edycja przestaje być nowa. Bez odczytanej edycji nic nie robi."""
+    raw = _raw(conn)
+    offer = raw.get("offer")
+    if isinstance(offer, dict) and not raw.get("held"):
+        raw["acked"] = str(offer["label"])
+        db.kv_set(conn, KEY, raw)
 
 
 def rates(conn: sqlite3.Connection) -> Offer | None:
@@ -258,6 +277,8 @@ async def refresh(
             err, held = exc, True
         else:
             raw.update(offer=offer.to_json(), error=None, error_since=None, held=False)
+            if not raw.get("acked"):  # pierwszy odczyt: edycja bazowa, bez karty i pusha
+                raw["acked"] = offer.label
             db.kv_set(conn, KEY, raw)
             return
     raw["error"] = f"{type(err).__name__}: {err}"[:200]

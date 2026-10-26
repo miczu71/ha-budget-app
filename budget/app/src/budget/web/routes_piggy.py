@@ -28,6 +28,8 @@ def router(panel: Panel) -> APIRouter:
         watch = promo_watch.load(conn) if accts else None
         banks: dict[int, str | None] = {a.id: savings.ledger_bank(conn, a) for a in accts}
         velo = promo_watch_velo.rates(conn) if accts else None
+        velo_watch = promo_watch_velo.load(conn) if accts else None
+        velo_track = promo_track.active_for_bank(conn, "velo", today) if accts else None
         promos: dict[int, tuple[promo_track.Track | None, float | None]] = {}
         for a in accts:  # promocje innych banków (Millennium ma własny formularz Profit)
             bank = banks[a.id]
@@ -55,6 +57,8 @@ def router(panel: Panel) -> APIRouter:
             promos=promos,
             rates=savings.monthly_rates(conn, today) if accts else [],
             watch=watch,
+            velo_watch=velo_watch,
+            velo_track=velo_track,
             promo_days=promo_days(watch),
             promo_funds_max=savings.PROMO_FUNDS_MAX,
             edit_savings=next((a for a in accts if a.id == edit_savings), None),
@@ -125,6 +129,20 @@ def router(panel: Panel) -> APIRouter:
             msg = f"Nie udało się odczytać regulaminu: {watch.error if watch else 'brak konta'}"
             return panel.redirect(request, "/piggy#promo", msg, "error")
         return panel.redirect(request, "/piggy#promo", "Regulamin odczytany.")
+
+    @r.post("/promo/velo/refresh")
+    async def refresh_velo(request: Request) -> Response:
+        await promo_watch_velo.refresh(conn, panel.service.now())
+        watch = promo_watch_velo.load(conn)
+        if watch is None or watch.error:
+            msg = f"Nie udało się odczytać regulaminu: {watch.error if watch else 'brak odczytu'}"
+            return panel.redirect(request, "/piggy#velo", msg, "error")
+        return panel.redirect(request, "/piggy#velo", "Regulamin Velobanku odczytany.")
+
+    @r.post("/promo/velo/ack")
+    async def ack_velo(request: Request) -> Response:
+        promo_watch_velo.ack(conn)
+        return panel.redirect(request, "/piggy#velo", "Oznaczono jako widziane.")
 
     @r.post("/savings")
     async def add_savings(request: Request) -> Response:

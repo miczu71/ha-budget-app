@@ -147,6 +147,29 @@
   <form class="actions-row small" method="post" action="{{ base }}/promo/refresh" hx-boost="false"><button class="link">Sprawdź teraz</button></form>
 </section>
 {% endif %}
+{% if accounts %}
+<section class="card" id="velo">
+  <h2>Promocja Nowe środki w VeloBanku</h2>
+  {% set o = velo_watch.offer if velo_watch else None %}
+  {% if velo_watch and velo_watch.held %}<p class="small warn-text">Nie rozumiem regulaminu — rekomendacja wstrzymana: {{ velo_watch.error }}</p>
+  {% elif o %}
+  <div class="stats">
+    <div class="stat"><span class="stat-label">Edycja {{ o.label }}</span><span class="stat-value">{{ o.promo_rate | string | replace('.', ',') }}%</span><span class="small muted">z warunkiem, bez warunku {{ o.base_rate | string | replace('.', ',') }}%, do {{ o.cap | money("PLN") }}</span></div>
+    <div class="stat"><span class="stat-label">Wpłata do</span><span class="stat-value">{{ o.join_until.isoformat() | pldate }}</span><span class="small muted">okres {{ o.days }} dni</span></div>
+    <div class="stat"><span class="stat-label">Próg w miesiącu</span><span class="stat-value">{{ o.min_transactions }} transakcji</span><span class="small muted">{{ o.methods | map('replace', 'card', 'karta') | map('replace', 'blik', 'BLIK') | join(', ') }}</span></div>
+  </div>
+  <p class="small muted">Odczytane automatycznie z regulaminu — porównaj z bankiem. Odczyt raz dziennie{% if velo_watch and velo_watch.checked %}, ostatni {{ velo_watch.checked.strftime('%d.%m %H:%M') }}{% endif %}.</p>
+  {% endif %}
+  {% if velo_track %}
+  <p class="small">Twoja edycja: do {{ velo_track.end.isoformat() | pldate }}{% if velo_track.cashless %}, transakcje w tym miesiącu {{ velo_track.cashless.progress }}/{{ velo_track.cashless.target }}{% endif %}. <a class="tap" href="{{ base }}/invest#promos">Promocje w toku</a></p>
+  {% else %}<p class="small"><a class="tap" href="{{ base }}/invest#promos">Dodaj edycję w Promocje w toku</a></p>{% endif %}
+  {% if velo_watch and velo_watch.error and not velo_watch.held %}<p class="small warn-text">Błąd odczytu regulaminu: {{ velo_watch.error }}</p>{% endif %}
+  <div class="actions-row small">
+    <form method="post" action="{{ base }}/promo/velo/refresh" hx-boost="false"><button class="link">Sprawdź teraz</button></form>
+    {% if velo_watch and velo_watch.new_edition %}<form method="post" action="{{ base }}/promo/velo/ack" hx-boost="false"><button>Widziałem</button></form>{% endif %}
+  </div>
+</section>
+{% endif %}
 {% if rates %}
 <section class="card">
   <h2>Stopa oszczędności</h2>

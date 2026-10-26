@@ -285,3 +285,29 @@ def test_inactive_user_edition_falls_back_to_offer(setup: sqlite3.Connection) ->
     rec = rotation.recommend(setup, TODAY)  # edycja minęła -> koniec z oferty
     assert rec is not None and not rec.from_user and rec.ends_by == ENDS
     assert "najpóźniej do 12.02" in rec.text
+
+
+# --- push o nowej edycji (E14) ----------------------------------------------------------------
+
+
+def test_edition_message_once_per_label(conn: sqlite3.Connection) -> None:
+    db.kv_set(
+        conn, promo_watch_velo.KEY, {"offer": OFFER.to_json(), "held": False, "acked": "11/2026"}
+    )
+    [msg] = summary.velo_edition_messages(promo_watch_velo.load(conn))
+    assert (msg.kind, msg.period) == (summary.VELO_EDITION, "12/2026")
+    assert msg.title == "Velobank — nowa edycja promocji 12/2026"
+    assert "4,5%" in msg.text and "12.11.2026" in msg.text and "92 dni" in msg.text
+    snap = Snapshot(conn)
+    now = datetime(2026, 10, 22, 8, tzinfo=WAW)
+    assert [m.kind for m in summary.due(snap, now)] == [summary.VELO_EDITION]
+    summary.mark_sent(conn, msg)
+    assert summary.due(snap, now) == []  # raz na etykietę
+
+
+def test_edition_message_silent_when_acked_held_or_unread(conn: sqlite3.Connection) -> None:
+    assert summary.velo_edition_messages(None) == []
+    db.kv_set(conn, promo_watch_velo.KEY, {"offer": OFFER.to_json(), "acked": "12/2026"})
+    assert summary.velo_edition_messages(promo_watch_velo.load(conn)) == []
+    db.kv_set(conn, promo_watch_velo.KEY, {"offer": None, "held": True, "acked": "11/2026"})
+    assert summary.velo_edition_messages(promo_watch_velo.load(conn)) == []

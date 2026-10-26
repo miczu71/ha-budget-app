@@ -368,7 +368,7 @@ def velo_promo_cards(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) 
     watch = promo_watch_velo.load(conn)
     if watch is None:
         return []
-    link = "/piggy#promo"
+    link = "/piggy#velo"
     out = []
     if watch.held:
         detail = f"{watch.error}. Rekomendacja rotacji wstrzymana do poprawnego odczytu."
@@ -380,7 +380,7 @@ def velo_promo_cards(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) 
         title = f"Nie mogę odczytać regulaminu promocji Velobanku (od {watch.error_since:%d.%m})"
         out.append(Item("velo_error", title, 1, link, "warn", detail))
     o = watch.offer
-    if o is None or watch.held or ctx.today > o.ends_by():
+    if not watch.new_edition or o is None or ctx.today > o.ends_by():
         return out
     ways = ", ".join({"card": "karta", "blik": "BLIK"}[m] for m in o.methods)
     detail = (

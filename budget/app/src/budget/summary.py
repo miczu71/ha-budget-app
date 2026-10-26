@@ -30,6 +30,7 @@ from budget import (
     networth,
     promo_track,
     promo_watch,
+    promo_watch_velo,
     review,
     rotation,
     savings,
@@ -45,6 +46,7 @@ SENT_KEY = "summary_sent"
 WEEKLY, MONTHLY, CARD, CARD_DUE = "weekly", "monthly", "card", "card_due"
 PROMO = "savings_promo"
 PROMO_WINDOW, PROMO_CONFIRM = "promo_window", "promo_confirm"
+VELO_EDITION = "velo_edition"
 LOAN_RESET = "loan_reset"
 INVEST = "invest_monthly"
 LOAN_RESET_DAYS = (
@@ -325,6 +327,32 @@ def rotation_messages(conn: sqlite3.Connection, today: date) -> list[Message]:
     ]
 
 
+def _rate(x: float) -> str:
+    return f"{x:g}".replace(".", ",") + "%"
+
+
+def velo_edition_messages(watch: promo_watch_velo.Watch | None) -> list[Message]:
+    """Push o nowej edycji promocji Velobanku (M32 E14); okres = etykieta, więc raz na edycję.
+    Po „Widziałem" albo przy wstrzymaniu — cisza."""
+    if watch is None or not watch.new_edition or watch.offer is None:
+        return []
+    o = watch.offer
+    text = (
+        f"Stawka {_rate(o.promo_rate)} (bez warunku {_rate(o.base_rate)}) "
+        f"do {o.cap // 1000} tys. zł, "
+        f"min. {o.min_transactions} transakcji w miesiącu. Wpłata nowych środków do "
+        f"{o.join_until:%d.%m.%Y}, okres {o.days} dni. Sprawdź warunki w regulaminie."
+    )
+    return [
+        Message(
+            VELO_EDITION,
+            o.label,
+            f"Velobank — nowa edycja promocji {o.label}",
+            text,
+        )
+    ]
+
+
 def promo_reminder(acc: savings.Account, days: int) -> Message:
     """Przypomnienie o końcu promocyjnej stopy konta oszczędnościowego (M10 E3)."""
     assert acc.promo_until is not None
@@ -473,6 +501,9 @@ def due(
         if sent.get(msg.kind) != msg.period:
             out.append(msg)
     for msg in rotation_messages(snap.conn, today):
+        if sent.get(msg.kind) != msg.period:
+            out.append(msg)
+    for msg in velo_edition_messages(promo_watch_velo.load(snap.conn)):
         if sent.get(msg.kind) != msg.period:
             out.append(msg)
     pay = invest_due() if invest_due else None
