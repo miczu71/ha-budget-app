@@ -295,3 +295,21 @@ async def test_propose_out_of_range_values_do_not_raise(conn: sqlite3.Connection
     fake = Fake({"bonus": 0.001, "conditions": [{"kind": "income", "label": "x", "target": 0.001}]})
     msg = await promo_track.propose(conn, AI, TODAY, tid, fake)
     assert msg and "ręcznie" in msg
+
+
+def test_income_ignores_inflow_from_own_savings(conn: sqlite3.Connection) -> None:  # E10b (g)
+    conn.execute(
+        "INSERT INTO savings_account (name, account_number, opening_date, created_at) "
+        "VALUES ('Konto X', '00123456789012345678901234', '2026-01-01', '2026-01-01T00:00:00')"
+    )
+    tid = promo_track.start(conn, offer(conn), TODAY)
+    promo_track.add_condition(conn, tid, "income", "Wpływy", "1000")
+    add(
+        conn,
+        "1200.00",
+        "transfer_in",
+        day="2026-10-25",
+        counterparty_account="PL00123456789012345678901234",
+    )
+    add(conn, "300.00", "transfer_in", day="2026-10-26")
+    assert promo_track.tracks(conn)[0].conditions[0].progress == D("300.00")

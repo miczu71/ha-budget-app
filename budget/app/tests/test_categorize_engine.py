@@ -428,3 +428,115 @@ def test_set_manual_counts_learned_decisions(conn: sqlite3.Connection) -> None:
     engine.set_manual(conn, ids[2], sid(conn, "prezenty"))
     engine.set_manual(conn, ids[0], sid(conn, "prezenty"))  # ręczna, nie z pamięci
     assert db.kv_get(conn, engine.LEARNED_STATS_KEY) == {"confirmed": 1, "corrected": 1}
+
+
+# --- E10b: przelewy własne wewnętrzne / na oszczędności ---------------------------------------
+
+OFF_IBAN = "PL00555566667777888899990000"  # konto księgi poza budżetem
+KOP_NRB = "00123456789012345678901234"  # `savings_account` spoza księgi
+
+
+def own_setup(conn: sqlite3.Connection) -> None:
+    now = now_iso()
+    conn.execute(
+        "INSERT INTO account (id, kind, iban, currency, include_in_budget, created_at) "
+        "VALUES (3, 'savings', ?, 'PLN', 0, ?)",
+        (OFF_IBAN, now),
+    )
+    conn.execute(
+        "INSERT INTO account (id, kind, iban, currency, created_at) "
+        "VALUES (4, 'current', 'PL00222233334444555566667777', 'PLN', ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO savings_account (name, account_number, opening_date, created_at) "
+        "VALUES ('Konto X', ?, '2026-01-01', ?)",
+        (KOP_NRB, now),
+    )
+
+
+def refresh(conn: sqlite3.Connection) -> None:
+    ledger.rebuild_links(conn)
+    engine.recategorize(conn)
+
+
+def group(conn: sqlite3.Connection, txn_id: int) -> str | None:
+    return conn.execute("SELECT transfer_group FROM txn WHERE id = ?", (txn_id,)).fetchone()[0]
+
+
+def test_budget_to_budget_is_group_without_category(conn: sqlite3.Connection) -> None:  # (a)
+    own_setup(conn)
+    out = add(conn, "-100.00", "transfer_out", counterparty_account="PL00222233334444555566667777")
+    inn = add(conn, "100.00", "transfer_in", account=4, day="2026-09-11")
+    refresh(conn)
+    assert group(conn, out) == group(conn, inn) is not None
+    assert cat(conn, out)[:2] == cat(conn, inn)[:2] == (None, None)
+    assert ledger.savings_transfer_ids(conn) == set()
+
+
+def test_budget_to_off_budget_account_is_savings(conn: sqlite3.Connection) -> None:  # (b)
+    own_setup(conn)
+    out = add(conn, "-500.00", "transfer_out", counterparty_account=OFF_IBAN)
+    inn = add(conn, "500.00", "transfer_in", account=3, day="2026-09-11")
+    refresh(conn)
+    assert group(conn, out) is None and group(conn, inn) is None
+    assert cat(conn, out)[:2] == ("oszczednosci-przelewy", "kind")
+    assert cat(conn, inn)[:2] == (None, None)  # strona oszczędności nie jest w budżecie
+    assert ledger.savings_transfer_ids(conn) == {out}
+
+
+def test_inflow_from_savings_account_number_is_savings(conn: sqlite3.Connection) -> None:  # (c)
+    own_setup(conn)
+    inn = add(conn, "800.00", "transfer_in", counterparty_account=f"PL {KOP_NRB}")
+    refresh(conn)
+    assert group(conn, inn) is None
+    assert cat(conn, inn)[:2] == ("oszczednosci-przelewy", "kind")
+
+
+def test_pair_without_counterparty_number_uses_signal_from_savings_side(
+    conn: sqlite3.Connection,
+) -> None:  # (d)
+    own_setup(conn)
+    out = add(conn, "-300.00", "transfer_out", "Wlasny przelew")
+    add(
+        conn,
+        "300.00",
+        "transfer_in",
+        account=3,
+        day="2026-09-11",
+        counterparty_account="PL" + "00111122223333444455556666",
+    )
+    refresh(conn)
+    assert group(conn, out) is None
+    assert cat(conn, out)[:2] == ("oszczednosci-przelewy", "kind")
+
+
+def test_manual_beats_savings_category(conn: sqlite3.Connection) -> None:  # (e)
+    own_setup(conn)
+    inn = add(conn, "800.00", "transfer_in", counterparty_account=KOP_NRB)
+    refresh(conn)
+    engine.set_manual(conn, inn, sid(conn, "spozywcze"))
+    refresh(conn)
+    assert cat(conn, inn)[:2] == ("spozywcze", "manual")
+
+
+def test_user_rule_loses_to_savings_number(conn: sqlite3.Connection) -> None:  # (f)
+    own_setup(conn)
+    own = add(conn, "800.00", "transfer_in", "Wplyw", "JAN NOWAK", counterparty_account=KOP_NRB)
+    other = add(conn, "900.00", "transfer_in", "Wplyw", "JAN NOWAK", day="2026-09-12")
+    rule(conn, "spozywcze", ("counterparty_name", "contains", "nowak"))
+    refresh(conn)
+    assert cat(conn, own)[:2] == ("oszczednosci-przelewy", "kind")
+    assert cat(conn, other)[:2] == ("spozywcze", "rule")
+
+
+def test_card_repayment_and_early_repayment_unchanged(conn: sqlite3.Connection) -> None:  # (h)
+    own_setup(conn)
+    out = add(conn, "-800.00", "transfer_out", "Splata")
+    inn = add(conn, "800.00", "card_repayment", account=2, day="2026-09-11")
+    solo = add(conn, "-300.00", "transfer_out", "WCZESN.SPL.Z RACHUNKU: 1", day="2026-08-01")
+    refresh(conn)
+    assert group(conn, out) == group(conn, inn) is not None
+    assert group(conn, solo) is not None
+    assert ledger.savings_transfer_ids(conn) == set()
+    assert cat(conn, out)[:2] == (None, None)

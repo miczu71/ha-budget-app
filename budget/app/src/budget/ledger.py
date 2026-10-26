@@ -690,56 +690,114 @@ def _match_inside(
 # --- L2/L3: przelewy własne i zwroty ------------------------------------------------------------
 
 
-def _transfer_signal(t: sqlite3.Row, own_ibans: dict[str, int]) -> bool:
+def _nrb(value: str | None) -> str:
+    """26 ostatnich znaków numeru bez spacji i wielkości liter (NRB; jak `piggy._MATCH`)."""
+    return (value or "").replace(" ", "").upper()[-26:]
+
+
+@dataclass(frozen=True)
+class _Own:
+    """Własne numery i strony przelewów: budżetowa vs oszczędności (E10b)."""
+
+    ibans: dict[str, int]  # IBAN konta z księgi → id
+    budget: set[int]  # konta `include_in_budget=1 AND kind != 'savings'`
+    savings_nrb: set[str]  # strona oszczędności: konta poza budżetem + `savings_account`
+
+
+def _own(conn: sqlite3.Connection) -> _Own:
+    ibans: dict[str, int] = {}
+    budget: set[int] = set()
+    savings_nrb: set[str] = set()
+    for r in conn.execute("SELECT id, iban, kind, include_in_budget FROM account"):
+        in_budget = bool(r["include_in_budget"]) and r["kind"] != "savings"
+        if in_budget:
+            budget.add(int(r["id"]))
+        if r["iban"] is not None:
+            ibans[r["iban"]] = int(r["id"])
+            if not in_budget:
+                savings_nrb.add(_nrb(r["iban"]))
+    for r in conn.execute("SELECT account_number FROM savings_account"):
+        savings_nrb.add(_nrb(r["account_number"]))
+    return _Own(ibans, budget, savings_nrb)
+
+
+def _transfer_signal(t: sqlite3.Row, own: _Own) -> bool:
     if t["kind"] == Kind.CARD_REPAYMENT.value:
         return True
     # Kontrahent to INNE podlinkowane konto (własny numer bywa w polu przy wypłatach BLIK)
-    other = own_ibans.get(t["counterparty_account"] or "")
+    other = own.ibans.get(t["counterparty_account"] or "")
     if other is not None and other != t["account_id"]:
+        return True
+    if t["counterparty_account"] and _nrb(t["counterparty_account"]) in own.savings_nrb:
         return True
     return fold(t["description"]).startswith("WCZESN.SPL")
 
 
-def rebuild_links(conn: sqlite3.Connection) -> None:
-    """Przelicz L2 (`transfer_group`) i L3 (`refund_of`) od zera — deterministycznie."""
-    own = {
-        r["iban"]: int(r["id"])
-        for r in conn.execute("SELECT id, iban FROM account WHERE iban IS NOT NULL")
-    }
+def _analyze(conn: sqlite3.Connection) -> tuple[dict[int, str], set[int]]:
+    """L2: grupy przelewów własnych (id → grupa) i transakcje „na oszczędności” (budżet ↔
+    oszczędności oraz ruch konta budżetowego z/na numer strony oszczędności). Czysta funkcja."""
+    own = _own(conn)
     txns = conn.execute(
         "SELECT * FROM txn WHERE status = 'BOOK' ORDER BY booking_date, id"
     ).fetchall()
     groups: dict[int, str] = {}
+    savings: set[int] = set()
 
     # L2: obciążenie konta A ↔ uznanie konta B, ta sama kwota, ≤ 3 dni, sygnał po którejś stronie
     credits: dict[str, list[sqlite3.Row]] = defaultdict(list)
     for t in txns:
         if Decimal(t["amount"]) > 0:
             credits[t["amount"]].append(t)
+    paired: set[int] = set()
+    account_of = {int(t["id"]): int(t["account_id"]) for t in txns}
     for t in txns:
         amount = Decimal(t["amount"])
-        if amount >= 0 or int(t["id"]) in groups:
+        if amount >= 0 or int(t["id"]) in paired:
             continue
         signal = _transfer_signal(t, own)
         d = date.fromisoformat(t["booking_date"])
         best: tuple[int, int] | None = None
         for c in credits.get(money.fmt(-amount), []):
             cid = int(c["id"])
-            if cid in groups or c["account_id"] == t["account_id"]:
+            if cid in paired or c["account_id"] == t["account_id"]:
                 continue
             if not (signal or _transfer_signal(c, own)):
                 continue
             days = abs((date.fromisoformat(c["booking_date"]) - d).days)
             if days <= TRANSFER_WINDOW.days and (best is None or (days, cid) < best):
                 best = (days, cid)
-        if best is not None:
+        if best is None:
+            continue
+        paired.update((int(t["id"]), best[1]))
+        t_in = t["account_id"] in own.budget
+        if t_in != (account_of[best[1]] in own.budget):  # budżet ↔ oszczędności
+            savings.add(int(t["id"]) if t_in else best[1])  # strona budżetowa
+        else:
             group = f"t{t['id']}"
             groups[int(t["id"])] = group
             groups[best[1]] = group
     # Strona bez pary (druga poza oknem danych) z mocnym sygnałem też jest przelewem
     for t in txns:
-        if int(t["id"]) not in groups and _transfer_signal(t, own):
+        if int(t["id"]) in paired or not _transfer_signal(t, own):
+            continue
+        if t["account_id"] in own.budget and _nrb(t["counterparty_account"]) in own.savings_nrb:
+            savings.add(int(t["id"]))
+        else:
             groups[int(t["id"])] = f"t{t['id']}"
+    return groups, savings
+
+
+def savings_transfer_ids(conn: sqlite3.Connection) -> set[int]:
+    """Transakcje budżetowe będące przelewem na/z oszczędności (kategoria „Przelewy na oszcz.”)."""
+    return _analyze(conn)[1]
+
+
+def rebuild_links(conn: sqlite3.Connection) -> None:
+    """Przelicz L2 (`transfer_group`) i L3 (`refund_of`) od zera — deterministycznie."""
+    txns = conn.execute(
+        "SELECT * FROM txn WHERE status = 'BOOK' ORDER BY booking_date, id"
+    ).fetchall()
+    groups, _ = _analyze(conn)
 
     # L3: zwrot → zakup u tego samego sprzedawcy, ≤ 90 dni wcześniej, kwota ≤ zakupu
     refunds: dict[int, int] = {}

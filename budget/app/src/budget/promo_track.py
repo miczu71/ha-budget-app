@@ -17,7 +17,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from budget import card, money
+from budget import card, ledger, money
 from budget.invest import InvestError, save_asset
 from budget.kinds import PURCHASE_KINDS, Kind
 from budget.piggy import PiggyError, parse_amount
@@ -172,15 +172,17 @@ def _progress(
     if r["kind"] == "payments":
         return Decimal(card.count_purchases(conn, start, end, _ledger_bank(t["bank"])))
     placeholders = ", ".join("?" * len(INCOME_KINDS))
+    savings = ledger.savings_transfer_ids(conn)  # przelew z własnych oszczędności to nie wpływ
     return money.total(
-        row[0]
+        row["amount"]
         for row in conn.execute(
-            "SELECT t.amount FROM txn t JOIN account a ON a.id = t.account_id "
+            "SELECT t.id, t.amount FROM txn t JOIN account a ON a.id = t.account_id "
             f"WHERE a.kind = 'current' AND t.kind IN ({placeholders}) AND t.status = 'BOOK' "
             "AND t.amount NOT LIKE '-%' AND t.transfer_group IS NULL "
             "AND t.booking_date BETWEEN ? AND ?",
             (*INCOME_KINDS, start.isoformat(), end.isoformat()),
         )
+        if int(row["id"]) not in savings
     )
 
 

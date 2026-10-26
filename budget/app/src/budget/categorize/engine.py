@@ -2,6 +2,8 @@
 
 Kategoria transakcji = pierwsze pasujące źródło:
 1. `manual` — ręczna zmiana w panelu (nigdy nie nadpisywana),
+1a. `kind` „Przelewy na oszczędności” — przelew na/z oszczędności (numer własnego konta, E10b);
+   wygrywa z regułą użytkownika,
 2. `refund` — zwrot (`refund_of`, L3) dziedziczy końcową kategorię zakupu,
 3. `rule` — reguły użytkownika wg priorytetu,
 4. `dictionary` — wbudowany słownik sieci,
@@ -35,6 +37,7 @@ KIND_DEFAULTS = {
     Kind.FEE.value: "oplaty-bankowe",
     Kind.LOAN.value: "kredyt",
 }
+SAVINGS_SLUG = "oszczednosci-przelewy"
 PREVIEW_SAMPLES = 10
 PREVIEW_ID = -1  # id reguły w podglądzie, zanim trafi do bazy
 LEARNED_STATS_KEY = "learned_stats"  # {"confirmed": n, "corrected": n} — `set_manual`
@@ -59,6 +62,7 @@ class _Txn:
     refund_of: int | None
     current: Assignment
     is_manual: bool
+    savings: bool = False  # przelew na/z oszczędności (`ledger.savings_transfer_ids`)
     is_split: bool = False  # podział (M29) — kategoria = największa część, nie uczy pamięci
 
 
@@ -110,6 +114,9 @@ def facts(
 
 
 def _load(conn: sqlite3.Connection, dictionary: Dictionary) -> list[_Txn]:
+    from budget import ledger  # import leniwy: ledger importuje ten moduł
+
+    savings_ids = ledger.savings_transfer_ids(conn)
     out = []
     rows = conn.execute(
         f"SELECT {_FACT_COLUMNS}, tx_date, booking_date, transfer_group, refund_of, "
@@ -132,6 +139,7 @@ def _load(conn: sqlite3.Connection, dictionary: Dictionary) -> list[_Txn]:
                     t["category_id"], t["category_source"], t["rule_id"], t["merchant"] or ""
                 ),
                 is_manual=t["category_source"] == "manual",
+                savings=int(t["id"]) in savings_ids,
                 is_split=bool(t["is_split"]),
             )
         )
@@ -199,6 +207,8 @@ def _classify(
         rule, merchant, key = found[t.id]
         if t.is_manual:
             result[t.id] = Assignment(t.current.category_id, "manual", None, merchant)
+        elif t.savings and SAVINGS_SLUG in slugs:
+            result[t.id] = Assignment(slugs[SAVINGS_SLUG], "kind", None, merchant)
         elif t.transfer:
             result[t.id] = Assignment(None, None, None, merchant)
         elif rule is not None:
