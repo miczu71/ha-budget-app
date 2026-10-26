@@ -40,7 +40,7 @@
   </details>{% endif %}
   {% endif %}
   <div class="fc-foot small muted">
-    <p>Rachunek {{ b.account | money("PLN") }} − karta {{ b.card_debt | money("PLN") }}{% if not fc.card_debt_included %} (nie odjęta){% endif %} · salda z {{ b.fetched_at | ts }}{% if b.eur is not none %} · rachunek walutowy {{ b.eur | money("EUR") }} poza wynikiem{% endif %}</p>
+    <p>{{ "Rachunki" if b.accounts > 1 else "Rachunek" }} {{ b.account | money("PLN") }} − karta {{ b.card_debt | money("PLN") }}{% if not fc.card_debt_included %} (nie odjęta){% endif %} · salda z {{ b.fetched_at | ts }}{% if b.eur is not none %} · rachunek walutowy {{ b.eur | money("EUR") }} poza wynikiem{% endif %}</p>
     <form method="post" action="{{ base }}/forecast/card-debt" hx-post="{{ base }}/forecast/card-debt" hx-trigger="change" hx-target="#fc" hx-select="#fc" hx-swap="outerHTML">
       <label class="check switch"><input type="checkbox" role="switch" name="include" value="1" {{ "checked" if fc.card_debt_included }}><span>Odejmij zadłużenie karty</span></label>
       <noscript><button class="secondary">Zastosuj</button></noscript>

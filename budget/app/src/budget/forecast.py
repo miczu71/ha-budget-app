@@ -43,7 +43,8 @@ class Balances:
     card_debt: Decimal  # karta: ITBD = bieżące zadłużenie; bez karty 0
     eur: Decimal | None
     fetched_at: str  # najstarsza z migawek użytych do wyniku
-    pending: Decimal = ZERO  # rachunek PLN: ITBD − ITAV = blokady jeszcze bez księgowania
+    pending: Decimal = ZERO  # rachunki PLN: suma (ITBD − ITAV)⁺ = blokady jeszcze bez księgowania
+    accounts: int = 1  # ile rachunków PLN weszło do sumy `account`
 
 
 @dataclass(frozen=True)
@@ -182,18 +183,31 @@ def include_card_debt(conn: sqlite3.Connection) -> bool:
 
 
 def read_balances(conn: sqlite3.Connection) -> Balances | None:
-    """Salda z ostatnich migawek; None, gdy rachunek PLN nie ma żadnej."""
+    """Salda z ostatnich migawek; None, gdy żaden rachunek budżetowy PLN nie ma żadnej."""
     accounts = {
         kind: conn.execute(
             "SELECT id FROM account WHERE kind = ? AND currency = ? ORDER BY id", (kind, cur)
         ).fetchone()
-        for kind, cur in (("current", "PLN"), ("card", "PLN"), ("fx", "EUR"))
+        for kind, cur in (("card", "PLN"), ("fx", "EUR"))
     }
-    snaps = ledger.latest_balances(conn, accounts["current"]["id"]) if accounts["current"] else {}
-    main = snaps.get("ITAV") or snaps.get("ITBD")
-    if main is None:
+    current = conn.execute(
+        "SELECT id FROM account WHERE kind = 'current' AND currency = 'PLN' "
+        "AND include_in_budget = 1 ORDER BY id"
+    ).fetchall()
+    account, pending, fetched, used = ZERO, ZERO, [], 0
+    for row in current:  # rachunek bez migawki jest pomijany, nie zeruje pozostałych
+        snaps = ledger.latest_balances(conn, row["id"])
+        main = snaps.get("ITAV") or snaps.get("ITBD")
+        if main is None:
+            continue
+        account += Decimal(main["amount"])
+        booked = snaps.get("ITBD")
+        if booked:
+            pending += max(Decimal(booked["amount"]) - Decimal(main["amount"]), ZERO)
+        fetched.append(main["fetched_at"])
+        used += 1
+    if not used:
         return None
-    fetched = [main["fetched_at"]]
     card_debt = ZERO
     if accounts["card"]:
         debt = ledger.latest_balances(conn, accounts["card"]["id"]).get("ITBD")
@@ -205,9 +219,7 @@ def read_balances(conn: sqlite3.Connection) -> Balances | None:
         row = ledger.latest_balances(conn, accounts["fx"]["id"])
         found = row.get("ITAV") or row.get("ITBD")
         eur = Decimal(found["amount"]) if found else None
-    booked = snaps.get("ITBD")
-    pending = max(Decimal(booked["amount"]) - Decimal(main["amount"]), ZERO) if booked else ZERO
-    return Balances(Decimal(main["amount"]), card_debt, eur, min(fetched), pending)
+    return Balances(account, card_debt, eur, min(fetched), pending, used)
 
 
 def safe_per_day(

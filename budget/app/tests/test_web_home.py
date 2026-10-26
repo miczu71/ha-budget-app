@@ -226,6 +226,24 @@ def _balances(conn: sqlite3.Connection, account: str = "9136.98", debt: str = "3
         )
 
 
+async def test_home_labels_multiple_accounts_in_plural(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    service.conn.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (3, 'current', 'PLN', ?)",
+        (now_iso(),),
+    )
+    service.conn.execute(
+        "INSERT INTO balance_snapshot (account_id, balance_type, amount, currency, fetched_at)"
+        " VALUES (3, 'ITAV', '100.00', 'PLN', ?)",
+        (now_iso(),),
+    )
+    page = (await client.get("/")).text
+    assert "Rachunki " in page and "Rachunek " not in page
+    assert fmt_money("9236.98", "PLN") in page
+
+
 async def test_home_shows_forecast_with_card_debt_row(
     client: httpx.AsyncClient, service: Service
 ) -> None:

@@ -169,6 +169,58 @@ def test_build_subtracts_card_debt_and_prefers_available(conn: sqlite3.Connectio
     assert fc.stale is False and fc.payday is None
 
 
+def extra_account(c: sqlite3.Connection, id_: int, kind: str = "current", budget: int = 1) -> None:
+    c.execute(
+        "INSERT INTO account (id, kind, currency, include_in_budget, created_at) "
+        "VALUES (?, ?, 'PLN', ?, '2026-10-01T00:00:00+02:00')",
+        (id_, kind, budget),
+    )
+
+
+def test_read_balances_sums_budget_current_accounts(conn: sqlite3.Connection) -> None:
+    extra_account(conn, 3)
+    snapshot(conn, 1, "ITBD", "1000.00", "2026-10-03T10:00:00+02:00")
+    snapshot(conn, 1, "ITAV", "800.00", "2026-10-03T10:00:00+02:00")
+    snapshot(conn, 3, "ITBD", "500.00", "2026-10-03T10:00:00+02:00")
+    snapshot(conn, 3, "ITAV", "450.00", "2026-10-03T10:00:00+02:00")
+    b = forecast.read_balances(conn)
+    assert b is not None
+    assert b.account == Decimal("1250.00") and b.pending == Decimal("250.00")
+    assert b.accounts == 2
+
+
+def test_read_balances_skips_savings_and_out_of_budget(conn: sqlite3.Connection) -> None:
+    extra_account(conn, 3, budget=0)
+    extra_account(conn, 4, kind="savings")
+    snapshot(conn, 1, "ITAV", "100.00", "2026-10-03T10:00:00+02:00")
+    snapshot(conn, 3, "ITAV", "7000.00", "2026-10-03T10:00:00+02:00")
+    snapshot(conn, 4, "ITAV", "9000.00", "2026-10-03T10:00:00+02:00")
+    b = forecast.read_balances(conn)
+    assert b is not None and b.account == Decimal("100.00") and b.accounts == 1
+
+
+def test_read_balances_missing_snapshot_does_not_zero_the_other(conn: sqlite3.Connection) -> None:
+    extra_account(conn, 3)
+    snapshot(conn, 3, "ITBD", "300.00", "2026-10-03T10:00:00+02:00")  # konto 1 bez migawki
+    b = forecast.read_balances(conn)
+    assert b is not None and b.account == Decimal("300.00") and b.accounts == 1
+
+
+def test_read_balances_fetched_at_is_the_oldest(conn: sqlite3.Connection) -> None:
+    extra_account(conn, 3)
+    snapshot(conn, 1, "ITAV", "100.00", "2026-10-03T10:00:00+02:00")
+    snapshot(conn, 3, "ITAV", "200.00", "2026-10-01T10:00:00+02:00")
+    snapshot(conn, 2, "ITBD", "50.00", "2026-10-02T10:00:00+02:00")
+    b = forecast.read_balances(conn)
+    assert b is not None and b.fetched_at == "2026-10-01T10:00:00+02:00"
+
+
+def test_read_balances_none_without_any_snapshot(conn: sqlite3.Connection) -> None:
+    extra_account(conn, 3)
+    snapshot(conn, 2, "ITBD", "50.00", "2026-10-03T10:00:00+02:00")  # tylko karta
+    assert forecast.read_balances(conn) is None
+
+
 def test_build_without_card_shows_zero_debt_and_marks_stale(conn: sqlite3.Connection) -> None:
     snapshot(conn, 1, "ITAV", "500.00", "2026-10-01T10:00:00+02:00")
     fc = build(conn)
