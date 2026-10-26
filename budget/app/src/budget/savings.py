@@ -308,11 +308,14 @@ def _from_bank(acc: Account, snap: sqlite3.Row, today: date) -> Interest:
     )
 
 
-def estimate(conn: sqlite3.Connection, acc: Account, today: date) -> Interest:
+def estimate(
+    conn: sqlite3.Connection, acc: Account, today: date, *, use_bank: bool = True
+) -> Interest:
     """Szacunek odsetek dzień po dniu od daty salda do `today`: kapitalizacja na koniec miesiąca,
     odsetki netto (Belka). Bank liczy co do grosza inaczej — stąd ręczna korekta salda.
-    Konto powiązane z księgą (migawka salda) bierze saldo z banku, bez szacunku od `opening_*`."""
-    snap = bank_snapshot(conn, acc)
+    Konto powiązane z księgą (migawka salda) bierze saldo z banku, bez szacunku od `opening_*`;
+    `use_bank=False` (historia Majątku: migawka jest dzisiejsza) wymusza szacunek ręczny."""
+    snap = bank_snapshot(conn, acc) if use_bank else None
     if snap is not None:
         return _from_bank(acc, snap, today)
     flows: dict[date, Decimal] = defaultdict(Decimal)

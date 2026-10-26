@@ -699,7 +699,7 @@ async def test_home_hero_compares_period_with_year_ago(
     mine = serie(conn, "pensja", "9000.00", direction="in")
     db.kv_set(conn, forecast.PAYDAY_KEY, mine)
     add(conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day=year_ago.isoformat())
-    add(conn, "-200.00", day=(year_ago + timedelta(days=5)).isoformat())  # rok temu
+    add(conn, "-200.00", day=year_ago.isoformat())  # rok temu, w dniu wypłaty (zawsze w oknie)
     add(conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day=first.isoformat())
     add(conn, "-120.00", day=first.isoformat())  # od bieżącej wypłaty
     page = (await client.get("/")).text

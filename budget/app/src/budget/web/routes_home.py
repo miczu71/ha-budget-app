@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import sqlite3
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -82,6 +83,15 @@ class BalanceTiles:
     stocks_stale: bool
 
 
+def _holding(conn: sqlite3.Connection) -> stocks.Holding | None:
+    """Akcje to dodatek kafelków: błąd danych nie może zabrać kafelków kont."""
+    try:
+        return stocks.load(conn)
+    except Exception:
+        log.exception("Odczyt akcji do kafelka nieudany")
+        return None
+
+
 def balance_tiles(
     panel: Panel,
     fc: forecast.Forecast | None,
@@ -156,7 +166,7 @@ def router(panel: Panel) -> APIRouter:
         tiles = None
         if f.is_current:  # kafelki to dodatek: błąd nie może zablokować strony głównej
             try:
-                tiles = balance_tiles(panel, fc, today, sv, bool(cm), stocks.load(conn))
+                tiles = balance_tiles(panel, fc, today, sv, bool(cm), _holding(conn))
             except Exception:
                 log.exception("Kafelki sald nieudane")
         nw = None

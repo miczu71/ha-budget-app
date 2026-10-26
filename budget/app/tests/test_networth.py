@@ -307,3 +307,16 @@ def test_linked_without_snapshot_is_not_skipped(conn: sqlite3.Connection) -> Non
     bank_account(conn, "PL" + DIGITS, None)
     nw = networth.compute(conn, DAY)
     assert [c.amount for c in by_group(nw, networth.SAVINGS)] == [Decimal(1000)]
+
+
+def test_linked_account_in_history_uses_manual_estimate_not_todays_bank_balance(
+    conn: sqlite3.Connection,
+) -> None:
+    from .test_piggy import DIGITS
+    from .test_savings import bank_account
+
+    make_savings(conn, name="Profit", opening_balance="1000", opening_date="2026-09-01")
+    bank_account(conn, "PL" + DIGITS, "4000.00")
+    nw = networth.compute(conn, date(2026, 9, 15), past=True)
+    assert next(c.amount for c in by_group(nw, networth.SAVINGS)) < Decimal(1100)
+    assert not [c for c in by_group(nw, networth.ACCOUNTS) if c.amount == Decimal(4000)]

@@ -126,7 +126,8 @@ def _accounts(conn: sqlite3.Connection, day: date, past: bool) -> list[Component
     as_savings = {
         lid
         for a in savings.all_accounts(conn)
-        if savings.bank_snapshot(conn, a) is not None
+        if (not past or a.opening_date <= day)
+        and savings.bank_snapshot(conn, a) is not None
         and (lid := savings.linked_ledger_id(conn, a)) is not None
     }
     for r in rows:
@@ -159,9 +160,9 @@ def _accounts(conn: sqlite3.Connection, day: date, past: bool) -> list[Component
     return out
 
 
-def _savings(conn: sqlite3.Connection, day: date) -> list[Component]:
+def _savings(conn: sqlite3.Connection, day: date, past: bool = False) -> list[Component]:
     return [
-        Component(SAVINGS, a.name, savings.estimate(conn, a, day).total)
+        Component(SAVINGS, a.name, savings.estimate(conn, a, day, use_bank=not past).total)
         for a in savings.all_accounts(conn)
         if a.opening_date <= day
     ]
@@ -249,7 +250,7 @@ def compute(
     with timed("n_accounts"):
         accounts = _accounts(conn, day, past)
     with timed("n_savings"):
-        savings_parts = _savings(conn, day)
+        savings_parts = _savings(conn, day, past)
     with timed("n_piggies"):
         piggies = _piggies_at(conn, day) if past else _piggies(snap or Snapshot(conn), day)
     with timed("n_investments"):
