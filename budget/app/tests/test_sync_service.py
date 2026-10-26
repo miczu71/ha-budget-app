@@ -509,3 +509,39 @@ async def test_bank_failures_only_keeps_other_banks(conn: sqlite3.Connection, eb
     db.kv_set(conn, "sync_bank_failures", {BANK_B: 2, "Bank Usunięty": 5})
     await sync_service.sync(conn, eb, tz=TZ, now=NOW, only="Mock ASPSP")
     assert sync_service.bank_failures(conn) == {"Mock ASPSP": 0, BANK_B: 2}
+
+
+@respx.mock
+async def test_bank_failures_expired_session_counts(conn: sqlite3.Connection, eb: EBClient) -> None:
+    _store_bank_b(conn)
+    _mock_b()
+    respx.get(f"{BASE}/accounts/{UID_MAIN}/balances").mock(
+        return_value=httpx.Response(401, json={"code": "EXPIRED_SESSION", "message": "x"})
+    )
+    await sync_service.sync(conn, eb, tz=TZ, now=NOW)
+    assert sync_service.bank_failures(conn) == {"Mock ASPSP": 1, BANK_B: 0}
+
+
+@respx.mock
+async def test_bank_failures_only_failing_bank_increments(
+    conn: sqlite3.Connection, eb: EBClient
+) -> None:
+    """Ręczny przebieg jednego banku z błędem podbija tylko jego licznik."""
+    _store_bank_b(conn)
+    respx.get(f"{BASE}/accounts/{UID_B}/balances").mock(
+        return_value=httpx.Response(500, json={"code": "X", "message": "x"})
+    )
+    db.kv_set(conn, "sync_bank_failures", {"Mock ASPSP": 1, BANK_B: 1})
+    await sync_service.sync(conn, eb, tz=TZ, now=NOW, only=BANK_B)
+    assert sync_service.bank_failures(conn) == {"Mock ASPSP": 1, BANK_B: 2}
+
+
+async def test_bank_failures_untouched_without_active_session(
+    conn: sqlite3.Connection, eb: EBClient
+) -> None:
+    """`no_session` nie zeruje ani nie podbija liczników."""
+    db.kv_set(conn, "sync_bank_failures", {"Mock ASPSP": 2})
+    sessions.set_status(conn, SESSION["session_id"], "EXPIRED")
+    result = await sync_service.sync(conn, eb, tz=TZ, now=NOW)
+    assert result.status == "no_session"
+    assert sync_service.bank_failures(conn) == {"Mock ASPSP": 2}

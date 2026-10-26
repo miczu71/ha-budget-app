@@ -188,8 +188,7 @@ async def sync(
     headers = psu.as_headers() if psu else None
     fetched_at = now_iso()
     details = []
-    known = {r.aspsp for r in sessions.current_all(conn)}
-    failures = {k: v for k, v in bank_failures(conn).items() if k in known}
+    failures = bank_failures(conn)
     for record in records:
         if not record.active:  # nieaktywny bank nie blokuje pozostałych
             details.append(f"{record.aspsp}: sesja {record.status}")
@@ -347,8 +346,14 @@ def _log(conn: sqlite3.Connection, result: SyncResult) -> SyncResult:
 
 
 def bank_failures(conn: sqlite3.Connection) -> dict[str, int]:
-    """Kolejne nieudane przebiegi (error/rate_limited/expired) osobno dla każdego banku."""
-    return {str(k): int(v) for k, v in (kv_get(conn, BANK_FAILURES_KEY) or {}).items()}
+    """Kolejne nieudane przebiegi (error/rate_limited/expired) osobno dla każdego banku z sesją.
+
+    `partial` i `no_session` nie liczą się (jak w `consecutive_failures`); licznik banku bez
+    sesji nie jest zwracany, więc nie podtrzymuje alertów po usunięciu banku.
+    """
+    known = {r.aspsp for r in sessions.current_all(conn)}
+    stored = kv_get(conn, BANK_FAILURES_KEY) or {}
+    return {str(k): int(v) for k, v in stored.items() if k in known}
 
 
 def consecutive_failures(conn: sqlite3.Connection) -> int:
