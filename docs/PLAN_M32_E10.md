@@ -133,6 +133,7 @@ z kategorią „Przelewy na oszczędności” (źródło „typ”), netto ≈ �
   NIE RÓB: zmian `savings.estimate`, migracji, sekcji Profit.
 
 ### E14 — Sekcja Velo, push o nowej edycji, „Widziałem” (sonnet-worker)
+**STATUS: ZROBIONE 2026-10-26, commit a548e89** — verifier ACCEPT; pytest 1289 passed (+5), ruff czysty, mypy 1 błąd baseline. Odchylenia: `VELO_EDITION` w `summary.py` (tam `PROMO_CONFIRM`); `new_edition` wymaga `acked is not None` (stary zapis z E3 bez pusha); sekcja `#velo` przy każdym koncie oszczędnościowym (do zawężenia do Velo — nieblokujące); testy pusha w `test_rotation.py`; brak asercji gałęzi `velo_track` w `piggy.html`.
 - `promo_watch_velo`: w `kv` pole `acked` (etykieta edycji). Brak `acked` przy pierwszym poprawnym odczycie → zapis
   bieżącej etykiety (12/2026 bez pusha). Funkcje `ack(conn)` i `Watch.new_edition` (`offer` jest, nie `held`,
   `offer.label != acked`).
@@ -150,6 +151,7 @@ z kategorią „Przelewy na oszczędności” (źródło „typ”), netto ≈ �
 - **Wykonawca:** pliki j.w. NIE RÓB: parsera regulaminu (`_parse*`), migracji, `rotation.py`.
 
 ### E15 — Saldo wszystkich rachunków PLN w budżecie (sonnet-worker, „ryzyko”: pieniądze)
+**STATUS: ZROBIONE 2026-10-26, commit 72d4038** — verifier APPROVE; pytest 1295 passed (+6), ruff czysty, mypy baseline. `Balances.accounts` (etykieta „Rachunki”). Zmiana zachowania: konto `current` z `include_in_budget=0` nie daje już salda (zgodnie z kontraktem).
 - `forecast.read_balances`: `account` = suma po kontach `kind='current' AND currency='PLN' AND include_in_budget=1`
   (każde ITAV → ITBD). `pending` = suma (ITBD − ITAV)⁺ per konto. `fetched_at` = najstarszy. None tylko gdy żadne
   z tych kont nie ma migawki. Karta i EUR bez zmian.
