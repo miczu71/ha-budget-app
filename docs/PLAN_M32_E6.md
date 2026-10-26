@@ -81,6 +81,42 @@ Repo/worktree: `wt new /config/addons/ha-budget-app m32-e7`. Katalog testów: `b
   → linia bez porównania. `Decimal`, procent zaokrąglony do całości.
 - DONE: testy z zamrożoną datą: mniej / więcej / brak historii. Rollback: `git revert`.
 
+#### E8 — Wykonawca (haiku-worker, jedna paczka)
+Repo/worktree: `wt new /config/addons/ha-budget-app m32-e8`. Katalog testów: `budget/app` (w worktree brak .venv:
+`PYTHONPATH=<wt>/budget/app/src` + `.venv` z `/config/addons/ha-budget-app/budget/app`). Skille: `tdd`, `addon-conventions`.
+- `src/budget/flex.py` (po `spent_between`): `spent_year_ago(snap, payday_then: date | None, days: int, skip=None) -> Decimal | None`
+  — `None`, gdy `payday_then` jest `None` albo wcześniejszy niż `first_day(snap.conn)`; inaczej
+  `spent_between(snap, payday_then, payday_then + timedelta(days=days), skip)`.
+- `src/budget/forecast.py::Forecast`: pola `spent_year_ago: Decimal | None = None`, `year_ago_days: int = 0` oraz własności
+  `yoy_delta -> Decimal | None` (`spent_since - spent_year_ago`) i `yoy_pct -> int | None` (`round(delta / spent_year_ago * 100)`,
+  `None` gdy `spent_year_ago` brak albo 0). W `build()`, gdy `start is not None`: `payday_then = last_payday(snap, p.payday_series_id,
+  add_months(start, -12))`, `days = (today - start).days + 1`, `spent_year_ago = flex.spent_between…` przez `flex.spent_year_ago`
+  (ten sam `skip`). Reszta `build()` bez zmian.
+- `src/budget/web/templates/_payday_hero.html`: w stanie OK (`not fc.below_buffer`) zamiast „Starczy · zapas X” akapit: „Od wypłaty
+  dd.mm wydane X zł — o Y zł (Z%) mniej/więcej niż rok temu po N dniach okresu” (X = `fc.spent_since`; mniej gdy delta < 0,
+  Y = `|delta|`); gdy `yoy_delta is none` — „Od wypłaty dd.mm wydane X zł.” bez porównania. „Poniżej bufora”/„Zabraknie” oraz linię
+  „Najniżej dd.mm” zostaw. Gdy `fc.period_start` brak — zostaw dotychczasowy tekst „Starczy · zapas”.
+- Testy (neutralne dane; wzór: `tests/test_forecast.py`, `tests/test_flex.py`, zamrożona data): mniej / więcej / brak historii /
+  zero rok temu (bez procentu); trasa `/` renderuje nową linię.
+- Test: `cd budget/app && BUDGET_OPTIONS_PATH=/nonexistent .venv/bin/python -m pytest -q && .venv/bin/ruff check . && .venv/bin/ruff format --check .`
+- DONE: jak w E8 wyżej + pytest bez nowych failów, ruff czysty (mypy: 73 błędy bazowe, bez nowych).
+- NIE RÓB: zmian `routes_home.py`/kafelków (E9), migracji, wersji/CHANGELOG, commitów, dokumentacji, zmian logiki `safe_per_day`/projekcji.
+
+#### E9 — Wykonawca (haiku-worker, jedna paczka; po zlandowaniu E8)
+Repo/worktree: `wt new /config/addons/ha-budget-app m32-e9`. Skille: `tdd`, `addon-conventions`.
+- `src/budget/web/routes_home.py::BalanceTiles`: pola `stocks_value: Decimal | None`, `stocks_unvested: Decimal | None`,
+  `stocks_vest: date | None`, `stocks_stale: bool`; `balance_tiles(...)` dostaje `holding: stocks.Holding | None`
+  (wywołanie w `home()`: `stocks.load(conn)`) — `stocks_value = holding.market_value` (None bez danych), `stocks_unvested =
+  holding.unvested_value`, `stocks_vest = holding.next_vest`, `stocks_stale = now − holding.fetched_at > timedelta(days=stocks.STALE_DAYS)`.
+- `src/budget/web/templates/_balance_tiles.html`: 4. kafelek (link `{{ base }}/networth`) „Akcje” = `money(whole=True)`, podpis
+  `small` „+ X zł niezawiązane · zawiązanie dd.mm” (część po „·” tylko z `stocks_vest`), znacznik nieaktualności jak w Majątku
+  (sprawdź `networth.html` — ta sama klasa/tekst); bez `stocks_value` kafelek ukryty.
+- `src/budget/web/static/app.css` (l.~1036): `.bal-tiles` 4 w rzędzie na desktopie; ≤600 px siatka 2×2 (`grid-auto-flow: row`,
+  `grid-template-columns: repeat(2, minmax(0, 1fr))`); bez przepełnienia poziomego.
+- Testy: trasa `/` z danymi akcji (kafelek + podpis) i bez (brak kafelka); nieaktualne → znacznik.
+- Test jak w E8. DONE: jak w E9 wyżej (zrzuty Playwright robię sam po zlandowaniu).
+- NIE RÓB: zmian `stocks.py`, Majątku, hero (E8), migracji, wersji/CHANGELOG, commitów.
+
 ### E9 — Kafelek „Akcje” (haiku-worker)
 - `routes_home.balance_tiles` + `_balance_tiles.html`: 4. kafelek „Akcje” = `stocks.load(conn).market_value` (wolne);
   podpis „+ X zł niezawiązane · zawiązanie dd.mm” gdy są dane; oznaczenie nieaktualnych jak w Majątku
