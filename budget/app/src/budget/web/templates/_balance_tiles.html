@@ -10,5 +10,10 @@
     <ul class="bal-pop"><li class="bal-pop-head"><span>w tym skarbonki</span><span class="num">{{ tiles.piggy_total | money("PLN") }}</span></li>{% for s in tiles.piggies %}<li><span>{{ s.piggy.name }}</span><span class="num">{{ s.balance | money("PLN") }}</span></li>{% endfor %}</ul>
     {% endif %}
   </a>
+  {% if tiles.stocks_value is not none %}
+  <a class="bal-tile" href="{{ base }}/networth"><span class="bal-label">Akcje</span><span class="bal-value">{{ tiles.stocks_value | money("PLN", whole=True) }}</span>
+    <span class="small {{ 'warn-text' if tiles.stocks_stale else 'muted' }}">{% if tiles.stocks_stale %}nieaktualne · {% endif %}+ {{ tiles.stocks_unvested | money("PLN", whole=True) }} niezawiązane{% if tiles.stocks_vest %} · zawiązanie {{ tiles.stocks_vest.isoformat() | pldate }}{% endif %}</span>
+  </a>
+  {% endif %}
 </div>
 {% endif %}

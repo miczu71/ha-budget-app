@@ -11,7 +11,7 @@ from decimal import Decimal
 import httpx
 import pytest
 
-from budget import forecast, inbox, spending
+from budget import forecast, inbox, spending, stocks
 from budget.categorize.rules import Conditions, TextCondition
 from budget.recurring import schedule as sch
 from budget.recurring import series as S
@@ -705,3 +705,46 @@ async def test_home_hero_compares_period_with_year_ago(
     page = (await client.get("/")).text
     assert f"Od wypłaty {first:%d.%m} wydane" in page
     assert "mniej niż rok temu po" in page
+
+
+# --- kafelek „Akcje” (M32 E9) ------------------------------------------------------------
+
+
+def _holding(conn: sqlite3.Connection, fetched_at: datetime | None = None) -> None:
+    db.kv_set(
+        conn,
+        stocks.KEY,
+        {
+            "market_value": "12000.50",
+            "unvested_qty": "10",
+            "price": "100.00",
+            "next_vest": "2026-12-01",
+            "next_vest_qty": "5",
+            "fetched_at": (fetched_at or datetime.now().astimezone()).isoformat(),
+        },
+    )
+
+
+async def test_stocks_tile_shows_value_unvested_and_vest(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    _holding(service.conn)
+    page = (await client.get("/")).text
+    assert '<span class="bal-label">Akcje</span><span class="bal-value">' in page
+    assert "niezawiązane" in page and "zawiązanie" in page
+    assert "nieaktualne" not in page
+
+
+async def test_stocks_tile_hidden_without_data(client: httpx.AsyncClient, service: Service) -> None:
+    _balances(service.conn)
+    page = (await client.get("/")).text
+    assert '<span class="bal-label">Konto</span>' in page
+    assert 'bal-label">Akcje' not in page
+
+
+async def test_stocks_tile_marks_stale_value(client: httpx.AsyncClient, service: Service) -> None:
+    _balances(service.conn)
+    _holding(service.conn, datetime.now().astimezone() - timedelta(days=10))
+    page = (await client.get("/")).text
+    assert 'bal-label">Akcje' in page and "nieaktualne" in page
