@@ -9,7 +9,16 @@ from decimal import Decimal
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import invest, invest_blogs, invest_sources, invest_why, piggy, promo_track, savings
+from budget import (
+    invest,
+    invest_blogs,
+    invest_sources,
+    invest_why,
+    piggy,
+    promo_track,
+    rotation,
+    savings,
+)
 from budget.web.common import Panel
 
 
@@ -65,6 +74,7 @@ def router(panel: Panel) -> APIRouter:
             offers=offers,
             promos=promos,
             promo_due=promo_track.register(promos),
+            rotation=rotation.recommend(conn, today),
             tracked={t.offer_id for t in promos if t.status == "active"},
             condition_kinds=promo_track.KIND_LABELS,
             edition_banks=promo_track.known_banks(conn),

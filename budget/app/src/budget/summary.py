@@ -31,6 +31,7 @@ from budget import (
     promo_track,
     promo_watch,
     review,
+    rotation,
     savings,
 )
 from budget.categorize import taxonomy
@@ -307,6 +308,22 @@ def cashless_messages(
     return []
 
 
+def rotation_messages(conn: sqlite3.Connection, today: date) -> list[Message]:
+    """Push „dokąd przelać” (M32 E4) w progach 14/7/2 dni przed końcem promocji Velobanku;
+    klucz deduplikacji per próg. Wstrzymana edycja = cisza (alarm daje dzwonek)."""
+    rec = rotation.recommend(conn, today)
+    if rec is None or rec.days_left not in rotation.THRESHOLDS:
+        return []
+    return [
+        Message(
+            "rotation",
+            f"{rec.ends_by:%Y-%m-%d}-{rec.days_left}",
+            f"Velobank — przelej {zl(rec.amount)} na {rec.account}",
+            rec.text,
+        )
+    ]
+
+
 def promo_reminder(acc: savings.Account, days: int) -> Message:
     """Przypomnienie o końcu promocyjnej stopy konta oszczędnościowego (M10 E3)."""
     assert acc.promo_until is not None
@@ -452,6 +469,9 @@ def due(
         if sent.get(CARD_DUE) != msg.period:
             out.append(msg)
     for msg in promo_track_messages(snap.conn, today):
+        if sent.get(msg.kind) != msg.period:
+            out.append(msg)
+    for msg in rotation_messages(snap.conn, today):
         if sent.get(msg.kind) != msg.period:
             out.append(msg)
     pay = invest_due() if invest_due else None

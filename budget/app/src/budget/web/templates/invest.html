@@ -113,6 +113,13 @@
 
 <section class="card" id="promos">
   <h2>Promocje w toku</h2>
+  {% if rotation %}
+  <div class="callout" id="rotation">
+    <strong>Dokąd przelać</strong>
+    <p class="small">{{ rotation.text }}</p>
+    <p class="small muted">Zostanie na Velobanku: {{ rotation.base_rate }}%; na {{ rotation.account }}: {{ rotation.rate }}% — zysk netto {{ rotation.gain | money("PLN") }}, {{ rotation.days_left }} dni do końca promocji.</p>
+  </div>
+  {% endif %}
   {% set due, paid = promo_due %}
   {% if promos %}<p class="small muted">Do odebrania: {{ due | money("PLN") }} · odebrane: {{ paid | money("PLN") }}. Płatności kartą i wpływy liczą się same tylko dla kont Millennium, transakcje bezgotówkowe (karta, BLIK) edycji — dla kont wskazanego banku; resztę odhaczasz ręcznie.</p>{% endif %}
   {% for t in promos %}

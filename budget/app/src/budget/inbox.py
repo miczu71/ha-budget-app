@@ -30,6 +30,7 @@ from budget import (
     promo_watch,
     promo_watch_velo,
     review,
+    rotation,
     savings,
     sessions,
     stocks,
@@ -396,6 +397,16 @@ def velo_promo_cards(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) 
     return out
 
 
+def rotation_card(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Koniec promocji Velobanku blisko: dokąd przelać środki (M32 E4); bez edycji — brak karty."""
+    rec = rotation.recommend(conn, ctx.today)
+    if rec is None:
+        return []
+    title = f"Velobank: przelej {summary.zl(rec.amount)} na {rec.account} (+{summary.zl(rec.gain)})"
+    severity: Severity = "warn" if rec.days_left <= 7 else "info"
+    return [Item("rotation", title, 1, "/invest#promos", severity, rec.text)]
+
+
 def loan_rate(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
     """Rata kredytu w księdze inna niż w harmonogramie — zmienił się WIBOR albo marża (M9 E2)."""
     out = []
@@ -580,6 +591,7 @@ PROVIDERS: tuple[Provider, ...] = (
     savings_promo,
     promo_cards,
     velo_promo_cards,
+    rotation_card,
     loan_rate,
     loan_reset,
     wibor_error,
