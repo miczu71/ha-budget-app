@@ -73,8 +73,8 @@ def _account_kind(product: str | None, name: str | None, currency: str) -> str:
     return "current" if currency == "PLN" else "fx"
 
 
-def upsert_eb_account(conn: sqlite3.Connection, acc: Account) -> int:
-    """Konto z sesji EB: po aliasie uid, potem po IBAN-ie; aliasy dopisywane."""
+def upsert_eb_account(conn: sqlite3.Connection, acc: Account, *, bank: str | None = None) -> int:
+    """Konto z sesji EB: po aliasie uid, potem po IBAN-ie; aliasy dopisywane; `bank` = ASPSP."""
     row = conn.execute(
         "SELECT account_id FROM account_alias WHERE source = 'eb_uid' AND value = ?", (acc.uid,)
     ).fetchone()
@@ -84,8 +84,8 @@ def upsert_eb_account(conn: sqlite3.Connection, acc: Account) -> int:
         ).fetchone()
     if row is None:
         cur = conn.execute(
-            "INSERT INTO account (kind, iban, currency, product, display_name, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO account (kind, iban, currency, product, display_name, created_at, bank) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 _account_kind(acc.product, acc.name, acc.currency),
                 acc.iban,
@@ -93,14 +93,16 @@ def upsert_eb_account(conn: sqlite3.Connection, acc: Account) -> int:
                 acc.product,
                 acc.product or acc.name,
                 now_iso(),
+                bank,
             ),
         )
         account_id = int(cur.lastrowid or 0)
     else:
         account_id = int(row["account_id"])
         conn.execute(
-            "UPDATE account SET product = coalesce(product, ?) WHERE id = ?",
-            (acc.product, account_id),
+            "UPDATE account SET product = coalesce(product, ?), bank = coalesce(?, bank) "
+            "WHERE id = ?",
+            (acc.product, bank, account_id),
         )
     for source, value in (("eb_uid", acc.uid), ("eb_hash", acc.identification_hash)):
         conn.execute(

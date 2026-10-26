@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlencode
@@ -13,6 +14,7 @@ import respx
 
 from budget import sessions
 from budget.eb_client import EBAuthError, EBClient
+from budget.eb_models import SessionResponse
 from budget.storage import db
 
 from .conftest import BASE
@@ -134,3 +136,124 @@ async def test_auth_flow(conn: db.sqlite3.Connection, eb: EBClient) -> None:
 async def test_finish_without_start(conn: db.sqlite3.Connection, eb: EBClient) -> None:
     with pytest.raises(sessions.SessionError, match="Połącz bank"):
         await sessions.finish_auth(conn, eb, "kod")
+
+
+# --- wielobankowość (M32 E1): sesja per bank --------------------------------------------------
+
+BANK_B = "Bank Drugi"
+
+
+def _session_b() -> SessionResponse:
+    """Druga sesja: inny bank, inne konta (neutralne dane testowe)."""
+    acc = {
+        **SESSION["accounts"][2],
+        "uid": "b-uid-1",
+        "account_id": {"iban": "PL10105000997603123456789123", "other": None},
+        "identification_hash": "hash-b-1",
+        "product": "Konto Premiowe",
+        "name": "Jan Testowy",
+    }
+    return SessionResponse.from_api(
+        {
+            **SESSION,
+            "session_id": "s-b",
+            "aspsp": {"name": BANK_B, "country": "PL"},
+            "accounts": [acc],
+        }
+    )
+
+
+def test_two_banks_coexist(conn: sqlite3.Connection) -> None:
+    a = sessions.store_session(conn, SessionResponse.from_api(SESSION))
+    b = sessions.store_session(conn, _session_b())
+    assert (a.aspsp, b.aspsp) == ("Mock ASPSP", BANK_B)
+    cur_a = sessions.current(conn, "Mock ASPSP")
+    cur_b = sessions.current(conn, BANK_B)
+    assert cur_a is not None and cur_a.session_id == SESSION["session_id"]
+    assert cur_b is not None and cur_b.session_id == "s-b"
+    assert {r.aspsp for r in sessions.current_all(conn)} == {"Mock ASPSP", BANK_B}
+    assert sessions.current(conn, "Nieznany") is None
+
+
+def test_new_session_replaces_only_its_bank(conn: sqlite3.Connection) -> None:
+    sessions.store_session(conn, SessionResponse.from_api(SESSION))
+    sessions.store_session(conn, _session_b())
+    renewed = SessionResponse.from_api({**SESSION, "session_id": "s-a2"})
+    sessions.store_session(conn, renewed)
+    cur_a, cur_b = sessions.current(conn, "Mock ASPSP"), sessions.current(conn, BANK_B)
+    assert cur_a is not None and cur_a.session_id == "s-a2"
+    assert cur_b is not None and cur_b.session_id == "s-b"
+    assert conn.execute("SELECT count(*) FROM eb_session").fetchone()[0] == 3
+
+
+def test_current_without_bank_is_most_urgent(conn: sqlite3.Connection) -> None:
+    """Bez nazwy banku (alerty, encja zgody): sesja nieaktywna, potem ta, która wygasa pierwsza."""
+    assert sessions.current(conn) is None
+    sessions.store_session(conn, SessionResponse.from_api(SESSION))  # ważna do 2027-03-30
+    sessions.store_session(conn, _session_b(), valid_until=datetime(2027, 1, 1, tzinfo=UTC))
+    worst = sessions.current(conn)
+    assert worst is not None and worst.aspsp == BANK_B
+    sessions.set_status(conn, SESSION["session_id"], "EXPIRED")
+    worst = sessions.current(conn)
+    assert worst is not None and worst.aspsp == "Mock ASPSP" and not worst.active
+
+
+def test_accounts_remember_their_bank(conn: sqlite3.Connection) -> None:
+    sessions.store_session(conn, SessionResponse.from_api(SESSION))
+    sessions.store_session(conn, _session_b())
+    rows = conn.execute(
+        "SELECT a.bank, count(*) AS n FROM account a GROUP BY a.bank ORDER BY a.bank"
+    ).fetchall()
+    assert [(r["bank"], r["n"]) for r in rows] == [(BANK_B, 1), ("Mock ASPSP", 2)]
+
+
+def test_legacy_database_is_migrated_without_loss(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Produkcja: jedna sesja is_current=1 i konta bez kolumny banku — migracja dopisuje bank."""
+    conn = db.connect(":memory:")
+    sessions.store_session(conn, SessionResponse.from_api(SESSION))
+    conn.execute("ALTER TABLE account DROP COLUMN bank")  # stan sprzed migracji 029
+    conn.execute("PRAGMA user_version = 28")
+    assert db.migrate(conn) == db.schema_version(conn) >= 29
+    banks = {r[0] for r in conn.execute("SELECT bank FROM account")}
+    assert banks == {"Mock ASPSP"}
+    legacy = sessions.current(conn)
+    assert legacy is not None and legacy.session_id == SESSION["session_id"] and legacy.active
+    assert sessions.current(conn, "Mock ASPSP") == legacy
+
+
+@respx.mock
+async def test_refresh_status_all_banks(conn: sqlite3.Connection, eb: EBClient) -> None:
+    sessions.store_session(conn, SessionResponse.from_api(SESSION))
+    sessions.store_session(conn, _session_b())
+    respx.get(f"{BASE}/sessions/{SESSION['session_id']}").mock(return_value=_info())
+    respx.get(f"{BASE}/sessions/s-b").mock(return_value=_info("REVOKED"))
+    await sessions.refresh_status(conn, eb)
+    cur_a, cur_b = sessions.current(conn, "Mock ASPSP"), sessions.current(conn, BANK_B)
+    assert cur_a is not None and cur_a.active
+    assert cur_b is not None and cur_b.status == "REVOKED"
+
+
+@respx.mock
+async def test_auth_flow_second_bank_keeps_first(conn: sqlite3.Connection, eb: EBClient) -> None:
+    sessions.store_session(conn, SessionResponse.from_api(SESSION))
+    respx.get(f"{BASE}/aspsps").mock(
+        return_value=httpx.Response(
+            200,
+            json={"aspsps": [{"name": BANK_B, "country": "PL", "maximum_consent_validity": 1}]},
+        )
+    )
+    respx.get(f"{BASE}/application").mock(
+        return_value=httpx.Response(200, json={"redirect_urls": ["https://example.org/cb"]})
+    )
+    respx.post(f"{BASE}/auth").mock(
+        return_value=httpx.Response(200, json={"url": "https://bank-b.test/sca"})
+    )
+    await sessions.start_auth(conn, eb, aspsp_name=BANK_B)
+    pending = sessions.pending_auth(conn)
+    assert pending is not None and pending["aspsp"] == BANK_B
+    respx.post(f"{BASE}/sessions").mock(return_value=httpx.Response(200, json=_session_b().raw))
+    query = urlencode({"code": "c-2", "state": pending["state"]})
+    record = await sessions.finish_auth(conn, eb, f"https://example.org/cb?{query}")
+    assert record.aspsp == BANK_B
+    first = sessions.current(conn, "Mock ASPSP")
+    assert first is not None and first.session_id == SESSION["session_id"]

@@ -152,3 +152,20 @@ def test_ai_options(tmp_path: Path) -> None:
     assert on.ai_enabled and on.ai_base_url == "http://r:3003/v1" and on.ai_daily_calls == 7
     with pytest.raises(SettingsError):
         load_settings({"BUDGET_OPTIONS_PATH": str(_options(tmp_path, ai_daily_calls=501))})
+
+
+def test_banks_default_is_single_aspsp_name(tmp_path: Path) -> None:
+    """Zachowanie sprzed M32: bez `aspsp_names` panel zna tylko bank z `aspsp_name`."""
+    s = load_settings({"BUDGET_OPTIONS_PATH": str(_options(tmp_path))})
+    assert s.aspsp_names == () and s.banks == ("Bank Millennium",)
+
+
+def test_banks_extra_list_and_env_csv(tmp_path: Path) -> None:
+    s = load_settings(
+        {"BUDGET_OPTIONS_PATH": str(_options(tmp_path, aspsp_names=["VeloBank", " ", "VeloBank"]))}
+    )
+    assert s.banks == ("Bank Millennium", "VeloBank")
+    env = load_settings(
+        {"BUDGET_OPTIONS_PATH": "/nonexistent", "BUDGET_ASPSP_NAMES": "VeloBank, Bank Millennium"}
+    )
+    assert env.banks == ("Bank Millennium", "VeloBank")

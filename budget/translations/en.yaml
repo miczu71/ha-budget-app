@@ -11,6 +11,9 @@ configuration:
   aspsp_name:
     name: Bank
     description: Bank name in Enable Banking (default when connecting).
+  aspsp_names:
+    name: Additional banks
+    description: List of banks (Enable Banking names) you can connect a session with, e.g. VeloBank. The bank from the “Bank” option is always listed. Each bank has its own SCA consent.
   aspsp_country:
     name: Bank country
     description: ISO 3166 country code (e.g. PL).

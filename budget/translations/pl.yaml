@@ -11,6 +11,9 @@ configuration:
   aspsp_name:
     name: Bank
     description: Nazwa banku w Enable Banking (domyślna przy łączeniu).
+  aspsp_names:
+    name: Dodatkowe banki
+    description: Lista banków (nazwy z Enable Banking), z którymi można połączyć sesję, np. VeloBank. Bank z opcji „Bank” jest zawsze na liście. Każdy bank ma własną zgodę SCA.
   aspsp_country:
     name: Kraj banku
     description: Kod kraju (ISO 3166, np. PL).
