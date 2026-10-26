@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.63.0
+
+**M32: rotacja środków między kontami promocyjnymi (Velobank + Millennium)** — `docs/PLAN_M32.md`.
+- Wielobankowość: drugie połączenie PSD2 (Velobank) obok Millennium, osobna zgoda i stan synchronizacji per bank.
+- Licznik transakcji bezgotówkowych (karta, BLIK) w miesiącu dla edycji promocji wpisanej ręcznie: „zrób jeszcze N”,
+  dzwonek i powiadomienia 14/7/2 dni przed końcem oraz w ostatnim tygodniu miesiąca; bez przypomnień przed startem edycji.
+- Monitor regulaminu Velobanku: codzienny odczyt, nowa edycja jako karta do wglądu, wstrzymanie przy nieczytelnym
+  regulaminie lub błędzie odczytu (karta błędu po kilku dniach).
+- Rekomendacja „dokąd przelać” po końcu promocji (kwota, konto, zysk netto, „najpóźniej do”); Budżet niczego nie przelewa.
+  Saldo starsze niż 7 dni nie jest podstawą rekomendacji.
+- Prognoza „do wypłaty” liczona bez Flexu — tylko znane i zaplanowane pozycje; usunięte kolumna Flex i atrybut `flex_rest`
+  encji prognozy.
+- Walidacja banku przy wpisywaniu edycji promocji (literówka nie daje już fałszywych przypomnień).
+
 ## 0.62.3
 
 **Monitor promocji Profit czyta regulamin ed. 78** — bank zmienił zdanie „Okres promocyjny trwa przez 91 dni” na „trwa 91 dni”,
