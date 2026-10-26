@@ -27,8 +27,8 @@ def router(panel: Panel) -> APIRouter:
         accts = savings.all_accounts(conn)
         watch = promo_watch.load(conn) if accts else None
         banks: dict[int, str | None] = {a.id: savings.ledger_bank(conn, a) for a in accts}
-        velo = promo_watch_velo.rates(conn) if accts else None
         velo_watch = promo_watch_velo.load(conn) if accts else None
+        velo = None if velo_watch is None or velo_watch.held else velo_watch.offer
         velo_track = promo_track.active_for_bank(conn, "velo", today) if accts else None
         promos: dict[int, tuple[promo_track.Track | None, float | None]] = {}
         for a in accts:  # promocje innych banków (Millennium ma własny formularz Profit)

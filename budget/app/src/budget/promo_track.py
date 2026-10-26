@@ -161,7 +161,11 @@ def _ledger_bank(bank: str | None) -> str | None:
 
 
 def _progress(
-    conn: sqlite3.Connection, r: sqlite3.Row, t: sqlite3.Row, today: date
+    conn: sqlite3.Connection,
+    r: sqlite3.Row,
+    t: sqlite3.Row,
+    today: date,
+    savings: set[int],  # przelew z własnych oszczędności to nie wpływ
 ) -> Decimal | None:
     if not t["ledger"] or r["kind"] not in ("payments", "income", "cashless"):
         return None
@@ -172,7 +176,6 @@ def _progress(
     if r["kind"] == "payments":
         return Decimal(card.count_purchases(conn, start, end, _ledger_bank(t["bank"])))
     placeholders = ", ".join("?" * len(INCOME_KINDS))
-    savings = ledger.savings_transfer_ids(conn)  # przelew z własnych oszczędności to nie wpływ
     return money.total(
         row["amount"]
         for row in conn.execute(
@@ -186,7 +189,7 @@ def _progress(
     )
 
 
-def _track(conn: sqlite3.Connection, t: sqlite3.Row, today: date) -> Track:
+def _track(conn: sqlite3.Connection, t: sqlite3.Row, today: date, savings: set[int]) -> Track:
     conds = tuple(
         Condition(
             r["id"],
@@ -195,7 +198,7 @@ def _track(conn: sqlite3.Connection, t: sqlite3.Row, today: date) -> Track:
             Decimal(r["target"]) if r["target"] is not None else None,
             bool(r["done"]),
             bool(r["proposed"]),
-            _progress(conn, r, t, today),
+            _progress(conn, r, t, today, savings),
         )
         for r in conn.execute(
             "SELECT * FROM promo_condition WHERE track_id = ? ORDER BY id", (t["id"],)
@@ -222,8 +225,9 @@ def tracks(
     `today` wyznacza miesiąc liczników miesięcznych (domyślnie dzień systemowy)."""
     today = today or date.today()
     where, args = ("WHERE status = ?", (status,)) if status else ("", ())
+    savings = ledger.savings_transfer_ids(conn)  # raz na wywołanie, nie na każdy warunek
     return [
-        _track(conn, t, today)
+        _track(conn, t, today, savings)
         for t in conn.execute(
             f"SELECT * FROM promo_track {where} ORDER BY end_date, id", args
         ).fetchall()
@@ -238,7 +242,7 @@ def active_for_bank(conn: sqlite3.Connection, bank_like: str, today: date) -> Tr
         "AND start_date <= ? AND end_date >= ? ORDER BY end_date DESC, id DESC LIMIT 1",
         (bank_like, today.isoformat(), today.isoformat()),
     ).fetchone()
-    return _track(conn, row, today) if row else None
+    return _track(conn, row, today, ledger.savings_transfer_ids(conn)) if row else None
 
 
 def start(conn: sqlite3.Connection, offer_id: int, today: date) -> int:
