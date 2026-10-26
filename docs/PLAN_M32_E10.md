@@ -109,6 +109,7 @@ z kategorią „Przelewy na oszczędności” (źródło „typ”), netto ≈ �
   czyste. NIE RÓB: migracji, `summary.py`, szablonów, wersji/CHANGELOG, commitów.
 
 ### E12 — Rotacja według edycji usera (sonnet-worker, „ryzyko”: pieniądze)
+**STATUS: ZROBIONE 2026-10-26, commit 8bddc07** — verifier ACCEPT; pytest 1283 passed, ruff czysty, mypy 1 błąd baseline. Dodano `Recommendation.from_user`.
 - `promo_track`: funkcja `active_for_bank(conn, bank_like, today) -> Track | None`. Aktywna edycja (status `active`,
   `start ≤ today ≤ end`) banku pasującego do wzorca (`instr(lower(bank), …)`, jak `card.count_purchases`); przy kilku
   wybiera najpóźniejszy `end`.
