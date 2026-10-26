@@ -45,6 +45,33 @@ Najpierw: ten plan → `docs/PLAN_M32_E6.md`, wpis w `docs/ROADMAP.md` (M32 cd.,
 - DONE: powiązane konto → `total` = saldo API, odsetki osobno; Majątek bez dubla; kafelek Oszczędności = saldo API +
   skarbonki + Oszczędności Wspólne; niepowiązane i testy Profit bez zmian. Rollback: `git revert`.
 
+#### E7 — Wykonawca (sonnet-worker, jedna paczka)
+Repo/worktree: `wt new /config/addons/ha-budget-app m32-e7`. Katalog testów: `budget/app`. Skille: `tdd`, `addon-conventions`.
+- `src/budget/savings.py`: `linked_ledger_id(conn, acc) -> int | None` (konto z tabeli `account`, którego `iban` bez
+  prefiksu `PL` == `acc.account_number`; `iban` może być z `PL` lub bez, porównuj po `removeprefix("PL")`).
+  `Interest` dostaje pola `pending: Decimal = ZERO` (odsetki „do dopisania”, NIE w `total`) i `as_of: date | None = None`
+  (data salda z banku; None = saldo ręczne). `estimate()`: gdy powiązane konto ma migawkę (ITAV, potem ITBD — jak
+  `forecast.read_balances`, przez `ledger.latest_balances`) → `Interest(balance=saldo API, earned=ZERO, accrued=ZERO,
+  pending=net(suma daily od 1. dnia bieżącego miesiąca do today po saldzie API), as_of=data fetched_at)`; brak migawki
+  → dotychczasowa ścieżka ręczna (bez zmian). Pozostałe wywołania `estimate` (invest, ask/sources, routes_piggy,
+  networth) dostają to za darmo — nie zmieniaj ich.
+- `src/budget/networth.py::_accounts`: pomiń konto z księgi, jeśli jakieś niearchiwalne
+  `savings.all_accounts` jest do niego powiązane (`linked_ledger_id`), ale TYLKO gdy powiązanie ma migawkę salda
+  (inaczej konto nie byłoby liczone wcale). Dla `past=True` (wykres historii) nie zmieniaj zachowania poza tym pominięciem.
+- `src/budget/rotation.py::velo_balance`: zamiast `kind='savings'` sumuj saldo kont księgi powiązanych z kontami
+  oszczędności (`savings.all_accounts` → `linked_ledger_id`), z bankiem `LIKE VELO_BANK` i migawką ≤ `STALE_DAYS`.
+  Konto Velo bez powiązania — nie liczy się.
+- `src/budget/web/templates/piggy.html` (blok konta ok. l.101 i formularz l.75–76): dla `est.as_of` ustawionego:
+  „Saldo z banku, stan z dd.mm” (filtr `pldate`) zamiast „od … : opening_balance”, wiersz „Odsetki do dopisania ok. X zł”
+  z `est.pending` (gdy > 0); pola `opening_balance`/`opening_date` w formularzu edycji ukryte (zostaw ich wartości w
+  ukrytych inputach, żeby `save()` działało).
+- Testy (neutralne nazwy; wzór: `tests/test_savings.py`, `test_networth.py`, `test_rotation.py`): powiązane konto →
+  `total` = saldo API, `pending` > 0 i poza `total`; Majątek liczy Velo raz; `velo_balance` z powiązanego; niepowiązane i
+  powiązane bez migawki = dotychczasowe wyniki; trasa `/piggy` renderuje „Saldo z banku”.
+- Test: `cd budget/app && BUDGET_OPTIONS_PATH=/nonexistent .venv/bin/python -m pytest -q && .venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/mypy .`
+- DONE: jak w E7 wyżej + pytest zielony (bez nowych failów ponad 2 znane), ruff, mypy czyste.
+- NIE RÓB: migracji SQL, zmian `invest.py`/`ask/sources.py`/`routes_piggy.py`, wersji/CHANGELOG, commitów, zmian innych etapów (E8/E9), odświeżania dokumentacji.
+
 ### E8 — Hero r/r (haiku-worker)
 - `_payday_hero.html`: przy stanie OK zamiast „Starczy · zapas…” linia: „Od wypłaty dd.mm wydane X zł — o Y zł (Z%)
   mniej/więcej niż rok temu po N dniach okresu”. „Poniżej bufora”/„Zabraknie” zostają bez zmian. Linia „Najniżej dd.mm”
