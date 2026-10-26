@@ -162,6 +162,7 @@ z kategorią „Przelewy na oszczędności” (źródło „typ”), netto ≈ �
   NIE RÓB: `safe_per_day`, projekcji, `ha_publisher` (bierze `fc.balances`).
 
 ### Wydanie 0.65.0 (po E15, bez pytania)
+**STATUS: WYDANE 2026-10-26** (v0.65.0, 056b905, pytest 1296 passed, update z backupem add-onu, live OK). Nieblokujące do rozważenia: `#velo` widoczne przy każdym koncie oszczędnościowym (zawężenie wymaga decyzji — test używa konta bez powiązanego banku); `_analyze` przy każdym `tracks()`/`_load` (flaga zapisana w `txn` zamiast obliczania); `include_in_budget=0` na karcie/FX traktowane jak strona oszczędności; `ack_velo` zawsze flash „Oznaczono”; druga opinia 5/10 — BLOKUJĄCE brak.
 `simplify` → równolegle `code-review` (high, `9724031..HEAD`) + `silent-failure-hunter` + `pr-test-analyzer` +
 security (general-purpose) + druga opinia (pomiar 5/10) → poprawki BLOKUJĄCYCH → skill `release` (changelog po polsku,
 neutralne nazwy, `config.yaml` + `pyproject.toml`) → `ha_manage_updates` z backupem add-onu → E10 krok 3 → weryfikacja.
