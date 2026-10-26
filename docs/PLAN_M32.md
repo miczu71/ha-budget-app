@@ -126,10 +126,11 @@ Wykonawca:
 |---|---|---|
 | E0 | zrobione 2026-10-22 | Velobank na liście Enable Banking (beta) |
 | E1 | zmergowane 2026-10-26 (squash `53805ba`) | PR #1; review: brak blokujących |
-| E2 | gotowe, **czeka na CI i merge** | PR #3 (`m32-e2-licznik`): +557/−21, 8 plików, pytest 1201 ok / 2 faile jak na `main`, ruff czysty, mypy bez nowych błędów, +26 testów |
-| E3 | gotowe, **czeka na review i merge** | PR #2 (`m32-e3-parser`) |
-| E4 | zmergowane na `main` (6d1fc49, simplify 237eff8) | — |
-| E5 | zrobione 2026-10-26 (`f6e3181`), plan: `PLAN_M32_E5.md` | prognoza do wypłaty bez Flexu (pytest 1245 ok, ruff, mypy czyste; verifier APPROVE) |
+| E2 | zmergowane (`c683cfe`, PR #3) | licznik transakcji bezgotówkowych + powiadomienia; wydane w 0.63.0 |
+| E3 | zmergowane (`c219bf0`, PR #2) | monitor i parser regulaminu Velobanku; wydane w 0.63.0 |
+| E4 | zmergowane na `main` (6d1fc49, simplify 237eff8) | rekomendacja „dokąd przelać”; wydane w 0.63.0 |
+| E5 | zrobione 2026-10-26 (`f6e3181`), plan: `PLAN_M32_E5.md` | prognoza do wypłaty bez Flexu (pytest 1245 ok, ruff, mypy czyste; verifier APPROVE); wydane w 0.63.0 (`e9f3836`, wraz z poprawkami z review `54b151c`) |
+| E6–E9 | zrobione 2026-10-26, plan: `PLAN_M32_E6.md` | BLIK Velo + liczniki per bank, oszczędności z salda API, hero r/r, kafelek Akcje; wydane w **0.64.0** (`9724031`, tag `v0.64.0`, poprawki po review `1b89323`) |
 
 **Dwa faile na czystym `main`** (nie z E1/E2): `test_web_recurring::test_recurring_flow`, `::test_reject_proposal`.
 mypy: 75 błędów w testach, stan sprzed prac M32.
@@ -150,8 +151,14 @@ mypy: 75 błędów w testach, stan sprzed prac M32.
 - Jedyna niesprawdzona droga do kredytu: sesja ręcznie na claude.ai/code (repo `miczu71/ha-budget-app`). Test: mała sesja (np. streszczenie sekcji E4), potem sprawdzić Settings → Usage. Jeśli kredyt nie spadnie → wsparcie Anthropic.
 - Do 5.11 nie uruchamiać kolejnych agentów „remote” dla kredytu, dopóki test z claude.ai/code nie rozstrzygnie sprawy.
 
+### Weryfikacja 0.64.0 na żywo (2026-10-26, po instalacji)
+- Supervisor: add-on 0.64.0 `started`, log bez błędów; `config.yaml` i `pyproject.toml` = 0.64.0; release opublikowany (nie draft).
+- Podsumowanie: hero „Od wypłaty … o Y zł (Z%) mniej niż rok temu”, kafelki Konto/Karta/Oszczędności/Akcje, tabela „Prognoza do wypłaty” bez kolumny Flex, stopka v0.64.0; konsola bez błędów.
+- `sensor.budget_forecast_at_payday`: atrybuty bez `flex_rest`, jest `safe_per_day`.
+- Oszczędności: konto Velobanku z „Saldo z banku, stan z …”, odsetki „do dopisania” poza saldem, promocja 4,50% do 22.01.2027.
+- Inwestycje → „Promocje w toku”: renderuje się; brak śledzonej edycji Velo, więc karta rotacji i licznik nie mają jeszcze danych (nie sprawdzone na żywo).
+
 ### Następne kroki
-1. User: test sesji na claude.ai/code → wynik do tego pliku.
-2. Merge PR #3 po CI i zgodzie; review i merge PR #2.
-3. E4 (po E2+E3): w chmurze tylko jeśli test z p.1 pokaże zużycie kredytu, inaczej lokalnie wg kontraktu Wykonawca.
-4. Po E4: wydanie końcowe (`simplify` → `code-review` + `silent-failure-hunter` + security → `release` → weryfikacja na żywo); wydanie po E2 łączone z końcowym, chyba że user zdecyduje inaczej.
+1. User: test sesji na claude.ai/code (kredyt cloud 100 USD do 5.11) → wynik do tego pliku.
+2. Follow-up z review, niewykonane: `partial` a `consecutive_failures`, alerty zgód per bank (`notifications.py:32`, `ha_publisher.py:144`), `velo_new_edition` bez odrzucenia, `END_PAST_DAYS`, id `promo_cashless`, atomowość `kind`, cel rekomendacji = konto Velo w `savings`.
+3. Jeśli user doda edycję Velo w „Promocje w toku”: sprawdzić licznik, kartę rotacji i powiadomienia 14/7/2.
