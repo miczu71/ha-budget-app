@@ -118,6 +118,14 @@ async def test_ack_clears_new_edition(conn: sqlite3.Connection) -> None:
     assert not promo_watch_velo.load(conn).new_edition  # type: ignore[union-attr]
 
 
+def test_ack_ignores_offer_without_label(conn: sqlite3.Connection) -> None:
+    from budget.storage import db
+
+    db.kv_set(conn, promo_watch_velo.KEY, {"offer": {"rate": 1}})  # uszkodzony stan
+    promo_watch_velo.ack(conn)  # bez wyjątku
+    assert "acked" not in db.kv_get(conn, promo_watch_velo.KEY)
+
+
 async def test_new_edition_makes_new_card_key(conn: sqlite3.Connection) -> None:
     await fetch(conn, PAGE, now(22))
     await fetch(conn, PAGE.replace("edycja 12/2026", "edycja 1/2027"), now(23))

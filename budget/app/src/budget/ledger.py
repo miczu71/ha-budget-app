@@ -714,10 +714,11 @@ def _own(conn: sqlite3.Connection) -> _Own:
             budget.add(int(r["id"]))
         if r["iban"] is not None:
             ibans[r["iban"]] = int(r["id"])
-            if not in_budget:
+            if not in_budget and _nrb(r["iban"]):
                 savings_nrb.add(_nrb(r["iban"]))
     for r in conn.execute("SELECT account_number FROM savings_account"):
-        savings_nrb.add(_nrb(r["account_number"]))
+        if _nrb(r["account_number"]):  # pusty numer nie może dopasować „braku kontrahenta”
+            savings_nrb.add(_nrb(r["account_number"]))
     return _Own(ibans, budget, savings_nrb)
 
 

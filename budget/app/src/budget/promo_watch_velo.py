@@ -226,7 +226,7 @@ def ack(conn: sqlite3.Connection) -> None:
     """„Widziałem": bieżąca edycja przestaje być nowa. Bez odczytanej edycji nic nie robi."""
     raw = _raw(conn)
     offer = raw.get("offer")
-    if isinstance(offer, dict) and not raw.get("held"):
+    if isinstance(offer, dict) and offer.get("label") and not raw.get("held"):
         raw["acked"] = str(offer["label"])
         db.kv_set(conn, KEY, raw)
 
