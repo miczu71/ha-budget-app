@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.65.0
+
+**M32 cd. 2: Velobank jako zwykłe konto promocyjne** — `docs/PLAN_M32_E10.md`.
+- Przelewy własne: wewnętrzne (budżet↔budżet) i na oszczędności (po numerach kont) dostają kategorię „Przelewy na oszczędności”
+  zamiast wpadać do wydatków; wpływ z własnych oszczędności nie liczy się do warunku promocji.
+- Przeniesienia między wszystkimi kontami oszczędnościowymi są parowane bez „parkingu”; stopa oszczędności ich nie liczy.
+- Rotacja liczy koniec promocji z edycji wpisanej przez użytkownika (z fallbackiem do terminu z oferty).
+- Karta konta Velo w Oszczędnościach: promocja i licznik BLIK/karta zamiast formularza Profit (ten zostaje tylko dla Millennium).
+- Sekcja „Promocja Nowe środki w VeloBanku”: stawki, termin, próg i sposoby z regulaminu, „Sprawdź teraz”, „Widziałem”;
+  push i karta w dzwonku o nowej edycji (raz na edycję; pierwszy odczyt ustawia edycję bazową bez pusha).
+- Saldo „Konto” w budżecie to suma wszystkich rachunków PLN w budżecie (etykieta „Rachunki”); rachunek bez migawki jest
+  pomijany, a rachunek oznaczony jako poza budżetem nie daje już salda.
+
 ## 0.64.0
 
 **M32 cd.: VeloBank w Budżecie** — `docs/PLAN_M32_E6.md`.
