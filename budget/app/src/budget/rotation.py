@@ -12,13 +12,14 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from budget import ledger, money, promo_watch_velo, savings
+from budget import ledger, money, promo_track, promo_watch_velo, savings
 
 WINDOW_DAYS = 14  # rekomendacja w tylu ostatnich dniach promocji
 MIN_GAIN = Decimal(1)  # zysk netto poniżej tej kwoty (zł) nie jest wart przelewu
 DEFAULT_HORIZON = 30  # dni, gdy konto docelowe nie ma przyszłego końca promocji
 STALE_DAYS = 7  # starsza migawka salda (np. wygasła zgoda) nie jest podstawą przelewu
 VELO_BANK = "%velo%"  # nazwa banku (ASPSP z Enable Banking) na koncie w księdze, bez wielkości
+VELO_NAME = "velo"  # wzorzec nazwy banku edycji użytkownika (promo_track), bez wielkości liter
 BALANCE_TYPES = ("ITAV", "ITBD", "CLAV", "CLBD")  # preferowane typy salda
 
 
@@ -32,11 +33,17 @@ class Recommendation:
     rate: Decimal  # stopa efektywna konta docelowego (% rocznie)
     base_rate: Decimal  # stopa bazowa Velobanku po promocji
     horizon: int  # dni, za które policzono zysk
+    from_user: bool = False  # koniec promocji z edycji wpisanej przez użytkownika
 
     @property
     def text(self) -> str:
+        ends = (
+            f"kończy się {self.ends_by:%d.%m}"
+            if self.from_user
+            else f"kończy się najpóźniej do {self.ends_by:%d.%m}"
+        )
         return (
-            f"Promocja Velobanku kończy się najpóźniej do {self.ends_by:%d.%m}. "
+            f"Promocja Velobanku {ends}. "
             f"Przelej {money.pl(self.amount, 'PLN')}"
             f" na {self.account} ({money.pl(self.rate)}% zamiast {money.pl(self.base_rate)}%) — "
             f"zysk netto ok. {money.pl(self.gain, 'PLN')} w {self.horizon} dni. "
@@ -68,9 +75,13 @@ def velo_balance(conn: sqlite3.Connection, today: date) -> Decimal:
 
 
 def _candidate(
-    acc: savings.Account, balance: Decimal, offer: promo_watch_velo.Offer, today: date
+    acc: savings.Account,
+    balance: Decimal,
+    offer: promo_watch_velo.Offer,
+    today: date,
+    ends: date,
+    from_user: bool = False,
 ) -> Recommendation | None:
-    ends = offer.ends_by()
     base = Decimal(str(offer.base_rate))
     promo = acc.promo_days_left(ends) is not None  # czy stopa promocyjna dotrwa do przelewu
     rate = acc.promo_rate if promo else acc.base_rate
@@ -89,7 +100,9 @@ def _candidate(
     gain = savings.net(gross)
     if gain < MIN_GAIN:
         return None
-    return Recommendation(amount, acc.name, gain, (ends - today).days, ends, rate, base, horizon)
+    return Recommendation(
+        amount, acc.name, gain, (ends - today).days, ends, rate, base, horizon, from_user
+    )
 
 
 def recommend(conn: sqlite3.Connection, today: date) -> Recommendation | None:
@@ -98,11 +111,16 @@ def recommend(conn: sqlite3.Connection, today: date) -> Recommendation | None:
     offer = promo_watch_velo.rates(conn)
     if offer is None:
         return None
-    if not 0 <= (offer.ends_by() - today).days <= WINDOW_DAYS:
+    edition = promo_track.active_for_bank(conn, VELO_NAME, today)
+    ends = edition.end if edition else offer.ends_by()
+    if not 0 <= (ends - today).days <= WINDOW_DAYS:
         return None
     balance = velo_balance(conn, today)
     if balance <= 0:
         return None
-    found = (_candidate(a, balance, offer, today) for a in savings.all_accounts(conn))
+    found = (
+        _candidate(a, balance, offer, today, ends, edition is not None)
+        for a in savings.all_accounts(conn)
+    )
     best = [r for r in found if r is not None]
     return max(best, key=lambda r: r.gain, default=None)

@@ -230,6 +230,17 @@ def tracks(
     ]
 
 
+def active_for_bank(conn: sqlite3.Connection, bank_like: str, today: date) -> Track | None:
+    """Aktywna edycja banku, którego nazwa zawiera `bank_like` (bez wielkości liter), z `today`
+    w okresie; przy kilku ta o najpóźniejszym końcu."""
+    row = conn.execute(
+        "SELECT * FROM promo_track WHERE status = 'active' AND instr(lower(bank), lower(?)) > 0 "
+        "AND start_date <= ? AND end_date >= ? ORDER BY end_date DESC, id DESC LIMIT 1",
+        (bank_like, today.isoformat(), today.isoformat()),
+    ).fetchone()
+    return _track(conn, row, today) if row else None
+
+
 def start(conn: sqlite3.Connection, offer_id: int, today: date) -> int:
     """„Skorzystaj”: śledzenie z oferty (okres = długość promocji, domyślnie 3 mies.)."""
     o = conn.execute(

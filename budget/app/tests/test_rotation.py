@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from budget import inbox, promo_watch_velo, rotation, savings, summary
+from budget import inbox, promo_track, promo_watch_velo, rotation, savings, summary
 from budget.snapshot import Snapshot
 from budget.storage import db
 
@@ -262,3 +262,26 @@ def test_stale_velo_balance_gives_none(setup: sqlite3.Connection) -> None:
 def test_text_says_latest_end(setup: sqlite3.Connection) -> None:
     rec = rotation.recommend(setup, TODAY)
     assert rec is not None and "najpóźniej do 12.02" in rec.text
+
+
+# --- edycja wpisana przez użytkownika (E12) --------------------------------------------------
+
+
+def test_user_edition_sets_end_of_promotion(setup: sqlite3.Connection) -> None:
+    promo_track.start_edition(
+        setup, "VeloBank", "Edycja X", date(2026, 10, 14), date(2027, 1, 13), 5
+    )
+    rec = rotation.recommend(setup, date(2026, 12, 30))
+    assert rec is not None and rec.days_left == 14 and rec.ends_by == date(2027, 1, 13)
+    assert rec.from_user and "kończy się 13.01." in rec.text and "najpóźniej" not in rec.text
+    assert rotation.recommend(setup, date(2026, 12, 29)) is None  # 15 dni
+
+
+def test_inactive_user_edition_falls_back_to_offer(setup: sqlite3.Connection) -> None:
+    promo_track.start_edition(
+        setup, "VeloBank", "Edycja X", date(2026, 10, 14), date(2027, 1, 13), 5
+    )
+    assert rotation.recommend(setup, date(2027, 2, 13)) is None  # po końcu edycji i oferty
+    rec = rotation.recommend(setup, TODAY)  # edycja minęła -> koniec z oferty
+    assert rec is not None and not rec.from_user and rec.ends_by == ENDS
+    assert "najpóźniej do 12.02" in rec.text

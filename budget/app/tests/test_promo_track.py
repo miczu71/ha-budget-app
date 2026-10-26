@@ -313,3 +313,27 @@ def test_income_ignores_inflow_from_own_savings(conn: sqlite3.Connection) -> Non
     )
     add(conn, "300.00", "transfer_in", day="2026-10-26")
     assert promo_track.tracks(conn)[0].conditions[0].progress == D("300.00")
+
+
+def _edition(c: sqlite3.Connection, bank: str, start: str, end: str, status: str = "active") -> int:
+    tid = promo_track.start_edition(
+        c, bank, "Edycja", date.fromisoformat(start), date.fromisoformat(end), 5
+    )
+    c.execute("UPDATE promo_track SET status = ? WHERE id = ?", (status, tid))
+    return tid
+
+
+def test_active_for_bank_matches_case_insensitive_and_picks_latest_end(
+    conn: sqlite3.Connection,
+) -> None:
+    _edition(conn, "Bank Millennium", "2026-10-01", "2026-11-30")
+    late = _edition(conn, "Bank Millennium", "2026-10-10", "2027-01-31")
+    assert promo_track.active_for_bank(conn, "MILLEN", TODAY).id == late  # type: ignore[union-attr]
+    assert promo_track.active_for_bank(conn, "velo", TODAY) is None
+
+
+def test_active_for_bank_skips_inactive_and_out_of_range(conn: sqlite3.Connection) -> None:
+    _edition(conn, "Bank Millennium", "2026-10-01", "2026-12-31", "done")
+    _edition(conn, "Bank Millennium", "2026-10-25", "2027-01-31")  # jeszcze się nie zaczęła
+    _edition(conn, "Bank Millennium", "2026-08-01", "2026-10-18")  # już się skończyła
+    assert promo_track.active_for_bank(conn, "millennium", TODAY) is None
