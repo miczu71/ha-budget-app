@@ -52,6 +52,7 @@ Pierwszy krok implementacji: ten plan → `docs/PLAN_M32_E10.md` + wiersz w `doc
    Cofnięcie: ustawić z powrotem „Oszczędności Wspólne”.
 
 ### E10b — Automatyczne przelewy własne: wewnętrzne / na oszczędności (sonnet-worker, „ryzyko”: pieniądze)
+**STATUS: ZROBIONE 2026-10-26, commit bee794c** — verifier ACCEPT; pytest 1277 passed (+8), ruff czysty, mypy 1 błąd baseline (`routes_home.py:121`). Do sprawdzenia na żywo po wydaniu: 14.10 i 22.10 oraz `include_in_budget=1` karty (spłata karty).
 Cel add-onu: budżet pokazuje, ile wydaję i ile odkładam. Przesunięcie między rachunkami „w budżecie” to nic
 (wewnętrzne). Wyjście pieniędzy do oszczędności to oszczędzanie, a powrót z oszczędności to jego odwrócenie; oba
 mają być widoczne w sekcji „Oszczędności”, nie znikać i nie udawać przychodu.
