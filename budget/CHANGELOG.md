@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.66.0
+
+**M32: alerty bankowe per bank + M14 E2c** — `docs/PLAN_M32_M14_E2c.md`.
+- Alerty „Zgoda nieaktywna”, „Zgoda wygasa” i „Nieudane synchronizacje” są osobne dla każdego banku i podają jego nazwę
+  (dzwonek, powiadomienia HA); licznik porażek liczy się per bank (błąd, limit, wygasła sesja), ręczna synchronizacja
+  jednego banku nie zeruje liczników pozostałych. Po aktualizacji stare alerty bez banku zamkną się, a aktywne przyjdą ponownie.
+- Encje: `sensor.budget_consent_days_left` ma atrybut `banks` (dni, status, termin każdej zgody), `binary_sensor.budget_sync_problem`
+  — `bank_failures`; problem świeci także przy nieaktywnej zgodzie dowolnego banku.
+- Zapis konta (nazwa, „w budżecie”, rodzaj) jednym zapytaniem.
+- Status: podglądy podsumowań (tydzień, miesiąc) liczone raz do pierwszego zapisu w bazie; kroki `s_weekly`/`s_monthly` w `Server-Timing`.
+
 ## 0.65.0
 
 **M32 cd. 2: Velobank jako zwykłe konto promocyjne** — `docs/PLAN_M32_E10.md`.
