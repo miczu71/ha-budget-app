@@ -68,6 +68,28 @@ def test_weekly_without_pool_and_payments(conn: sqlite3.Connection) -> None:
     ]
 
 
+def test_memo_builds_once_per_state_and_day(
+    conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[str] = []
+    real = summary.build
+
+    def counting(s: Snapshot, kind: str, today: date) -> summary.Message:
+        calls.append(kind)
+        return real(s, kind, today)
+
+    monkeypatch.setattr(summary, "build", counting)
+    memo, s, day = summary.PreviewMemo(), snap(conn), date(2026, 10, 12)
+    first = memo.get(s, summary.WEEKLY, day)
+    assert memo.get(s, summary.WEEKLY, day) is first
+    assert memo.get(s, summary.MONTHLY, day) is not first
+    assert calls == [summary.WEEKLY, summary.MONTHLY]
+    memo.get(s, summary.WEEKLY, date(2026, 10, 13))  # inny dzień
+    add(conn, "-10.00", day="2026-10-12")  # zapis do bazy
+    memo.get(s, summary.WEEKLY, date(2026, 10, 13))
+    assert calls == [summary.WEEKLY, summary.MONTHLY, summary.WEEKLY, summary.WEEKLY]
+
+
 def test_upcoming_spans_month_end_and_skips_paid(conn: sqlite3.Connection) -> None:
     serie(conn, "media", "400.00")  # termin 7. każdego miesiąca
     spend(conn, "400.00", "2026-10", "media")  # październik zapłacony

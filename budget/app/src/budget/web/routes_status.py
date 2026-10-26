@@ -88,9 +88,10 @@ def router(panel: Panel) -> APIRouter:
     def summaries_context() -> dict[str, Any]:
         today = service.now().date()
         try:
-            previews = [
-                summary.build(service.snapshot, k, today) for k in (summary.WEEKLY, summary.MONTHLY)
-            ]
+            previews = []
+            for kind in (summary.WEEKLY, summary.MONTHLY):
+                with timed(f"s_{kind}"):
+                    previews.append(service.preview_memo.get(service.snapshot, kind, today))
         except Exception:  # podgląd nie może zablokować ekranu Status
             log.exception("Podgląd podsumowań")
             previews = []

@@ -471,6 +471,24 @@ def build(snap: Snapshot, kind: str, today: date) -> Message:
     return weekly(snap, today) if kind == WEEKLY else monthly(snap, today)
 
 
+class PreviewMemo:
+    """Podglądy podsumowań (ekran Status) po sygnaturze bazy i dniu — odświeżanie Status bez
+    zapisu nie liczy ich od nowa (dwa `build` to ~370 ms na produkcji)."""
+
+    def __init__(self) -> None:
+        self._items: dict[str, tuple[tuple[object, ...], Message]] = {}
+
+    def get(self, snap: Snapshot, kind: str, today: date) -> Message:
+        key = (snap.signature(), today)
+        hit = self._items.get(kind)
+        if hit is not None and hit[0] == key:
+            return hit[1]
+        value = build(snap, kind, today)
+        if not snap.conn.in_transaction:
+            self._items[kind] = (key, value)
+        return value
+
+
 def due(
     snap: Snapshot,
     now: datetime,

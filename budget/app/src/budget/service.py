@@ -92,6 +92,7 @@ class Service:
         self.forecast_memo = forecast_mod.ForecastMemo()
         self.year_memo = year.Memo()
         self.advice_memo = invest.AdviceMemo()
+        self.preview_memo = summary.PreviewMemo()
         self.snapshot = Snapshot(conn)
         self._eb_base_url = eb_base_url or settings.eb_base_url
 
