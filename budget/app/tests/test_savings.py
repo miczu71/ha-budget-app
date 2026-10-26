@@ -256,6 +256,31 @@ def test_parking_does_not_pair_distant_or_different_amounts(conn: sqlite3.Connec
     assert sep.saved == Decimal(-500)
 
 
+def test_transfer_between_savings_accounts_pairs_without_parking(
+    conn: sqlite3.Connection,
+) -> None:
+    make(conn, name="A")
+    make(conn, name="B", account_number=PARKING)  # konto bez parking_for
+    move(conn, "2000", "2026-09-10")  # wypłata z A
+    move(conn, "-2000", "2026-09-12", number=PARKING_PL)  # wpłata na B
+    sep = next(m for m in savings.monthly_rates(conn, date(2026, 10, 12)) if m.month.month == 9)
+    assert sum(mv.transfer for mv in sep.moves) == 2 and sep.saved == Decimal(0)
+
+
+def test_movements_far_apart_or_different_amounts_between_accounts_count(
+    conn: sqlite3.Connection,
+) -> None:
+    make(conn, name="A")
+    make(conn, name="B", account_number=PARKING)
+    move(conn, "5000", "2026-09-01")  # wypłata z A
+    move(conn, "-5000", "2026-09-20", number=PARKING_PL)  # wpłata na B po >7 dniach
+    move(conn, "3000", "2026-09-22")  # wypłata z A
+    move(conn, "-2500", "2026-09-23", number=PARKING_PL)  # wpłata na B, inna kwota (>1 zł)
+    sep = next(m for m in savings.monthly_rates(conn, date(2026, 10, 12)) if m.month.month == 9)
+    assert not any(mv.transfer for mv in sep.moves)
+    assert sep.saved == Decimal(-500)
+
+
 def test_parking_pairs_each_movement_once(conn: sqlite3.Connection) -> None:
     parking(conn)
     move(conn, "1000", "2026-09-10")

@@ -339,30 +339,33 @@ class Move:
     amount: Decimal  # + wpłata na konto oszczędnościowe, − wypłata z niego
     account: str
     transfer: bool = (
-        False  # przeniesienie między kontem a jego parkingiem (poza stopą oszczędności)
+        False  # przeniesienie między kontami oszczędnościowymi (poza stopą oszczędności)
     )
 
 
-def _paired(rows: list[tuple[int, Move]], parking: dict[int, int]) -> set[int]:
-    """Indeksy `rows` (konto, ruch) sparowane jako przeniesienie: ruch na koncie nadrzędnym i
-    przeciwny ruch na jego parkingu, do `PARK_DAYS` dni od siebie i z kwotą różną o najwyżej
-    `PARK_TOLERANCE`. Każdy ruch w jednej parze."""
+def _paired(rows: list[tuple[int, Move]]) -> set[int]:
+    """Indeksy `rows` (konto, ruch) sparowane jako przeniesienie między dwoma RÓŻNYMI kontami
+    oszczędnościowymi: przeciwne kwoty, do `PARK_DAYS` dni od siebie i z kwotą różną o najwyżej
+    `PARK_TOLERANCE`. Ruchy iterowane wg daty; dla każdego niesparowanego szukany jest najbliższy
+    niesparowany ruch z innego konta. Każdy ruch w jednej parze."""
     paired: set[int] = set()
-    for park_id, parent_id in parking.items():
-        by_day = sorted(range(len(rows)), key=lambda k: rows[k][1].day)
-        parks = [k for k in by_day if rows[k][0] == park_id]
-        for i in (k for k in by_day if rows[k][0] == parent_id):
-            a = rows[i][1]
-            for j in parks:
-                b = rows[j][1]
-                if (
-                    j not in paired
-                    and abs((a.day - b.day).days) <= PARK_DAYS
-                    and a.amount * b.amount < 0
-                    and abs(a.amount + b.amount) <= PARK_TOLERANCE
-                ):
-                    paired |= {i, j}
-                    break
+    by_day = sorted(range(len(rows)), key=lambda k: rows[k][1].day)
+    for i in by_day:
+        if i in paired:
+            continue
+        a = rows[i][1]
+        cands = [
+            j
+            for j in by_day
+            if j not in paired
+            and rows[j][0] != rows[i][0]
+            and abs((a.day - rows[j][1].day).days) <= PARK_DAYS
+            and a.amount * rows[j][1].amount < 0
+            and abs(a.amount + rows[j][1].amount) <= PARK_TOLERANCE
+        ]
+        if cands:
+            j = min(cands, key=lambda k: abs((a.day - rows[k][1].day).days))
+            paired |= {i, j}
     return paired
 
 
@@ -374,8 +377,8 @@ class MonthRate:
 
     @property
     def saved(self) -> Decimal:
-        """Wpłaty na konta oszczędnościowe minus wypłaty z nich (skarbonki i przeniesienia do
-        parkingu się nie liczą)."""
+        """Wpłaty na konta oszczędnościowe minus wypłaty z nich (skarbonki i przeniesienia między
+        kontami oszczędnościowymi się nie liczą)."""
         return sum((m.amount for m in self.moves if not m.transfer), ZERO)
 
     @property
@@ -416,8 +419,7 @@ def monthly_rates(conn: sqlite3.Connection, today: date, n: int = 12) -> list[Mo
         )
         for r in transfers
     ]
-    parking = {i["id"]: i["parking_for"] for i in info.values() if i["parking_for"] is not None}
-    paired = _paired(rows, parking)
+    paired = _paired(rows)
     moves: dict[date, list[Move]] = defaultdict(list)
     for idx, (_, mv) in enumerate(rows):
         flagged = replace(mv, transfer=True) if idx in paired else mv
