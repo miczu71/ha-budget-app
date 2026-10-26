@@ -255,8 +255,12 @@ def due_reminder(cd: card.CardDue) -> Message:
 def promo_track_messages(conn: sqlite3.Connection, today: date) -> list[Message]:
     """Push przed końcem promocji z niespełnionymi warunkami, w dni `card.REMIND_DAYS` (M22 E5)."""
     out = []
-    for t in promo_track.tracks(conn, status="active"):
+    for t in promo_track.tracks(conn, status="active", today=today):
         days = t.days_left(today)
+        counter = t.cashless
+        if counter and days >= 0:
+            out += cashless_messages(t, counter, today, days)
+            continue
         if t.met or days not in card.REMIND_DAYS:
             continue
         left = [c.label for c in t.conditions if not c.met]
@@ -269,6 +273,38 @@ def promo_track_messages(conn: sqlite3.Connection, today: date) -> list[Message]
             )
         )
     return out
+
+
+def cashless_messages(
+    t: promo_track.Track, counter: promo_track.Condition, today: date, days: int
+) -> list[Message]:
+    """Push edycji z licznikiem (M32 E2): 14/7/2 dni przed końcem oraz „brakuje N” w ostatnich
+    7 dniach miesiąca; w dniu progu wychodzi tylko pierwszy z nich."""
+    if counter.met:
+        return []
+    missing = counter.missing
+    month = MONTH_NAMES[today.month - 1]
+    tail = f"w {month} brakuje {missing} transakcji bezgotówkowych (karta, BLIK)."
+    if days in promo_track.CASHLESS_REMIND_DAYS:
+        return [
+            Message(
+                f"promo_track_{t.id}",
+                f"{t.end:%Y-%m-%d}-{days}",
+                f"{t.bank} — promocja do {_short(t.end)}",
+                f"Koniec {when(days)}; {tail}",
+            )
+        ]
+    left = card.days_to_end(today)
+    if left < 7:
+        return [
+            Message(
+                f"promo_cashless_{t.id}",
+                f"{today:%Y-%m}-{left}",
+                f"{t.bank} — brakuje {missing} transakcji",
+                f"Miesiąc kończy się {when(left)}; {tail}",
+            )
+        ]
+    return []
 
 
 def promo_reminder(acc: savings.Account, days: int) -> Message:

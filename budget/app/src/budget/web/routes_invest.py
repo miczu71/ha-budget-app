@@ -45,7 +45,7 @@ def router(panel: Panel) -> APIRouter:
         adv = panel.service.advice_memo.get(snap, fc, proj, today, chosen, horizon)
         assets = invest.all_assets(conn)
         offers = invest.all_offers(conn)
-        promos = promo_track.tracks(conn)
+        promos = promo_track.tracks(conn, today=today)
         banks = invest.all_banks(conn)
         clients = [b.name for b in banks]
         return panel.render(
@@ -67,6 +67,7 @@ def router(panel: Panel) -> APIRouter:
             promo_due=promo_track.register(promos),
             tracked={t.offer_id for t in promos if t.status == "active"},
             condition_kinds=promo_track.KIND_LABELS,
+            edition_banks=promo_track.known_banks(conn),
             banks=banks,
             hidden={o.id for o in offers if invest.is_hidden(o, clients)},
             sources_checked=invest_sources.checked(conn),
@@ -198,6 +199,22 @@ def router(panel: Panel) -> APIRouter:
         if note:
             panel.flash.append(("warn", note))
         return panel.redirect(request, "/invest#promos", "Dodano promocję do śledzenia.")
+
+    @r.post("/invest/promos/edition")
+    async def add_edition(request: Request) -> Response:
+        f = await request.form()
+        try:
+            try:
+                start, end = (date.fromisoformat(str(f.get(k, ""))) for k in ("start", "end"))
+                threshold = int(str(f.get("threshold", "")))
+            except ValueError as exc:
+                raise piggy.PiggyError("Podaj daty (RRRR-MM-DD) i próg transakcji.") from exc
+            promo_track.start_edition(
+                conn, str(f.get("bank", "")), str(f.get("title", "")), start, end, threshold
+            )
+        except piggy.PiggyError as exc:
+            return panel.redirect(request, "/invest#promos", str(exc), "error")
+        return panel.redirect(request, "/invest#promos", "Dodano edycję promocji.")
 
     @r.post("/invest/promos/{track_id}/bonus")
     async def set_bonus(request: Request, track_id: int) -> Response:
