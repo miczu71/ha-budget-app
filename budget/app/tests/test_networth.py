@@ -285,3 +285,25 @@ def test_compute_reuses_given_snapshot(
     shared = Snapshot(conn)
     networth.compute(conn, DAY, snap=shared)
     assert seen == [shared]
+
+
+def test_linked_ledger_account_counted_once_as_savings(conn: sqlite3.Connection) -> None:
+    from .test_piggy import DIGITS
+    from .test_savings import bank_account
+
+    make_savings(conn, name="Profit", opening_balance="1", opening_date="2026-10-01")
+    bank_account(conn, "PL" + DIGITS, "4000.00")
+    nw = networth.compute(conn, DAY)
+    assert [c.amount for c in by_group(nw, networth.SAVINGS)] == [Decimal("4000.00")]
+    assert not [c for c in by_group(nw, networth.ACCOUNTS) if c.amount == Decimal(4000)]
+    assert nw.assets == Decimal("4000.00")
+
+
+def test_linked_without_snapshot_is_not_skipped(conn: sqlite3.Connection) -> None:
+    from .test_piggy import DIGITS
+    from .test_savings import bank_account
+
+    make_savings(conn, name="Profit", opening_balance="1000", opening_date="2026-10-01")
+    bank_account(conn, "PL" + DIGITS, None)
+    nw = networth.compute(conn, DAY)
+    assert [c.amount for c in by_group(nw, networth.SAVINGS)] == [Decimal(1000)]

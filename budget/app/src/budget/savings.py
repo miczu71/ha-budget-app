@@ -13,7 +13,7 @@ from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-from budget import money, piggy
+from budget import ledger, money, piggy
 from budget.logging_utils import mask_iban
 from budget.piggy import PiggyError
 from budget.spending import month_start, monthly_totals
@@ -252,6 +252,8 @@ class Interest:
     balance: Decimal  # saldo z odsetkami skapitalizowanymi na koniec zamkniętych miesięcy
     earned: Decimal  # odsetki netto (po Belce) skapitalizowane od daty salda
     accrued: Decimal  # odsetki netto naliczone w bieżącym miesiącu, jeszcze nieskapitalizowane
+    pending: Decimal = ZERO  # konto z banku: odsetki „do dopisania”, NIE wchodzą do `total`
+    as_of: date | None = None  # konto z banku: data salda z API (None = saldo ręczne)
 
     @property
     def total(self) -> Decimal:
@@ -277,9 +279,42 @@ def net(gross: Decimal) -> Decimal:
     return (gross * (1 - BELKA)).quantize(money.CENT, ROUND_HALF_UP)
 
 
+def linked_ledger_id(conn: sqlite3.Connection, acc: Account) -> int | None:
+    """Konto z księgi o tym samym numerze (NRB = IBAN bez `PL`); None bez powiązania."""
+    for r in conn.execute("SELECT id, iban FROM account WHERE iban IS NOT NULL ORDER BY id"):
+        if r["iban"].replace(" ", "").upper().removeprefix("PL") == acc.account_number:
+            return int(r["id"])
+    return None
+
+
+def bank_snapshot(conn: sqlite3.Connection, acc: Account) -> sqlite3.Row | None:
+    """Ostatnia migawka salda (ITAV, potem ITBD) powiązanego konta z księgi; None bez niej."""
+    ledger_id = linked_ledger_id(conn, acc)
+    if ledger_id is None:
+        return None
+    snaps = ledger.latest_balances(conn, ledger_id)
+    return snaps.get("ITAV") or snaps.get("ITBD")
+
+
+def _from_bank(acc: Account, snap: sqlite3.Row, today: date) -> Interest:
+    """Saldo z API; odsetki od ostatniej kapitalizacji (1. dnia miesiąca) tylko jako `pending`."""
+    bal = Decimal(snap["amount"])
+    day, gross = month_start(today), ZERO
+    while day <= today:
+        gross += daily(acc, bal, day)
+        day += timedelta(days=1)
+    return Interest(
+        bal, ZERO, ZERO, pending=net(gross), as_of=date.fromisoformat(snap["fetched_at"][:10])
+    )
+
+
 def estimate(conn: sqlite3.Connection, acc: Account, today: date) -> Interest:
     """Szacunek odsetek dzień po dniu od daty salda do `today`: kapitalizacja na koniec miesiąca,
-    odsetki netto (Belka). Bank liczy co do grosza inaczej — stąd ręczna korekta salda."""
+    odsetki netto (Belka). Bank liczy co do grosza inaczej — stąd ręczna korekta salda.
+    Konto powiązane z księgą (migawka salda) bierze saldo z banku, bez szacunku od `opening_*`."""
+    snap = bank_snapshot(conn, acc)
+    if snap is not None:
+        return _from_bank(acc, snap, today)
     flows: dict[date, Decimal] = defaultdict(Decimal)
     for r in movements(conn, acc):
         flows[date.fromisoformat(r["day"])] -= Decimal(r["amount"])

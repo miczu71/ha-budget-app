@@ -292,3 +292,27 @@ async def test_parking_form_and_transfer_label(client: httpx.AsyncClient, servic
         )
     page = (await client.get("/piggy")).text
     assert f"03.{month[5:]} · przeniesienie" in page and "wypłata</span>" not in page
+
+
+async def test_linked_savings_shows_bank_balance(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    service.conn.execute(
+        "INSERT INTO account (id, kind, iban, currency, bank, created_at) "
+        "VALUES (7, 'savings', 'PL11222233334444555566667777', 'PLN', 'Bank A', ?)",
+        (now_iso(),),
+    )
+    service.conn.execute(
+        "INSERT INTO balance_snapshot (account_id, balance_type, amount, currency, fetched_at) "
+        "VALUES (7, 'ITAV', '2500.00', 'PLN', '2026-10-20T06:00:00+00:00')"
+    )
+    service.conn.execute(
+        "INSERT INTO savings_account (name, account_number, opening_balance, opening_date, "
+        "base_rate, created_at) VALUES ('Konto X', '11222233334444555566667777', '1', "
+        "'2026-10-01', '3', ?)",
+        (now_iso(),),
+    )
+    page = (await client.get("/piggy")).text
+    assert "Saldo z banku, stan z 20.10" in page and "Odsetki do dopisania" in page
+    edit = (await client.get("/piggy?edit_savings=1")).text
+    assert 'type="hidden" name="opening_balance"' in edit

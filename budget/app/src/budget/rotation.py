@@ -45,16 +45,18 @@ class Recommendation:
 
 
 def velo_balance(conn: sqlite3.Connection, today: date) -> Decimal:
-    """Saldo oszczędnościowych kont Velobanku z ostatnich migawek; ZERO bez salda.
-    Migawka starsza niż `STALE_DAYS` dni nie liczy się.
+    """Saldo kont Velobanku powiązanych z kontami oszczędnościowymi (po numerze) z ostatnich
+    migawek; ZERO bez salda. Migawka starsza niż `STALE_DAYS` dni nie liczy się.
 
-    Tylko `savings`: ROR z wpływami to środki na bieżące wydatki, nie do przelania.
+    Tylko powiązane z kontem oszczędnościowym: ROR z wpływami to środki na bieżące wydatki,
+    nie do przelania.
     """
+    linked = {savings.linked_ledger_id(conn, a) for a in savings.all_accounts(conn)} - {None}
     total = money.ZERO
-    rows = conn.execute(
-        "SELECT id FROM account WHERE bank LIKE ? AND kind = 'savings'", (VELO_BANK,)
-    ).fetchall()
+    rows = conn.execute("SELECT id FROM account WHERE bank LIKE ?", (VELO_BANK,)).fetchall()
     for row in rows:
+        if row["id"] not in linked:
+            continue
         snaps = ledger.latest_balances(conn, row["id"])
         kind = next((t for t in BALANCE_TYPES if t in snaps), None)
         if kind is None:

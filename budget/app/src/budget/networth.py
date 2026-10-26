@@ -122,7 +122,16 @@ def _accounts(conn: sqlite3.Connection, day: date, past: bool) -> list[Component
     rates = fx.Rates(conn)
     out: list[Component] = []
     rows = conn.execute("SELECT * FROM account ORDER BY id").fetchall()
+    # konto liczone raz — jako oszczędność (gdy powiązanie ma migawkę salda)
+    as_savings = {
+        lid
+        for a in savings.all_accounts(conn)
+        if savings.bank_snapshot(conn, a) is not None
+        and (lid := savings.linked_ledger_id(conn, a)) is not None
+    }
     for r in rows:
+        if r["id"] in as_savings:
+            continue
         name = r["display_name"] or r["product"] or f"Konto {r['id']}"
         if r["kind"] == "card":
             debt = ledger.latest_balances(conn, r["id"]).get("ITBD")

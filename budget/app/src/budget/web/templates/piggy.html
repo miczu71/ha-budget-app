@@ -66,14 +66,15 @@
 {% endif %}
 
 {% macro savings_form(a=None) %}
+{% set ns = namespace(linked=false) %}{% for acc, e in accounts %}{% if a and acc.id == a.id and e.as_of %}{% set ns.linked = true %}{% endif %}{% endfor %}
 <form class="rule-form piggy-form" method="post" action="{{ base }}/savings{{ '/' ~ a.id if a }}" hx-boost="false">
   <div class="inline">
     <label>Nazwa<input name="name" value="{{ a.name if a }}" maxlength="40" required placeholder="np. Konto oszczędnościowe"></label>
     <label>Numer konta<input name="account_number" inputmode="numeric" autocomplete="off" {% if a %}placeholder="{{ a.masked }} — bez zmiany"{% else %}required placeholder="26 cyfr"{% endif %}></label>
   </div>
   <div class="inline">
-    <label>Saldo<input name="opening_balance" inputmode="decimal" size="10" value="{{ a.opening_balance if a }}" required placeholder="z aplikacji banku"></label>
-    <label>Na dzień<input type="date" name="opening_date" value="{{ (a.opening_date if a else today).isoformat() }}" required></label>
+    {% if ns.linked %}<input type="hidden" name="opening_balance" value="{{ a.opening_balance }}"><input type="hidden" name="opening_date" value="{{ a.opening_date.isoformat() }}"><p class="small muted">Saldo pobiera się z banku (konto połączone po numerze).</p>{% else %}<label>Saldo<input name="opening_balance" inputmode="decimal" size="10" value="{{ a.opening_balance if a }}" required placeholder="z aplikacji banku"></label>
+    <label>Na dzień<input type="date" name="opening_date" value="{{ (a.opening_date if a else today).isoformat() }}" required></label>{% endif %}
   </div>
   <div class="inline">
     <label>Stopa bazowa (% rocznie)<input name="base_rate" inputmode="decimal" size="6" value="{{ a.base_rate if a and a.base_rate }}" placeholder="np. 3"></label>
@@ -98,7 +99,8 @@
 <section class="card piggy" id="savings-{{ a.id }}">
   <h2>{{ a.name }} <span class="small muted">{{ a.masked }}</span></h2>
   <div class="stats">
-    <div class="stat"><span class="stat-label">Saldo</span><span class="stat-value">{{ est.total | money("PLN") }}</span><span class="small muted">od {{ a.opening_date.isoformat() | pldate }}: {{ a.opening_balance | money("PLN") }}</span></div>
+    <div class="stat"><span class="stat-label">Saldo</span><span class="stat-value">{{ est.total | money("PLN") }}</span>{% if est.as_of %}<span class="small muted">Saldo z banku, stan z {{ est.as_of.isoformat() | pldate }}</span>{% else %}<span class="small muted">od {{ a.opening_date.isoformat() | pldate }}: {{ a.opening_balance | money("PLN") }}</span>{% endif %}</div>
+    {% if est.as_of and est.pending > 0 %}<div class="stat"><span class="stat-label">Odsetki do dopisania</span><span class="stat-value">ok. {{ est.pending | money("PLN") }}</span><span class="small muted">od 1. dnia miesiąca, netto; poza saldem</span></div>{% endif %}
     {% if a.base_rate is not none or a.promo_rate is not none %}<div class="stat"><span class="stat-label">Odsetki (szac., netto)</span><span class="stat-value">{{ est.interest | money("PLN") }}</span><span class="small muted">po Belce 19%, kapitalizacja co miesiąc</span></div>{% endif %}
     {% if a.promo_rate is not none and a.promo_until %}<div class="stat"><span class="stat-label">Promocja</span><span class="stat-value">{{ a.promo_rate }}%</span><span class="small {{ 'warn-text' if a.promo_until < today else 'muted' }}">{% if a.promo_until < today %}skończyła się {{ a.promo_until.isoformat() | pldate }}{% else %}do {{ a.promo_until.isoformat() | pldate }}{% if a.promo_limit %}, limit {{ a.promo_limit | money("PLN") }}{% endif %}{% endif %}</span></div>{% endif %}
   </div>

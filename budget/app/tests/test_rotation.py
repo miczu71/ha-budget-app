@@ -43,8 +43,9 @@ def watch(
 
 def velo_account(c: sqlite3.Connection, balance: str | None = "50000.00") -> None:
     c.execute(
-        "INSERT INTO account (id, kind, currency, created_at, bank) "
-        "VALUES (?, 'savings', 'PLN', '2026-01-01T00:00:00', 'VeloBank')",
+        "INSERT INTO account (id, kind, iban, currency, created_at, bank) "
+        "VALUES (?, 'savings', 'PL11112222333344445555666677', 'PLN', "
+        "'2026-01-01T00:00:00', 'VeloBank')",  # numer = domyślne konto z `target`
         (VELO,),
     )
     if balance is not None:
@@ -190,6 +191,14 @@ def test_velo_current_account_is_not_counted(setup: sqlite3.Connection) -> None:
     )
     rec = rotation.recommend(setup, TODAY)
     assert rec is not None and rec.amount == Decimal("50000.00")
+
+
+def test_velo_balance_needs_link_to_savings_account(conn: sqlite3.Connection) -> None:
+    """Konto Velo bez powiązanego konta oszczędnościowego nie liczy się, nawet jako `savings`."""
+    velo_account(conn)
+    assert rotation.velo_balance(conn, TODAY) == 0
+    target(conn)
+    assert rotation.velo_balance(conn, TODAY) == Decimal("50000.00")
 
 
 # --- dzwonek i powiadomienia -----------------------------------------------------------------

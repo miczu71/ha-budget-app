@@ -263,3 +263,58 @@ def test_parking_pairs_each_movement_once(conn: sqlite3.Connection) -> None:
     move(conn, "-1000", "2026-09-12", number=PARKING_PL)
     sep = next(m for m in savings.monthly_rates(conn, date(2026, 10, 12)) if m.month.month == 9)
     assert sum(mv.transfer for mv in sep.moves) == 2 and sep.saved == Decimal(-1000)
+
+
+# --- konto powiązane z księgą po numerze (M32 E7) ---------------------------------------------
+
+
+def bank_account(
+    c: sqlite3.Connection, iban: str | None, amount: str | None, kind: str = "ITAV"
+) -> int:
+    cur = c.execute(
+        "INSERT INTO account (kind, iban, currency, bank, created_at) "
+        "VALUES ('savings', ?, 'PLN', 'Bank A', '2026-01-01')",
+        (iban,),
+    )
+    aid = int(cur.lastrowid or 0)
+    if amount is not None:
+        c.execute(
+            "INSERT INTO balance_snapshot (account_id, balance_type, amount, currency, "
+            "fetched_at) VALUES (?, ?, ?, 'PLN', '2026-10-20T06:00:00+00:00')",
+            (aid, kind, amount),
+        )
+    return aid
+
+
+def test_linked_account_uses_api_balance_and_pending_interest(conn: sqlite3.Connection) -> None:
+    acc = savings.get(conn, make(conn, base_rate="3", opening_balance="1"))
+    move(conn, "-300", "2026-10-05")  # przelew po dacie salda — ignorowany przy powiązaniu
+    aid = bank_account(conn, "PL" + DIGITS, "10000.00")
+    assert savings.linked_ledger_id(conn, acc) == aid
+    est = savings.estimate(conn, acc, date(2026, 10, 20))
+    assert est.total == est.balance == Decimal("10000.00") and est.accrued == 0
+    assert est.pending > 0 and est.interest == 0
+    assert est.as_of == date(2026, 10, 20)
+    gross = sum(
+        (savings.daily(acc, Decimal(10000), date(2026, 10, d)) for d in range(1, 21)), Decimal(0)
+    )
+    assert est.pending == savings.net(gross)
+
+
+def test_link_matches_iban_without_prefix_and_falls_back_to_itbd(conn: sqlite3.Connection) -> None:
+    acc = savings.get(conn, make(conn))
+    bank_account(conn, DIGITS, "700.00", kind="ITBD")
+    est = savings.estimate(conn, acc, date(2026, 10, 20))
+    assert est.total == Decimal("700.00") and est.as_of is not None
+
+
+def test_unlinked_or_without_snapshot_keeps_manual_path(conn: sqlite3.Connection) -> None:
+    acc = savings.get(conn, make(conn))
+    move(conn, "-300", "2026-09-10")
+    manual = savings.estimate(conn, acc, date(2026, 9, 30))
+    assert manual.total == Decimal(1300) and manual.as_of is None and manual.pending == 0
+    bank_account(conn, "PL" + DIGITS, None)  # powiązane, ale bez migawki
+    assert savings.estimate(conn, acc, date(2026, 9, 30)) == manual
+    assert savings.linked_ledger_id(conn, acc) is not None
+    other = bank_account(conn, "PL99999999999999999999999999", "5.00")
+    assert other and savings.estimate(conn, acc, date(2026, 9, 30)) == manual
