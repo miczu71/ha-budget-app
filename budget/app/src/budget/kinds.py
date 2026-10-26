@@ -124,7 +124,7 @@ def from_api(
     """Heurystyka typu z pól API Millennium (zob. `docs/FINDINGS_millennium.md`)."""
     if card_account:
         return _card_account_kind(description, amount)
-    desc = fold(description)
+    desc = fold(description).removeprefix("BLIK:").lstrip()  # Velobank: „BLIK: /OPT/…”
     debit = amount < 0
     if not desc:
         # Spłata karty po stronie rachunku: pusty opis, brak kontrahenta

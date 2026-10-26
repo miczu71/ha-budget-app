@@ -153,6 +153,13 @@ def count_cashless(conn: sqlite3.Connection, bank: str, start: date, end: date) 
     )
 
 
+def _ledger_bank(bank: str | None) -> str | None:
+    """Nazwa do dopasowania kont księgi: Millennium po `LEDGER_BANK`, inny bank po swojej."""
+    if not bank:
+        return None
+    return LEDGER_BANK if LEDGER_BANK in bank.lower() else bank
+
+
 def _progress(
     conn: sqlite3.Connection, r: sqlite3.Row, t: sqlite3.Row, today: date
 ) -> Decimal | None:
@@ -163,7 +170,7 @@ def _progress(
         lo, hi = max(month_start(today), start), min(card.last_day(today), end)
         return Decimal(count_cashless(conn, t["bank"], lo, hi))
     if r["kind"] == "payments":
-        return Decimal(card.count_purchases(conn, start, end))
+        return Decimal(card.count_purchases(conn, start, end, _ledger_bank(t["bank"])))
     placeholders = ", ".join("?" * len(INCOME_KINDS))
     return money.total(
         row[0]

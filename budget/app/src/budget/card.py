@@ -211,15 +211,19 @@ def payments(conn: sqlite3.Connection, month: date) -> list[sqlite3.Row]:
     ).fetchall()
 
 
-def count_purchases(conn: sqlite3.Connection, start: date, end: date) -> int:
-    """Zakupy kartą na kontach bieżących i karty zaksięgowane w `start`..`end` włącznie (M22 E5)."""
+def count_purchases(
+    conn: sqlite3.Connection, start: date, end: date, bank: str | None = None
+) -> int:
+    """Zakupy kartą na kontach bieżących i karty zaksięgowane w `start`..`end` włącznie (M22 E5);
+    z `bank` tylko konta banku, którego nazwa zawiera ten tekst (EB: „Bank Millennium”)."""
+    bank_sql = " AND instr(lower(bank), lower(?)) > 0" if bank else ""
     return int(
         conn.execute(
             "SELECT count(*) FROM txn t WHERE t.account_id IN "
-            "(SELECT id FROM account WHERE kind IN ('current', 'card')) "
+            f"(SELECT id FROM account WHERE kind IN ('current', 'card'){bank_sql}) "
             f"AND t.kind = '{Kind.CARD.value}' "
             "AND t.status = 'BOOK' AND t.amount LIKE '-%' AND t.booking_date BETWEEN ? AND ?",
-            (start.isoformat(), end.isoformat()),
+            (*((bank,) if bank else ()), start.isoformat(), end.isoformat()),
         ).fetchone()[0]
     )
 

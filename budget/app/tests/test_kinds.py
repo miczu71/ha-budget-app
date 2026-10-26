@@ -36,6 +36,8 @@ def test_csv_card_rows_have_empty_kind() -> None:
         ("INSTALLMENT LOAN REPAYMENT", D, None, None, Kind.LOAN),
         ("/OPT/X///// BPID:AB12 PayU S.A.", D, "sklep.example.pl", None, Kind.BLIK),
         ("/OPF/X///// ab12 PayPro S.A.", C, "sklep.example.pl", None, Kind.BLIK_REFUND),
+        ("BLIK: /OPT/X///// XX1234XX Sklep Testowy C1", D, "Sklep", "PL001", Kind.BLIK),
+        ("BLIK: /OPF/X///// XX1234XX Sklep Testowy C1", C, "Sklep", "PL001", Kind.BLIK_REFUND),
         ("Przelew BLIK na telefon", D, "OSOBA", "PL001", Kind.PHONE_TRANSFER),
         ("Bankomat Euronet UL TESTOWA 1 00-000 Testowo", D, "OSOBA", None, Kind.CASH),
         ("LIDL UL. TESTOWA 5 TESTOWO POL 2026-09-29", D, None, None, Kind.CARD),

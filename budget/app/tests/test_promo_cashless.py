@@ -124,6 +124,17 @@ def test_card_counter_m15_unchanged(ledger: sqlite3.Connection) -> None:
     assert card.count_purchases(ledger, START, END) == 1
 
 
+def test_card_counter_scoped_to_bank(ledger: sqlite3.Connection) -> None:
+    """Karta innego banku nie zalicza warunku `payments` z banku edycji."""
+    from budget import card
+
+    add(ledger, "-10.00", "card", day="2026-12-02")  # konto Banku B
+    add(ledger, "-10.00", "card", day="2026-12-03", account=ACC)
+    assert card.count_purchases(ledger, START, END) == 2
+    assert card.count_purchases(ledger, START, END, bank=BANK) == 1
+    assert card.count_purchases(ledger, START, END, bank="bank b") == 1
+
+
 # --- dzwonek ---------------------------------------------------------------------------------
 
 

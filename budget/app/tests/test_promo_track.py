@@ -21,6 +21,14 @@ from .test_categorize_engine import add, conn
 __all__ = ["conn"]
 
 TODAY = date(2026, 10, 19)
+
+
+@pytest.fixture(autouse=True)
+def _millennium_accounts(conn: sqlite3.Connection) -> None:
+    """Konta z EB mają nazwę banku („Bank Millennium”); licznik kart dopasowuje po niej."""
+    conn.execute("UPDATE account SET bank = 'Bank Millennium'")
+
+
 WAW = ZoneInfo("Europe/Warsaw")
 D = Decimal
 
