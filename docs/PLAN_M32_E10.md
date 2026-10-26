@@ -120,6 +120,7 @@ z kategorią „Przelewy na oszczędności” (źródło „typ”), netto ≈ �
   NIE RÓB: `summary.py` (progi 14/7/2 biorą `days_left`), migracji, szablonów.
 
 ### E13 — Karta konta Velo w Oszczędnościach (haiku-worker)
+**STATUS: ZROBIONE 2026-10-26, commit d2286af** — verifier ACCEPT; pytest 1284, ruff czysty, mypy baseline. Stawka Velo tylko dla banku z „velo” w nazwie; ręczny stat znika dla kont spoza Millennium nawet bez edycji (zgodnie ze specem).
 - `savings.ledger_bank(conn, acc) -> str | None`: bank konta z księgi przez `linked_ledger_id`.
 - `routes_piggy`: do szablonu per konto `bank` oraz `promo` = (`track` z `promo_track.active_for_bank(bank)`, stawka
   `promo_watch_velo.rates(conn).promo_rate` albo None) dla kont banku innego niż Millennium (`promo_track.LEDGER_BANK`).
