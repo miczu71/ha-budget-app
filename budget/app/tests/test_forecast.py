@@ -30,10 +30,8 @@ def due(sid: int, day: date, amount: str, direction: str, status: str = sch.EXPE
     return sch.Due(make(sid, amount=amount, direction=direction), day, status)
 
 
-def run(dues: list[sch.Due], free: str = "1000", per_day: str = "10") -> forecast.Projection:
-    return forecast.project(
-        free_now=Decimal(free), today=TODAY, dues=dues, per_day=Decimal(per_day)
-    )
+def run(dues: list[sch.Due], free: str = "1000") -> forecast.Projection:
+    return forecast.project(free_now=Decimal(free), today=TODAY, dues=dues)
 
 
 def test_series_flex_and_inflows_up_to_payday() -> None:
@@ -48,26 +46,25 @@ def test_series_flex_and_inflows_up_to_payday() -> None:
     assert p.payday == date(2026, 10, 10) and p.payday_series == "Seria 4"
     assert [d.series.id for d in p.outflows] == [1]
     assert [d.series.id for d in p.inflows] == [3]
-    assert p.flex_total == Decimal("70.00")
-    assert p.at_payday == Decimal("1030.00")
-    assert (p.low_day, p.low) == (date(2026, 10, 4), Decimal("990.00"))
+    assert p.at_payday == Decimal("1100.00")  # 1000 + 200 − 100, bez Flex
+    assert (p.low_day, p.low) == (TODAY, Decimal("1000.00"))
     assert p.days[0] == (TODAY, Decimal("1000.00")) and len(p.days) == 8
 
 
 def test_safe_per_day_is_set_by_the_tightest_day() -> None:
     p = run([due(1, date(2026, 10, 5), "400", "out"), due(2, date(2026, 10, 10), "5000", "in")])
-    # dno 10.10: (1000 − 400 − 70) → 10 + 530/7; dzień 5.10: (1000 − 400 − 20) → 10 + 580/2
-    assert forecast.safe_per_day(p.days, TODAY, Decimal(10)) == Decimal("85.71")
-    assert forecast.safe_per_day(p.days, TODAY, Decimal(10), Decimal(100)) == Decimal("71.42")
+    # saldo 600 od 5.10 do 10.10: min(600 / 2 dni do 5.10, 600 / 7 dni do 10.10)
+    assert forecast.safe_per_day(p.days, TODAY) == Decimal("85.71")
+    assert forecast.safe_per_day(p.days, TODAY, Decimal(100)) == Decimal("71.42")
 
 
 def test_safe_per_day_negative_when_series_alone_exceed_funds() -> None:
     p = run([due(1, date(2026, 10, 5), "1500", "out"), due(2, date(2026, 10, 10), "5000", "in")])
-    assert forecast.safe_per_day(p.days, TODAY, Decimal(10)) == Decimal("-250.00")
+    assert forecast.safe_per_day(p.days, TODAY) == Decimal("-250.00")  # −500 / 2 dni
 
 
 def test_safe_per_day_none_without_flex_days() -> None:
-    assert forecast.safe_per_day([(TODAY, Decimal(500))], TODAY, Decimal(10)) is None
+    assert forecast.safe_per_day([(TODAY, Decimal(500))], TODAY) is None
 
 
 def test_late_outflow_counts_today_late_inflow_is_ignored() -> None:
@@ -81,7 +78,7 @@ def test_late_outflow_counts_today_late_inflow_is_ignored() -> None:
     assert p.payday == date(2026, 10, 6)  # spóźniony wpływ nie jest wypłatą
     assert p.days[0] == (TODAY, Decimal("700.00"))
     assert p.inflows == []
-    assert p.at_payday == Decimal("670.00")
+    assert p.at_payday == Decimal("700.00")
 
 
 def test_events_are_signed_chronological_and_late_lands_today() -> None:
@@ -104,7 +101,7 @@ def test_events_are_signed_chronological_and_late_lands_today() -> None:
 
 
 def test_without_payday_horizon_is_end_of_month() -> None:
-    p = run([due(1, date(2026, 10, 31), "100", "out")], per_day="0")
+    p = run([due(1, date(2026, 10, 31), "100", "out")])
     assert p.payday is None and p.payday_series is None
     assert p.horizon_end == date(2026, 10, 31)
     assert p.at_payday == Decimal("900.00") and p.low_day == date(2026, 10, 31)
@@ -121,7 +118,6 @@ def test_skipped_and_paid_dues_do_not_count() -> None:
             due(1, date(2026, 10, 5), "100", "out", sch.PAID),
             due(2, date(2026, 10, 5), "100", "out", sch.SKIPPED),
         ],
-        per_day="0",
     )
     assert p.at_payday == Decimal("1000.00") and p.outflows == []
 
@@ -150,10 +146,9 @@ def build(
 ) -> forecast.Forecast | None:
     engine.recategorize(c)
     snap = Snapshot(c)
-    f = flex.build(snap, month_start(today), today)
     mv = sch.for_month(snap, month_start(today), today)
     return forecast.build(
-        snap, today, at(today.day), f, mv, Decimal(buffer), payday_id, card_debt_included
+        snap, today, at(today.day), mv, Decimal(buffer), payday_id, card_debt_included
     )
 
 
@@ -182,22 +177,18 @@ def test_build_without_card_shows_zero_debt_and_marks_stale(conn: sqlite3.Connec
     assert fc.stale is True
 
 
-def test_build_uses_remaining_pool_per_remaining_day(conn: sqlite3.Connection) -> None:
+def test_flex_pool_does_not_move_forecast(conn: sqlite3.Connection) -> None:
+    # prognoza liczy tylko znane i zaplanowane pozycje — pula Flex (także wyczerpana) jej nie rusza
     snapshot(conn, 1, "ITAV", "5000.00", "2026-10-03T10:00:00+02:00")
-    flex.set_budget(conn, date(2026, 10, 1), Decimal("3100"))
-    add(conn, "-400.00", "card", "LIDL XYZ POL", day="2026-10-02")  # elastyczne; 28 dni do końca
-    fc = build(conn)
-    assert fc is not None
-    assert fc.flex_per_day == Decimal("96.43")  # (3100 − 400) / 28
-
-
-def test_build_exhausted_pool_uses_current_pace(conn: sqlite3.Connection) -> None:
-    snapshot(conn, 1, "ITAV", "5000.00", "2026-10-03T10:00:00+02:00")
+    serie(conn, "pensja", "9000.00", direction="in")  # termin 7.
+    before = build(conn)
     flex.set_budget(conn, date(2026, 10, 1), Decimal("300"))
-    add(conn, "-900.00", "card", "LIDL XYZ POL", day="2026-10-02")
+    add(conn, "-900.00", "card", "LIDL XYZ POL", day="2026-10-02")  # pula wyczerpana
     fc = build(conn)
-    assert fc is not None
-    assert fc.flex_per_day == Decimal("300.00")  # 900 zł przez 3 dni
+    assert before is not None and fc is not None
+    assert fc.at_payday == before.at_payday == Decimal("5000.00")
+    assert (fc.low_day, fc.low) == (before.low_day, before.low)
+    assert fc.safe_per_day == before.safe_per_day
 
 
 def test_build_reads_series_from_ledger(conn: sqlite3.Connection) -> None:
@@ -242,7 +233,6 @@ def test_chosen_series_wins_over_bigger_amount() -> None:
             due(1, date(2026, 10, 10), "9000", "in"),  # większa, ale to nie moja wypłata
             due(2, date(2026, 10, 24), "7000", "in"),
         ],
-        per_day=Decimal(0),
         payday_id=2,
     )
     assert p.payday == date(2026, 10, 24) and p.payday_series == "Seria 2"
@@ -433,9 +423,7 @@ def test_other_inflow_on_payday_counts_like_outflows_that_day() -> None:
         due(2, date(2026, 10, 23), "800", "in"),  # inny wpływ tego samego dnia
         due(3, date(2026, 10, 23), "100", "out"),
     ]
-    p = forecast.project(
-        free_now=Decimal(1000), today=TODAY, dues=dues, per_day=Decimal(0), payday_id=1
-    )
+    p = forecast.project(free_now=Decimal(1000), today=TODAY, dues=dues, payday_id=1)
     assert p.payday == date(2026, 10, 23) and [d.series.id for d in p.inflows] == [2]
     assert p.at_payday == Decimal("1700.00")  # bez samej wypłaty
 
@@ -570,18 +558,14 @@ def piggy_of(c: sqlite3.Connection, **kw: object) -> int:
 def test_project_takes_piggy_transfer_today() -> None:
     dues = [due(1, date(2026, 10, 10), "5000", "in")]
     plain = run(dues)
-    p = forecast.project(
-        free_now=Decimal(1000), today=TODAY, dues=dues, per_day=Decimal(10), piggy_out=Decimal(300)
-    )
+    p = forecast.project(free_now=Decimal(1000), today=TODAY, dues=dues, piggy_out=Decimal(300))
     assert p.days[0] == (TODAY, Decimal("700.00")) and p.at_payday == plain.at_payday - 300
     assert [(e.label, e.amount) for e in p.events] == [("Do skarbonek", Decimal(-300))]
 
 
 def test_project_covered_series_costs_nothing() -> None:
     dues = [due(1, date(2026, 10, 5), "480", "out"), due(2, date(2026, 10, 10), "5000", "in")]
-    p = forecast.project(
-        free_now=Decimal(1000), today=TODAY, dues=dues, per_day=Decimal(0), covered=frozenset({1})
-    )
+    p = forecast.project(free_now=Decimal(1000), today=TODAY, dues=dues, covered=frozenset({1}))
     assert p.outflows == [] and [e.due.series.id for e in p.events if e.covered and e.due] == [1]
     assert p.at_payday == Decimal(1000) and p.events[0].covered and p.events[0].amount == 0
 
@@ -602,9 +586,7 @@ def test_held_takes_due_outflows_that_fit_in_pending() -> None:
 
 def test_project_held_series_costs_nothing() -> None:
     dues = [due(1, TODAY, "5000", "out"), due(2, date(2026, 10, 10), "9000", "in")]
-    p = forecast.project(
-        free_now=Decimal(2000), today=TODAY, dues=dues, per_day=Decimal(0), held=frozenset({1})
-    )
+    p = forecast.project(free_now=Decimal(2000), today=TODAY, dues=dues, held=frozenset({1}))
     assert p.outflows == [] and p.at_payday == Decimal(2000)
     assert p.events[0].held and p.events[0].amount == 0 and not p.events[0].covered
 

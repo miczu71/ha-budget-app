@@ -11,7 +11,6 @@
   <dl class="fc-strip">
     <div><dt>Wolne dziś</dt><dd>{{ fc.free_now | money("PLN") }}</dd></div>
     <div><dt>Serie ({{ fc.outflows | length }})</dt><dd>− {{ fc.series_out | money("PLN") }}</dd></div>
-    <div><dt>Flex <span class="small">({{ fc.flex_per_day | money("PLN") }}/dz.)</span></dt><dd>− {{ fc.flex_total | money("PLN") }}</dd></div>
     <div><dt>Wpływy ({{ fc.inflows | length }})</dt><dd class="pos">+ {{ fc.inflows_total | money("PLN") }}</dd></div>
     {% if fc.piggy_out %}<div><dt>Do skarbonek</dt><dd>− {{ fc.piggy_out | money("PLN") }}</dd></div>{% endif %}
   </dl>

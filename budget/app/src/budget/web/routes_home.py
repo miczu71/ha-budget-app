@@ -133,7 +133,6 @@ def router(panel: Panel) -> APIRouter:
                         panel.service.snapshot,
                         today,
                         now,
-                        f,
                         mv,
                         buffer,
                         forecast.payday_series_id(conn),

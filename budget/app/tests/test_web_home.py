@@ -232,8 +232,10 @@ async def test_home_shows_forecast_with_card_debt_row(
     _balances(service.conn)
     page = (await client.get("/")).text
     assert "Do końca miesiąca" in page and "Starczy · zapas" in page
-    for text in ("Rachunek", "karta", "Wolne dziś", "Flex"):
+    for text in ("Rachunek", "karta", "Wolne dziś"):
         assert text in page
+    assert "Flex <span" not in page  # prognoza nie szacuje Flexu
+    assert "licząc tylko płatności cykliczne i skarbonki" in page
     for amount in ("9136.98", "377.67", "8759.31"):
         assert fmt_money(amount, "PLN") in page
     assert "poniżej" not in page and "dziennie" in page

@@ -352,7 +352,6 @@ def forecast_entities(fc: forecast_mod.Forecast | None) -> list[Entity]:
             payday_series=fc.payday_series,
             horizon_end=horizon,
             series_out=_amount(fc.series_out),
-            flex_rest=_amount(fc.flex_total),
             inflows_before=_amount(fc.inflows_total),
             payday_manual=fc.payday_manual,
             safe_per_day=_amount(fc.safe_per_day),

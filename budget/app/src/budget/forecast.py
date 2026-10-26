@@ -2,9 +2,9 @@
 
 Wolne środki dziś = saldo rachunku PLN (dostępne, już bez autoryzacji) − bieżące zadłużenie karty.
 Przyszłość: oczekiwane i spóźnione wydatki serii w ich terminach (spóźnione liczą się dziś),
-reszta puli Flex po równo na dni, wpływy serii przed wypłatą. Wydatki zrobione dziś są już
-w saldzie i zadłużeniu karty, więc Flex liczy się od jutra. Spóźniony wpływ nie jest
-wypłatą ani nie zwiększa salda — nie wiadomo, kiedy dotrze. Wypłata = najbliższy termin aktywnej
+wpływy serii przed wypłatą. Prognoza liczy wyłącznie pozycje znane i zaplanowane (Flexu nie
+szacuje). Spóźniony wpływ nie jest wypłatą ani nie zwiększa salda — nie wiadomo, kiedy dotrze.
+Wypłata = najbliższy termin aktywnej
 serii wpływowej o największej oczekiwanej kwocie (mniejsze wpływy do dnia wypłaty włącznie wchodzą
 do salda — jak wydatki tego dnia, M21);
 bez takiej serii horyzont kończy się z miesiącem. Saldo na dzień wypłaty jest przed jej
@@ -102,7 +102,6 @@ class Projection:
     outflows: list[schedule.Due] = field(default_factory=list)
     inflows: list[schedule.Due] = field(default_factory=list)
     events: list[Event] = field(default_factory=list)  # wydatki i wpływy chronologicznie
-    flex_total: Decimal = ZERO
     days: list[tuple[date, Decimal]] = field(default_factory=list)  # saldo na koniec dnia
     at_payday: Decimal = ZERO
     low: Decimal = ZERO
@@ -122,7 +121,6 @@ class Projection:
 class Forecast(Projection):
     balances: Balances | None = None
     free_now: Decimal = ZERO
-    flex_per_day: Decimal = ZERO
     stale: bool = False
     buffer: Decimal = ZERO
     card_debt_included: bool = True
@@ -196,26 +194,14 @@ def read_balances(conn: sqlite3.Connection) -> Balances | None:
     return Balances(Decimal(main["amount"]), card_debt, eur, min(fetched), pending)
 
 
-def flex_per_day(f: flex.FlexMonth) -> Decimal:
-    """Ile dziennie wydaje się z puli od jutra: reszta puli po równo na pozostałe dni miesiąca,
-    a gdy pula wyczerpana (albo jej nie ma, albo to ostatni dzień) — dotychczasowe tempo."""
-    assert f.day is not None
-    after = f.days_in_month - f.day
-    if f.remaining is not None and f.remaining > 0 and after > 0:
-        return (f.remaining / after).quantize(money.CENT)
-    return (f.spent / f.day).quantize(money.CENT) if f.spent > 0 else ZERO
-
-
 def safe_per_day(
-    days: Sequence[tuple[date, Decimal]], today: date, per_day: Decimal, buffer: Decimal = ZERO
+    days: Sequence[tuple[date, Decimal]], today: date, buffer: Decimal = ZERO
 ) -> Decimal | None:
-    """Ile można wydawać dziennie z puli Flex (zamiast `per_day`), żeby saldo nigdy nie spadło
-    poniżej bufora: dla każdego dnia `d` po dzisiejszym `per_day + (saldo − bufor) / dni do d`,
-    a najostrzejszy dzień rządzi. Ujemny wynik = same serie przekraczają wolne środki;
-    None, gdy nie ma dni Flex (horyzont kończy się dziś)."""
-    limits = [
-        per_day + (balance - buffer) / (day - today).days for day, balance in days if day > today
-    ]
+    """Ile można wydawać dziennie z puli Flex, żeby saldo nigdy nie spadło poniżej bufora: dla
+    każdego dnia `d` po dzisiejszym `(saldo − bufor) / dni do d`, a najostrzejszy dzień rządzi.
+    Ujemny wynik = same serie przekraczają wolne środki; None, gdy nie ma dni Flex (horyzont
+    kończy się dziś)."""
+    limits = [(balance - buffer) / (day - today).days for day, balance in days if day > today]
     if not limits:
         return None
     return min(limits).quantize(money.CENT, rounding=ROUND_FLOOR)
@@ -255,7 +241,6 @@ def project(
     free_now: Decimal,
     today: date,
     dues: Sequence[schedule.Due],
-    per_day: Decimal,
     payday_id: int | None = None,
     piggy_out: Decimal = ZERO,
     covered: frozenset[int] = frozenset(),
@@ -311,9 +296,6 @@ def project(
         delta[e.day] += e.amount
     balance, day = free_now, today
     while day <= end:
-        if day > today:
-            balance -= per_day
-            result.flex_total += per_day
         balance += delta[day]
         result.days.append((day, balance.quantize(money.CENT)))
         day += timedelta(days=1)
@@ -340,13 +322,12 @@ def for_today(
     snap: Snapshot, today: date, now: datetime, buffer: Decimal = ZERO
 ) -> Forecast | None:
     """Prognoza z ustawieniami zapisanymi w `kv` (wypłata, zadłużenie karty) — dla dzwonka i encji;
-    Podsumowanie woła `build` z już policzonymi `f` i `mv`."""
+    Podsumowanie woła `build` z już policzonym `mv`."""
     first = month_start(today)
     return build(
         snap,
         today,
         now,
-        flex.build(snap, first, today),
         schedule.for_month(snap, first, today),
         buffer,
         payday_series_id(snap.conn),
@@ -356,7 +337,7 @@ def for_today(
 
 class ForecastMemo:
     """Ostatnia prognoza z sygnaturą bazy, dnia i bufora — dzwonek liczy się na każdej stronie,
-    a prognoza (flex + terminy serii) zmienia się dopiero po zapisie w bazie."""
+    a prognoza (salda + terminy serii) zmienia się dopiero po zapisie w bazie."""
 
     def __init__(self) -> None:
         self._key: tuple[object, ...] | None = None
@@ -375,13 +356,12 @@ def build(
     snap: Snapshot,
     today: date,
     now: datetime,
-    f: flex.FlexMonth,
     mv: schedule.MonthView,
     buffer: Decimal = ZERO,
     payday_id: int | None = None,
     card_debt_included: bool = True,
 ) -> Forecast | None:
-    """Prognoza z bazy dla bieżącego miesiąca (`f`, `mv` — już policzone przez Podsumowanie);
+    """Prognoza z bazy dla bieżącego miesiąca (`mv` — już policzone przez Podsumowanie);
     None, gdy rachunek PLN nie ma jeszcze żadnej migawki salda."""
     balances = read_balances(snap.conn)
     if balances is None:
@@ -389,7 +369,6 @@ def build(
     if not any(d.series.id == payday_id and d.series.direction == "in" for d in mv.rows):
         payday_id = None  # seria zakończona, usunięta albo nie przychodowa
     free_now = balances.account - (balances.card_debt if card_debt_included else ZERO)
-    per_day = flex_per_day(f)
     start = last_payday(snap, payday_id, today)
     piggies_from = start or month_start(today)
     piggies = piggy.statuses(snap, today, piggies_from)
@@ -404,7 +383,6 @@ def build(
         free_now=free_now,
         today=today,
         dues=dues,
-        per_day=per_day,
         payday_id=payday_id,
         piggy_out=piggy.total_to_transfer(piggies),
         covered=covered,
@@ -412,7 +390,7 @@ def build(
     )
     if p.payday_series_id != payday_id:
         start = last_payday(snap, p.payday_series_id, today)
-    safe = safe_per_day(p.days, today, per_day, buffer)
+    safe = safe_per_day(p.days, today, buffer)
     week_list: list[Week] = []
     plan: Decimal | None = None
     spent_since = ZERO
@@ -436,7 +414,6 @@ def build(
         **vars(p),
         balances=balances,
         free_now=free_now,
-        flex_per_day=per_day,
         stale=now - datetime.fromisoformat(balances.fetched_at) > STALE_AFTER,
         buffer=buffer,
         card_debt_included=card_debt_included,
