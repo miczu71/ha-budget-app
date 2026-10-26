@@ -28,7 +28,7 @@ import calendar
 import sqlite3
 import statistics
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from decimal import ROUND_CEILING, Decimal
 
 from budget import money
@@ -441,6 +441,19 @@ def spent_between(
     return _spent(
         sums(snap.conn, start, end, skip), flexible_leaves(snap.conn) if leaves is None else leaves
     )
+
+
+def spent_year_ago(
+    snap: Snapshot, payday_then: date | None, days: int, skip: set[int] | None = None
+) -> Decimal | None:
+    """Wydane elastyczne przez `days` dni od wypłaty sprzed roku (M32 E8); None, gdy wypłaty nie
+    ma albo leży przed pierwszą transakcją w księdze (brak historii do porównania)."""
+    if payday_then is None:
+        return None
+    first = first_day(snap.conn)
+    if first is None or payday_then < first:
+        return None
+    return spent_between(snap, payday_then, payday_then + timedelta(days=days), skip)
 
 
 def build(snap: Snapshot, month: date, today: date) -> FlexMonth:

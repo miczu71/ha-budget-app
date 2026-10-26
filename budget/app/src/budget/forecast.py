@@ -130,6 +130,8 @@ class Forecast(Projection):
     days_left: int = 0  # dni od dziś do końca horyzontu
     period_start: date | None = None  # dzień ostatniej wypłaty (M21 E3); None bez wypłaty w księdze
     spent_since: Decimal = ZERO  # wydane elastyczne od `period_start` do dziś
+    spent_year_ago: Decimal | None = None  # wydane elastyczne rok temu przez tyle samo dni (M32 E8)
+    year_ago_days: int = 0  # ile dni okresu porównujemy (od dziś do `period_start` włącznie)
     weeks: list[Week] = field(default_factory=list)  # tygodnie okresu (M21 E4)
     plan_per_day: Decimal | None = None  # limit dzienny z początku okresu — miara minionych tygodni
     piggies: list[piggy.Status] = field(default_factory=list)  # stan skarbonek (M10 E1)
@@ -154,6 +156,20 @@ class Forecast(Projection):
     @property
     def shortfall(self) -> Decimal:
         return max(self.buffer - self.low, ZERO)
+
+    @property
+    def yoy_delta(self) -> Decimal | None:
+        """Wydane od wypłaty minus wydane tyle samo dni okresu sprzed roku; None bez historii."""
+        if self.spent_year_ago is None:
+            return None
+        return self.spent_since - self.spent_year_ago
+
+    @property
+    def yoy_pct(self) -> int | None:
+        delta = self.yoy_delta
+        if delta is None or not self.spent_year_ago:
+            return None
+        return round(delta / self.spent_year_ago * 100)
 
 
 def payday_series_id(conn: sqlite3.Connection) -> int | None:
@@ -394,6 +410,8 @@ def build(
     week_list: list[Week] = []
     plan: Decimal | None = None
     spent_since = ZERO
+    spent_year_ago: Decimal | None = None
+    year_ago_days = 0
     if start is not None:
         skip = flex.pool_series(snap).skip  # raz na prognozę, nie na każdy tydzień
         if p.payday is not None:
@@ -410,6 +428,9 @@ def build(
             spent_since = sum((w.spent for w in week_list), ZERO)
         else:
             spent_since = flex.spent_between(snap, start, today + timedelta(days=1), skip)
+        year_ago_days = (today - start).days + 1
+        payday_then = last_payday(snap, p.payday_series_id, _same_day_year_before(start))
+        spent_year_ago = flex.spent_year_ago(snap, payday_then, year_ago_days, skip)
     return Forecast(
         **vars(p),
         balances=balances,
@@ -421,11 +442,21 @@ def build(
         days_left=(p.horizon_end - today).days,
         period_start=start,
         spent_since=spent_since,
+        spent_year_ago=spent_year_ago,
+        year_ago_days=year_ago_days,
         weeks=week_list,
         plan_per_day=plan,
         piggies=piggies,
         piggies_from=piggies_from,
     )
+
+
+def _same_day_year_before(day: date) -> date:
+    """Ten sam dzień rok wcześniej (29.02 → 28.02)."""
+    try:
+        return day.replace(year=day.year - 1)
+    except ValueError:
+        return day.replace(year=day.year - 1, day=28)
 
 
 def period_plan(conn: sqlite3.Connection, start: date, safe: Decimal | None) -> Decimal | None:

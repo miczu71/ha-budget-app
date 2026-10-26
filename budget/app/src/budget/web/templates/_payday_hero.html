@@ -7,11 +7,13 @@
   {% if spd is not none and spd > 0 %}
   <div class="hero-amount pos">{{ spd | money("PLN") }} <span class="hero-unit">dziennie</span></div>
   {% endif %}
-  <p class="{{ 'neg' if fc.below_buffer else 'pos' }}"><strong>{% if not fc.below_buffer %}Starczy · zapas {{ fc.low | money("PLN") }}{% elif fc.buffer %}Poniżej bufora o {{ fc.shortfall | money("PLN") }}{% else %}Zabraknie {{ fc.shortfall | money("PLN") }}{% endif %}</strong> licząc tylko płatności cykliczne i skarbonki.</p>
+  <p class="{{ 'neg' if fc.below_buffer else 'pos' }}"><strong>{% if not fc.below_buffer %}{% if fc.period_start and fc.yoy_delta is not none %}Od wypłaty {{ fc.period_start.strftime('%d.%m') }} wydane {{ fc.spent_since | money("PLN") }} — o {{ (-fc.yoy_delta if fc.yoy_delta < 0 else fc.yoy_delta) | money("PLN") }}{% if fc.yoy_pct is not none %} ({{ fc.yoy_pct | abs }}%){% endif %} {{ "mniej" if fc.yoy_delta < 0 else "więcej" }} niż rok temu po {{ fc.year_ago_days }} {{ "dniu" if fc.year_ago_days == 1 else "dniach" }} okresu{% elif fc.period_start %}Od wypłaty {{ fc.period_start.strftime('%d.%m') }} wydane {{ fc.spent_since | money("PLN") }}.{% else %}Starczy · zapas {{ fc.low | money("PLN") }}{% endif %}{% elif fc.buffer %}Poniżej bufora o {{ fc.shortfall | money("PLN") }}{% else %}Zabraknie {{ fc.shortfall | money("PLN") }}{% endif %}</strong> licząc tylko płatności cykliczne i skarbonki.</p>
   <p class="small muted">{% if fc.below_buffer %}{{ fc.low_day.strftime('%d.%m') }} saldo spadnie poniżej {{ unit }}{% if fc.buffer %} ({{ fc.buffer | money("PLN") }}){% endif %}.{% else %}Najniżej {{ fc.low_day.strftime('%d.%m') }}.{% endif %}{% if spd is not none and spd <= 0 %} Same płatności cykliczne przekraczają wolne środki.{% endif %}{% if fc.stale %} <span class="warn-text">Salda starsze niż doba.</span>{% endif %}</p>
   {% if fc.period_start and fc.payday %}
   {{ bar(fc.period_elapsed, "minęło " ~ pct(fc.period_elapsed) ~ " okresu od wypłaty", tag="div") }}
+  {% if fc.below_buffer %}
   <p class="small muted">Od wypłaty {{ fc.period_start.strftime('%d.%m') }} wydane na elastyczne {{ fc.spent_since | money("PLN") }}.</p>
+  {% endif %}
   {% endif %}
   {% set w = fc.this_week %}
   {% if w and w.limit is not none %}

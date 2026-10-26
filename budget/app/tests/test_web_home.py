@@ -687,3 +687,21 @@ async def test_inbox_delete_ignores_a_key_that_is_not_a_visible_card(
     resp = await client.post("/inbox/delete", data={"key": "stale:nope", "back": "/inbox"})
     assert resp.status_code in (302, 303)
     assert "stale:nope" not in (db.kv_get(service.conn, inbox.DELETED_KEY) or [])
+
+
+async def test_home_hero_compares_period_with_year_ago(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    conn = service.conn
+    first = service.now().date().replace(day=1)  # wypłata 1. dnia bieżącego miesiąca
+    year_ago = first.replace(year=first.year - 1)
+    mine = serie(conn, "pensja", "9000.00", direction="in")
+    db.kv_set(conn, forecast.PAYDAY_KEY, mine)
+    add(conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day=year_ago.isoformat())
+    add(conn, "-200.00", day=(year_ago + timedelta(days=5)).isoformat())  # rok temu
+    add(conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day=first.isoformat())
+    add(conn, "-120.00", day=first.isoformat())  # od bieżącej wypłaty
+    page = (await client.get("/")).text
+    assert f"Od wypłaty {first:%d.%m} wydane" in page
+    assert "mniej niż rok temu po" in page

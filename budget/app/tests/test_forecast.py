@@ -650,3 +650,47 @@ def test_inbox_reminds_about_piggy_before_payday(conn: sqlite3.Connection) -> No
     assert "piggy_transfer" not in [
         i.kind for i in inbox.items(Snapshot(conn), at(1), inbox.BalanceMemo(), far)
     ]
+
+
+# --- porównanie r/r w hero (M32 E8) ------------------------------------------------------
+
+
+def _period_with_year_ago(conn: sqlite3.Connection, spent_then: str | None) -> forecast.Forecast:
+    seeded(conn)
+    mine = serie(conn, "pensja", "9000.00", direction="in")
+    add(conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day="2025-09-07")
+    if spent_then is not None:
+        add(conn, spent_then, day="2025-09-20")  # rok temu, w okresie 7.09–4.10.2025
+    add(conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day="2026-09-07")
+    add(conn, "-120.00", day="2026-09-20")  # bieżący okres: 120 zł, 27 dni
+    fc = build(conn, payday_id=mine)
+    assert fc is not None and fc.period_start == date(2026, 9, 7)
+    return fc
+
+
+def test_year_ago_less_spent_shows_negative_delta(conn: sqlite3.Connection) -> None:
+    fc = _period_with_year_ago(conn, "-200.00")
+    assert fc.year_ago_days == 27
+    assert fc.spent_year_ago == Decimal("200.00")
+    assert fc.yoy_delta == Decimal("-80.00") and fc.yoy_pct == -40
+
+
+def test_year_ago_more_spent_shows_positive_delta(conn: sqlite3.Connection) -> None:
+    fc = _period_with_year_ago(conn, "-50.00")
+    assert fc.yoy_delta == Decimal("70.00") and fc.yoy_pct == 140
+
+
+def test_year_ago_zero_spent_has_no_percent(conn: sqlite3.Connection) -> None:
+    fc = _period_with_year_ago(conn, None)
+    assert fc.spent_year_ago == Decimal("0")
+    assert fc.yoy_delta == Decimal("120.00") and fc.yoy_pct is None
+
+
+def test_no_payday_a_year_ago_means_no_comparison(conn: sqlite3.Connection) -> None:
+    seeded(conn)
+    mine = serie(conn, "pensja", "9000.00", direction="in")
+    add(conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day="2026-09-07")
+    add(conn, "-120.00", day="2026-09-20")
+    fc = build(conn, payday_id=mine)
+    assert fc is not None and fc.period_start == date(2026, 9, 7)
+    assert fc.spent_year_ago is None and fc.yoy_delta is None and fc.yoy_pct is None
