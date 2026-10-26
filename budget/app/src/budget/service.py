@@ -31,6 +31,7 @@ from budget import (
     networth,
     notifications,
     promo_watch,
+    promo_watch_velo,
     savings,
     sessions,
     stocks,
@@ -270,6 +271,13 @@ class Service:
         if savings.all_accounts(self.conn):
             await promo_watch.refresh(self.conn, self.now())
 
+    async def watch_promo_velo(self) -> None:
+        """Odczyt regulaminu promocji Velobanku (M32 E3) — raz na obieg pętli podsumowań."""
+        try:
+            await promo_watch_velo.refresh(self.conn, self.now())
+        except Exception:  # pętla podsumowań nie może umrzeć
+            log.exception("Monitor regulaminu Velobanku padł")
+
     async def watch_wibor(self) -> None:
         """Odczyt notowań WIBOR 3M (M9 E4) — tylko gdy jest kredyt."""
         loans = loan.all_loans(self.conn)
@@ -334,6 +342,7 @@ class Service:
         """Podsumowania o `summary.SEND_AT`; zaległe z dzisiaj zaraz po starcie."""
         while True:
             await self.watch_promo()
+            await self.watch_promo_velo()
             await self.watch_wibor()
             await self.watch_invest()
             await self.watch_invest_why()
