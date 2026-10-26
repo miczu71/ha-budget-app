@@ -312,7 +312,7 @@ def rotation_messages(conn: sqlite3.Connection, today: date) -> list[Message]:
     """Push „dokąd przelać” (M32 E4) w progach 14/7/2 dni przed końcem promocji Velobanku;
     klucz deduplikacji per próg. Wstrzymana edycja = cisza (alarm daje dzwonek)."""
     rec = rotation.recommend(conn, today)
-    if rec is None or rec.days_left not in rotation.THRESHOLDS:
+    if rec is None or rec.days_left not in promo_track.CASHLESS_REMIND_DAYS:
         return []
     return [
         Message(

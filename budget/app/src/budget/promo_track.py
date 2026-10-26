@@ -13,7 +13,7 @@ import calendar
 import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -22,7 +22,7 @@ from budget.invest import InvestError, save_asset
 from budget.kinds import PURCHASE_KINDS, Kind
 from budget.piggy import PiggyError, parse_amount
 from budget.settings import Settings
-from budget.spending import add_months, month_start
+from budget.spending import month_start
 from budget.storage.db import now_iso
 from budget.suggest import client
 from budget.suggest import engine as suggest
@@ -160,8 +160,7 @@ def _progress(
         return None
     start, end = date.fromisoformat(t["start_date"]), date.fromisoformat(t["end_date"])
     if r["kind"] == "cashless":  # miesięczny: bieżący miesiąc przycięty do okresu edycji
-        month_end = add_months(month_start(today), 1) - timedelta(days=1)
-        lo, hi = max(month_start(today), start), min(month_end, end)
+        lo, hi = max(month_start(today), start), min(card.last_day(today), end)
         return Decimal(count_cashless(conn, t["bank"], lo, hi))
     if r["kind"] == "payments":
         return Decimal(card.count_purchases(conn, start, end))

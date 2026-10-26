@@ -20,7 +20,6 @@ from html.parser import HTMLParser
 
 import httpx
 
-from budget.promo_watch import ERROR_ALERT_DAYS as ERROR_ALERT_DAYS
 from budget.promo_watch import WatchError
 from budget.storage import db
 

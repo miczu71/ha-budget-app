@@ -15,7 +15,6 @@ from decimal import Decimal
 from budget import ledger, money, promo_watch_velo, savings
 
 WINDOW_DAYS = 14  # rekomendacja w tylu ostatnich dniach promocji
-THRESHOLDS = (14, 7, 2)  # progi powiadomień, jak w E2
 MIN_GAIN = Decimal(1)  # zysk netto poniżej tej kwoty (zł) nie jest wart przelewu
 DEFAULT_HORIZON = 30  # dni, gdy konto docelowe nie ma przyszłego końca promocji
 VELO_BANK = "%velo%"  # nazwa banku (ASPSP z Enable Banking) na koncie w księdze, bez wielkości
@@ -61,15 +60,11 @@ def velo_balance(conn: sqlite3.Connection) -> Decimal:
     return total
 
 
-def _rate(value: float) -> Decimal:
-    return Decimal(str(value))
-
-
 def _candidate(
     acc: savings.Account, balance: Decimal, offer: promo_watch_velo.Offer, today: date
 ) -> Recommendation | None:
     ends = offer.ends_by()
-    base = _rate(offer.base_rate)
+    base = Decimal(str(offer.base_rate))
     promo = acc.promo_days_left(ends) is not None  # czy stopa promocyjna dotrwa do przelewu
     rate = acc.promo_rate if promo else acc.base_rate
     if rate is None or rate <= base:

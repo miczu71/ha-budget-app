@@ -375,10 +375,7 @@ def velo_promo_cards(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) 
         since = f" (od {watch.error_since:%d.%m})" if watch.error_since else ""
         title = f"Velobank: nie rozumiem regulaminu{since} — rekomendacja wstrzymana"
         out.append(Item("velo_held", title, 1, link, "warn", detail))
-    elif (
-        watch.error_since
-        and (ctx.now - watch.error_since).days >= promo_watch_velo.ERROR_ALERT_DAYS
-    ):
+    elif watch.error_since and (ctx.now - watch.error_since).days >= promo_watch.ERROR_ALERT_DAYS:
         detail = f"Od {watch.error_since:%d.%m}: {watch.error}. Sprawdź warunki na stronie banku."
         title = f"Nie mogę odczytać regulaminu promocji Velobanku (od {watch.error_since:%d.%m})"
         out.append(Item("velo_error", title, 1, link, "warn", detail))
