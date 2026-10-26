@@ -128,9 +128,10 @@ def uncategorized(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> 
 
 def operational(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
     """Zgoda bankowa, nieudane synchronizacje, rozbieżność uzgodnienia salda."""
+    failures = sync_service.bank_failures(conn)
     alerts = notifications.evaluate(
-        sessions.current(conn),
-        failures=sync_service.consecutive_failures(conn),
+        sessions.current_all(conn),
+        bank_failures=failures,
         manual_sync_needed=sync_service.manual_sync_needed(conn),
         warning_days=CONSENT_DAYS,
         now=ctx.now,
@@ -144,8 +145,11 @@ def operational(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> li
     }
     out = []
     for alert in alerts:
-        title, link, severity = titles[alert.key]
-        count = sync_service.consecutive_failures(conn) if alert.key == "sync_failures" else 1
+        prefix, _, bank = alert.key.partition(":")
+        title, link, severity = titles[prefix]
+        if bank:
+            title = f"{title} — {bank}"
+        count = failures.get(bank, 1) if prefix == "sync_failures" else 1
         out.append(Item(alert.key, title, count, link, severity, alert.message))  # type: ignore[arg-type]
     bad = [c for c in memo.get(conn) if not c.ok]
     if bad:

@@ -2,20 +2,23 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from pathlib import Path
 
 import httpx
 import pytest
 
-from budget import forecast, ha_publisher, inbox
+from budget import forecast, ha_publisher, inbox, sessions
 from budget.categorize.rules import Conditions, TextCondition
+from budget.eb_models import SessionResponse
 from budget.recurring import series as S
 from budget.service import Service
 from budget.snapshot import Snapshot
-from budget.storage.db import now_iso
+from budget.storage.db import kv_set, now_iso
 
 from .test_categorize_engine import add
 from .test_web import INGRESS, _client
@@ -55,6 +58,14 @@ def _subscription(conn: sqlite3.Connection, name: str = "Qwertyflix Sp") -> None
         )
 
 
+def _failing_bank(conn: sqlite3.Connection) -> None:
+    """Aktywna sesja banku z jedną porażką synchronizacji (karta „Nieudane synchronizacje”)."""
+    data = json.loads((Path(__file__).parent / "fixtures" / "eb_mock_session.json").read_text())
+    data["valid_until"] = "2027-12-31T00:00:00+00:00"
+    sessions.store_session(conn, SessionResponse.from_api(data))
+    kv_set(conn, "sync_bank_failures", {data["aspsp"]["name"]: 1})
+
+
 def test_inbox_items(service: Service) -> None:
     conn = service.conn
     _account(conn)
@@ -63,14 +74,10 @@ def test_inbox_items(service: Service) -> None:
     add(conn, "-10.00", "card", "Coś X", day="2026-10-02")
     add(conn, "-12.00", "card", "Coś Y", day="2026-09-30")
     add(conn, "-14.00", "card", "Coś Z", day="2026-08-30")  # dwa miesiące wstecz — nie
-    conn.execute(
-        "INSERT INTO sync_log (trigger, started_at, finished_at, status) "
-        "VALUES ('schedule', ?, ?, 'error')",
-        (now_iso(), now_iso()),
-    )
+    _failing_bank(conn)
     found = inbox.items(Snapshot(conn), NOW, memo)
     kinds = [(i.kind, i.count, i.link) for i in found]
-    assert kinds[0] == ("sync_failures", 1, "/status")  # błędy na górze
+    assert kinds[0] == ("sync_failures:Mock ASPSP", 1, "/status")  # błędy na górze
     assert ("uncategorized", 1, "/review?month=2026-10") in kinds
     assert ("uncategorized", 1, "/review?month=2026-09") in kinds
     assert len(found) == 3

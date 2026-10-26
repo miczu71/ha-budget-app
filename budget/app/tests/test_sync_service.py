@@ -463,3 +463,49 @@ async def test_unexpected_error_single_bank_is_logged_not_raised(
     result = await sync_service.sync(conn, eb, tz=TZ, now=NOW)
     assert result.status == "error" and "błąd wewnętrzny (ValueError)" in result.detail
     assert sync_service.consecutive_failures(conn) == 1
+
+
+@respx.mock
+async def test_bank_failures_counted_per_bank(conn: sqlite3.Connection, eb: EBClient) -> None:
+    """Błąd jednego banku nie podbija licznika drugiego; ok zeruje; nieaktywny nie zmienia."""
+    _store_bank_b(conn)
+    _mock_ok()
+    respx.get(f"{BASE}/accounts/{UID_B}/balances").mock(
+        return_value=httpx.Response(500, json={"code": "X", "message": "x"})
+    )
+    await sync_service.sync(conn, eb, tz=TZ, now=NOW)
+    await sync_service.sync(conn, eb, tz=TZ, now=NOW)
+    assert sync_service.bank_failures(conn) == {"Mock ASPSP": 0, BANK_B: 2}
+    # nieaktywny bank B: licznik bez zmiany
+    sessions.set_status(conn, "s-b", "EXPIRED")
+    await sync_service.sync(conn, eb, tz=TZ, now=NOW)
+    assert sync_service.bank_failures(conn) == {"Mock ASPSP": 0, BANK_B: 2}
+    # po przywróceniu i udanej synchronizacji licznik się zeruje
+    sessions.set_status(conn, "s-b", "AUTHORIZED")
+    _mock_b()
+    await sync_service.sync(conn, eb, tz=TZ, now=NOW)
+    assert sync_service.bank_failures(conn) == {"Mock ASPSP": 0, BANK_B: 0}
+
+
+@respx.mock
+async def test_bank_failures_expired_and_rate_limited(
+    conn: sqlite3.Connection, eb: EBClient
+) -> None:
+    _store_bank_b(conn)
+    _mock_b()
+    respx.get(f"{BASE}/accounts/{UID_MAIN}/balances").mock(
+        return_value=httpx.Response(429, json={"code": "ASPSP_RATE_LIMIT_EXCEEDED"})
+    )
+    await sync_service.sync(conn, eb, tz=TZ, now=NOW)
+    assert sync_service.bank_failures(conn) == {"Mock ASPSP": 1, BANK_B: 0}
+
+
+@respx.mock
+async def test_bank_failures_only_keeps_other_banks(conn: sqlite3.Connection, eb: EBClient) -> None:
+    """Przebieg z `only` nie dotyka liczników pominiętych banków; banki bez sesji znikają."""
+    _store_bank_b(conn)
+    _mock_ok()
+    _mock_b()
+    db.kv_set(conn, "sync_bank_failures", {BANK_B: 2, "Bank Usunięty": 5})
+    await sync_service.sync(conn, eb, tz=TZ, now=NOW, only="Mock ASPSP")
+    assert sync_service.bank_failures(conn) == {"Mock ASPSP": 0, BANK_B: 2}

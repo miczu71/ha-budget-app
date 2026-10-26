@@ -26,6 +26,7 @@ from .test_flex import serie
 from .test_recurring_schedule import make_event
 from .test_web import INGRESS, _client
 from .test_web_categorize import DAY, _seed
+from .test_web_recurring import _failing_bank
 
 __all__ = ["service"]
 from .test_web import service
@@ -518,12 +519,9 @@ async def test_inbox_delete_removes_card_for_good(
 async def test_inbox_error_cards_cannot_be_deleted(
     client: httpx.AsyncClient, service: Service
 ) -> None:
-    service.conn.execute(
-        "INSERT INTO sync_log (trigger, started_at, finished_at, status) "
-        "VALUES ('auto', '2026-06-15T10:00:00+00:00', '2026-06-15T10:00:05+00:00', 'error')"
-    )
+    _failing_bank(service.conn)
     service.conn.commit()
-    err = next(i for i in service.inbox_all() if i.kind == "sync_failures")
+    err = next(i for i in service.inbox_all() if i.kind.startswith("sync_failures:"))
     assert err.severity == "error"
     page = (await client.get("/inbox")).text
     assert err.title in page and "/inbox/delete" not in page

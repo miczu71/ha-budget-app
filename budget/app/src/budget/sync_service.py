@@ -27,7 +27,7 @@ import httpx
 from budget import eb_ingest, ledger, sessions
 from budget.eb_client import EBClient, EBError, EBRateLimited, EBSessionExpired, PsuHeaders
 from budget.eb_models import Transaction
-from budget.storage.db import now_iso
+from budget.storage.db import kv_get, kv_set, now_iso
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +36,7 @@ OVERLAP_DAYS = 5
 API_HISTORY_DAYS = 90
 FAILURES_TO_ALERT = 3
 
+BANK_FAILURES_KEY = "sync_bank_failures"
 Endpoint = Literal["balances", "transactions"]
 Status = Literal["ok", "partial", "error", "rate_limited", "expired", "no_session"]
 
@@ -187,6 +188,8 @@ async def sync(
     headers = psu.as_headers() if psu else None
     fetched_at = now_iso()
     details = []
+    known = {r.aspsp for r in sessions.current_all(conn)}
+    failures = {k: v for k, v in bank_failures(conn).items() if k in known}
     for record in records:
         if not record.active:  # nieaktywny bank nie blokuje pozostałych
             details.append(f"{record.aspsp}: sesja {record.status}")
@@ -198,8 +201,13 @@ async def sync(
             detail = f"{record.aspsp}: {detail}"
         if detail:
             details.append(detail)
+        if status == "ok":
+            failures[record.aspsp] = 0
+        elif status in ("error", "rate_limited", "expired"):
+            failures[record.aspsp] = failures.get(record.aspsp, 0) + 1
         if _RANK[status] > _RANK[result.status]:
             result.status = status
+    kv_set(conn, BANK_FAILURES_KEY, failures or None)
     result.detail = "; ".join(details)
     # Nieaktywna zgoda któregokolwiek banku to nie „ok” — inaczej awaria byłaby niewidoczna.
     if result.status == "ok" and (
@@ -336,6 +344,11 @@ def _log(conn: sqlite3.Connection, result: SyncResult) -> SyncResult:
         f" — {result.detail}" if result.detail else "",
     )
     return result
+
+
+def bank_failures(conn: sqlite3.Connection) -> dict[str, int]:
+    """Kolejne nieudane przebiegi (error/rate_limited/expired) osobno dla każdego banku."""
+    return {str(k): int(v) for k, v in (kv_get(conn, BANK_FAILURES_KEY) or {}).items()}
 
 
 def consecutive_failures(conn: sqlite3.Connection) -> int:

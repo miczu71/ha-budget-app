@@ -142,6 +142,7 @@ def build_entities(
             )
         )
     record = sessions.current(conn)
+    all_records = sessions.current_all(conn)
     entities.append(
         Entity(
             "sensor",
@@ -152,6 +153,14 @@ def build_entities(
                 "valid_until": record.valid_until.isoformat() if record else None,
                 "status": record.status if record else "brak połączenia",
                 "bank": record.aspsp if record else None,
+                "banks": {
+                    r.aspsp: {
+                        "days_left": r.days_left(now),
+                        "status": r.status,
+                        "valid_until": r.valid_until.isoformat(),
+                    }
+                    for r in all_records
+                },
             },
         )
     )
@@ -175,14 +184,20 @@ def build_entities(
         )
     )
     failures = sync_service.consecutive_failures(conn)
-    problem = (record is None or not record.active) or failures > 0
+    per_bank = sync_service.bank_failures(conn)
+    problem = (
+        record is None
+        or any(not r.active for r in all_records)
+        or failures > 0
+        or any(per_bank.values())
+    )
     entities.append(
         Entity(
             "binary_sensor",
             "sync_problem",
             {"name": "Problem z synchronizacją", "device_class": "problem"},
             state="ON" if problem else "OFF",
-            attributes={"consecutive_failures": failures},
+            attributes={"consecutive_failures": failures, "bank_failures": per_bank},
         )
     )
     entities.append(

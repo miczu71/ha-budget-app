@@ -93,16 +93,39 @@ def _record(status: str = "AUTHORIZED", days: int = 100) -> sessions.SessionReco
 
 
 def test_evaluate() -> None:
-    kw: dict[str, Any] = {"failures": 0, "manual_sync_needed": False, "warning_days": 14}
-    assert notifications.evaluate(_record(), now=NOW, **kw) == []
-    assert notifications.evaluate(None, now=NOW, **kw) == []
-    keys = [a.key for a in notifications.evaluate(_record(days=10), now=NOW, **kw)]
-    assert keys == ["consent_expiring"]
-    keys = [a.key for a in notifications.evaluate(_record("EXPIRED", 0), now=NOW, **kw)]
-    assert keys == ["session_inactive"]
-    kw.update(failures=3, manual_sync_needed=True)
-    keys = [a.key for a in notifications.evaluate(_record(), now=NOW, **kw)]
-    assert keys == ["sync_failures", "manual_sync"]
+    kw: dict[str, Any] = {"bank_failures": {}, "manual_sync_needed": False, "warning_days": 14}
+    assert notifications.evaluate([_record()], now=NOW, **kw) == []
+    assert notifications.evaluate([], now=NOW, **kw) == []
+    keys = [a.key for a in notifications.evaluate([_record(days=10)], now=NOW, **kw)]
+    assert keys == ["consent_expiring:Bank"]
+    keys = [a.key for a in notifications.evaluate([_record("EXPIRED", 0)], now=NOW, **kw)]
+    assert keys == ["session_inactive:Bank"]
+    kw.update(bank_failures={"Bank": 3}, manual_sync_needed=True)
+    keys = [a.key for a in notifications.evaluate([_record()], now=NOW, **kw)]
+    assert keys == ["sync_failures:Bank", "manual_sync"]
+    kw.update(bank_failures={"Bank": 2}, manual_sync_needed=False)
+    assert notifications.evaluate([_record()], now=NOW, **kw) == []
+
+
+def test_evaluate_alerts_per_bank_with_bank_name() -> None:
+    a = sessions.SessionRecord("a", "Velobank", NOW + timedelta(days=100), "EXPIRED", None, [])
+    b = sessions.SessionRecord("b", "Bank Drugi", NOW + timedelta(days=5), "AUTHORIZED", None, [])
+    alerts = notifications.evaluate(
+        [a, b],
+        bank_failures={"Velobank": 0, "Bank Drugi": 4},
+        manual_sync_needed=False,
+        warning_days=14,
+        now=NOW,
+    )
+    by_key = {x.key: x.message for x in alerts}
+    assert set(by_key) == {
+        "session_inactive:Velobank",
+        "consent_expiring:Bank Drugi",
+        "sync_failures:Bank Drugi",
+    }
+    assert "Velobank" in by_key["session_inactive:Velobank"]
+    assert "Bank Drugi wygasa za 5 dni" in by_key["consent_expiring:Bank Drugi"]
+    assert by_key["sync_failures:Bank Drugi"].startswith("Bank Drugi: 4 nieudane synchronizacje")
 
 
 @respx.mock
@@ -339,3 +362,57 @@ def test_recurring_entities(conn: db.sqlite3.Connection) -> None:
     assert e["income_planned"].attributes["items"][0]["status"] == "expected"
     _, payload = e["fixed_paid"].discovery()
     assert payload["default_entity_id"] == "sensor.budget_fixed_paid"
+
+
+def _two_banks() -> db.sqlite3.Connection:
+    conn = _ledger()
+    acc = {
+        **SESSION["accounts"][2],
+        "uid": "b-uid-1",
+        "account_id": {"iban": "PL10105000997603123456789123", "other": None},
+        "identification_hash": "hash-b-1",
+    }
+    data = {**SESSION, "session_id": "s-b", "aspsp": {"name": "Bank Drugi", "country": "PL"}}
+    sessions.store_session(conn, SessionResponse.from_api({**data, "accounts": [acc]}))
+    return conn
+
+
+def test_publisher_banks_attribute_and_problem_per_bank() -> None:
+    conn = _two_banks()
+    kw: dict[str, Any] = {"now": NOW, "today": NOW.date()}
+    entities = {e.key: e for e in _entities(conn, **kw)}
+    banks = entities["consent_days_left"].attributes["banks"]
+    assert set(banks) == {"Mock ASPSP", "Bank Drugi"}
+    assert set(banks["Bank Drugi"]) == {"days_left", "status", "valid_until"}
+    assert entities["sync_problem"].state == "OFF"
+    # porażki tylko jednego banku włączają problem i trafiają do atrybutu
+    db.kv_set(conn, "sync_bank_failures", {"Mock ASPSP": 0, "Bank Drugi": 2})
+    entities = {e.key: e for e in _entities(conn, **kw)}
+    assert entities["sync_problem"].state == "ON"
+    assert entities["sync_problem"].attributes["bank_failures"] == {
+        "Mock ASPSP": 0,
+        "Bank Drugi": 2,
+    }
+    # nieaktywny jeden bank też włącza problem
+    db.kv_set(conn, "sync_bank_failures", None)
+    sessions.set_status(conn, "s-b", "EXPIRED")
+    entities = {e.key: e for e in _entities(conn, **kw)}
+    assert entities["sync_problem"].state == "ON"
+    assert entities["consent_days_left"].attributes["banks"]["Bank Drugi"]["status"] == "EXPIRED"
+
+
+def test_inbox_operational_cards_per_bank() -> None:
+    from budget import inbox
+
+    conn = _two_banks()
+    sessions.set_status(conn, "s-b", "EXPIRED")
+    db.kv_set(conn, "sync_bank_failures", {"Mock ASPSP": 2, "Bank Drugi": 0})
+    items = inbox.operational(conn, inbox.Context(NOW, Snapshot(conn)), inbox.BalanceMemo())
+    by_kind = {i.kind: i for i in items}
+    inactive = by_kind["session_inactive:Bank Drugi"]
+    assert inactive.title == "Zgoda bankowa nieaktywna — Bank Drugi"
+    assert inactive.link == "/bank" and inactive.count == 1
+    failing = by_kind["sync_failures:Mock ASPSP"]
+    assert failing.title == "Nieudane synchronizacje — Mock ASPSP"
+    assert failing.link == "/status" and failing.count == 2
+    assert "sync_failures:Bank Drugi" not in by_kind

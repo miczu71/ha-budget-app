@@ -30,38 +30,42 @@ class Alert:
 
 
 def evaluate(
-    record: SessionRecord | None,
+    records: list[SessionRecord],
     *,
-    failures: int,
+    bank_failures: dict[str, int],
     manual_sync_needed: bool,
     warning_days: int,
     now: datetime,
     failures_to_alert: int = 3,
 ) -> list[Alert]:
     alerts = []
-    if record is not None and not record.active:
-        alerts.append(
-            Alert(
-                "session_inactive",
-                f"Zgoda bankowa nieaktywna ({record.status}). Synchronizacja wstrzymana — "
-                "odnów zgodę w panelu (Bank → Odnów zgodę).",
+    for record in records:
+        bank = record.aspsp
+        if not record.active:
+            alerts.append(
+                Alert(
+                    f"session_inactive:{bank}",
+                    f"Zgoda bankowa {bank} nieaktywna ({record.status}). Synchronizacja "
+                    "wstrzymana — odnów zgodę w panelu (Bank → Odnów zgodę).",
+                )
             )
-        )
-    elif record is not None and record.days_left(now) <= warning_days:
-        alerts.append(
-            Alert(
-                "consent_expiring",
-                f"Zgoda bankowa wygasa za {record.days_left(now)} dni "
-                f"({record.valid_until:%Y-%m-%d}). Odnów ją w panelu (Bank → Odnów zgodę).",
+        elif record.days_left(now) <= warning_days:
+            alerts.append(
+                Alert(
+                    f"consent_expiring:{bank}",
+                    f"Zgoda bankowa {bank} wygasa za {record.days_left(now)} dni "
+                    f"({record.valid_until:%Y-%m-%d}). Odnów ją w panelu (Bank → Odnów zgodę).",
+                )
             )
-        )
-    if failures >= failures_to_alert:
-        alerts.append(
-            Alert(
-                "sync_failures",
-                f"{failures} nieudane synchronizacje z rzędu — szczegóły na ekranie Status.",
+        failures = bank_failures.get(bank, 0)
+        if failures >= failures_to_alert:
+            alerts.append(
+                Alert(
+                    f"sync_failures:{bank}",
+                    f"{bank}: {failures} nieudane synchronizacje z rzędu — "
+                    "szczegóły na ekranie Status.",
+                )
             )
-        )
     if manual_sync_needed:
         alerts.append(
             Alert(

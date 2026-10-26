@@ -470,8 +470,8 @@ class Service:
         if not self.ha.available:
             return
         alerts = notifications.evaluate(
-            sessions.current(self.conn),
-            failures=sync_service.consecutive_failures(self.conn),
+            sessions.current_all(self.conn),
+            bank_failures=sync_service.bank_failures(self.conn),
             manual_sync_needed=self.manual_sync_needed(),
             warning_days=self.settings.consent_warning_days,
             now=now,
