@@ -106,3 +106,38 @@ Wykonawca:
 - Każdy prompt = sekcja **Wykonawca** dosłownie + repo `miczu71/ha-budget-app`. Wynik: gałąź/PR, lokalnie
   `verifier` + pytest przed merge. Koszt sesji nieznany — E3 jako pomiar.
 - Przepływ nie rusza sekretów ani produkcji.
+
+## Wyniki wykonania (stan 2026-10-26)
+
+| Etap | Stan | Gdzie |
+|---|---|---|
+| E0 | zrobione 2026-10-22 | Velobank na liście Enable Banking (beta) |
+| E1 | zmergowane 2026-10-26 (squash `53805ba`) | PR #1; review: brak blokujących |
+| E2 | gotowe, **czeka na CI i merge** | PR #3 (`m32-e2-licznik`): +557/−21, 8 plików, pytest 1201 ok / 2 faile jak na `main`, ruff czysty, mypy bez nowych błędów, +26 testów |
+| E3 | gotowe, **czeka na review i merge** | PR #2 (`m32-e3-parser`) |
+| E4 | czeka na merge E2 i E3 | — |
+
+**Dwa faile na czystym `main`** (nie z E1/E2): `test_web_recurring::test_recurring_flow`, `::test_reject_proposal`.
+mypy: 75 błędów w testach, stan sprzed prac M32.
+
+### Poprawki z review E1 (zrobione w E2, PR #3)
+- Nieaktywna zgoda przy innym aktywnym banku → sync `partial` (nie `ok`); prefiks banku w `detail` zależy od `len(records) > 1`.
+- `_sync_session` izoluje dowolny wyjątek (status `error`), reszta banków się synchronizuje.
+
+### Otwarte uwagi (do decyzji, nie blokują)
+- `partial` nie podbija `consecutive_failures` (wygasła zgoda widoczna w statusie, `detail` i alercie `session_inactive`). Zmiana wymaga ruszenia `consecutive_failures` — osobna decyzja.
+- `finish_auth` nie sprawdza zgodności banku z wybranym w `pending` (UX); wspólny `pending_auth` dla wielu banków; `store_session` rozróżnia wielkość liter, `current()` nie; backfill migracji 029 zakłada jeden bank; brak testów: `finish_auth` z innym bankiem, backfill z kontami starszego banku.
+- Alias `notify.family` nie jest w kodzie — idzie przez opcję `summary_notify_service` (ustawia user).
+
+### Pomiar chmury i kredytu (ważne dla dalszej pracy)
+- Kredyt „Cloud session credits” 100 USD (wygasa 2026-11-05) **nie zszedł**: 100/100 po review E1 (~85 tys. tokenów) i po E2 (~146 tys. tokenów).
+- Przyczyna (potwierdzona): agent z `isolation: "remote"` wywołany z Claude Code **działał lokalnie** w kontenerze (worktree `~/dev/ha-budget-app-e2`, klon `/config/addons/ha-budget-app`), czyli poszedł z limitów planu, nie z kredytu cloud. Dotyczy też uruchomień E1/E3 z 2026-10-22.
+- `/code-review ultra` nie działa przez Remote Control.
+- Jedyna niesprawdzona droga do kredytu: sesja ręcznie na claude.ai/code (repo `miczu71/ha-budget-app`). Test: mała sesja (np. streszczenie sekcji E4), potem sprawdzić Settings → Usage. Jeśli kredyt nie spadnie → wsparcie Anthropic.
+- Do 5.11 nie uruchamiać kolejnych agentów „remote” dla kredytu, dopóki test z claude.ai/code nie rozstrzygnie sprawy.
+
+### Następne kroki
+1. User: test sesji na claude.ai/code → wynik do tego pliku.
+2. Merge PR #3 po CI i zgodzie; review i merge PR #2.
+3. E4 (po E2+E3): w chmurze tylko jeśli test z p.1 pokaże zużycie kredytu, inaczej lokalnie wg kontraktu Wykonawca.
+4. Po E4: wydanie końcowe (`simplify` → `code-review` + `silent-failure-hunter` + security → `release` → weryfikacja na żywo); wydanie po E2 łączone z końcowym, chyba że user zdecyduje inaczej.
