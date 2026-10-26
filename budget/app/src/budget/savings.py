@@ -287,6 +287,15 @@ def linked_ledger_id(conn: sqlite3.Connection, acc: Account) -> int | None:
     return None
 
 
+def ledger_bank(conn: sqlite3.Connection, acc: Account) -> str | None:
+    """Bank powiązanego konta z księgi (pole `bank`); None bez powiązania albo bez nazwy banku."""
+    ledger_id = linked_ledger_id(conn, acc)
+    if ledger_id is None:
+        return None
+    row = conn.execute("SELECT bank FROM account WHERE id = ?", (ledger_id,)).fetchone()
+    return str(row["bank"]) if row and row["bank"] else None
+
+
 def bank_snapshot(conn: sqlite3.Connection, acc: Account) -> sqlite3.Row | None:
     """Ostatnia migawka salda (ITAV, potem ITBD) powiązanego konta z księgi; None bez niej."""
     ledger_id = linked_ledger_id(conn, acc)

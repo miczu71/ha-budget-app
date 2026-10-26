@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget import piggy, promo_watch, savings
+from budget import piggy, promo_track, promo_watch, promo_watch_velo, savings
 from budget.recurring import series as S
 from budget.spending import month_start
 from budget.web.common import Panel
@@ -26,6 +26,14 @@ def router(panel: Panel) -> APIRouter:
         today = panel.service.now().date()
         accts = savings.all_accounts(conn)
         watch = promo_watch.load(conn) if accts else None
+        banks: dict[int, str | None] = {a.id: savings.ledger_bank(conn, a) for a in accts}
+        velo = promo_watch_velo.rates(conn) if accts else None
+        promos: dict[int, tuple[promo_track.Track | None, float | None]] = {}
+        for a in accts:  # promocje innych banków (Millennium ma własny formularz Profit)
+            bank = banks[a.id]
+            if bank and promo_track.LEDGER_BANK not in bank.lower():
+                rate = velo.promo_rate if velo and "velo" in bank.lower() else None
+                promos[a.id] = (promo_track.active_for_bank(conn, bank, today), rate)
         fc = panel.service.forecast()  # ten sam okres i stan co w prognozie „Do wypłaty”
         if fc is not None and fc.piggies_from is not None:
             start, rows = fc.piggies_from, fc.piggies
@@ -43,6 +51,8 @@ def router(panel: Panel) -> APIRouter:
             series=[s for s in S.all_series(conn, ("active",)) if s.direction == "out"],
             edit=next((s.piggy for s in rows if s.piggy.id == edit), None),
             accounts=[(a, savings.estimate(conn, a, today)) for a in accts],
+            banks=banks,
+            promos=promos,
             rates=savings.monthly_rates(conn, today) if accts else [],
             watch=watch,
             promo_days=promo_days(watch),

@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import date
+from pathlib import Path
 
 import httpx
 import pytest
 import respx
 
-from budget import promo_watch
+from budget import promo_track, promo_watch, promo_watch_velo
 from budget.service import Service
+from budget.storage import db
 from budget.storage.db import now_iso
 
 from .test_categorize_engine import add
@@ -316,3 +319,38 @@ async def test_linked_savings_shows_bank_balance(
     assert "Saldo z banku, stan z 20.10" in page and "Odsetki do dopisania" in page
     edit = (await client.get("/piggy?edit_savings=1")).text
     assert 'type="hidden" name="opening_balance"' in edit
+
+
+async def test_velo_account_shows_promo_card_without_profit_form(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    conn = service.conn
+    conn.execute(
+        "INSERT INTO account (id, kind, iban, currency, bank, created_at) VALUES "
+        "(8, 'savings', 'PL11222233334444555566667777', 'PLN', 'VeloBank', ?), "
+        "(9, 'savings', 'PL99888877776666555544443333', 'PLN', 'Bank Millennium', ?)",
+        (now_iso(), now_iso()),
+    )
+    conn.execute(
+        "INSERT INTO savings_account (name, account_number, opening_balance, opening_date, "
+        "base_rate, created_at) VALUES ('Konto Velo', '11222233334444555566667777', '1', "
+        "'2026-10-01', '1', ?), ('Konto Millennium', '99888877776666555544443333', '1', "
+        "'2026-10-01', '1', ?)",
+        (now_iso(), now_iso()),
+    )
+    tid = promo_track.start_edition(
+        conn, "VeloBank", "Nowe środki", date(2026, 10, 1), date(2027, 1, 13), 5
+    )
+    conn.execute("UPDATE promo_track SET status = 'active' WHERE id = ?", (tid,))
+    page_html = (Path(__file__).parent / "fixtures" / "velobank_ror_oferta_2026_12.html").read_text(
+        "utf8"
+    )
+    offer = promo_watch_velo.parse(promo_watch_velo.html_text(page_html), date(2026, 10, 22))
+    db.kv_set(conn, promo_watch_velo.KEY, {"offer": offer.to_json()})
+
+    page = (await client.get("/piggy")).text
+    velo = page.split('id="savings-1"', 1)[1].split('id="savings-2"', 1)[0]
+    assert "do 13.01.2027" in velo and "4.5%" in velo
+    assert "Aktywuj promocję" not in velo and "/invest#promos" in velo
+    millennium = page.split('id="savings-2"', 1)[1]
+    assert "Aktywuj promocję" in millennium

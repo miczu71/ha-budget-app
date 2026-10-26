@@ -95,15 +95,19 @@
 </form>
 {% endmacro %}
 <h2 id="savings">Konto oszczędnościowe</h2>
-{% for a, est in accounts %}
+{% for a, est in accounts %}{% set bank = banks.get(a.id) %}{% set promo = promos.get(a.id) %}
 <section class="card piggy" id="savings-{{ a.id }}">
   <h2>{{ a.name }} <span class="small muted">{{ a.masked }}</span></h2>
   <div class="stats">
     <div class="stat"><span class="stat-label">Saldo</span><span class="stat-value">{{ est.total | money("PLN") }}</span>{% if est.as_of %}<span class="small muted">Saldo z banku, stan z {{ est.as_of.isoformat() | pldate }}</span>{% else %}<span class="small muted">od {{ a.opening_date.isoformat() | pldate }}: {{ a.opening_balance | money("PLN") }}</span>{% endif %}</div>
     {% if est.as_of and est.pending > 0 %}<div class="stat"><span class="stat-label">Odsetki do dopisania</span><span class="stat-value">ok. {{ est.pending | money("PLN") }}</span><span class="small muted">od 1. dnia miesiąca, netto; poza saldem</span></div>{% endif %}
     {% if a.base_rate is not none or a.promo_rate is not none %}<div class="stat"><span class="stat-label">Odsetki (szac., netto)</span><span class="stat-value">{{ est.interest | money("PLN") }}</span><span class="small muted">po Belce 19%, kapitalizacja co miesiąc</span></div>{% endif %}
-    {% if a.promo_rate is not none and a.promo_until %}<div class="stat"><span class="stat-label">Promocja</span><span class="stat-value">{{ a.promo_rate }}%</span><span class="small {{ 'warn-text' if a.promo_until < today else 'muted' }}">{% if a.promo_until < today %}skończyła się {{ a.promo_until.isoformat() | pldate }}{% else %}do {{ a.promo_until.isoformat() | pldate }}{% if a.promo_limit %}, limit {{ a.promo_limit | money("PLN") }}{% endif %}{% endif %}</span></div>{% endif %}
+    {% if promo and promo[0] %}<div class="stat"><span class="stat-label">Promocja</span><span class="stat-value">{{ promo[1] ~ '%' if promo[1] is not none else '—' }}</span><span class="small muted">do {{ promo[0].end.isoformat() | pldate }}</span></div>
+    {% if promo[0].cashless %}<div class="stat"><span class="stat-label">BLIK/karta w tym miesiącu</span><span class="stat-value">{{ promo[0].cashless.progress }}/{{ promo[0].cashless.target }}</span></div>{% endif %}
+    {% elif not promo and a.promo_rate is not none and a.promo_until %}<div class="stat"><span class="stat-label">Promocja</span><span class="stat-value">{{ a.promo_rate }}%</span><span class="small {{ 'warn-text' if a.promo_until < today else 'muted' }}">{% if a.promo_until < today %}skończyła się {{ a.promo_until.isoformat() | pldate }}{% else %}do {{ a.promo_until.isoformat() | pldate }}{% if a.promo_limit %}, limit {{ a.promo_limit | money("PLN") }}{% endif %}{% endif %}</span></div>{% endif %}
   </div>
+  {% if promo %}<p class="small"><a class="tap" href="{{ base }}/invest#promos">{{ "Promocje w toku" if promo[0] else "Dodaj edycję w Promocje w toku" }}</a></p>{% endif %}
+  {% if not bank or 'millennium' in bank | lower %}
   <details class="piggy-new">
     <summary>Aktywuj promocję „Nowe środki” (Profit)</summary>
     <form class="rule-form piggy-form" method="post" action="{{ base }}/savings/{{ a.id }}/promo" hx-boost="false">
@@ -119,6 +123,7 @@
       <p class="actions-row"><button type="submit">Ustaw promocję</button></p>
     </form>
   </details>
+  {% endif %}
   <form class="actions-row small" method="post" action="{{ base }}/savings/{{ a.id }}/archive">
     <a class="tap" href="{{ base }}/piggy?edit_savings={{ a.id }}#edit-savings">Zmień</a>
     <button class="link">Archiwizuj</button>
