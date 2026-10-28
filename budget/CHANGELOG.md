@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.67.0
+
+**M33: okres od wypłaty i nieregularne w puli** — `docs/ROADMAP_M33.md`.
+- Dzień wypłaty należy do nowego okresu: „Od wypłaty” (hero, tygodnie, sensory) liczy wydatki od dnia wpływu pensji
+  do dnia przed następną, a porównanie z rokiem temu mierzy ten sam przedział, więc różnica r/r przestaje być zawyżona.
+- Nieregularne (prezenty, ogród, serwis, ubezpieczenia…) zmniejszają „Zostało” faktycznie wydaną kwotą w miesiącu;
+  zwrot netto nie powiększa puli. Hero pokazuje „elastyczne + nieregularne”, a przy braku w bieżącym miesiącu dopisek
+  „Do uzupełnienia z oszczędności”. Tempo, pasek, podsumowania tygodnia i miesiąca oraz fakty czatu liczą z tego samego
+  obciążenia puli; `sensor.budget_flex_remaining` ma atrybut `non_monthly`.
+- Kafelek „Akcje” w Podsumowaniu pokazuje tylko wartość zawiązanych (bez kwoty niezawiązanych).
+
 ## 0.66.0
 
 **M32: alerty bankowe per bank + M14 E2c** — `docs/PLAN_M32_M14_E2c.md`.
