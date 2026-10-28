@@ -12,7 +12,7 @@ Wywiad (2026-10-28):
 - **Kto korzysta:** Ty w panelu (hero „Do wypłaty”, ekran Budżet, Podsumowanie), sensory `budget_flex_*` (bez automatyzacji w HA) i podsumowania tygodnia/miesiąca.
 - **Automatycznie:** okres od wypłaty liczy się od dnia wypłaty włącznie do dnia przed następną; nieregularne wydane w miesiącu odejmują się od „Zostało” (opcja 2: faktyczne, bez rezerwy).
 - **Za zgodą / ręcznie:** brak w puli uzupełniasz sam z oszczędności; przelew z oszczędności dalej jest wewnętrzny i nie zmienia puli. Panel pokazuje „do uzupełnienia z oszczędności: X zł”.
-- **Sukces:** hero ≈ 1 340,83 zł od 23.10 z r/r liczonym na obu stronach od dnia wypłaty; „Zostało” w październiku mniejsze o nieregularne z października, a 300 zł Villeroy widać w rozbiciu.
+- **Sukces:** hero ≈ 1 340,83 zł od 23.10 z r/r liczonym na obu stronach od dnia wypłaty; „Zostało” w październiku mniejsze o nieregularne z października, a prezent „Sklep X” 300 zł widać w rozbiciu.
 
 Repo `/config/addons/ha-budget-app`, gałąź `main`, wersja 0.66.0 → 0.67.0 (zmiana zachowania, jedno wydanie na końcu).
 Pierwszy krok: ten plan → `docs/ROADMAP_M33.md` (+ `docs/PLAN_M33_E1.md`, `docs/PLAN_M33_E2.md`), wiersz M33 i decyzje 32–33 w `docs/ROADMAP.md`.

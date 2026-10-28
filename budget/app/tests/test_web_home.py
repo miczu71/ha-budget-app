@@ -741,14 +741,14 @@ def _holding(conn: sqlite3.Connection, fetched_at: datetime | None = None) -> No
     )
 
 
-async def test_stocks_tile_shows_value_unvested_and_vest(
+async def test_stocks_tile_shows_vested_value_and_next_vest_only(
     client: httpx.AsyncClient, service: Service
 ) -> None:
     _balances(service.conn)
     _holding(service.conn)
     page = (await client.get("/")).text
     assert '<span class="bal-label">Akcje</span><span class="bal-value">' in page
-    assert "niezawiązane" in page and "zawiązanie" in page
+    assert "zawiązanie" in page and "niezawiązane" not in page  # kwota niezawiązanych bez śladu
     assert "nieaktualne" not in page
 
 
