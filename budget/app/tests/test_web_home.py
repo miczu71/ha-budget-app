@@ -640,13 +640,27 @@ async def test_with_balances_hero_counts_to_payday_and_month_is_a_tile(
     assert "Zostało na elastyczne" not in (await client.get("/")).text
 
 
+def _left_line(page: str) -> str:
+    return page[page.index('class="hero-left"') :].split("</p>", 1)[0]
+
+
 async def test_hero_shows_left_above_planned(client: httpx.AsyncClient, service: Service) -> None:
     _balances(service.conn)
     fc = service.forecast()
-    assert fc is not None
-    page = (await client.get("/")).text
-    hero = page[page.index("payday-hero") : page.index("home-grid")]
-    assert "Ponad zaplanowane" in hero and fmt_money(fc.at_payday, "PLN") in hero
+    assert fc is not None and fc.at_payday > 0 and fc.payday is None
+    line = _left_line((await client.get("/")).text)
+    assert "Ponad zaplanowane do końca miesiąca" in line
+    assert f'<strong class="pos">{fmt_money(fc.at_payday, "PLN")}</strong>' in line
+
+
+async def test_hero_left_above_planned_is_red_when_negative(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn, account="10.00")
+    fc = service.forecast()
+    assert fc is not None and fc.at_payday < 0
+    line = _left_line((await client.get("/")).text)
+    assert f'<strong class="neg">{fmt_money(fc.at_payday, "PLN")}</strong>' in line
 
 
 async def test_past_month_keeps_monthly_hero(client: httpx.AsyncClient, service: Service) -> None:
