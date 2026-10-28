@@ -158,7 +158,7 @@ class FlexMonth:
 
     @property
     def charged(self) -> Decimal:
-        """Obciążenie puli: flex + nieregularne (zwrot netto w nieregularnych nie powiększa puli)."""
+        """Obciążenie puli: flex + nieregularne (zwrot netto nie powiększa puli)."""
         return self.spent + max(self.non_monthly, ZERO)
 
     @property

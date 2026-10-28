@@ -21,7 +21,7 @@ from budget.ledger import account_by_alias, ingest_balances
 from budget.snapshot import Snapshot
 from budget.storage import db
 
-from .test_categorize_engine import add, conn
+from .test_categorize_engine import add, conn, sid
 
 __all__ = ["conn"]
 
@@ -283,6 +283,16 @@ def test_flex_entities_with_budget(conn: db.sqlite3.Connection) -> None:
     october = _flex(conn, date(2026, 10, 1))  # zawsze bieżący miesiąc
     assert october["flex_spent"].state == "0.00"
     assert october["flex_remaining"].attributes["month"] == "2026-10"
+
+
+def test_flex_remaining_non_monthly_attribute_ignores_refund(conn: db.sqlite3.Connection) -> None:
+    add(conn, "-120.00", "card", "LIDL XYZ POL", day="2026-09-02")
+    back = add(conn, "300.00", "card", "ELEKTRO RTV ZWROT", day="2026-09-07")
+    engine.set_manual(conn, back, sid(conn, "elektronika"))
+    flex.set_budget(conn, date(2026, 9, 1), Decimal("3000"))
+    f = _flex(conn, date(2026, 9, 10))
+    assert f["flex_remaining"].state == "2880.00"  # zwrot nie zwiększa puli
+    assert f["flex_remaining"].attributes["non_monthly"] == "0.00"  # jak w charged, bez minusa
 
 
 def test_flex_over_pace_and_exhausted(conn: db.sqlite3.Connection) -> None:

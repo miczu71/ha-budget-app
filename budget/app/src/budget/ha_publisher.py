@@ -312,7 +312,7 @@ def flex_entities(snap: Snapshot, today: date) -> list[Entity]:
             per_day=_amount(fm.per_day),
             expected_today=_amount(fm.expected),
             over_pace=fm.over_pace,
-            non_monthly=_amount(fm.non_monthly),
+            non_monthly=_amount(max(fm.non_monthly, Decimal(0))),
             used_pct=round(fm.used * 100, 1) if fm.budget else None,
             days_left=fm.days_left,
             month=month,
