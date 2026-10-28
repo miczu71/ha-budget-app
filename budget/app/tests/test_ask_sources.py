@@ -8,11 +8,12 @@ from decimal import Decimal
 
 from budget import card, flex, forecast, loan
 from budget.ask import sources
+from budget.categorize import engine
 from budget.money import pl
 from budget.snapshot import Snapshot
 
 from .test_card import CARD, buy
-from .test_categorize_engine import conn
+from .test_categorize_engine import add, conn, sid
 from .test_flex import serie
 from .test_forecast import at, seeded
 from .test_loan import make as make_loan
@@ -115,6 +116,20 @@ def test_budget_matches_flex_screen(conn: sqlite3.Connection) -> None:
     assert f.remaining is not None
     assert got["Zostało w budżecie elastycznym"] == pl(f.remaining, "PLN")
     assert got["Budżet elastyczny"] == pl(Decimal("1000"), "PLN")
+
+
+def test_budget_facts_count_non_monthly_against_the_pool(conn: sqlite3.Connection) -> None:
+    flex.set_budget(conn, date(2026, 10, 1), Decimal("1000"))
+    add(conn, "-100.00", "card", "LIDL XYZ POL", day="2026-10-02")
+    once = add(conn, "-300.00", "card", "ELEKTRO RTV", day="2026-10-02")
+    engine.recategorize(conn)
+    engine.set_manual(conn, once, sid(conn, "elektronika"))
+    got = facts(sources.run("budget", ctx(conn, at(3))))
+    assert got["Wydane elastyczne"] == pl(Decimal("100"), "PLN")
+    assert got["Wydatki nieregularne (obciążają pulę)"] == pl(Decimal("300"), "PLN")
+    assert got["Obciążenie puli (elastyczne + nieregularne)"] == pl(Decimal("400"), "PLN")
+    assert got["Zostało w budżecie elastycznym"] == pl(Decimal("600"), "PLN")
+    assert "Wydatki nieregularne (informacyjnie)" not in got
 
 
 def test_budget_without_amount_says_so(conn: sqlite3.Connection) -> None:

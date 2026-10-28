@@ -436,7 +436,7 @@ def build(
                 plan,
                 safe,
             )
-            # minione i bieżący tydzień pokrywają dokładnie (start, jutro)
+            # minione i bieżący tydzień pokrywają dokładnie [start, jutro)
             spent_since = sum((w.spent for w in week_list), ZERO)
         else:
             spent_since = flex.spent_between(snap, start, today + timedelta(days=1), skip)

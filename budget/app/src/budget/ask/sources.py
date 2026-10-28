@@ -201,6 +201,8 @@ def _budget(c: Ctx) -> SourceResult:
         facts.append(Fact("Budżet elastyczny", pl(f.budget, "PLN")))
         facts.append(Fact("Źródło kwoty budżetu", how))
     facts.append(Fact("Wydane elastyczne", pl(f.spent, "PLN")))
+    if f.budget is not None:
+        facts.append(Fact("Obciążenie puli (elastyczne + nieregularne)", pl(f.charged, "PLN")))
     if f.remaining is not None:
         facts.append(Fact("Zostało w budżecie elastycznym", pl(f.remaining, "PLN")))
     if f.is_current:
@@ -211,7 +213,7 @@ def _budget(c: Ctx) -> SourceResult:
             facts.append(Fact("Przy równym tempie powinno być wydane", pl(f.expected, "PLN")))
             facts.append(Fact("Wydatki szybsze od tempa", "tak" if f.over_pace else "nie"))
     facts.append(Fact("Koszty stałe (informacyjnie)", pl(f.fixed, "PLN")))
-    facts.append(Fact("Wydatki nieregularne (informacyjnie)", pl(f.non_monthly, "PLN")))
+    facts.append(Fact("Wydatki nieregularne (obciążają pulę)", pl(f.charged - f.spent, "PLN")))
     if f.uncategorized_count:
         facts.append(
             Fact(

@@ -521,6 +521,16 @@ def test_payday_itself_opens_the_new_period() -> None:
     assert all(w.state == forecast.NEXT for w in ws[1:]) and sum(w.spent for w in ws[1:]) == 0
 
 
+def test_weeks_of_a_two_day_period_and_an_empty_one() -> None:
+    # wypłata 2.10, następna 4.10: okres to 2.10–3.10 (jeden przycięty tydzień)
+    ws = forecast.weeks(date(2026, 10, 2), date(2026, 10, 4), TODAY, spent_days, None, None)
+    assert [(w.start, w.end, w.state, w.days) for w in ws] == [
+        (date(2026, 10, 2), date(2026, 10, 3), forecast.NOW, 2)
+    ]
+    # następna wypłata w dniu tej samej wypłaty — okres pusty, bez wyjątku
+    assert forecast.weeks(date(2026, 10, 2), date(2026, 10, 2), TODAY, spent_days, None, None) == []
+
+
 def test_past_weeks_use_plan_and_current_week_uses_todays_limit() -> None:
     today = date(2026, 10, 8)  # czwartek
     ws = forecast.weeks(

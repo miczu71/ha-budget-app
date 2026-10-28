@@ -15,7 +15,7 @@ Wywiad (2026-10-28):
 - **Sukces:** hero ≈ 1 340,83 zł od 23.10 z r/r liczonym na obu stronach od dnia wypłaty; „Zostało” w październiku mniejsze o nieregularne z października, a prezent „Sklep X” 300 zł widać w rozbiciu.
 
 Repo `/config/addons/ha-budget-app`, gałąź `main`, wersja 0.66.0 → 0.67.0 (zmiana zachowania, jedno wydanie na końcu).
-Pierwszy krok: ten plan → `docs/ROADMAP_M33.md` (+ `docs/PLAN_M33_E1.md`, `docs/PLAN_M33_E2.md`), wiersz M33 i decyzje 32–33 w `docs/ROADMAP.md`.
+Dokumentacja: wiersz M33 i decyzje 32–33 w `docs/ROADMAP.md`.
 
 ## E1: dzień wypłaty otwiera nowy okres (robię sam, < 5 edycji, TDD)
 - `forecast.py` `weeks()`: `ws = start`, `while ws < payday`, `we = min(niedziela, payday − 1 dzień)`; docstring [start, payday).

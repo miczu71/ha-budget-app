@@ -127,6 +127,30 @@ def test_monthly_includes_non_monthly(conn: sqlite3.Connection) -> None:
     )
 
 
+def test_monthly_over_pool_with_non_monthly(conn: sqlite3.Connection) -> None:
+    flex.set_budget(conn, date(2026, 9, 1), Decimal("700"))
+    add(conn, "-600.00", "card", "LIDL XYZ POL", day="2026-09-03")
+    once = add(conn, "-300.00", "card", "ELEKTRO RTV", day="2026-09-07")
+    engine.recategorize(conn)
+    engine.set_manual(conn, once, sid(conn, "elektronika"))
+    msg = summary.monthly(snap(conn), date(2026, 10, 1))
+    assert msg.text.splitlines()[0] == (
+        f"Wydane 600{NBSP}zł + nieregularne 300{NBSP}zł z 700{NBSP}zł — ponad pulę o 200{NBSP}zł"
+    )
+
+
+def test_weekly_pace_counts_non_monthly(conn: sqlite3.Connection) -> None:
+    flex.set_budget(conn, date(2026, 10, 1), Decimal("3100"))  # 100 zł na dzień
+    add(conn, "-100.00", "card", "LIDL XYZ POL", day="2026-10-02")
+    once = add(conn, "-1500.00", "card", "ELEKTRO RTV", day="2026-10-03")
+    engine.recategorize(conn)
+    engine.set_manual(conn, once, sid(conn, "elektronika"))
+    lines = summary.weekly(snap(conn), date(2026, 10, 12)).text.splitlines()
+    # obciążenie 100 + 1500 = 1600; tempo do wczoraj: 11 dni × 100 = 1100
+    assert lines[0].startswith(f"Zostało 1{NBSP}500{NBSP}zł z 3{NBSP}100{NBSP}zł")
+    assert lines[1] == f"Tempo: 500{NBSP}zł ponad plan"
+
+
 @pytest.mark.parametrize(
     ("now", "kinds"),
     [
