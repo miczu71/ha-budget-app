@@ -490,17 +490,18 @@ def weeks(
     plan: Decimal | None,
     safe: Decimal | None,
 ) -> list[Week]:
-    """Tygodnie pon–nd okresu (`start`, `payday`] (czysta logika; `spent(a, b)` = wydane w [a, b)).
-    `start` to dzień ostatniej wypłaty, `payday` — następnej. Pensja przychodzi po południu, więc
-    dzień wypłaty kończy stary okres (w dniu wpływu nowy nie ma jeszcze bieżącego tygodnia).
+    """Tygodnie pon–nd okresu [`start`, `payday`) (czysta logika; `spent(a, b)` = wydane w [a, b)).
+    `start` to dzień ostatniej wypłaty, `payday` — następnej. Dzień wypłaty otwiera nowy okres:
+    wydatki z rana tego dnia liczą się do niego (tak jak w porównaniu r/r i bez znanej wypłaty).
     Minione mierzy limit z początku okresu (`plan`), a bieżący i przyszłe — dzisiejszy `safe`
     od jutra (dzisiejsze wydatki są już w saldzie), więc przekroczenie obniża kolejne tygodnie."""
     plan_day = None if plan is None else max(plan, ZERO)
     safe_day = None if safe is None else max(safe, ZERO)
     result: list[Week] = []
-    ws = start + timedelta(days=1)
-    while ws <= payday:
-        we = min(ws + timedelta(days=6 - ws.weekday()), payday)
+    ws = start
+    last = payday - timedelta(days=1)
+    while ws <= last:
+        we = min(ws + timedelta(days=6 - ws.weekday()), last)
         days = (we - ws).days + 1
         if we < today:
             limit = None if plan_day is None else plan_day * days

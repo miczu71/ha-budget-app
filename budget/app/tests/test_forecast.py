@@ -456,9 +456,10 @@ def test_period_starts_at_last_payday_and_counts_flexible_spending(
     add(conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day="2026-09-07")
     add(conn, "-50.00", day="2026-09-01")  # przed okresem
     add(conn, "-120.00", day="2026-09-20")  # bez kategorii — liczy się jak elastyczne
+    add(conn, "-30.00", day="2026-09-07")  # w dniu wypłaty — już w nowym okresie
     fc = build(conn, payday_id=mine)
     assert fc is not None and fc.payday == date(2026, 10, 7)
-    assert fc.period_start == date(2026, 9, 7) and fc.spent_since == Decimal("120.00")
+    assert fc.period_start == date(2026, 9, 7) and fc.spent_since == Decimal("150.00")
     assert fc.period_elapsed == pytest.approx(26 / 30)  # 7.09 → 7.10, dziś 3.10
 
 
@@ -488,25 +489,25 @@ def spent_days(a: date, b: date) -> Decimal:
 
 
 def test_weeks_split_period_monday_to_sunday() -> None:
-    # ostatnia wypłata w środę 30.09 (jej dzień jest jeszcze w starym okresie), następna w czwartek
-    # 15.10 (jej dzień kończy okres — pensja przychodzi po południu), dziś sobota 3.10
+    # ostatnia wypłata w środę 30.09 (jej dzień otwiera okres), następna w czwartek 15.10
+    # (jej dzień należy już do następnego okresu), dziś sobota 3.10
     ws = forecast.weeks(
         date(2026, 9, 30), date(2026, 10, 15), TODAY, spent_days, Decimal(30), Decimal(25)
     )
     assert [(w.start, w.end, w.state) for w in ws] == [
-        (date(2026, 10, 1), date(2026, 10, 4), forecast.NOW),
+        (date(2026, 9, 30), date(2026, 10, 4), forecast.NOW),
         (date(2026, 10, 5), date(2026, 10, 11), forecast.NEXT),
-        (date(2026, 10, 12), date(2026, 10, 15), forecast.NEXT),  # z dniem wypłaty
+        (date(2026, 10, 12), date(2026, 10, 14), forecast.NEXT),  # dzień przed wypłatą
     ]
-    assert [w.days for w in ws] == [4, 7, 4]  # pierwszy i ostatni tydzień przycięte do okresu
+    assert [w.days for w in ws] == [5, 7, 3]  # pierwszy i ostatni tydzień przycięte do okresu
     now = ws[0]
-    assert now.spent == Decimal(60)  # 1.10–3.10 włącznie z dziś
-    assert now.limit == Decimal(85) and now.left == Decimal(25)  # + 25 na niedzielę
-    assert ws[1].limit == Decimal(175) and ws[2].limit == Decimal(100) and ws[2].spent == 0
+    assert now.spent == Decimal(80)  # 30.09–3.10 włącznie z dziś
+    assert now.limit == Decimal(105) and now.left == Decimal(25)  # + 25 na niedzielę
+    assert ws[1].limit == Decimal(175) and ws[2].limit == Decimal(75) and ws[2].spent == 0
 
 
-def test_payday_itself_belongs_to_the_old_period() -> None:
-    # w dniu wypłaty (wpływ już zaksięgowany) nowy okres nie ma jeszcze bieżącego tygodnia
+def test_payday_itself_opens_the_new_period() -> None:
+    # w dniu wypłaty (wpływ już zaksięgowany) zaczyna się bieżący tydzień nowego okresu
     ws = forecast.weeks(
         date(2026, 10, 3),
         date(2026, 11, 3),
@@ -515,8 +516,9 @@ def test_payday_itself_belongs_to_the_old_period() -> None:
         Decimal(30),
         Decimal(25),
     )
-    assert ws[0].start == date(2026, 10, 4) and ws[-1].end == date(2026, 11, 3)
-    assert all(w.state == forecast.NEXT for w in ws) and sum(w.spent for w in ws) == 0
+    assert ws[0].start == date(2026, 10, 3) and ws[-1].end == date(2026, 11, 2)
+    assert ws[0].state == forecast.NOW and ws[0].spent == Decimal(20)  # dzisiejsze wydatki
+    assert all(w.state == forecast.NEXT for w in ws[1:]) and sum(w.spent for w in ws[1:]) == 0
 
 
 def test_past_weeks_use_plan_and_current_week_uses_todays_limit() -> None:
@@ -525,10 +527,10 @@ def test_past_weeks_use_plan_and_current_week_uses_todays_limit() -> None:
         date(2026, 9, 30), date(2026, 10, 15), today, spent_days, Decimal(15), Decimal(5)
     )
     past, now = ws[0], ws[1]
-    assert past.state == forecast.PAST and past.limit == Decimal(60) and past.spent == Decimal(80)
-    assert past.over and past.used == 1.0
+    assert past.state == forecast.PAST and past.limit == Decimal(75) and past.spent == Decimal(100)
+    assert past.over and past.used == 1.0  # 30.09–4.10, 5 dni
     assert now.spent == Decimal(80) and now.limit == Decimal(95)  # 5.10–8.10 + 5 × 3 dni
-    assert ws[2].limit == Decimal(20)  # 12.10–15.10 × dzisiejsze 5 zł
+    assert ws[2].limit == Decimal(15)  # 12.10–14.10 × dzisiejsze 5 zł
 
 
 def test_weeks_without_limit_and_negative_limit() -> None:
@@ -545,15 +547,15 @@ def test_build_has_weeks_and_remembers_period_plan(conn: sqlite3.Connection) -> 
     mine = serie(conn, "pensja", "9000.00", direction="in")  # termin 7.
     add(conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day="2026-09-07")
     fc = build(conn, payday_id=mine)
-    assert fc is not None and fc.weeks[0].start == date(2026, 9, 8)
-    assert fc.weeks[-1].end == date(2026, 10, 7)  # dzień następnej wypłaty kończy okres
+    assert fc is not None and fc.weeks[0].start == date(2026, 9, 7)
+    assert fc.weeks[-1].end == date(2026, 10, 6)  # dzień przed następną wypłatą
     assert fc.this_week is not None
     stored = db.kv_get(conn, forecast.PERIOD_PLAN_KEY)
     assert stored == {"start": "2026-09-07", "per_day": str(fc.safe_per_day)}
     assert fc.plan_per_day == fc.safe_per_day
     db.kv_set(conn, forecast.PERIOD_PLAN_KEY, {"start": "2026-09-07", "per_day": "1.00"})
     fc = build(conn, payday_id=mine)
-    assert fc is not None and fc.weeks[0].limit == Decimal(6)  # 8.09–13.09 × 1 zł
+    assert fc is not None and fc.weeks[0].limit == Decimal(7)  # 7.09–13.09 × 1 zł
     assert fc.plan_per_day == Decimal(1)
 
 
