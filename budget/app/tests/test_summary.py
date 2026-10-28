@@ -16,7 +16,7 @@ from budget.service import Service
 from budget.settings import Settings
 from budget.snapshot import Snapshot
 
-from .test_categorize_engine import add, conn
+from .test_categorize_engine import add, conn, sid
 from .test_flex import serie, spend
 from .test_web import _client, service
 
@@ -113,6 +113,18 @@ def test_monthly_closes_previous_month(conn: sqlite3.Connection) -> None:
         f"Najwięcej: Jedzenie 600{NBSP}zł, Bez kategorii 40{NBSP}zł",
         "Do przejrzenia: 1",
     ]
+
+
+def test_monthly_includes_non_monthly(conn: sqlite3.Connection) -> None:
+    flex.set_budget(conn, date(2026, 9, 1), Decimal("900"))
+    add(conn, "-600.00", "card", "LIDL XYZ POL", day="2026-09-03")
+    once = add(conn, "-300.00", "card", "ELEKTRO RTV", day="2026-09-07")
+    engine.recategorize(conn)
+    engine.set_manual(conn, once, sid(conn, "elektronika"))
+    msg = summary.monthly(snap(conn), date(2026, 10, 1))
+    assert msg.text.splitlines()[0] == (
+        f"Wydane 600{NBSP}zł + nieregularne 300{NBSP}zł z 900{NBSP}zł — zostało 0{NBSP}zł"
+    )
 
 
 @pytest.mark.parametrize(

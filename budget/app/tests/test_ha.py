@@ -272,6 +272,7 @@ def test_flex_entities_with_budget(conn: db.sqlite3.Connection) -> None:
         "per_day": "137.14",
         "expected_today": "1000.00",
         "over_pace": False,
+        "non_monthly": "0.00",
         "used_pct": 4.0,
         "days_left": 21,
         "month": "2026-09",

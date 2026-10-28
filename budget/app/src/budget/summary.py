@@ -140,7 +140,7 @@ def _pool_lines(fm: flex.FlexMonth, today: date) -> list[str]:
         lines[0] += f" · {zl(fm.per_day)}/dzień"
     # Tempo do wczoraj: o 7:00 dzisiejsze wydatki dopiero się zaczynają
     expected = fm.budget * (today.day - 1) / fm.days_in_month
-    diff = fm.spent - expected
+    diff = fm.charged - expected
     if abs(diff) < 1:
         lines.append("Tempo: zgodnie z planem")
     elif diff > 0:
@@ -177,10 +177,14 @@ def monthly(snap: Snapshot, today: date) -> Message:
     name = f"{MONTH_NAMES[month.month - 1]} {month.year}"
     if fm.budget is None or fm.remaining is None:
         lines = [f"Wydane elastyczne: {zl(fm.spent)} (pula nieustawiona)"]
-    elif fm.remaining >= 0:
-        lines = [f"Wydane {zl(fm.spent)} z {zl(fm.budget)} — zostało {zl(fm.remaining)}"]
     else:
-        lines = [f"Wydane {zl(fm.spent)} z {zl(fm.budget)} — ponad pulę o {zl(-fm.remaining)}"]
+        spent = zl(fm.spent)
+        if fm.non_monthly > 0:
+            spent += f" + nieregularne {zl(fm.non_monthly)}"
+        if fm.remaining >= 0:
+            lines = [f"Wydane {spent} z {zl(fm.budget)} — zostało {zl(fm.remaining)}"]
+        else:
+            lines = [f"Wydane {spent} z {zl(fm.budget)} — ponad pulę o {zl(-fm.remaining)}"]
     lines.append(_top_line("Najwięcej", top_categories(snap, month, month_start(today))))
     lines.append(f"Do przejrzenia: {review.pending_count(snap.conn)}")
     lines += _networth_lines(snap, today)

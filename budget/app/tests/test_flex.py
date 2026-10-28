@@ -76,6 +76,35 @@ def test_what_counts_as_spent(conn: sqlite3.Connection) -> None:
     assert f.budget is None and f.remaining is None and f.per_day is None
 
 
+def test_non_monthly_charges_pool(conn: sqlite3.Connection) -> None:
+    add(conn, "-120.00", "card", "LIDL XYZ POL", day="2026-09-02")
+    once = add(conn, "-500.00", "card", "ELEKTRO RTV", day="2026-09-07")
+    engine.set_manual(conn, once, sid(conn, "elektronika"))
+    flex.set_budget(conn, date(2026, 9, 1), Decimal("3000"))
+    f = build(conn)
+    assert (f.spent, f.non_monthly, f.charged) == (
+        Decimal("120.00"),
+        Decimal("500.00"),
+        Decimal("620.00"),
+    )
+    assert f.remaining == Decimal("2380.00")  # 3000 − 120 − 500
+    assert f.used == pytest.approx(620 / 3000)
+    assert not f.over_pace  # oczekiwane 1000
+    add(conn, "-450.00", "card", "BIEDRONKA XYZ", day="2026-09-09")
+    assert build(conn).over_pace  # 1070 > 1000, bez nieregularnych byłoby 570
+
+
+def test_non_monthly_refund_does_not_grow_pool(conn: sqlite3.Connection) -> None:
+    add(conn, "-120.00", "card", "LIDL XYZ POL", day="2026-09-02")
+    back = add(conn, "300.00", "card", "ELEKTRO RTV ZWROT", day="2026-09-07")
+    engine.set_manual(conn, back, sid(conn, "elektronika"))
+    flex.set_budget(conn, date(2026, 9, 1), Decimal("3000"))
+    f = build(conn)
+    assert f.non_monthly == Decimal("-300.00")
+    assert f.charged == Decimal("120.00")
+    assert f.remaining == Decimal("2880.00")
+
+
 def test_pace_and_per_day(conn: sqlite3.Connection) -> None:
     add(conn, "-120.00", "card", "LIDL XYZ POL", day="2026-09-02")
     flex.set_budget(conn, date(2026, 9, 1), Decimal("3000"))

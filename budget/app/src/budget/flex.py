@@ -4,8 +4,10 @@ Zasady (`docs/PLAN_M5a.md`, decyzja 13 w `docs/ROADMAP.md`):
 - pula = kwota ustawiona ręcznie; obowiązuje od miesiąca do następnej zmiany (`flex_budget`),
   więc zmiana „od tego miesiąca” nie przepisuje wcześniejszych;
 - „wydane” = netto podkategorii z grupy `flexible` + wydatki bez kategorii (ostrożnie — po
-  skategoryzowaniu jako stałe albo nieregularne kwota wraca do puli);
-- stałe i nieregularne tylko informacyjnie; przychody, oszczędności i „poza budżetem” pomijane;
+  skategoryzowaniu jako stałe kwota wraca do puli);
+- nieregularne zmniejszają pulę faktycznie wydaną kwotą w miesiącu (decyzja 33; bez rezerwy i
+  średniej, zwrot netto nie powiększa puli); stałe tylko informacyjnie; przychody, oszczędności
+  i „poza budżetem” pomijane;
 - reszta jak w `spending`: miesiąc kalendarzowy, bez przelewów wewnętrznych, tylko PLN;
 - tempo liniowe: do końca dzisiejszego dnia „powinno” być wydane budżet × dzień / dni miesiąca;
 - mediany i podpowiedź kwoty z `HISTORY_MONTHS` pełnych miesięcy przed miesiącem ekranu, tylko
@@ -140,7 +142,7 @@ class FlexMonth:
     uncategorized: Decimal
     uncategorized_count: int
     fixed: Decimal  # informacyjnie
-    non_monthly: Decimal  # informacyjnie
+    non_monthly: Decimal  # obciąża pulę (`charged`), zwrot netto pomijany
     recurring: Decimal  # informacyjnie: zapłacone w miesiącu z serii liczonych w puli
     days_in_month: int
     day: int | None  # dzisiejszy dzień miesiąca; None dla miesięcy minionych
@@ -155,8 +157,13 @@ class FlexMonth:
         return self.day is not None
 
     @property
+    def charged(self) -> Decimal:
+        """Obciążenie puli: flex + nieregularne (zwrot netto w nieregularnych nie powiększa puli)."""
+        return self.spent + max(self.non_monthly, ZERO)
+
+    @property
     def remaining(self) -> Decimal | None:
-        return None if self.budget is None else self.budget - self.spent
+        return None if self.budget is None else self.budget - self.charged
 
     @property
     def days_left(self) -> int:
@@ -184,12 +191,12 @@ class FlexMonth:
 
     @property
     def over_pace(self) -> bool:
-        return self.expected is not None and self.spent > self.expected
+        return self.expected is not None and self.charged > self.expected
 
     @property
     def used(self) -> float:
         """Wydane / budżet (do szerokości paska; może przekroczyć 1)."""
-        return float(self.spent / self.budget) if self.budget else 0.0
+        return float(self.charged / self.budget) if self.budget else 0.0
 
     @property
     def suggested(self) -> Decimal | None:

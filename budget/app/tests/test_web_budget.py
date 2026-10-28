@@ -190,3 +190,23 @@ async def test_add_to_fixed_from_list(client: httpx.AsyncClient, service: Servic
     assert taxonomy.all_categories(conn)[slugs["noclegi"].id].flex_group == "fixed"
     page = (await client.get(f"/budget?month={MONTH}&fixed=1")).text
     assert "„Noclegi” — grupa budżetu: stałe" in page and "5 920,00" in page
+
+
+async def test_over_budget_shows_top_up_note_only_in_current_month(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _seed(service.conn)  # elastyczne 280
+    prev = (date.fromisoformat(DAY) - timedelta(days=1)).isoformat()
+    once = add(service.conn, "-500.00", "card", "SKLEP X ELEKTRO", day=DAY)
+    add(service.conn, "-900.00", "card", "LIDL UL. X XYZ POL", day=prev)
+    engine.recategorize(service.conn)
+    engine.set_manual(service.conn, once, taxonomy.by_slug(service.conn)["elektronika"].id)
+    for month in (DAY[:7], prev[:7]):
+        await client.post("/budget/amount", data={"month": month, "amount": "700"})
+    page = (await client.get(f"/budget?month={MONTH}")).text
+    assert "280,00 zł elastyczne + 500,00 zł nieregularne" in page.replace("\xa0", " ")
+    assert "Do uzupełnienia z oszczędności" in page and "80,00" in page  # 700 − 780
+    assert "<dt>Nieregularne</dt>" not in page
+    past = (await client.get(f"/budget?month={prev[:7]}")).text
+    assert "Przekroczono budżet" in past
+    assert "Do uzupełnienia z oszczędności" not in past
