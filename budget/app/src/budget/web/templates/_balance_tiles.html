@@ -11,11 +11,7 @@
     {% endif %}
   </a>
   {% if tiles.stocks_value is not none %}
-  <a class="bal-tile" href="{{ base }}/networth"><span class="bal-label">Akcje</span><span class="bal-value">{{ tiles.stocks_value | money("PLN", whole=True) }}</span>
-    {% if tiles.stocks_stale or tiles.stocks_vest %}
-    <span class="small {{ 'warn-text' if tiles.stocks_stale else 'muted' }}">{% if tiles.stocks_stale %}nieaktualne{% endif %}{% if tiles.stocks_stale and tiles.stocks_vest %} · {% endif %}{% if tiles.stocks_vest %}zawiązanie {{ tiles.stocks_vest.isoformat() | pldate }}{% endif %}</span>
-    {% endif %}
-  </a>
+  <a class="bal-tile" href="{{ base }}/networth"><span class="bal-label">Akcje</span><span class="bal-value">{{ tiles.stocks_value | money("PLN", whole=True) }}</span></a>
   {% endif %}
 </div>
 {% endif %}

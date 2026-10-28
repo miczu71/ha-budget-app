@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.68.0
+
+**M34: hero „Do wypłaty” z kwotą ponad zaplanowane i kafelek „Akcje” bez dopisków** — `docs/PLAN_M34_akcje_hero.md`.
+- Hero „Do wypłaty” pokazuje pod limitem dziennym linię „Ponad zaplanowane do wypłaty”: stan konta + wpływy do wypłaty
+  − płatności cykliczne − skarbonki (to samo „=” co w kafelku prognozy, bez bufora).
+- Kafelek „Akcje” pokazuje samą kwotę wolnych akcji, bez daty zawiązania i dopisku „nieaktualne”.
+
 ## 0.67.0
 
 **M33: okres od wypłaty i nieregularne w puli** — `docs/ROADMAP_M33.md`.

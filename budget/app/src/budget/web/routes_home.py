@@ -78,8 +78,6 @@ class BalanceTiles:
     piggy_total: Decimal
     piggies: list[piggy.Status]
     stocks_value: Decimal | None  # None: brak danych o akcjach — kafelek ukryty
-    stocks_vest: date | None
-    stocks_stale: bool
 
 
 def _holding(conn: sqlite3.Connection) -> stocks.Holding | None:
@@ -114,9 +112,6 @@ def balance_tiles(
         piggy_total=in_piggies,
         piggies=sorted(piggies, key=lambda s: s.piggy.name.lower()),
         stocks_value=holding.market_value if holding else None,
-        stocks_vest=holding.next_vest if holding else None,
-        stocks_stale=bool(holding)
-        and holding.fetched_at.date() < today - timedelta(days=stocks.STALE_DAYS),
     )
 
 

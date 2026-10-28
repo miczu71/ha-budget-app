@@ -640,6 +640,15 @@ async def test_with_balances_hero_counts_to_payday_and_month_is_a_tile(
     assert "Zostało na elastyczne" not in (await client.get("/")).text
 
 
+async def test_hero_shows_left_above_planned(client: httpx.AsyncClient, service: Service) -> None:
+    _balances(service.conn)
+    fc = service.forecast()
+    assert fc is not None
+    page = (await client.get("/")).text
+    hero = page[page.index("payday-hero") : page.index("home-grid")]
+    assert "Ponad zaplanowane" in hero and fmt_money(fc.at_payday, "PLN") in hero
+
+
 async def test_past_month_keeps_monthly_hero(client: httpx.AsyncClient, service: Service) -> None:
     _balances(service.conn)
     prev = (date.fromisoformat(DAY) - timedelta(days=1)).strftime("%Y-%m")
@@ -741,14 +750,14 @@ def _holding(conn: sqlite3.Connection, fetched_at: datetime | None = None) -> No
     )
 
 
-async def test_stocks_tile_shows_vested_value_and_next_vest_only(
+async def test_stocks_tile_shows_only_vested_value(
     client: httpx.AsyncClient, service: Service
 ) -> None:
     _balances(service.conn)
     _holding(service.conn)
     page = (await client.get("/")).text
     assert '<span class="bal-label">Akcje</span><span class="bal-value">' in page
-    assert "zawiązanie" in page and "niezawiązane" not in page  # kwota niezawiązanych bez śladu
+    assert "zawiązanie" not in page and "niezawiązane" not in page  # sama kwota wolnych akcji
     assert "nieaktualne" not in page
 
 
@@ -759,8 +768,10 @@ async def test_stocks_tile_hidden_without_data(client: httpx.AsyncClient, servic
     assert 'bal-label">Akcje' not in page
 
 
-async def test_stocks_tile_marks_stale_value(client: httpx.AsyncClient, service: Service) -> None:
+async def test_stocks_tile_stale_value_has_no_note(
+    client: httpx.AsyncClient, service: Service
+) -> None:
     _balances(service.conn)
     _holding(service.conn, datetime.now().astimezone() - timedelta(days=10))
     page = (await client.get("/")).text
-    assert 'bal-label">Akcje' in page and "nieaktualne" in page
+    assert 'bal-label">Akcje' in page and "nieaktualne" not in page
