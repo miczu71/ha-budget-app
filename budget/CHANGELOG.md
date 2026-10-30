@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.69.0
+
+**Podsumowanie: zwijana prognoza i wykres wydatków z drill-down** — `docs/ROADMAP_podsumowanie.md` (E2–E4).
+- Prognoza jest zwinięta: widać nagłówek i wynik, reszta (oraz „Tygodnie okresu”) po rozwinięciu. Przełącznik
+  zadłużenia karty nie zwija jej ponownie.
+- Wykres „Gdzie poszły pieniądze” ma miesiąc w tytule („w październiku”) i w bieżącym miesiącu przełącznik
+  „Miesiąc / Od ostatniej wypłaty” (porównanie z tyloma samymi dniami wcześniej).
+- Wykres schodzi w głąb bez opuszczania strony: kategoria → podkategorie → pojedyncze transakcje (top 6 +
+  „Pozostałe”), z okruszkami, „← wstecz” i linkiem „Zobacz transakcje” z filtrem okresu widoku.
+
 ## 0.68.1
 
 **Nadpłata karty kredytowej** — `docs/ROADMAP_podsumowanie.md` (E1).
