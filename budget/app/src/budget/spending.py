@@ -146,6 +146,27 @@ def month_label(d: date) -> str:
     return f"{MONTHS[d.month - 1]} {d.year}"
 
 
+MONTHS_LOC = (
+    "styczniu",
+    "lutym",
+    "marcu",
+    "kwietniu",
+    "maju",
+    "czerwcu",
+    "lipcu",
+    "sierpniu",
+    "wrześniu",
+    "październiku",
+    "listopadzie",
+    "grudniu",
+)
+
+
+def month_locative(d: date) -> str:
+    """„w październiku”: miejscownik nazwy miesiąca (bez roku)."""
+    return MONTHS_LOC[d.month - 1]
+
+
 def parse_month(value: str | None, today: date) -> date:
     """`2026-09` → 1 września 2026; puste albo błędne → bieżący miesiąc (nie z przyszłości)."""
     try:
@@ -303,11 +324,18 @@ def coverage(
     return sums(conn, start, end).coverage
 
 
-def build(conn: sqlite3.Connection, month: date, today: date) -> Month:
+def build(conn: sqlite3.Connection, month: date, today: date, since: date | None = None) -> Month:
+    """Podsumowanie miesiąca; `since` (tylko bieżący miesiąc) zawęża je do [since, dziś]
+    i porównuje z tyloma samymi dniami tuż przed `since`."""
     start = month_start(month)
     prev_start = add_months(start, -1)
     nxt = add_months(start, 1)
-    cur, prev = sums(conn, start, nxt), sums(conn, prev_start, start)
+    if since is not None:
+        end = today + timedelta(days=1)
+        prev_start = since - (end - since)
+        cur, prev = sums(conn, since, end), sums(conn, prev_start, since)
+    else:
+        cur, prev = sums(conn, start, nxt), sums(conn, prev_start, start)
     out = Month(
         month=start,
         prev_month=prev_start,
@@ -317,10 +345,10 @@ def build(conn: sqlite3.Connection, month: date, today: date) -> Month:
         other_currency=cur.other_currency,
     )
     # rzetelne porównanie: bieżący miesiąc z tym samym zakresem dni poprzedniego, nie z całym
-    prev_end = start
-    if start == month_start(today):
+    prev_end = since or start
+    if since is None and start == month_start(today):
         prev_end = min(prev_start + timedelta(days=today.day), start)
-    prev_window = prev if prev_end == start else sums(conn, prev_start, prev_end)
+    prev_window = prev if prev_end in (start, since) else sums(conn, prev_start, prev_end)
     out.prev_window = (prev_start, prev_end)
     out.prev_income, out.prev_expenses = totals(taxonomy.leaves(conn), prev_window)
     out.prev_balance = prev_window.balance

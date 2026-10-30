@@ -1,0 +1,22 @@
+{# Karta „Gdzie poszły pieniądze” (E3 Podsumowania); fragment htmx: GET /home/spending #}
+{% from "_macros.html" import change %}
+{% from "_charts.html" import donut with context %}
+<section class="card span2" id="spending-card">
+  <h2>Gdzie poszły pieniądze {{ spend_title }}</h2>
+  {% if since_date %}
+  <nav class="tabs small" aria-label="Zakres wykresu">
+    <a class="tap{{ ' on' if not since_on }}" href="{{ base }}/?month={{ ym }}" hx-get="{{ base }}/home/spending?month={{ ym }}" hx-target="#spending-card" hx-select="#spending-card" hx-swap="outerHTML" hx-push-url="false" {% if not since_on %}aria-current="true"{% endif %}>Miesiąc</a>
+    <a class="tap{{ ' on' if since_on }}" href="{{ base }}/?month={{ ym }}&since_payday=1" hx-get="{{ base }}/home/spending?month={{ ym }}&since_payday=1" hx-target="#spending-card" hx-select="#spending-card" hx-swap="outerHTML" hx-push-url="false" {% if since_on %}aria-current="true"{% endif %}>Od ostatniej wypłaty</a>
+  </nav>
+  {% endif %}
+  {% if slices %}
+  {% call donut(slices, "Wydatki w kategoriach, " ~ spend_title) %}
+    <span class="donut-total">{{ sm.expenses | money("PLN") }}</span>
+    <span class="donut-sub">wydatki</span>
+    <span class="donut-chg">{{ change(sm.expenses, sm.prev_expenses, True) }} <span class="muted">{{ spend_compare }}</span></span>
+  {% endcall %}
+  {% else %}
+  <p class="muted">Brak wydatków {{ "w tym okresie" if since_on else "w tym miesiącu" }}.</p>
+  {% endif %}
+  <p class="small card-link"><a class="tap" href="{{ base }}/spending?month={{ ym }}">Wszystkie kategorie i podkategorie »</a></p>
+</section>

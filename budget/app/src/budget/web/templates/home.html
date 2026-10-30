@@ -40,19 +40,7 @@
   {% if t.key == "forecast" %}{% if fc %}{% include "_forecast.html" %}{% endif %}
   {% elif t.key == "month" %}{% if payday_hero %}{{ month_card() }}{% endif %}
   {% elif t.key == "spending" %}
-  <section class="card span2">
-    <h2>Gdzie poszły pieniądze</h2>
-    {% if slices %}
-    {% call donut(slices, "Wydatki w kategoriach, " ~ label) %}
-      <span class="donut-total">{{ m.expenses | money("PLN") }}</span>
-      <span class="donut-sub">wydatki</span>
-      <span class="donut-chg">{{ change(m.expenses, m.prev_expenses, True) }} <span class="muted">{{ compare }}</span></span>
-    {% endcall %}
-    {% else %}
-    <p class="muted">Brak wydatków w tym miesiącu.</p>
-    {% endif %}
-    <p class="small card-link"><a class="tap" href="{{ base }}/spending?month={{ ym }}">Wszystkie kategorie i podkategorie »</a></p>
-  </section>
+  {% include "_spending.html" %}
   {% elif t.key == "year" %}
   <section class="card">
     <h2>Rok</h2>

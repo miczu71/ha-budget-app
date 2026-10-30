@@ -7,6 +7,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
@@ -26,7 +27,15 @@ from budget import (
 )
 from budget.money import ZERO
 from budget.recurring import schedule
-from budget.spending import MONTHS, MONTHS_GEN, add_months, month_label, month_start, parse_month
+from budget.spending import (
+    MONTHS,
+    MONTHS_GEN,
+    add_months,
+    month_label,
+    month_locative,
+    month_start,
+    parse_month,
+)
 from budget.storage import db
 from budget.timing import timed
 from budget.web import charts
@@ -115,11 +124,81 @@ def balance_tiles(
     )
 
 
+def payday_start(panel: Panel, today: date) -> date | None:
+    """Dzień ostatniej wypłaty z prognozy; None bez prognozy (błąd nie blokuje karty)."""
+    now = panel.service.now()
+    try:
+        mv = schedule.for_month(panel.service.snapshot, month_start(today), today)
+        fc = forecast.build(
+            panel.service.snapshot,
+            today,
+            now,
+            mv,
+            Decimal(panel.service.settings.forecast_buffer),
+            forecast.payday_series_id(panel.conn),
+            forecast.include_card_debt(panel.conn),
+        )
+    except Exception:
+        log.exception("Początek okresu od wypłaty nieustalony")
+        return None
+    return fc.period_start if fc else None
+
+
+def spending_card(
+    panel: Panel, start: date, today: date, since_payday: bool, since_date: date | None
+) -> dict[str, Any]:
+    """Kontekst karty wykresu wydatków; `since_date` = dzień ostatniej wypłaty z prognozy
+    (tylko bieżący miesiąc), początek okresu „od ostatniej wypłaty”."""
+    conn = panel.conn
+    since_on = since_payday and since_date is not None
+    m = spending.build(conn, start, today, since_date if since_on else None)
+    ym = f"{start:%Y-%m}"
+    if since_on and since_date is not None:
+        days = (today - since_date).days + 1
+        period = f"date_from={since_date.isoformat()}&date_to={today.isoformat()}"
+        title = f"od {since_date.day} {MONTHS_GEN[since_date.month - 1]}"
+        compare = f"vs {days} dni wcześniej"
+    else:
+        last = add_months(start, 1) - timedelta(days=1)
+        period = f"date_from={start.isoformat()}&date_to={last.isoformat()}"
+        title = f"w {month_locative(start)}"
+        compare = compare_label(m)
+    return {
+        "sm": m,
+        "spend_title": title,
+        "spend_compare": compare,
+        "since_date": since_date,
+        "since_on": since_on,
+        "slices": charts.donut_slices(
+            m.expense_groups,
+            m.uncategorized_out,
+            m.uncategorized_out_count,
+            period=period,
+            other_href=f"/spending?month={ym}",
+            review_href=f"/review?month={ym}",
+        ),
+    }
+
+
 def router(panel: Panel) -> APIRouter:
     r = APIRouter()
 
+    @r.get("/home/spending", response_class=HTMLResponse)
+    async def home_spending(
+        request: Request, month: str | None = None, since_payday: str = ""
+    ) -> HTMLResponse:
+        today = panel.service.now().date()
+        start = parse_month(month, today)
+        since_date = None
+        if start == month_start(today):  # okres od wypłaty to część prognozy (też auto-wykrytej)
+            since_date = payday_start(panel, today)
+        ctx = spending_card(panel, start, today, since_payday == "1", since_date)
+        return panel.render(request, "_spending.html", ym=f"{start:%Y-%m}", **ctx)
+
     @r.get("/", response_class=HTMLResponse)
-    async def home(request: Request, month: str | None = None, edit: str = "") -> HTMLResponse:
+    async def home(
+        request: Request, month: str | None = None, edit: str = "", since_payday: str = ""
+    ) -> HTMLResponse:
         conn, now = panel.conn, panel.service.now()
         today = now.date()
         start = parse_month(month, today)
@@ -186,13 +265,8 @@ def router(panel: Panel) -> APIRouter:
             next_label=month_label(m.next_month) if m.next_month else "",
             period=period,
             compare=compare_label(m),
-            slices=charts.donut_slices(
-                m.expense_groups,
-                m.uncategorized_out,
-                m.uncategorized_out_count,
-                period=period,
-                other_href=f"/spending?month={ym}",
-                review_href=f"/review?month={ym}",
+            **spending_card(
+                panel, start, today, since_payday == "1", fc.period_start if fc else None
             ),
             bars=charts.month_bars(spending.monthly_totals(conn, today), start),
             mv=mv,

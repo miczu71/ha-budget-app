@@ -812,3 +812,40 @@ async def test_stocks_tile_stale_value_has_no_note(
     _holding(service.conn, datetime.now().astimezone() - timedelta(days=10))
     page = (await client.get("/")).text
     assert 'bal-label">Akcje' in page and "nieaktualne" not in page
+
+
+async def test_spending_title_has_month_locative_and_no_toggle_without_payday(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _seed(service.conn)
+    page = (await client.get("/")).text
+    assert f"Gdzie poszły pieniądze w {spending.month_locative(date.today())}" in page
+    assert "Od ostatniej wypłaty" not in page
+    assert spending.month_locative(date(2026, 10, 1)) == "październiku"
+
+
+async def test_spending_since_payday_fragment_narrows_the_window(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    serie(service.conn, "pensja", "9000.00", direction="in")
+    today = date.today()
+    add(
+        service.conn,
+        "9000.00",
+        "transfer_in",
+        "pensja",
+        "ODBIORCA pensja",
+        day=(today - timedelta(days=2)).isoformat(),
+    )
+    add(service.conn, "-500.00", day=(today - timedelta(days=9)).isoformat())  # przed wypłatą
+    add(service.conn, "-80.00", day=today.isoformat())
+    page = (await client.get("/")).text
+    assert "Od ostatniej wypłaty" in page and "Gdzie poszły pieniądze w " in page
+    frag = (await client.get("/home/spending?since_payday=1")).text
+    assert "<html" not in frag and "Gdzie poszły pieniądze od " in frag
+    assert fmt_money("80.00", "PLN") in frag and fmt_money("500.00", "PLN") not in frag
+    assert "vs 3 dni wcześniej" in frag
+    past = spending.add_months(today.replace(day=1), -1)
+    old = (await client.get(f"/home/spending?month={past:%Y-%m}&since_payday=1")).text
+    assert "Od ostatniej wypłaty" not in old and "Gdzie poszły pieniądze w " in old
