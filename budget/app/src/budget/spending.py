@@ -12,7 +12,7 @@ Zasady liczenia (`docs/PLAN_M4a.md`):
 from __future__ import annotations
 
 import sqlite3
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -20,6 +20,7 @@ from decimal import Decimal
 
 from budget.categorize import taxonomy
 from budget.categorize.taxonomy import Category
+from budget.normalize import fold, merchant_ident
 
 ZERO = Decimal(0)
 BASE_CURRENCY = "PLN"
@@ -290,28 +291,48 @@ def recent(conn: sqlite3.Connection, start: date, end: date, limit: int = 5) -> 
 
 
 @dataclass(frozen=True)
-class Purchase:
-    id: int
+class Merchant:
     label: str
     amount: Decimal  # dodatnia = wydano
+    count: int
 
 
-PURCHASE_LABEL = 40  # limit znaków etykiety transakcji (z „…”)
+PURCHASE_LABEL = 40  # limit znaków nazwy sprzedawcy (z „…”)
 
 
-def purchases(conn: sqlite3.Connection, leaf_id: int, start: date, end: date) -> list[Purchase]:
-    """Wydatki jednej podkategorii w okresie [start, end) (drill-down wykresu); malejąco po kwocie.
-    Część podziału (M29) to osobna pozycja z tym samym `id`."""
-    out: list[Purchase] = []
+def _merchant_group(r: sqlite3.Row) -> tuple[str, str]:
+    """(klucz grupy, etykieta): `merchant` (znormalizowany przy imporcie), inaczej początek
+    opisu/kontrahenta (`merchant_ident`), inaczej „—”."""
+    if r["merchant"]:
+        return fold(r["merchant"]), r["merchant"]
+    text = r["counterparty_name"] or r["description"]
+    ident = merchant_ident(text)
+    if ident:
+        return ident, ident.title()
+    return fold(text), text or "—"
+
+
+def merchants(conn: sqlite3.Connection, leaf_id: int, start: date, end: date) -> list[Merchant]:
+    """Wydatki jednej podkategorii w okresie [start, end) zsumowane wg sprzedawcy (drill-down
+    wykresu); malejąco po kwocie. Część podziału (M29) liczy się do sprzedawcy transakcji."""
+    amounts: dict[str, Decimal] = defaultdict(Decimal)
+    counts: dict[str, int] = defaultdict(int)
+    names: dict[str, Counter[str]] = defaultdict(Counter)
     for r in _rows(conn, start, end, details=True):
         amount = Decimal(r["amount"])
         if r["category_id"] != leaf_id or r["currency"] != BASE_CURRENCY or amount >= 0:
             continue
-        label = r["merchant"] or r["counterparty_name"] or r["description"] or "—"
+        key, label = _merchant_group(r)
+        amounts[key] -= amount
+        counts[key] += 1
+        names[key][label] += 1
+    out = []
+    for key, amount in amounts.items():
+        label = names[key].most_common(1)[0][0]
         if len(label) > PURCHASE_LABEL:
             label = label[: PURCHASE_LABEL - 1].rstrip() + "…"
-        out.append(Purchase(int(r["id"]), label, -amount))
-    return sorted(out, key=lambda p: p.amount, reverse=True)
+        out.append(Merchant(label, amount, counts[key]))
+    return sorted(out, key=lambda m: m.amount, reverse=True)
 
 
 def totals(leaves: Mapping[int, Category], s: Sums) -> tuple[Decimal, Decimal]:

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
@@ -241,23 +242,23 @@ def spending_card(
         if since_on and since_date
         else (start, add_months(start, 1))
     )
-    purch = spending.purchases(conn, leaf.category.id, *window)
+    shops = spending.merchants(conn, leaf.category.id, *window)
     ctx.update(
         drill_level=3,
-        drill_total=sum((p.amount for p in purch), ZERO),  # jak wycinki: zakupy bez zwrotów
+        drill_total=sum((m.amount for m in shops), ZERO),  # jak wycinki: zakupy bez zwrotów
         see_href=sub_see,
         back_q=cat_q,
         crumbs=[*ctx["crumbs"], (leaf.category.name, None)],
         slices=charts.drill_slices(
             [
                 charts.Item(
-                    key=f"txn-{p.id}",
-                    label=p.label,
-                    amount=p.amount,
-                    count=1,
-                    href=sub_see,
+                    key=f"shop-{n}",
+                    label=f"{m.label} ×{m.count}" if m.count > 1 else m.label,
+                    amount=m.amount,
+                    count=m.count,
+                    href=f"/transactions?category={leaf.category.id}&q={quote(m.label.rstrip('…'))}&{period}",
                 )
-                for p in purch
+                for n, m in enumerate(shops)
             ],
             other_href=sub_see,
         ),

@@ -875,11 +875,11 @@ async def test_drill_level2_lists_subcategories_with_crumbs(
     assert "% wydatków" in frag
 
 
-async def test_drill_level3_lists_purchases(client: httpx.AsyncClient, service: Service) -> None:
+async def test_drill_level3_groups_by_merchant(client: httpx.AsyncClient, service: Service) -> None:
     _drill_seed(service.conn)
     frag = (await client.get(f"/home/spending?month={MONTH}&cat=4&sub=130")).text
-    assert 'class="crumbs"' in frag and "ORLEN STACJA 1 XYZ" in frag
-    assert f"/transactions?category=130&amp;date_from={DAY}" in frag
+    assert 'class="crumbs"' in frag and frag.count("Orlen") >= 1
+    assert f"/transactions?category=130&amp;q=Orlen&amp;date_from={DAY}" in frag
     assert f'hx-get="{INGRESS}/home/spending?month={MONTH}&amp;cat=4"' in frag  # wstecz
 
 
@@ -899,7 +899,7 @@ async def test_invalid_drill_falls_back_to_level1(
     lvl1 = (await client.get(f"/home/spending?month={MONTH}&cat=abc")).text
     assert 'class="crumbs"' not in lvl1 and "Wszystkie kategorie i podkategorie" in lvl1
     bad_sub = (await client.get(f"/home/spending?month={MONTH}&cat=4&sub=999")).text
-    assert "ORLEN" not in bad_sub and 'class="crumbs"' in bad_sub
+    assert "Orlen" not in bad_sub and 'class="crumbs"' in bad_sub
 
 
 async def test_drill_keeps_since_payday_period(client: httpx.AsyncClient, service: Service) -> None:
@@ -949,10 +949,10 @@ async def test_drill_level3_since_payday_window_and_center_matches_slices(
     )
     add(service.conn, "15.00", "card_refund", "ORLEN ZWROT", day=today.isoformat(), category_id=130)
     frag = (await client.get("/home/spending?since_payday=1&cat=4&sub=130")).text
-    assert "ORLEN NOWY" in frag and "ORLEN STARY" not in frag
+    assert "Orlen" in frag and "ORLEN STARY" not in frag
     assert f"date_from={payday}" in frag
     assert f'hx-get="{INGRESS}/home/spending?month={MONTH}&amp;since_payday=1&amp;cat=4"' in frag
-    assert '<span class="donut-total">80,00' in frag  # zwrot nie rozjeżdża środka i wycinków
+    assert '<span class="donut-total">80,00' in frag  # zwrot i stare zakupy nie rozjeżdżają środka
 
 
 async def test_drill_level3_without_purchases_says_so(
@@ -963,7 +963,7 @@ async def test_drill_level3_without_purchases_says_so(
     add(service.conn, "-1.00", "card", "SKLEP Q XYZ", day=DAY, category_id=131)
     service.conn.execute("DELETE FROM txn WHERE description LIKE 'SKLEP X%'")
     frag = (await client.get(f"/home/spending?month={MONTH}&cat=4&sub=131")).text
-    assert "OBCA" not in frag and "SKLEP Q" in frag  # waluta ≠ PLN pominięta
+    assert "OBCA" not in frag and "Sklep" in frag  # waluta ≠ PLN pominięta
     service.conn.execute("DELETE FROM txn WHERE description LIKE 'SKLEP Q%'")
     empty = (await client.get(f"/home/spending?month={MONTH}&cat=4&sub=131")).text
     assert "Brak wydatków" not in empty

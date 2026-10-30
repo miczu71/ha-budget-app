@@ -172,40 +172,48 @@ def test_monthly_totals(conn: sqlite3.Connection) -> None:
     assert len(spending.monthly_totals(conn, date(2026, 1, 5))) == 12  # przez granicę roku
 
 
-def test_purchases_leaf_expenses_in_window_sorted_by_amount(conn: sqlite3.Connection) -> None:
-    add(conn, "-30.00", "card", "SKLEP X XYZ", day="2026-09-03", category_id=110)
-    add(conn, "-80.00", "card", "SKLEP Y XYZ", day="2026-09-20", category_id=110)
-    add(conn, "-10.00", "card", "SKLEP Z", day="2026-10-01", category_id=110)  # koniec wyłączny
-    add(conn, "-99.00", "card", "INNA", day="2026-09-05", category_id=111)  # inna podkategoria
-    add(conn, "20.00", "card_refund", "SKLEP X ZWROT", day="2026-09-06", category_id=110)
-    got = spending.purchases(conn, 110, date(2026, 9, 1), date(2026, 10, 1))
-    assert [p.amount for p in got] == [Decimal("80.00"), Decimal("30.00")]
+def test_merchants_group_leaf_expenses_in_window_sorted_by_amount(conn: sqlite3.Connection) -> None:
+    add(conn, "-30.00", "card", "A", day="2026-09-03", category_id=110, merchant="Sklep X")
+    add(conn, "-20.00", "card", "B", day="2026-09-09", category_id=110, merchant="SKLEP X")
+    add(conn, "-40.00", "card", "C", day="2026-09-20", category_id=110, merchant="Sklep Y")
+    add(
+        conn, "-10.00", "card", "D", day="2026-10-01", category_id=110, merchant="Sklep Z"
+    )  # koniec wyłączny
+    add(
+        conn, "-99.00", "card", "E", day="2026-09-05", category_id=111, merchant="Inny"
+    )  # inna podkategoria
+    add(
+        conn, "20.00", "card_refund", "ZWROT", day="2026-09-06", category_id=110, merchant="Sklep X"
+    )
+    got = spending.merchants(conn, 110, date(2026, 9, 1), date(2026, 10, 1))
+    assert [(m.label, m.amount, m.count) for m in got] == [
+        ("Sklep X", Decimal("50.00"), 2),
+        ("Sklep Y", Decimal("40.00"), 1),
+    ]
 
 
-def test_purchases_label_fallback_and_truncation(conn: sqlite3.Connection) -> None:
-    add(conn, "-1.00", "card", "OPIS A", day="2026-09-02", category_id=110, merchant="Sklep X")
+def test_merchants_label_fallback_and_truncation(conn: sqlite3.Connection) -> None:
     add(conn, "-2.00", "card", "OPIS B", "Sklep Y", day="2026-09-02", category_id=110)
-    add(conn, "-3.00", "card", "Opis C", None, day="2026-09-02", category_id=110)
-    add(conn, "-4.00", "card", "", None, day="2026-09-02", category_id=110)
-    add(conn, "-5.00", "card", "X" * 80, None, day="2026-09-02", category_id=110)
-    got = spending.purchases(conn, 110, date(2026, 9, 1), date(2026, 10, 1))
-    labels = {p.amount: p.label for p in got}
-    assert labels[Decimal("1.00")] == "Sklep X"
-    assert labels[Decimal("2.00")] == "Sklep Y"
-    assert labels[Decimal("3.00")] == "Opis C"
-    assert labels[Decimal("4.00")] == "—"
-    long = labels[Decimal("5.00")]
+    add(conn, "-3.00", "card", "ORLEN STACJA 1 XYZ", None, day="2026-09-02", category_id=110)
+    add(conn, "-4.00", "card", "ORLEN STACJA 2 ABC", None, day="2026-09-03", category_id=110)
+    add(conn, "-5.00", "card", "", None, day="2026-09-02", category_id=110)
+    add(conn, "-6.00", "card", "X" * 80, None, day="2026-09-02", category_id=110, merchant="Y" * 80)
+    got = {m.label: m for m in spending.merchants(conn, 110, date(2026, 9, 1), date(2026, 10, 1))}
+    assert got["Sklep"].amount == Decimal("2.00")  # kontrahent bez merchant
+    assert got["Orlen"].amount == Decimal("7.00") and got["Orlen"].count == 2  # opis bez merchant
+    assert got["—"].amount == Decimal("5.00")
+    long = next(label for label in got if label.startswith("Y"))
     assert len(long) == 40 and long.endswith("…")
 
 
-def test_purchases_split_lines_are_separate_items(conn: sqlite3.Connection) -> None:
-    t = add(conn, "-100.00", "card", "SKLEP M XYZ", day="2026-09-04", category_id=110)
+def test_merchants_split_lines_count_for_the_merchant(conn: sqlite3.Connection) -> None:
+    t = add(conn, "-100.00", "card", "M", day="2026-09-04", category_id=110, merchant="Sklep M")
     for line, amount in ((0, "-60.00"), (1, "-40.00")):
         conn.execute(
             "INSERT INTO txn_split (txn_id, line, category_id, amount, source) "
             "VALUES (?, ?, 110, ?, 'manual')",
             (t, line, amount),
         )
-    got = spending.purchases(conn, 110, date(2026, 9, 1), date(2026, 10, 1))
-    assert [(p.id, p.amount) for p in got] == [(t, Decimal("60.00")), (t, Decimal("40.00"))]
-    assert spending.purchases(conn, 111, date(2026, 9, 1), date(2026, 10, 1)) == []
+    got = spending.merchants(conn, 110, date(2026, 9, 1), date(2026, 10, 1))
+    assert [(m.label, m.amount, m.count) for m in got] == [("Sklep M", Decimal("100.00"), 2)]
+    assert spending.merchants(conn, 111, date(2026, 9, 1), date(2026, 10, 1)) == []
