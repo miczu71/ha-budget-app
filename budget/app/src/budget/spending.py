@@ -297,7 +297,7 @@ class Merchant:
     count: int
 
 
-PURCHASE_LABEL = 40  # limit znaków nazwy sprzedawcy (z „…”)
+MERCHANT_LABEL = 40  # limit znaków nazwy sprzedawcy (z „…”)
 
 
 def _merchant_group(r: sqlite3.Row) -> tuple[str, str]:
@@ -316,7 +316,6 @@ def merchants(conn: sqlite3.Connection, leaf_id: int, start: date, end: date) ->
     """Wydatki jednej podkategorii w okresie [start, end) zsumowane wg sprzedawcy (drill-down
     wykresu); malejąco po kwocie. Część podziału (M29) liczy się do sprzedawcy transakcji."""
     amounts: dict[str, Decimal] = defaultdict(Decimal)
-    counts: dict[str, int] = defaultdict(int)
     names: dict[str, Counter[str]] = defaultdict(Counter)
     for r in _rows(conn, start, end, details=True):
         amount = Decimal(r["amount"])
@@ -324,14 +323,14 @@ def merchants(conn: sqlite3.Connection, leaf_id: int, start: date, end: date) ->
             continue
         key, label = _merchant_group(r)
         amounts[key] -= amount
-        counts[key] += 1
         names[key][label] += 1
     out = []
     for key, amount in amounts.items():
         label = names[key].most_common(1)[0][0]
-        if len(label) > PURCHASE_LABEL:
-            label = label[: PURCHASE_LABEL - 1].rstrip() + "…"
-        out.append(Merchant(label, amount, counts[key]))
+        count = names[key].total()
+        if len(label) > MERCHANT_LABEL:
+            label = label[: MERCHANT_LABEL - 1].rstrip() + "…"
+        out.append(Merchant(label, amount, count))
     return sorted(out, key=lambda m: m.amount, reverse=True)
 
 
