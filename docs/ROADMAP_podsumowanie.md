@@ -60,3 +60,8 @@ Rollback: E1 — instalacja poprzedniej wersji z backupu add-onu albo revert; E2
 - Plan `docs/PLAN_podsumowanie_merchants.md`: poz. 3 donuta = sprzedawcy (suma, „×N”, link `/transactions?…&q=<nazwa>`), zamiast pojedynczych transakcji. Klucz grupy: `fold(merchant)`, inaczej `merchant_ident(kontrahent/opis)`; „—” linkuje do całej podkategorii.
 - Review: liczba transakcji liczy części podziału M29 jako jedną; remis pisowni rozstrzyga deterministycznie (nie-WIELKIMI, alfabetycznie).
 - Ograniczenia (nieblokujące): link `q` to wyszukiwanie tekstowe, nie dokładny filtr grupy, więc lista może się różnić od sumy wycinka; dwie ścieżki klucza (merchant i ident) mogą rozdzielić ten sam sklep; `merchants` czyta cały miesiąc; „×N” w etykiecie wycinka — szerokość legendy sprawdzić na żywo przy 390 px.
+
+## Wydanie 0.70.0 + 0.70.1 (2026-10-30)
+- 0.70.0 (tag `v0.70.0`): poziom 3 wykresu wg sprzedawców. 0.70.1 (commit 07c0acd, tag `v0.70.1`, opublikowane): kafelek „Karta” — zadłużenie na minus (czerwone), nadwyżka na plus (zielone). Zainstalowano od razu 0.70.1 (0.70.0 pominięte, bo kafelek dodano po utworzeniu tagu).
+- 1346 testów, ruff i mypy czyste, pubguard 0 oflagowanych, security review czysty.
+- Na żywo (Ingress): stopka v0.70.1, kafelek Karta „+100 zł” (klasa `pos`), drill do poz. 3 działa, link sprzedawcy z `q=`, konsola bez błędów, bez przewijania poziomego. Zakup „×N” nie wystąpił w danych bieżącego miesiąca (pojedyncze zakupy) — pokryte testami i kopią danych.
