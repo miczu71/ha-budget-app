@@ -30,7 +30,7 @@
     {% endif %}
   {% endcall %}
   {% else %}
-  <p class="muted">Brak wydatków {{ "w tym okresie" if since_on else "w tym miesiącu" }}.</p>
+  <p class="muted">{{ "Brak zakupów do pokazania w tej pozycji." if drill_level > 1 else "Brak wydatków " ~ ("w tym okresie" if since_on else "w tym miesiącu") ~ "." }}</p>
   {% endif %}
   {% if see_href %}
   <p class="small card-link"><a class="tap" href="{{ base }}{{ see_href }}">Zobacz transakcje »</a></p>

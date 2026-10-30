@@ -244,7 +244,7 @@ def spending_card(
     purch = spending.purchases(conn, leaf.category.id, *window)
     ctx.update(
         drill_level=3,
-        drill_total=leaf.amount,
+        drill_total=sum((p.amount for p in purch), ZERO),  # jak wycinki: zakupy bez zwrotów
         see_href=sub_see,
         back_q=cat_q,
         crumbs=[*ctx["crumbs"], (leaf.category.name, None)],

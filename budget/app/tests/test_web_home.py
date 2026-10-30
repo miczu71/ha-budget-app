@@ -892,11 +892,10 @@ async def test_invalid_drill_falls_back_to_level1(
         "cat=%C2%B2",
         f"cat={'1' * 5000}",
         "cat=99999",
-        "cat=4&sub=999",
         "cat=130",
     ):
         r = await client.get(f"/home/spending?month={MONTH}&{query}")
-        assert r.status_code == 200, query
+        assert r.status_code == 200 and 'class="crumbs"' not in r.text, query
     lvl1 = (await client.get(f"/home/spending?month={MONTH}&cat=abc")).text
     assert 'class="crumbs"' not in lvl1 and "Wszystkie kategorie i podkategorie" in lvl1
     bad_sub = (await client.get(f"/home/spending?month={MONTH}&cat=4&sub=999")).text
@@ -926,3 +925,45 @@ async def test_level1_hx_only_on_category_slices(
     assert page.count(drill_get) == 4  # 2 × (wycinek + legenda)
     assert f'href="{INGRESS}/review?month={MONTH}"' in page
     assert f'hx-get="{INGRESS}/home/spending?month={MONTH}&amp;cat=4"' in page
+    assert (
+        page.count('hx-on:click="event.preventDefault()"') == 2
+    )  # SVG <a> nie jest HTMLAnchorElement
+
+
+async def test_drill_level3_since_payday_window_and_center_matches_slices(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    serie(service.conn, "pensja", "9000.00", direction="in")
+    today = date.today()
+    payday = (today - timedelta(days=2)).isoformat()
+    add(service.conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day=payday)
+    add(service.conn, "-80.00", "card", "ORLEN NOWY", day=today.isoformat(), category_id=130)
+    add(
+        service.conn,
+        "-500.00",
+        "card",
+        "ORLEN STARY",
+        day=(today - timedelta(days=9)).isoformat(),
+        category_id=130,
+    )
+    add(service.conn, "15.00", "card_refund", "ORLEN ZWROT", day=today.isoformat(), category_id=130)
+    frag = (await client.get("/home/spending?since_payday=1&cat=4&sub=130")).text
+    assert "ORLEN NOWY" in frag and "ORLEN STARY" not in frag
+    assert f"date_from={payday}" in frag
+    assert f'hx-get="{INGRESS}/home/spending?month={MONTH}&amp;since_payday=1&amp;cat=4"' in frag
+    assert '<span class="donut-total">80,00' in frag  # zwrot nie rozjeżdża środka i wycinków
+
+
+async def test_drill_level3_without_purchases_says_so(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _drill_seed(service.conn)
+    add(service.conn, "-9.00", "card", "OBCA", day=DAY, category_id=131, currency="EUR")
+    add(service.conn, "-1.00", "card", "SKLEP Q XYZ", day=DAY, category_id=131)
+    service.conn.execute("DELETE FROM txn WHERE description LIKE 'SKLEP X%'")
+    frag = (await client.get(f"/home/spending?month={MONTH}&cat=4&sub=131")).text
+    assert "OBCA" not in frag and "SKLEP Q" in frag  # waluta ≠ PLN pominięta
+    service.conn.execute("DELETE FROM txn WHERE description LIKE 'SKLEP Q%'")
+    empty = (await client.get(f"/home/spending?month={MONTH}&cat=4&sub=131")).text
+    assert "Brak wydatków" not in empty

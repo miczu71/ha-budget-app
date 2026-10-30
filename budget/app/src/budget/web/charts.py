@@ -23,7 +23,7 @@ MONTH_ABBR = ("sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "pa
 
 @dataclass(frozen=True)
 class Slice:
-    key: str  # `cat-<id>`, `other`, `unc`
+    key: str  # `cat-<id>`, `txn-<id>` (drill-down), `other`, `unc`
     label: str
     amount: Decimal
     count: int
