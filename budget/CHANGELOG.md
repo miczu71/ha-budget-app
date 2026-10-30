@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.70.1
+
+**Kafelek „Karta” na górze Podsumowania** — zadłużenie jako minus (czerwone), nadwyżka na karcie (nadpłata)
+jako plus (zielone); wcześniej odwrotnie.
+
 ## 0.70.0
 
 **Wykres wydatków: poziom 3 wg sprzedawców** — `docs/PLAN_podsumowanie_merchants.md`.
@@ -8,8 +13,6 @@
 - Klik w sprzedawcę otwiera listę transakcji z filtrem nazwy i okresem widoku. Transakcje bez nazwy sprzedawcy
   trafiają do jednej pozycji „—” (link do całej podkategorii).
 - Podzielona transakcja liczy się jako jedna; zwroty i waluty inne niż PLN są pominięte jak dotąd.
-- Kafelek „Karta” na górze Podsumowania: zadłużenie jako minus (czerwone), nadwyżka na karcie (nadpłata) jako plus
-  (zielone) — wcześniej odwrotnie.
 
 ## 0.69.0
 
