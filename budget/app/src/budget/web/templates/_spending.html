@@ -1,19 +1,19 @@
 {# Karta „Gdzie poszły pieniądze” (E3 Podsumowania); fragment htmx: GET /home/spending #}
 {% from "_macros.html" import change %}
-{% from "_charts.html" import donut with context %}
+{% from "_charts.html" import donut, card_get with context %}
 <section class="card span2" id="spending-card">
   <h2>Gdzie poszły pieniądze {{ spend_title }}</h2>
   {% if since_date %}
   <nav class="tabs small" aria-label="Zakres wykresu">
-    <a class="tap{{ ' on' if not since_on }}" href="{{ base }}/?month={{ ym }}" hx-get="{{ base }}/home/spending?month={{ ym }}" hx-target="#spending-card" hx-select="#spending-card" hx-swap="outerHTML" hx-push-url="false" {% if not since_on %}aria-current="true"{% endif %}>Miesiąc</a>
-    <a class="tap{{ ' on' if since_on }}" href="{{ base }}/?month={{ ym }}&since_payday=1" hx-get="{{ base }}/home/spending?month={{ ym }}&since_payday=1" hx-target="#spending-card" hx-select="#spending-card" hx-swap="outerHTML" hx-push-url="false" {% if since_on %}aria-current="true"{% endif %}>Od ostatniej wypłaty</a>
+    <a class="tap{{ ' on' if not since_on }}" href="{{ base }}/?month={{ ym }}" {{ card_get("month=" ~ ym) }} {% if not since_on %}aria-current="true"{% endif %}>Miesiąc</a>
+    <a class="tap{{ ' on' if since_on }}" href="{{ base }}/?month={{ ym }}&since_payday=1" {{ card_get("month=" ~ ym ~ "&since_payday=1") }} {% if since_on %}aria-current="true"{% endif %}>Od ostatniej wypłaty</a>
   </nav>
   {% endif %}
   {% if crumbs %}
   <nav class="crumbs" aria-label="Poziom wykresu">
-    <a class="tap" href="{{ base }}/?{{ back_q }}" hx-get="{{ base }}/home/spending?{{ back_q }}" hx-target="#spending-card" hx-select="#spending-card" hx-swap="outerHTML" hx-push-url="false">← wstecz</a>
+    <a class="tap" href="{{ base }}/?{{ back_q }}" {{ card_get(back_q) }}>← wstecz</a>
     {% for label, q in crumbs %}
-    {% if loop.last %}<span aria-current="page">{{ label }}</span>{% else %}<a class="tap" href="{{ base }}/?{{ q }}" hx-get="{{ base }}/home/spending?{{ q }}" hx-target="#spending-card" hx-select="#spending-card" hx-swap="outerHTML" hx-push-url="false">{{ label }}</a> <span aria-hidden="true">›</span>{% endif %}
+    {% if loop.last %}<span aria-current="page">{{ label }}</span>{% else %}<a class="tap" href="{{ base }}/?{{ q }}" {{ card_get(q) }}>{{ label }}</a> <span aria-hidden="true">›</span>{% endif %}
     {% endfor %}
   </nav>
   {% endif %}

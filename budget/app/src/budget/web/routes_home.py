@@ -175,13 +175,11 @@ def spending_card(
         period = f"date_from={since_date.isoformat()}&date_to={today.isoformat()}"
         title = f"od {since_date.day} {MONTHS_GEN[since_date.month - 1]}"
         compare = f"vs {days} dni wcześniej"
-        window = (since_date, today + timedelta(days=1))
     else:
         last = add_months(start, 1) - timedelta(days=1)
         period = f"date_from={start.isoformat()}&date_to={last.isoformat()}"
         title = f"w {month_locative(start)}"
         compare = compare_label(m)
-        window = (start, add_months(start, 1))
     spend_q = f"month={ym}" + ("&since_payday=1" if since_on else "")
     ctx: dict[str, Any] = {
         "sm": m,
@@ -205,8 +203,10 @@ def spending_card(
             review_href=f"/review?month={ym}",
         ),
     }
-    g = next((x for x in m.expense_groups if cat is not None and x.category.id == cat), None)
-    if g is None or cat is None:
+    if cat is None:
+        return ctx
+    g = next((x for x in m.expense_groups if x.category.id == cat), None)
+    if g is None:
         return ctx
     cat_q = f"{spend_q}&cat={cat}"
     cat_see = f"/transactions?category={cat}&{period}"
@@ -236,11 +236,15 @@ def spending_card(
         )
         return ctx
     sub_see = f"/transactions?category={leaf.category.id}&{period}"
+    window = (
+        (since_date, today + timedelta(days=1))
+        if since_on and since_date
+        else (start, add_months(start, 1))
+    )
     purch = spending.purchases(conn, leaf.category.id, *window)
     ctx.update(
         drill_level=3,
         drill_total=leaf.amount,
-        drill_share=0,
         see_href=sub_see,
         back_q=cat_q,
         crumbs=[*ctx["crumbs"], (leaf.category.name, None)],

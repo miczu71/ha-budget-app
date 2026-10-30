@@ -293,7 +293,6 @@ def recent(conn: sqlite3.Connection, start: date, end: date, limit: int = 5) -> 
 class Purchase:
     id: int
     label: str
-    day: str
     amount: Decimal  # dodatnia = wydano
 
 
@@ -311,7 +310,7 @@ def purchases(conn: sqlite3.Connection, leaf_id: int, start: date, end: date) ->
         label = r["merchant"] or r["counterparty_name"] or r["description"] or "—"
         if len(label) > PURCHASE_LABEL:
             label = label[: PURCHASE_LABEL - 1].rstrip() + "…"
-        out.append(Purchase(int(r["id"]), label, str(r["day"]), -amount))
+        out.append(Purchase(int(r["id"]), label, -amount))
     return sorted(out, key=lambda p: p.amount, reverse=True)
 
 

@@ -179,10 +179,7 @@ def test_purchases_leaf_expenses_in_window_sorted_by_amount(conn: sqlite3.Connec
     add(conn, "-99.00", "card", "INNA", day="2026-09-05", category_id=111)  # inna podkategoria
     add(conn, "20.00", "card_refund", "SKLEP X ZWROT", day="2026-09-06", category_id=110)
     got = spending.purchases(conn, 110, date(2026, 9, 1), date(2026, 10, 1))
-    assert [(p.day, p.amount) for p in got] == [
-        ("2026-09-20", Decimal("80.00")),
-        ("2026-09-03", Decimal("30.00")),
-    ]
+    assert [p.amount for p in got] == [Decimal("80.00"), Decimal("30.00")]
 
 
 def test_purchases_label_fallback_and_truncation(conn: sqlite3.Connection) -> None:

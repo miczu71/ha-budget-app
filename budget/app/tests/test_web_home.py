@@ -869,7 +869,7 @@ async def test_drill_level2_lists_subcategories_with_crumbs(
     frag = (await client.get(f"/home/spending?month={MONTH}&cat=4")).text
     assert "<html" not in frag and 'class="crumbs"' in frag
     assert 'aria-current="page"' in frag and "Wszystkie" in frag
-    assert f'hx-get="{INGRESS}/home/spending?month={MONTH}&cat=4&amp;sub=130"' in frag
+    assert f'hx-get="{INGRESS}/home/spending?month={MONTH}&amp;cat=4&amp;sub=130"' in frag
     assert "Zobacz transakcje" in frag and f"/transactions?category=4&amp;date_from={DAY}" in frag
     assert '<span class="donut-total">150,00' in frag  # środek: kwota kategorii (120 + 30)
     assert "% wydatków" in frag
@@ -912,7 +912,7 @@ async def test_drill_keeps_since_payday_period(client: httpx.AsyncClient, servic
     add(service.conn, "-80.00", "card", "ORLEN STACJA", day=today.isoformat(), category_id=130)
     frag = (await client.get("/home/spending?since_payday=1&cat=4")).text
     assert f"date_from={payday}" in frag and "since_payday=1" in frag
-    sub_get = f"{INGRESS}/home/spending?month={MONTH}&amp;since_payday=1&cat=4&amp;sub=130"
+    sub_get = f"{INGRESS}/home/spending?month={MONTH}&amp;since_payday=1&amp;cat=4&amp;sub=130"
     assert f'hx-get="{sub_get}"' in frag
 
 
@@ -922,7 +922,7 @@ async def test_level1_hx_only_on_category_slices(
     _drill_seed(service.conn)
     add(service.conn, "-40.00", "card", "SKLEP ABC XYZ", day=DAY)  # bez kategorii
     page = (await client.get("/")).text
-    drill_get = f'hx-get="{INGRESS}/home/spending?month={MONTH}&cat='
+    drill_get = f'hx-get="{INGRESS}/home/spending?month={MONTH}&amp;cat='
     assert page.count(drill_get) == 4  # 2 × (wycinek + legenda)
     assert f'href="{INGRESS}/review?month={MONTH}"' in page
-    assert f'hx-get="{INGRESS}/home/spending?month={MONTH}&cat=4"' in page
+    assert f'hx-get="{INGRESS}/home/spending?month={MONTH}&amp;cat=4"' in page
