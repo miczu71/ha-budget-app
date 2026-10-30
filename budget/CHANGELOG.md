@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.70.0
+
+**Wykres wydatków: poziom 3 wg sprzedawców** — `docs/PLAN_podsumowanie_merchants.md`.
+- Po zejściu do podkategorii wycinki to sprzedawcy, a nie pojedyncze transakcje: zakupy w tym samym sklepie
+  (np. kilka razy w tym samym markecie) są zsumowane, z dopiskiem „×N”, gdy było ich więcej niż jeden.
+- Klik w sprzedawcę otwiera listę transakcji z filtrem nazwy i okresem widoku. Transakcje bez nazwy sprzedawcy
+  trafiają do jednej pozycji „—” (link do całej podkategorii).
+- Podzielona transakcja liczy się jako jedna; zwroty i waluty inne niż PLN są pominięte jak dotąd.
+
 ## 0.69.0
 
 **Podsumowanie: zwijana prognoza i wykres wydatków z drill-down** — `docs/ROADMAP_podsumowanie.md` (E2–E4).
