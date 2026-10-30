@@ -878,7 +878,7 @@ async def test_drill_level2_lists_subcategories_with_crumbs(
 async def test_drill_level3_groups_by_merchant(client: httpx.AsyncClient, service: Service) -> None:
     _drill_seed(service.conn)
     frag = (await client.get(f"/home/spending?month={MONTH}&cat=4&sub=130")).text
-    assert 'class="crumbs"' in frag and frag.count("Orlen") >= 1
+    assert 'class="crumbs"' in frag and "Orlen" in frag
     assert f"/transactions?category=130&amp;q=Orlen&amp;date_from={DAY}" in frag
     assert f'hx-get="{INGRESS}/home/spending?month={MONTH}&amp;cat=4"' in frag  # wstecz
 
@@ -967,3 +967,15 @@ async def test_drill_level3_without_purchases_says_so(
     service.conn.execute("DELETE FROM txn WHERE description LIKE 'SKLEP Q%'")
     empty = (await client.get(f"/home/spending?month={MONTH}&cat=4&sub=131")).text
     assert "Brak wydatków" not in empty
+
+
+async def test_drill_level3_merchant_count_suffix_and_nameless_link(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _drill_seed(service.conn)
+    add(service.conn, "-20.00", "card", "ORLEN STACJA 2 ABC", day=DAY, category_id=130)
+    add(service.conn, "-5.00", "card", "", None, day=DAY, category_id=130)
+    frag = (await client.get(f"/home/spending?month={MONTH}&cat=4&sub=130")).text
+    assert "Orlen ×2" in frag and "— ×" not in frag  # sufiks tylko przy count > 1
+    assert f"/transactions?category=130&amp;q=Orlen&amp;date_from={DAY}" in frag
+    assert "q=%E2%80%94" not in frag  # grupa bez nazwy linkuje do całej podkategorii

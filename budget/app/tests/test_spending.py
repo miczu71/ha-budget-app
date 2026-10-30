@@ -217,3 +217,14 @@ def test_merchants_split_lines_count_for_the_merchant(conn: sqlite3.Connection) 
     got = spending.merchants(conn, 110, date(2026, 9, 1), date(2026, 10, 1))
     assert [(m.label, m.amount, m.count) for m in got] == [("Sklep M", Decimal("100.00"), 2)]
     assert spending.merchants(conn, 111, date(2026, 9, 1), date(2026, 10, 1)) == []
+
+
+def test_merchants_label_is_most_common_spelling(conn: sqlite3.Connection) -> None:
+    for day, name in (
+        ("2026-09-02", "Sklep X"),
+        ("2026-09-03", "SKLEP X"),
+        ("2026-09-04", "Sklep X"),
+    ):
+        add(conn, "-1.00", "card", "A", day=day, category_id=110, merchant=name)
+    got = spending.merchants(conn, 110, date(2026, 9, 1), date(2026, 10, 1))
+    assert [(m.label, m.count) for m in got] == [("Sklep X", 3)]

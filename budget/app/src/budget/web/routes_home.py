@@ -243,6 +243,12 @@ def spending_card(
         else (start, add_months(start, 1))
     )
     shops = spending.merchants(conn, leaf.category.id, *window)
+
+    def shop_href(label: str) -> str:
+        if label == "—":  # bez nazwy: filtr q byłby pusty, więc cała podkategoria
+            return sub_see
+        return f"/transactions?category={leaf.category.id}&q={quote(label.rstrip('…'))}&{period}"
+
     ctx.update(
         drill_level=3,
         drill_total=sum((m.amount for m in shops), ZERO),  # jak wycinki: zakupy bez zwrotów
@@ -256,7 +262,7 @@ def spending_card(
                     label=f"{m.label} ×{m.count}" if m.count > 1 else m.label,
                     amount=m.amount,
                     count=m.count,
-                    href=f"/transactions?category={leaf.category.id}&q={quote(m.label.rstrip('…'))}&{period}",
+                    href=shop_href(m.label),
                 )
                 for n, m in enumerate(shops)
             ],
