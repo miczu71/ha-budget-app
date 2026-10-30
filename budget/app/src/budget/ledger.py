@@ -943,8 +943,27 @@ def check_balances(conn: sqlite3.Connection) -> list[BalanceCheck]:
             "AND balance_type = 'ITBD' ORDER BY fetched_at",
             (account_id,),
         ).fetchall()
+        limit = card.get_limit(conn) if acc["kind"] == "card" else None
+        available = (  # nadpłata karty (ITBD = 0) widoczna tylko w ITAV z tego samego pobrania
+            {
+                r["fetched_at"]: Decimal(r["amount"])
+                for r in conn.execute(
+                    "SELECT amount, fetched_at FROM balance_snapshot "
+                    "WHERE account_id = ? AND balance_type = 'ITAV'",
+                    (account_id,),
+                )
+            }
+            if limit
+            else {}
+        )
         known_sums = [
-            (s["fetched_at"], Decimal(s["amount"]), _known_sum(conn, account_id, s["fetched_at"]))
+            (
+                s["fetched_at"],
+                card.debt_from(Decimal(s["amount"]), available.get(s["fetched_at"]), limit)
+                if limit
+                else Decimal(s["amount"]),
+                _known_sum(conn, account_id, s["fetched_at"]),
+            )
             for s in snapshots
         ]
         if opening is not None:

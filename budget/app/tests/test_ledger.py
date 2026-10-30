@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from budget import eb_ingest, ledger
+from budget import card, eb_ingest, ledger
 from budget.eb_models import Account, Balance, Transaction
 from budget.storage import db
 
@@ -425,6 +425,13 @@ def _itbd(conn: sqlite3.Connection, account_id: int, amount: str, at: str) -> No
     ledger.ingest_balances(conn, account_id, [b], fetched_at=at)
 
 
+def _itav(conn: sqlite3.Connection, account_id: int, amount: str, at: str) -> None:
+    b = Balance.from_api(
+        {"balance_amount": {"currency": "PLN", "amount": amount}, "balance_type": "ITAV"}
+    )
+    ledger.ingest_balances(conn, account_id, [b], fetched_at=at)
+
+
 def _card_check(conn: sqlite3.Connection, card: int) -> ledger.BalanceCheck:
     return next(c for c in ledger.check_balances(conn) if c.account_id == card)
 
@@ -501,3 +508,25 @@ def test_card_check_base_snapshot(conn: sqlite3.Connection, accounts: tuple[int,
     assert check.status == "OK" and check.base_at == "2026-10-06T19:30:30+00:00"
     _itbd(conn, card, "377.67", "2026-10-07T19:30:30+00:00")
     assert _card_check(conn, card).status == "OK"
+
+
+def test_card_overpayment_refund_reconciles(
+    conn: sqlite3.Connection, accounts: tuple[int, int]
+) -> None:
+    """Zwrot ponad zadłużenie: bank trzyma ITBD na 0, nadpłata widoczna tylko w ITAV > limit."""
+    _, card_id = accounts
+    card.set_limit(conn, "10000")
+    _itbd(conn, card_id, "0.00", "2026-10-01T07:00:00+00:00")
+    _itav(conn, card_id, "10000.00", "2026-10-01T07:00:00+00:00")
+    api(
+        conn,
+        card_id,
+        [tx("C9", "2026-10-30", "100.00", "ZWROT")],
+        card=True,
+        at="2026-10-30T07:00:00+00:00",
+    )
+    _itbd(conn, card_id, "0.00", "2026-10-30T07:00:30+00:00")
+    _itav(conn, card_id, "10100.00", "2026-10-30T07:00:30+00:00")
+    check = _card_check(conn, card_id)
+    assert check.snapshot_checks[-1][1:] == (Decimal("-100.00"), Decimal("-100.00"))
+    assert check.status == "OK"

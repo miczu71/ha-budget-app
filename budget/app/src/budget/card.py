@@ -260,6 +260,19 @@ def get_limit(conn: sqlite3.Connection) -> Decimal | None:
     return Decimal(value) if value else None
 
 
+def debt_from(itbd: Decimal, itav: Decimal | None, limit: Decimal | None) -> Decimal:
+    """Zadłużenie karty z salda ITBD; nadpłata (zwrot ponad dług) jako wartość ujemna.
+
+    Bank nie schodzi z ITBD poniżej zera — nadpłatę widać tylko w ITAV powyżej limitu. Bez
+    limitu albo ITAV nadpłaty nie da się odczytać, więc zadłużenie nie spada poniżej zera.
+    """
+    if itbd > 0:
+        return itbd
+    if itav is not None and limit is not None and itav > limit:
+        return limit - itav
+    return money.ZERO
+
+
 def set_limit(conn: sqlite3.Connection, text: str) -> None:
     """Limit z pola formularza; pusty tekst usuwa limit."""
     try:

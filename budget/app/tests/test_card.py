@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date, datetime
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -132,3 +133,23 @@ async def test_home_tile(service: Service, monkeypatch: pytest.MonkeyPatch) -> N
         past = (await client.get("/?month=2026-09")).text
     assert "Karta kredytowa" in page and "3 / 5" in page and "Brakuje 2 do 31.10" in page
     assert "Karta kredytowa" not in past
+
+
+@pytest.mark.parametrize(
+    ("itbd", "itav", "limit", "debt"),
+    [
+        ("120.00", "9880.00", "10000", "120.00"),  # zwykłe zadłużenie
+        ("0.00", "10000.00", "10000", "0.00"),  # karta czysta
+        ("0.00", "10100.00", "10000", "-100.00"),  # nadpłata: bank trzyma ITBD na zerze
+        ("0.00", "10100.00", None, "0.00"),  # bez limitu nadpłaty nie da się policzyć
+        ("0.00", None, "10000", "0.00"),  # bez ITAV też nie
+        ("50.00", "10100.00", "10000", "50.00"),  # dodatnie ITBD rządzi (autoryzacje)
+    ],
+)
+def test_debt_from_reads_overpayment_from_available(
+    itbd: str, itav: str | None, limit: str | None, debt: str
+) -> None:
+    got = card.debt_from(
+        Decimal(itbd), Decimal(itav) if itav else None, Decimal(limit) if limit else None
+    )
+    assert got == Decimal(debt)

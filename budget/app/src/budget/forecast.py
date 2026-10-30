@@ -40,7 +40,7 @@ PIGGY_LABEL = "Do skarbonek"
 @dataclass
 class Balances:
     account: Decimal  # rachunek PLN: dostępne (ITAV), a bez niego zaksięgowane (ITBD)
-    card_debt: Decimal  # karta: ITBD = bieżące zadłużenie; bez karty 0
+    card_debt: Decimal  # karta: zadłużenie (ITBD), ujemne = nadpłata; bez karty 0
     eur: Decimal | None
     fetched_at: str  # najstarsza z migawek użytych do wyniku
     pending: Decimal = ZERO  # rachunki PLN: suma (ITBD − ITAV)⁺ = blokady jeszcze bez księgowania
@@ -210,9 +210,15 @@ def read_balances(conn: sqlite3.Connection) -> Balances | None:
         return None
     card_debt = ZERO
     if accounts["card"]:
-        debt = ledger.latest_balances(conn, accounts["card"]["id"]).get("ITBD")
+        snaps = ledger.latest_balances(conn, accounts["card"]["id"])
+        debt = snaps.get("ITBD")
         if debt is not None:
-            card_debt = max(Decimal(debt["amount"]), ZERO)
+            available = snaps.get("ITAV")
+            card_debt = card.debt_from(
+                Decimal(debt["amount"]),
+                Decimal(available["amount"]) if available else None,
+                card.get_limit(conn),
+            )
             fetched.append(debt["fetched_at"])
     eur = None
     if accounts["fx"]:

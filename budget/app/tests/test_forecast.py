@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from budget import flex, forecast, ha_publisher, inbox
+from budget import card, flex, forecast, ha_publisher, inbox
 from budget.categorize import engine
 from budget.recurring import schedule as sch
 from budget.snapshot import Snapshot
@@ -758,3 +758,14 @@ def test_no_payday_a_year_ago_means_no_comparison(conn: sqlite3.Connection) -> N
     fc = build(conn, payday_id=mine)
     assert fc is not None and fc.period_start == date(2026, 9, 7)
     assert fc.spent_year_ago is None and fc.yoy_delta is None and fc.yoy_pct is None
+
+
+def test_read_balances_card_overpayment_is_negative_debt(conn: sqlite3.Connection) -> None:
+    card.set_limit(conn, "10000")
+    snapshot(conn, 1, "ITAV", "500.00", "2026-10-03T10:00:00+02:00")
+    snapshot(conn, 2, "ITBD", "0.00", "2026-10-03T10:00:00+02:00")
+    snapshot(conn, 2, "ITAV", "10100.00", "2026-10-03T10:00:00+02:00")
+    b = forecast.read_balances(conn)
+    assert b is not None and b.card_debt == Decimal("-100.00")
+    fc = build(conn)
+    assert fc is not None and fc.free_now == Decimal("600.00")

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.68.1
+
+**Nadpłata karty kredytowej** — `docs/ROADMAP_podsumowanie.md` (E1).
+- Zwrot ponad zadłużenie: bank trzyma saldo ITBD karty na zerze, a nadpłatę pokazuje tylko dostępne środki (ITAV)
+  powyżej limitu. Uzgodnienie salda karty i prognoza czytają teraz nadpłatę jako ujemne zadłużenie, więc kontrola
+  nie zgłasza fałszywej rozbieżności, a „Wolne środki” rosną o kwotę zwrotu.
+- Bez ustawionego limitu karty nadpłaty nie da się odczytać — zachowanie jak dotąd (zadłużenie nie spada poniżej zera).
+
 ## 0.68.0
 
 **M34: hero „Do wypłaty” z kwotą ponad zaplanowane i kafelek „Akcje” bez dopisków** — `docs/PLAN_M34_akcje_hero.md`.
