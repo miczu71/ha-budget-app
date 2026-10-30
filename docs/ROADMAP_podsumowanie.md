@@ -49,3 +49,9 @@ Rollback: E1 — instalacja poprzedniej wersji z backupu add-onu albo revert; E2
 - `_id`: nieprawidłowe `cat`/`sub` (też „²”, 5000 cyfr) → poziom 1 (zarzut verifiera, poprawione).
 - Nieblokujące: na poz. 3 środek = netto kategorii, wycinki = brutto zakupów (zwroty pominięte); klucz `txn-<id>` powtarza się przy częściach podziału; strzałki „←”/„›” to Unicode.
 - Do sprawdzenia na żywo: drill na 390 px, konsola, okruszki, E2/E3.
+
+## Wydanie 0.69.0 (2026-10-30)
+- Commit b0daec8, tag v0.69.0 (opublikowany), 1343 testów, ruff i mypy czyste, pubguard 0 oflagowanych, security review czysty.
+- Na żywo (Ingress): stopka v0.69.0, prognoza zwinięta, tytuł z miesiącem, przełącznik okresu, drill poziom 2 (okruszki, środek) i „← wstecz” działają w miejscu, konsola bez błędów. Dev (390 px): bez przewijania poziomego, cel dotyku 44 px.
+- Po review: środek poz. 3 = suma zakupów (zwroty pominięte, jak wycinki), osobny komunikat bez zakupów, `hx-on:click=preventDefault` dla SVG `<a>`.
+- Długi nieblokujące: poz. 2 środek = netto kategorii, wycinki = dodatnie podkategorie; części podziału M29 mają ten sam klucz `txn-<id>`; kolory drill indeksowane (nie stałe jak poz. 1); prognoza liczona przy każdym kliknięciu drill w bieżącym miesiącu; `purchases` czyta cały miesiąc i filtruje w Pythonie.
