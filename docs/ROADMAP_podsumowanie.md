@@ -11,7 +11,7 @@ domyślnie widok miesięczny; poziom 3 = pojedyncze transakcje (top 6 + „pozos
 |---|---|---|
 | E1 ✅ | `card.debt_from`: nadpłata karty (ITBD = 0, ITAV > limit) jako ujemne zadłużenie w uzgodnieniu i prognozie | 0.68.1 (na żywo 2026-10-30) |
 | E2 ✅ | `_forecast.html` jako `<details>`: nagłówek + wynik widoczne, reszta po rozwinięciu | 0.69.0 (po E4; commit 3273922) |
-| E3 | tytuł z miesiącem, przełącznik „od ostatniej wypłaty” (fragment htmx) | 0.69.0 |
+| E3 ✅ | tytuł z miesiącem, przełącznik „od ostatniej wypłaty” (fragment htmx) | 0.69.0 (po E4; commit bea6a93) |
 | E4 | drill-down donuta, okruszki, „wstecz”, link do transakcji z filtrem widoku | 0.69.0 |
 
 Po wdrożeniu E1: na ekranie Status ustawić nową bazę uzgodnienia karty (stara baza zawierała autoryzację,
@@ -34,3 +34,10 @@ Rollback: E1 — instalacja poprzedniej wersji z backupu add-onu albo revert; E2
 - Przełącznik karty: `hx-target/hx-select="#fc-body"` + `hx-select-oob="#fc-sum"` (details nie jest podmieniany, więc rozwinięcie przeżywa).
 - Link `href="#fc"` z hero rozwija prognozę (listener w base.html).
 - Do sprawdzenia wizualnie na żywo przy wydaniu (390 px, konsola, przełącznik karty przy rozwiniętej prognozie).
+
+## Wynik E3 (2026-10-30)
+- Commit bea6a93, bez wydania. 1329 testów, ruff i mypy czyste, skan prywatności czysty.
+- Karta wydatków wydzielona do `_spending.html`; GET `/home/spending?month=&since_payday=1` zwraca fragment (htmx, `hx-select="#spending-card"`), bez JS działa link `/?month=&since_payday=1`.
+- `spending.build(..., since=)`: okno [since, dziś], porównanie z tyloma samymi dniami przed `since` („vs N dni wcześniej”). `month_locative()` w spending.py.
+- Początek okresu = `fc.period_start` (też auto-wykryta wypłata); fragment buduje prognozę sam (`payday_start`), błąd → brak przełącznika. Przełącznik tylko w bieżącym miesiącu; styl `.tabs`.
+- Do sprawdzenia wizualnie na żywo przy wydaniu: przełącznik na 390 px, tytuł, konsola.
