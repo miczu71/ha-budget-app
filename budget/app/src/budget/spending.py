@@ -317,6 +317,7 @@ def merchants(conn: sqlite3.Connection, leaf_id: int, start: date, end: date) ->
     wykresu); malejąco po kwocie. Część podziału (M29) liczy się do sprzedawcy transakcji."""
     amounts: dict[str, Decimal] = defaultdict(Decimal)
     names: dict[str, Counter[str]] = defaultdict(Counter)
+    txns: dict[str, set[int]] = defaultdict(set)
     for r in _rows(conn, start, end, details=True):
         amount = Decimal(r["amount"])
         if r["category_id"] != leaf_id or r["currency"] != BASE_CURRENCY or amount >= 0:
@@ -324,13 +325,16 @@ def merchants(conn: sqlite3.Connection, leaf_id: int, start: date, end: date) ->
         key, label = _merchant_group(r)
         amounts[key] -= amount
         names[key][label] += 1
+        txns[key].add(int(r["id"]))  # części podziału tej samej transakcji = jedna
     out = []
     for key, amount in amounts.items():
-        label = names[key].most_common(1)[0][0]
-        count = names[key].total()
+        spellings = names[key]
+        label = min(
+            spellings, key=lambda n: (-spellings[n], n.isupper(), n)
+        )  # remis: nie-WIELKIMI, alfabetycznie
         if len(label) > MERCHANT_LABEL:
             label = label[: MERCHANT_LABEL - 1].rstrip() + "…"
-        out.append(Merchant(label, amount, count))
+        out.append(Merchant(label, amount, len(txns[key])))
     return sorted(out, key=lambda m: m.amount, reverse=True)
 
 

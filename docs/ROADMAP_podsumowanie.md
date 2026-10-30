@@ -55,3 +55,8 @@ Rollback: E1 — instalacja poprzedniej wersji z backupu add-onu albo revert; E2
 - Na żywo (Ingress): stopka v0.69.0, prognoza zwinięta, tytuł z miesiącem, przełącznik okresu, drill poziom 2 (okruszki, środek) i „← wstecz” działają w miejscu, konsola bez błędów. Dev (390 px): bez przewijania poziomego, cel dotyku 44 px.
 - Po review: środek poz. 3 = suma zakupów (zwroty pominięte, jak wycinki), osobny komunikat bez zakupów, `hx-on:click=preventDefault` dla SVG `<a>`.
 - Długi nieblokujące: poz. 2 środek = netto kategorii, wycinki = dodatnie podkategorie; części podziału M29 mają ten sam klucz `txn-<id>`; kolory drill indeksowane (nie stałe jak poz. 1); prognoza liczona przy każdym kliknięciu drill w bieżącym miesiącu; `purchases` czyta cały miesiąc i filtruje w Pythonie.
+
+## Poziom 3 wg sprzedawców (0.70.0)
+- Plan `docs/PLAN_podsumowanie_merchants.md`: poz. 3 donuta = sprzedawcy (suma, „×N”, link `/transactions?…&q=<nazwa>`), zamiast pojedynczych transakcji. Klucz grupy: `fold(merchant)`, inaczej `merchant_ident(kontrahent/opis)`; „—” linkuje do całej podkategorii.
+- Review: liczba transakcji liczy części podziału M29 jako jedną; remis pisowni rozstrzyga deterministycznie (nie-WIELKIMI, alfabetycznie).
+- Ograniczenia (nieblokujące): link `q` to wyszukiwanie tekstowe, nie dokładny filtr grupy, więc lista może się różnić od sumy wycinka; dwie ścieżki klucza (merchant i ident) mogą rozdzielić ten sam sklep; `merchants` czyta cały miesiąc; „×N” w etykiecie wycinka — szerokość legendy sprawdzić na żywo przy 390 px.

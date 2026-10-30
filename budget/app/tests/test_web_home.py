@@ -949,7 +949,7 @@ async def test_drill_level3_since_payday_window_and_center_matches_slices(
     )
     add(service.conn, "15.00", "card_refund", "ORLEN ZWROT", day=today.isoformat(), category_id=130)
     frag = (await client.get("/home/spending?since_payday=1&cat=4&sub=130")).text
-    assert "Orlen" in frag and "ORLEN STARY" not in frag
+    assert "Orlen" in frag and "500,00" not in frag  # stary zakup poza oknem
     assert f"date_from={payday}" in frag
     assert f'hx-get="{INGRESS}/home/spending?month={MONTH}&amp;since_payday=1&amp;cat=4"' in frag
     assert '<span class="donut-total">80,00' in frag  # zwrot i stare zakupy nie rozjeżdżają środka
@@ -963,7 +963,7 @@ async def test_drill_level3_without_purchases_says_so(
     add(service.conn, "-1.00", "card", "SKLEP Q XYZ", day=DAY, category_id=131)
     service.conn.execute("DELETE FROM txn WHERE description LIKE 'SKLEP X%'")
     frag = (await client.get(f"/home/spending?month={MONTH}&cat=4&sub=131")).text
-    assert "OBCA" not in frag and "Sklep" in frag  # waluta ≠ PLN pominięta
+    assert '<span class="donut-total">1,00' in frag  # EUR (9,00) pominięte, środek = tylko PLN
     service.conn.execute("DELETE FROM txn WHERE description LIKE 'SKLEP Q%'")
     empty = (await client.get(f"/home/spending?month={MONTH}&cat=4&sub=131")).text
     assert "Brak wydatków" not in empty

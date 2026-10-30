@@ -19,7 +19,7 @@ wcześniej propozycji: poziom 3 = **sprzedawcy** (suma i liczba transakcji na sk
 ## Zmiany (`/config/addons/ha-budget-app/budget/app/`)
 1. `src/budget/spending.py`: `Purchase` → `Merchant(label, amount, count)` i `purchases()` → `merchants()`
    grupujące jak wyżej (malejąco po kwocie). Reużyć `normalize.fold`, `normalize.merchant_ident`.
-2. `src/budget/web/routes_home.py` (poz. 3, ~l. 244–263): `Item(key=f"m-{i}", label, amount, count, href=…&q=<urlencode label>)`;
+2. `src/budget/web/routes_home.py` (poz. 3, ~l. 244–263): `Item(key=f"shop-{n}", label, amount, count, href=…&q=<urlencode label>)`;
    `drill_total` = suma `amount`.
 3. Testy (najpierw czerwone): `tests/test_spending.py` (dwa zakupy „Sklep X” → jedna pozycja z sumą i count=2;
    fallback na kontrahenta; zwroty pominięte; część podziału M29 liczy się do sprzedawcy), `tests/test_web_home.py`
