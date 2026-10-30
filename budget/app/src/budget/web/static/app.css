@@ -330,6 +330,9 @@ td.date { white-space: nowrap; }
 .tabs { display: flex; gap: 4px; margin: 0 0 12px; border-bottom: 1px solid var(--line); overflow-x: auto; }
 .tabs a { padding: 8px 10px; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; }
 .tabs a.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+.crumbs a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; color: var(--muted); }
+.crumbs [aria-current="page"] { color: var(--text); font-weight: 600; }
 .cat-chip {
   background: var(--bg);
   color: var(--text);

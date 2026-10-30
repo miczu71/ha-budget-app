@@ -9,14 +9,32 @@
     <a class="tap{{ ' on' if since_on }}" href="{{ base }}/?month={{ ym }}&since_payday=1" hx-get="{{ base }}/home/spending?month={{ ym }}&since_payday=1" hx-target="#spending-card" hx-select="#spending-card" hx-swap="outerHTML" hx-push-url="false" {% if since_on %}aria-current="true"{% endif %}>Od ostatniej wypłaty</a>
   </nav>
   {% endif %}
+  {% if crumbs %}
+  <nav class="crumbs" aria-label="Poziom wykresu">
+    <a class="tap" href="{{ base }}/?{{ back_q }}" hx-get="{{ base }}/home/spending?{{ back_q }}" hx-target="#spending-card" hx-select="#spending-card" hx-swap="outerHTML" hx-push-url="false">← wstecz</a>
+    {% for label, q in crumbs %}
+    {% if loop.last %}<span aria-current="page">{{ label }}</span>{% else %}<a class="tap" href="{{ base }}/?{{ q }}" hx-get="{{ base }}/home/spending?{{ q }}" hx-target="#spending-card" hx-select="#spending-card" hx-swap="outerHTML" hx-push-url="false">{{ label }}</a> <span aria-hidden="true">›</span>{% endif %}
+    {% endfor %}
+  </nav>
+  {% endif %}
   {% if slices %}
   {% call donut(slices, "Wydatki w kategoriach, " ~ spend_title) %}
+    {% if drill_level > 1 %}
+    <span class="donut-total">{{ drill_total | money("PLN") }}</span>
+    <span class="donut-sub">{{ "w podkategorii" if drill_level == 3 else "w kategorii" }}</span>
+    {% if drill_level == 2 %}<span class="donut-chg muted">{{ drill_share }}% wydatków</span>{% endif %}
+    {% else %}
     <span class="donut-total">{{ sm.expenses | money("PLN") }}</span>
     <span class="donut-sub">wydatki</span>
     <span class="donut-chg">{{ change(sm.expenses, sm.prev_expenses, True) }} <span class="muted">{{ spend_compare }}</span></span>
+    {% endif %}
   {% endcall %}
   {% else %}
   <p class="muted">Brak wydatków {{ "w tym okresie" if since_on else "w tym miesiącu" }}.</p>
   {% endif %}
+  {% if see_href %}
+  <p class="small card-link"><a class="tap" href="{{ base }}{{ see_href }}">Zobacz transakcje »</a></p>
+  {% else %}
   <p class="small card-link"><a class="tap" href="{{ base }}/spending?month={{ ym }}">Wszystkie kategorie i podkategorie »</a></p>
+  {% endif %}
 </section>

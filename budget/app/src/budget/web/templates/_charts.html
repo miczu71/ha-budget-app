@@ -8,7 +8,7 @@
     <svg viewBox="0 0 200 200" role="img" aria-label="{{ label }}">
       <circle class="donut-track" cx="100" cy="100" r="76" />
       {% for s in slices %}
-      <a href="{{ base }}{{ s.href }}">
+      {% if s.drill %}<a href="{{ base }}/?{{ spend_q }}&{{ s.drill }}" hx-get="{{ base }}/home/spending?{{ spend_q }}&{{ s.drill }}" hx-target="#spending-card" hx-select="#spending-card" hx-swap="outerHTML" hx-push-url="false">{% else %}<a href="{{ base }}{{ s.href }}">{% endif %}
         <circle class="slice {{ s.color }}" data-i="{{ loop.index0 }}" cx="100" cy="100" r="76" pathLength="100" transform="rotate(-90 100 100)" style="stroke-dasharray: {{ s.dash }}; stroke-dashoffset: {{ s.offset }}; --i: {{ loop.index0 }}"><title>{{ s.label }}: {{ s.amount | money("PLN") }} ({{ s.pct }}%)</title></circle>
       </a>
       {% endfor %}
@@ -18,7 +18,7 @@
   <ul class="legend">
     {% for s in slices %}
     <li class="legend-item" data-i="{{ loop.index0 }}">
-      <a href="{{ base }}{{ s.href }}"><i class="dot {{ s.color }}"></i><span class="legend-name">{{ s.label }}</span><span class="legend-amount">{{ s.amount | money("PLN") }}</span><span class="legend-pct">{{ s.pct }}%</span></a>
+      {% if s.drill %}<a href="{{ base }}/?{{ spend_q }}&{{ s.drill }}" hx-get="{{ base }}/home/spending?{{ spend_q }}&{{ s.drill }}" hx-target="#spending-card" hx-select="#spending-card" hx-swap="outerHTML" hx-push-url="false">{% else %}<a href="{{ base }}{{ s.href }}">{% endif %}<i class="dot {{ s.color }}"></i><span class="legend-name">{{ s.label }}</span><span class="legend-amount">{{ s.amount | money("PLN") }}</span><span class="legend-pct">{{ s.pct }}%</span></a>
     </li>
     {% endfor %}
   </ul>

@@ -32,6 +32,7 @@ class Slice:
     start: float  # początek łuku na obwodzie 0..100 (`pathLength="100"`), już z połową odstępu
     length: float  # długość widocznego łuku (po odjęciu odstępu)
     href: str  # ścieżka panelu bez prefiksu Ingress
+    drill: str = ""  # zapytanie poziomu niżej (`cat=<id>`); pusty = wycinek bez drill-down
 
     @property
     def dash(self) -> str:
@@ -40,6 +41,10 @@ class Slice:
     @property
     def offset(self) -> str:
         return f"{-self.start:.3f}"
+
+
+# key, label, kwota, liczba, kolor, href, drill
+Part = tuple[str, str, Decimal, int, str, str, str]
 
 
 def _percentages(shares: Sequence[float]) -> list[int]:
@@ -77,9 +82,7 @@ def donut_slices(
         return []
 
     used: set[int] = set()
-    parts: list[
-        tuple[str, str, Decimal, int, str, str]
-    ] = []  # key, label, kwota, liczba, kolor, href
+    parts: list[Part] = []
     for g in positive[:top]:
         slot = g.category.id % PALETTE
         while slot in used:
@@ -87,29 +90,77 @@ def donut_slices(
         used.add(slot)
         href = f"/transactions?category={g.category.id}&{period}"
         parts.append(
-            (f"cat-{g.category.id}", g.category.name, g.amount, g.count, f"c{slot + 1}", href)
+            (
+                f"cat-{g.category.id}",
+                g.category.name,
+                g.amount,
+                g.count,
+                f"c{slot + 1}",
+                href,
+                f"cat={g.category.id}",
+            )
         )
     rest = positive[top:]
     if rest:
         amount = sum((g.amount for g in rest), ZERO)
-        parts.append(("other", "Inne", amount, sum(g.count for g in rest), "other", other_href))
+        parts.append(("other", "Inne", amount, sum(g.count for g in rest), "other", other_href, ""))
     if uncategorized > ZERO:
         parts.append(
-            ("unc", "Bez kategorii", uncategorized, uncategorized_count, "unc", review_href)
+            ("unc", "Bez kategorii", uncategorized, uncategorized_count, "unc", review_href, "")
         )
+    return _layout(parts, gap)
 
+
+@dataclass(frozen=True)
+class Item:
+    """Pozycja poziomu drill-down (podkategoria albo transakcja) przed podziałem na wycinki."""
+
+    key: str
+    label: str
+    amount: Decimal
+    count: int
+    href: str  # ścieżka panelu bez prefiksu Ingress
+    drill: str = ""
+
+
+def drill_slices(
+    items: Sequence[Item], *, other_href: str, top: int = 6, gap: float = 0.8
+) -> list[Slice]:
+    """Wycinki drill-down: `top` największych pozycji (kolory c1…c6), reszta jako „Pozostałe”.
+
+    Tylko kwoty dodatnie; udziały liczone od ich sumy.
+    """
+    positive = sorted((i for i in items if i.amount > ZERO), key=lambda i: i.amount, reverse=True)
+    parts: list[Part] = [
+        (i.key, i.label, i.amount, i.count, f"c{n % PALETTE + 1}", i.href, i.drill)
+        for n, i in enumerate(positive[:top])
+    ]
+    rest = positive[top:]
+    if rest:
+        amount = sum((i.amount for i in rest), ZERO)
+        parts.append(
+            ("other", "Pozostałe", amount, sum(i.count for i in rest), "other", other_href, "")
+        )
+    return _layout(parts, gap)
+
+
+def _layout(parts: Sequence[Part], gap: float) -> list[Slice]:
+    """Geometria wycinków: udziały od sumy, odstęp `gap` między łukami, pełny okrąg dla jednego."""
+    total = sum((p[2] for p in parts), ZERO)
+    if total <= ZERO:
+        return []
     shares = [float(p[2] / total) for p in parts]
     pcts = _percentages(shares)
     slices: list[Slice] = []
     cursor = 0.0
-    for (key, label, amount, count, color, href), share, pct in zip(
+    for (key, label, amount, count, color, href, drill), share, pct in zip(
         parts, shares, pcts, strict=True
     ):
         span = share * 100
         # jeden wycinek = pełny okrąg bez odstępu; inaczej odstęp po obu stronach łuku
         length = 100.0 if len(parts) == 1 else max(span - gap, 0.2)
         start = cursor + (0.0 if len(parts) == 1 else gap / 2)
-        slices.append(Slice(key, label, amount, count, pct, color, start, length, href))
+        slices.append(Slice(key, label, amount, count, pct, color, start, length, href, drill))
         cursor += span
     return slices
 

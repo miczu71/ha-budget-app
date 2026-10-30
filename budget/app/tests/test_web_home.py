@@ -81,7 +81,7 @@ async def test_donut_slices_legend_and_links(client: httpx.AsyncClient, service:
     assert "<title>Transport: 200,00\xa0zł (71%)</title>" in page
     assert "<title>Jedzenie: 80,00\xa0zł (29%)</title>" in page
     assert page.index('class="legend-name">Transport') < page.index('class="legend-name">Jedzenie')
-    assert f'href="{INGRESS}/transactions?category=4&amp;date_from={DAY}&amp;date_to=' in page
+    assert f'href="{INGRESS}/?month={MONTH}&cat=4"' in page  # kategoria schodzi w głąb (E4)
     assert '<span class="donut-total">280,00' in page  # środek: suma wydatków miesiąca
 
 
@@ -849,3 +849,80 @@ async def test_spending_since_payday_fragment_narrows_the_window(
     past = spending.add_months(today.replace(day=1), -1)
     old = (await client.get(f"/home/spending?month={past:%Y-%m}&since_payday=1")).text
     assert "Od ostatniej wypłaty" not in old and "Gdzie poszły pieniądze w " in old
+
+
+def _drill_seed(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        "INSERT INTO account (id, kind, currency, display_name, created_at) "
+        "VALUES (1, 'current', 'PLN', 'Rachunek', ?)",
+        (now_iso(),),
+    )
+    add(conn, "-120.00", "card", "ORLEN STACJA 1 XYZ", day=DAY, category_id=130)  # Paliwo
+    add(conn, "-30.00", "card", "SKLEP X XYZ", day=DAY, category_id=131)  # Komunikacja
+    add(conn, "-50.00", "card", "SKLEP Y XYZ", day=DAY, category_id=110)  # Spożywcze
+
+
+async def test_drill_level2_lists_subcategories_with_crumbs(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _drill_seed(service.conn)
+    frag = (await client.get(f"/home/spending?month={MONTH}&cat=4")).text
+    assert "<html" not in frag and 'class="crumbs"' in frag
+    assert 'aria-current="page"' in frag and "Wszystkie" in frag
+    assert f'hx-get="{INGRESS}/home/spending?month={MONTH}&cat=4&amp;sub=130"' in frag
+    assert "Zobacz transakcje" in frag and f"/transactions?category=4&amp;date_from={DAY}" in frag
+    assert '<span class="donut-total">150,00' in frag  # środek: kwota kategorii (120 + 30)
+    assert "% wydatków" in frag
+
+
+async def test_drill_level3_lists_purchases(client: httpx.AsyncClient, service: Service) -> None:
+    _drill_seed(service.conn)
+    frag = (await client.get(f"/home/spending?month={MONTH}&cat=4&sub=130")).text
+    assert 'class="crumbs"' in frag and "ORLEN STACJA 1 XYZ" in frag
+    assert f"/transactions?category=130&amp;date_from={DAY}" in frag
+    assert f'hx-get="{INGRESS}/home/spending?month={MONTH}&amp;cat=4"' in frag  # wstecz
+
+
+async def test_invalid_drill_falls_back_to_level1(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _drill_seed(service.conn)
+    for query in (
+        "cat=abc",
+        "cat=%C2%B2",
+        f"cat={'1' * 5000}",
+        "cat=99999",
+        "cat=4&sub=999",
+        "cat=130",
+    ):
+        r = await client.get(f"/home/spending?month={MONTH}&{query}")
+        assert r.status_code == 200, query
+    lvl1 = (await client.get(f"/home/spending?month={MONTH}&cat=abc")).text
+    assert 'class="crumbs"' not in lvl1 and "Wszystkie kategorie i podkategorie" in lvl1
+    bad_sub = (await client.get(f"/home/spending?month={MONTH}&cat=4&sub=999")).text
+    assert "ORLEN" not in bad_sub and 'class="crumbs"' in bad_sub
+
+
+async def test_drill_keeps_since_payday_period(client: httpx.AsyncClient, service: Service) -> None:
+    _balances(service.conn)
+    serie(service.conn, "pensja", "9000.00", direction="in")
+    today = date.today()
+    payday = (today - timedelta(days=2)).isoformat()
+    add(service.conn, "9000.00", "transfer_in", "pensja", "ODBIORCA pensja", day=payday)
+    add(service.conn, "-80.00", "card", "ORLEN STACJA", day=today.isoformat(), category_id=130)
+    frag = (await client.get("/home/spending?since_payday=1&cat=4")).text
+    assert f"date_from={payday}" in frag and "since_payday=1" in frag
+    sub_get = f"{INGRESS}/home/spending?month={MONTH}&amp;since_payday=1&cat=4&amp;sub=130"
+    assert f'hx-get="{sub_get}"' in frag
+
+
+async def test_level1_hx_only_on_category_slices(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _drill_seed(service.conn)
+    add(service.conn, "-40.00", "card", "SKLEP ABC XYZ", day=DAY)  # bez kategorii
+    page = (await client.get("/")).text
+    drill_get = f'hx-get="{INGRESS}/home/spending?month={MONTH}&cat='
+    assert page.count(drill_get) == 4  # 2 × (wycinek + legenda)
+    assert f'href="{INGRESS}/review?month={MONTH}"' in page
+    assert f'hx-get="{INGRESS}/home/spending?month={MONTH}&cat=4"' in page

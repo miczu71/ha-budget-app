@@ -257,3 +257,43 @@ def test_sankey_label_clipped() -> None:
     n = {n.key: n for n in sk(f).nodes}["c"]
     assert len(n.label) <= charts.SK_CHARS[2] and n.label.endswith("…")
     assert n.full_label == "Kategoria o bardzo rozbudowanej nazwie"
+
+
+def item(key: str, amount: str, count: int = 1, drill: str = "") -> charts.Item:
+    return charts.Item(key, f"Pozycja {key}", Decimal(amount), count, f"/t/{key}", drill)
+
+
+def test_drill_slices_top_six_then_rest_as_other() -> None:
+    items = [item(f"i{n}", str(100 - n)) for n in range(8)]  # 100 … 93, już malejąco
+    slices = charts.drill_slices(items, other_href="/t?cat=1")
+    assert [s.key for s in slices] == ["i0", "i1", "i2", "i3", "i4", "i5", "other"]
+    assert [s.color for s in slices] == ["c1", "c2", "c3", "c4", "c5", "c6", "other"]
+    other = slices[-1]
+    assert other.label == "Pozostałe" and other.amount == Decimal("187") and other.count == 2
+    assert other.href == "/t?cat=1" and other.drill == ""
+    assert sum(s.pct for s in slices) == 100
+
+
+def test_drill_slices_sorted_and_keep_drill_of_items() -> None:
+    slices = charts.drill_slices(
+        [item("small", "10"), item("big", "90", drill="cat=5&sub=7")], other_href="/o"
+    )
+    assert [s.key for s in slices] == ["big", "small"]
+    assert slices[0].drill == "cat=5&sub=7" and slices[1].drill == ""
+    assert slices[0].href == "/t/big" and slices[0].pct == 90
+
+
+def test_drill_slices_skip_non_positive_and_empty_total() -> None:
+    assert charts.drill_slices([item("a", "0"), item("b", "-5")], other_href="/o") == []
+    only = charts.drill_slices([item("a", "0"), item("b", "-5"), item("c", "10")], other_href="/o")
+    assert [s.key for s in only] == ["c"] and only[0].pct == 100 and only[0].length == 100.0
+
+
+def test_donut_drill_only_for_categories() -> None:
+    slices = donut([group(2, "80"), group(4, "200"), group(6, "10")], "40", top=2)
+    assert {s.key: s.drill for s in slices} == {
+        "cat-4": "cat=4",
+        "cat-2": "cat=2",
+        "other": "",
+        "unc": "",
+    }

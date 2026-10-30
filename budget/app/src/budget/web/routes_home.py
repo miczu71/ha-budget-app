@@ -144,11 +144,28 @@ def payday_start(panel: Panel, today: date) -> date | None:
     return fc.period_start if fc else None
 
 
+def _id(value: str) -> int | None:
+    """Id kategorii z zapytania; wszystko, co nie jest liczbą (też puste, „²”, 5000 cyfr) → None."""
+    try:
+        return int(value) if value.isascii() and value.isdigit() else None
+    except ValueError:  # ciąg cyfr dłuższy niż limit konwersji Pythona
+        return None
+
+
 def spending_card(
-    panel: Panel, start: date, today: date, since_payday: bool, since_date: date | None
+    panel: Panel,
+    start: date,
+    today: date,
+    since_payday: bool,
+    since_date: date | None,
+    cat: int | None = None,
+    sub: int | None = None,
 ) -> dict[str, Any]:
     """Kontekst karty wykresu wydatków; `since_date` = dzień ostatniej wypłaty z prognozy
-    (tylko bieżący miesiąc), początek okresu „od ostatniej wypłaty”."""
+    (tylko bieżący miesiąc), początek okresu „od ostatniej wypłaty”.
+
+    Drill-down (E4): `cat` = kategoria główna (poziom 2), `sub` = podkategoria (poziom 3);
+    nieznane albo nieprawidłowe id schodzi o poziom wyżej (1 = jak dotąd)."""
     conn = panel.conn
     since_on = since_payday and since_date is not None
     m = spending.build(conn, start, today, since_date if since_on else None)
@@ -158,17 +175,27 @@ def spending_card(
         period = f"date_from={since_date.isoformat()}&date_to={today.isoformat()}"
         title = f"od {since_date.day} {MONTHS_GEN[since_date.month - 1]}"
         compare = f"vs {days} dni wcześniej"
+        window = (since_date, today + timedelta(days=1))
     else:
         last = add_months(start, 1) - timedelta(days=1)
         period = f"date_from={start.isoformat()}&date_to={last.isoformat()}"
         title = f"w {month_locative(start)}"
         compare = compare_label(m)
-    return {
+        window = (start, add_months(start, 1))
+    spend_q = f"month={ym}" + ("&since_payday=1" if since_on else "")
+    ctx: dict[str, Any] = {
         "sm": m,
         "spend_title": title,
         "spend_compare": compare,
         "since_date": since_date,
         "since_on": since_on,
+        "spend_q": spend_q,
+        "crumbs": [],
+        "back_q": None,
+        "drill_level": 1,
+        "drill_total": ZERO,
+        "drill_share": 0,
+        "see_href": None,
         "slices": charts.donut_slices(
             m.expense_groups,
             m.uncategorized_out,
@@ -178,6 +205,60 @@ def spending_card(
             review_href=f"/review?month={ym}",
         ),
     }
+    g = next((x for x in m.expense_groups if cat is not None and x.category.id == cat), None)
+    if g is None or cat is None:
+        return ctx
+    cat_q = f"{spend_q}&cat={cat}"
+    cat_see = f"/transactions?category={cat}&{period}"
+    ctx.update(
+        drill_level=2,
+        drill_total=g.amount,
+        drill_share=round(g.share * 100),
+        see_href=cat_see,
+        back_q=spend_q,
+        crumbs=[("Wszystkie", spend_q), (g.category.name, cat_q)],
+    )
+    leaf = next((c for c in g.children if sub is not None and c.category.id == sub), None)
+    if leaf is None:
+        ctx["slices"] = charts.drill_slices(
+            [
+                charts.Item(
+                    key=f"cat-{c.category.id}",
+                    label=c.category.name,
+                    amount=c.amount,
+                    count=c.count,
+                    href=f"/transactions?category={c.category.id}&{period}",
+                    drill=f"cat={cat}&sub={c.category.id}",
+                )
+                for c in g.children
+            ],
+            other_href=cat_see,
+        )
+        return ctx
+    sub_see = f"/transactions?category={leaf.category.id}&{period}"
+    purch = spending.purchases(conn, leaf.category.id, *window)
+    ctx.update(
+        drill_level=3,
+        drill_total=leaf.amount,
+        drill_share=0,
+        see_href=sub_see,
+        back_q=cat_q,
+        crumbs=[*ctx["crumbs"], (leaf.category.name, None)],
+        slices=charts.drill_slices(
+            [
+                charts.Item(
+                    key=f"txn-{p.id}",
+                    label=p.label,
+                    amount=p.amount,
+                    count=1,
+                    href=sub_see,
+                )
+                for p in purch
+            ],
+            other_href=sub_see,
+        ),
+    )
+    return ctx
 
 
 def router(panel: Panel) -> APIRouter:
@@ -185,19 +266,30 @@ def router(panel: Panel) -> APIRouter:
 
     @r.get("/home/spending", response_class=HTMLResponse)
     async def home_spending(
-        request: Request, month: str | None = None, since_payday: str = ""
+        request: Request,
+        month: str | None = None,
+        since_payday: str = "",
+        cat: str = "",
+        sub: str = "",
     ) -> HTMLResponse:
         today = panel.service.now().date()
         start = parse_month(month, today)
         since_date = None
         if start == month_start(today):  # okres od wypłaty to część prognozy (też auto-wykrytej)
             since_date = payday_start(panel, today)
-        ctx = spending_card(panel, start, today, since_payday == "1", since_date)
+        ctx = spending_card(
+            panel, start, today, since_payday == "1", since_date, _id(cat), _id(sub)
+        )
         return panel.render(request, "_spending.html", ym=f"{start:%Y-%m}", **ctx)
 
     @r.get("/", response_class=HTMLResponse)
     async def home(
-        request: Request, month: str | None = None, edit: str = "", since_payday: str = ""
+        request: Request,
+        month: str | None = None,
+        edit: str = "",
+        since_payday: str = "",
+        cat: str = "",
+        sub: str = "",
     ) -> HTMLResponse:
         conn, now = panel.conn, panel.service.now()
         today = now.date()
@@ -266,7 +358,13 @@ def router(panel: Panel) -> APIRouter:
             period=period,
             compare=compare_label(m),
             **spending_card(
-                panel, start, today, since_payday == "1", fc.period_start if fc else None
+                panel,
+                start,
+                today,
+                since_payday == "1",
+                fc.period_start if fc else None,
+                _id(cat),
+                _id(sub),
             ),
             bars=charts.month_bars(spending.monthly_totals(conn, today), start),
             mv=mv,

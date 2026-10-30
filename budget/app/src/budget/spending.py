@@ -289,6 +289,32 @@ def recent(conn: sqlite3.Connection, start: date, end: date, limit: int = 5) -> 
     ).fetchall()
 
 
+@dataclass(frozen=True)
+class Purchase:
+    id: int
+    label: str
+    day: str
+    amount: Decimal  # dodatnia = wydano
+
+
+PURCHASE_LABEL = 40  # limit znaków etykiety transakcji (z „…”)
+
+
+def purchases(conn: sqlite3.Connection, leaf_id: int, start: date, end: date) -> list[Purchase]:
+    """Wydatki jednej podkategorii w okresie [start, end) (drill-down wykresu); malejąco po kwocie.
+    Część podziału (M29) to osobna pozycja z tym samym `id`."""
+    out: list[Purchase] = []
+    for r in _rows(conn, start, end, details=True):
+        amount = Decimal(r["amount"])
+        if r["category_id"] != leaf_id or r["currency"] != BASE_CURRENCY or amount >= 0:
+            continue
+        label = r["merchant"] or r["counterparty_name"] or r["description"] or "—"
+        if len(label) > PURCHASE_LABEL:
+            label = label[: PURCHASE_LABEL - 1].rstrip() + "…"
+        out.append(Purchase(int(r["id"]), label, str(r["day"]), -amount))
+    return sorted(out, key=lambda p: p.amount, reverse=True)
+
+
 def totals(leaves: Mapping[int, Category], s: Sums) -> tuple[Decimal, Decimal]:
     """Wpływy i wydatki okresu z sum, wg reguł `build` (grupa podkategorii decyduje o sekcji)."""
     income, expenses = s.unc_in.amount, s.unc_out.amount
