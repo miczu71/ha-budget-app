@@ -18,6 +18,12 @@
     document.addEventListener("DOMContentLoaded", showActiveTab);
     document.addEventListener("htmx:afterSettle", showActiveTab);
 
+    // Link „Prognoza dzień po dniu” z hero: prognoza startuje zwinięta, więc ją rozwiń
+    document.addEventListener("click", function (e) {
+      var a = e.target.closest('a[href="#fc"]'), d = a && document.querySelector("#fc details.fc-fold");
+      if (d) d.open = true;
+    });
+
     // Głęboki link z dashboardu HA (`/app/<slug>/inbox`): HA ładuje w ramce tylko korzeń panelu, więc czytamy
     // adres okna nadrzędnego (ten sam origin) i raz przechodzimy do „Do decyzji”. Znacznik trzyma adres,
     // bo okno HA żyje między wejściami; gdy adres przestaje pasować, znacznik znika.

@@ -890,6 +890,26 @@ a.row { min-height: var(--tap); align-content: center; }
 .fc-strip > div { background: var(--surface-2); padding: 8px 12px; }
 .fc-strip dt { color: var(--muted); font-size: 13px; }
 .fc-strip dd { margin: 0; font-variant-numeric: tabular-nums; }
+.fc-fold > summary, .fc-weeks-fold > summary { list-style: none; cursor: pointer; }
+.fc-fold > summary::-webkit-details-marker, .fc-weeks-fold > summary::-webkit-details-marker { display: none; }
+.fc-fold > summary { min-height: var(--tap); }
+.fc-fold > summary h2 { margin-bottom: 0; }
+.fc-fold > summary h2::before, .fc-weeks-fold > summary::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin: 0 6px 2px 0;
+  vertical-align: middle;
+  background: var(--muted);
+  -webkit-mask: var(--i-chevron) center / contain no-repeat;
+  mask: var(--i-chevron) center / contain no-repeat;
+  transition: transform 0.15s;
+}
+.fc-fold[open] > summary h2::before, .fc-weeks-fold[open] > summary::before { transform: rotate(90deg); }
+.fc-fold > summary .fc-result { padding-left: 22px; }
+.fc-fold[open] > summary { margin-bottom: 8px; }
+.fc-weeks-fold > summary { min-height: var(--tap); display: flex; align-items: center; color: var(--text-2); font-size: 13px; font-weight: 600; }
 .fc-result { margin: 8px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
 .fc-result .small { font-weight: 400; }
 @media (min-width: 720px) { .fc-strip { grid-template-columns: repeat(4, 1fr); } }

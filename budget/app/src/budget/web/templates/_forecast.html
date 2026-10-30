@@ -6,7 +6,12 @@
 <li{% if r.low %} class="fc-low-row"{% endif %}>{% if r.event %}<a class="row" href="{{ base }}{{ r.event.href }}">{% else %}<div class="row">{% endif %}<span class="row-date">{{ r.day.strftime('%d.%m') }}</span><span class="row-title">{% if r.event %}{{ r.event.label }}{% if r.event.due and r.event.due.status == 'late' %} <span class="badge warn">spóźniona</span>{% endif %}{% if r.event.covered %} <span class="small muted">ze skarbonki {{ r.event.due.series.expected_amount | money("PLN") }} — przelej z konta-celu</span>{% endif %}{% if r.event.held %} <span class="small muted">{{ r.event.due.series.expected_amount | money("PLN") }} — bank już odjął od salda, czeka na zaksięgowanie</span>{% endif %}{% else %}Najniższy punkt{% endif %}{% if r.low and r.event %}<span class="small fc-low-tag">najniższy punkt</span>{% endif %}</span><span class="row-amount">{% if r.event %}<span class="{{ 'pos' if r.event.amount > 0 }}">{{ '+ ' if r.event.amount > 0 }}{{ r.event.amount | money("PLN") }}</span>{% endif %}{% if r.balance is not none %}<span class="row-bal small muted">saldo {{ r.balance | money("PLN") }}</span>{% endif %}</span>{% if r.event %}</a>{% else %}</div>{% endif %}</li>
 {% endmacro %}
 <section class="card span2 forecast" id="fc">
-  <h2>Prognoza do {% if fc.payday %}wypłaty {{ fc.payday.strftime('%d.%m') }}{% else %}końca miesiąca{% endif %}</h2>
+<details class="fc-fold">
+  <summary>
+    <h2>Prognoza do {% if fc.payday %}wypłaty {{ fc.payday.strftime('%d.%m') }}{% else %}końca miesiąca{% endif %}</h2>
+    <p class="fc-result" id="fc-sum"><span>= {{ fc.at_payday | money("PLN") }}</span> <span class="small muted">{{ fc.horizon_end.strftime('%d.%m') }}{% if fc.payday %}, przed wpływem „{{ fc.payday_series }}”{% endif %}</span></p>
+  </summary>
+  <div id="fc-body">
   {% if fc.stale %}<p class="small warn-text">Salda z {{ b.fetched_at | ts }} — starsze niż doba.</p>{% endif %}
   <dl class="fc-strip">
     <div><dt>Wolne dziś</dt><dd>{{ fc.free_now | money("PLN") }}</dd></div>
@@ -14,9 +19,8 @@
     <div><dt>Wpływy ({{ fc.inflows | length }})</dt><dd class="pos">+ {{ fc.inflows_total | money("PLN") }}</dd></div>
     {% if fc.piggy_out %}<div><dt>Do skarbonek</dt><dd>− {{ fc.piggy_out | money("PLN") }}</dd></div>{% endif %}
   </dl>
-  <p class="fc-result"><span>= {{ fc.at_payday | money("PLN") }}</span> <span class="small muted">{{ fc.horizon_end.strftime('%d.%m') }}{% if fc.payday %}, przed wpływem „{{ fc.payday_series }}”{% endif %}</span></p>
   {% if fc.weeks %}
-  <h3 class="small">Tygodnie okresu</h3>
+  <details class="fc-weeks-fold"><summary>Tygodnie okresu</summary>
   <p class="small muted">Minione tygodnie mierzy plan z dnia wypłaty{% if fc.plan_per_day is not none %} ({{ fc.plan_per_day | money("PLN") }} dziennie){% endif %}, bieżący i kolejne dzisiejszy limit{% if fc.safe_per_day is not none %} ({{ fc.safe_per_day | money("PLN") }} dziennie){% endif %}. Jeśli wydasz więcej, kolejne tygodnie zmaleją po równo na każdy dzień.</p>
   <ul class="rows fc-weeks bar-rows">{% for w in fc.weeks %}
     {% set cut_start = w.start.weekday() != 0 and loop.first %}{% set cut_end = w.end.weekday() != 6 and loop.last %}
@@ -31,6 +35,7 @@
       {% endif %}
     </div></li>
   {% endfor %}</ul>
+  </details>
   {% endif %}
   {{ forecast_chart(chart, "Wolne środki dzień po dniu do " ~ fc.horizon_end.strftime('%d.%m')) }}
   {% if timeline %}{% set head, rest = timeline[:8], timeline[8:] %}
@@ -41,7 +46,7 @@
   {% endif %}
   <div class="fc-foot small muted">
     <p>{{ "Rachunki" if b.accounts > 1 else "Rachunek" }} {{ b.account | money("PLN") }} − karta {{ b.card_debt | money("PLN") }}{% if not fc.card_debt_included %} (nie odjęta){% endif %} · salda z {{ b.fetched_at | ts }}{% if b.eur is not none %} · rachunek walutowy {{ b.eur | money("EUR") }} poza wynikiem{% endif %}</p>
-    <form method="post" action="{{ base }}/forecast/card-debt" hx-post="{{ base }}/forecast/card-debt" hx-trigger="change" hx-target="#fc" hx-select="#fc" hx-swap="outerHTML">
+    <form method="post" action="{{ base }}/forecast/card-debt" hx-post="{{ base }}/forecast/card-debt" hx-trigger="change" hx-target="#fc-body" hx-select="#fc-body" hx-select-oob="#fc-sum" hx-swap="outerHTML">
       <label class="check switch"><input type="checkbox" role="switch" name="include" value="1" {{ "checked" if fc.card_debt_included }}><span>Odejmij zadłużenie karty</span></label>
       <noscript><button class="secondary">Zastosuj</button></noscript>
     </form>
@@ -55,4 +60,6 @@
     </form>
     {% endif %}
   </div>
+  </div>
+</details>
 </section>

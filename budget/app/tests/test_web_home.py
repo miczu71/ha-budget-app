@@ -261,6 +261,29 @@ async def test_home_shows_forecast_with_card_debt_row(
     assert 'role="switch"' in page and 'name="include"' in page and "checked" in page
 
 
+async def test_forecast_is_collapsed_with_result_in_summary(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    page = (await client.get("/")).text
+    fold = page.split('<details class="fc-fold"', 1)[1]
+    assert fold.startswith(">")  # bez atrybutu open: startuje zwinięta, bez pamięci stanu
+    summary = fold.split("</summary>", 1)[0]
+    assert 'class="fc-result"' in summary and "Prognoza do" in summary
+    assert 'id="fc-body"' in fold.split("</summary>", 1)[1]
+    assert '<details class="fc-weeks-fold"' not in page.split('id="fc-body"', 1)[0]
+
+
+async def test_forecast_card_debt_switch_swaps_body_and_summary_only(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    page = (await client.get("/")).text
+    form = page.split("/forecast/card-debt", 1)[1].split(">", 1)[0]
+    assert 'hx-target="#fc-body"' in form and 'hx-select="#fc-body"' in form
+    assert 'hx-select-oob="#fc-sum"' in form  # <details> zostaje: rozwinięcie przeżywa
+
+
 async def test_forecast_card_row_is_visible_without_debt(
     client: httpx.AsyncClient, service: Service
 ) -> None:
