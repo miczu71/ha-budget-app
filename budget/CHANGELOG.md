@@ -8,6 +8,8 @@
 - Klik w sprzedawcę otwiera listę transakcji z filtrem nazwy i okresem widoku. Transakcje bez nazwy sprzedawcy
   trafiają do jednej pozycji „—” (link do całej podkategorii).
 - Podzielona transakcja liczy się jako jedna; zwroty i waluty inne niż PLN są pominięte jak dotąd.
+- Kafelek „Karta” na górze Podsumowania: zadłużenie jako minus (czerwone), nadwyżka na karcie (nadpłata) jako plus
+  (zielone) — wcześniej odwrotnie.
 
 ## 0.69.0
 

@@ -3,7 +3,9 @@
 <div class="bal-tiles">
   <a class="bal-tile" href="{{ base }}/transactions"><span class="bal-label">Konto</span><span class="bal-value">{{ tiles.account | money("PLN", whole=True) }}</span></a>
   {% if tiles.card_debt is not none %}
-  <a class="bal-tile" href="{{ base }}/card"><span class="bal-label">Karta</span><span class="bal-value {{ 'neg' if tiles.card_debt > 0 }}">{{ tiles.card_debt | money("PLN", whole=True) }}</span></a>
+  {# saldo karty: zadłużenie na minus, nadwyżka (nadpłata) na plus #}
+  {% set card = -tiles.card_debt %}
+  <a class="bal-tile" href="{{ base }}/card"><span class="bal-label">Karta</span><span class="bal-value {{ 'neg' if card < 0 else 'pos' if card > 0 }}">{{ "+" if card > 0 }}{{ card | money("PLN", whole=True) }}</span></a>
   {% endif %}
   <a class="bal-tile{{ ' bal-has-pop' if tiles.piggies }}" href="{{ base }}/piggy"><span class="bal-label">Oszczędności</span><span class="bal-value">{{ tiles.savings | money("PLN", whole=True) }}</span>
     {% if tiles.piggies %}

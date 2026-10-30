@@ -11,7 +11,7 @@ from decimal import Decimal
 import httpx
 import pytest
 
-from budget import forecast, inbox, spending, stocks
+from budget import card, forecast, inbox, spending, stocks
 from budget.categorize.rules import Conditions, TextCondition
 from budget.recurring import schedule as sch
 from budget.recurring import series as S
@@ -720,6 +720,27 @@ async def test_balance_tiles_above_hero_with_links(
     assert fmt_money("377.67", "PLN", whole=True) in tiles
     for href in ("/transactions", "/card", "/piggy"):
         assert f'href="{INGRESS}{href}"' in tiles
+
+
+async def test_card_tile_shows_debt_as_minus_and_overpayment_as_plus(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    _balances(service.conn)
+    page = (await client.get("/")).text
+    tile = page[page.index('bal-label">Karta') :][:200]
+    assert 'bal-value neg">−378' in tile  # zadłużenie 377,67 → minus, czerwone
+    service.conn.execute("DELETE FROM balance_snapshot WHERE account_id = 2")
+    at = now_iso()
+    for kind, amount in (("ITBD", "0.00"), ("ITAV", "5100.00")):
+        service.conn.execute(
+            "INSERT INTO balance_snapshot (account_id, balance_type, amount, currency, fetched_at)"
+            " VALUES (2, ?, ?, 'PLN', ?)",
+            (kind, amount, at),
+        )
+    card.set_limit(service.conn, "5000")  # ITAV ponad limit = nadpłata 100 zł
+    page = (await client.get("/")).text
+    tile = page[page.index('bal-label">Karta') :][:200]
+    assert 'bal-value pos">+100' in tile
 
 
 async def test_balance_tiles_absent_in_past_months(
