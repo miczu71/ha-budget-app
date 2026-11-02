@@ -381,6 +381,8 @@ def record_interest(
     acc = get(conn, account_id)
     if linked_ledger_id(conn, acc) is not None:
         raise SavingsError("Konto jest połączone z bankiem — odsetki przychodzą z synchronizacji.")
+    if first < month_start(acc.opening_date):
+        raise SavingsError("Miesiąc jest wcześniejszy niż otwarcie konta w panelu.")
     conn.execute(
         "INSERT INTO savings_interest (account_id, month, amount, created_at) "
         "VALUES (?, ?, ?, ?) "
@@ -390,9 +392,11 @@ def record_interest(
 
 
 def delete_interest(conn: sqlite3.Connection, account_id: int, entry_id: int) -> None:
-    conn.execute(
+    cur = conn.execute(
         "DELETE FROM savings_interest WHERE id = ? AND account_id = ?", (entry_id, account_id)
     )
+    if cur.rowcount == 0:
+        raise SavingsError("Nie ma takiego wpisu odsetek.")
 
 
 @dataclass(frozen=True)

@@ -366,7 +366,7 @@ def test_recorded_interest_replaces_estimate(conn: sqlite3.Connection) -> None:
 
 
 def test_record_interest_upsert_and_order(conn: sqlite3.Connection) -> None:
-    aid = make(conn)
+    aid = make(conn, opening_date="2026-01-01")
     today = date(2026, 10, 15)
     savings.record_interest(conn, aid, "2026-08", "1", today, "n")
     savings.record_interest(conn, aid, "2026-09", "2", today, "n")
@@ -383,6 +383,10 @@ def test_record_interest_validation(conn: sqlite3.Connection) -> None:
             savings.record_interest(conn, aid, month, "1", today, "n")
     with pytest.raises(savings.SavingsError, match="jeszcze nie nastąpiła"):
         savings.record_interest(conn, aid, "2026-10", "1", today, "n")
+    with pytest.raises(savings.SavingsError, match="wcześniejszy niż otwarcie"):
+        savings.record_interest(conn, aid, "2026-08", "1", today, "n")
+    with pytest.raises(savings.SavingsError, match="Nie ma takiego wpisu"):
+        savings.delete_interest(conn, aid, 12345)
     with pytest.raises(piggy.PiggyError):
         savings.record_interest(conn, aid, "2026-09", "-1", today, "n")
     with pytest.raises(piggy.PiggyError):
