@@ -33,6 +33,7 @@ KIND_LABELS = {
     Kind.CASH.value: "wypłata gotówki",
     Kind.LOAN.value: "rata kredytu",
     Kind.FEE.value: "opłata bankowa",
+    Kind.INTEREST.value: "odsetki",
 }
 MAX_TEXTS = 3
 TEXT_MAX = 80

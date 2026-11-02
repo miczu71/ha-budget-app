@@ -33,6 +33,7 @@ KIND_LABELS = {
     "loan": "kredyt",
     "card_repayment": "spłata karty",
     "fee": "opłata",
+    "interest": "odsetki",
     "other": "inne",
 }
 ACCOUNT_KINDS = {

@@ -739,7 +739,8 @@ def _analyze(conn: sqlite3.Connection) -> tuple[dict[int, str], set[int]]:
     oszczędności oraz ruch konta budżetowego z/na numer strony oszczędności). Czysta funkcja."""
     own = _own(conn)
     txns = conn.execute(
-        "SELECT * FROM txn WHERE status = 'BOOK' ORDER BY booking_date, id"
+        "SELECT * FROM txn WHERE status = 'BOOK' AND kind <> ? ORDER BY booking_date, id",
+        (Kind.INTEREST.value,),  # odsetki nie są przelewem własnym ani na oszczędności
     ).fetchall()
     groups: dict[int, str] = {}
     savings: set[int] = set()

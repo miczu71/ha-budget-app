@@ -93,3 +93,37 @@ def test_learned_source_migration_keeps_sources(monkeypatch: pytest.MonkeyPatch)
     conn.execute("UPDATE txn SET category_source = 'learned' WHERE id = 3")
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("UPDATE txn SET category_source = 'other' WHERE id = 3")
+
+
+def test_interest_migration_reclassifies_and_resets_manual(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    conn = sqlite3.connect(":memory:", isolation_level=None)
+    every = db.migrations()
+    monkeypatch.setattr(db, "migrations", lambda: every[:29])
+    db.migrate(conn)
+    conn.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (1, 'current', 'PLN', 'x')"
+    )
+    rows = [
+        ("Odsetki - Kapitalizacja odsetek", "transfer_in", "heuristic", "manual", 102),
+        ("Podatek od odsetek", "transfer_out", "heuristic", "rule", 102),
+        ("Zwykly przelew", "transfer_in", "heuristic", "manual", 102),
+        ("Kapitalizacja odsetek", "transfer_in", "manual", "manual", 102),
+    ]
+    for i, (desc, kind, ksrc, csrc, cat_id) in enumerate(rows):
+        conn.execute(
+            "INSERT INTO txn (account_id, status, booking_date, amount, currency, description, "
+            "kind, kind_source, fingerprint, source, first_seen_at, updated_at, category_id, "
+            "category_source) VALUES (1, 'BOOK', '2026-10-31', '1.00', 'PLN', ?, ?, ?, ?, 'eb', "
+            "'x', 'x', ?, ?)",
+            (desc, kind, ksrc, f"fp{i}", cat_id, csrc),
+        )
+    monkeypatch.setattr(db, "migrations", lambda: every)
+    assert db.migrate(conn) >= 30
+    got = conn.execute("SELECT kind, category_id, category_source FROM txn ORDER BY id").fetchall()
+    assert got[0] == ("interest", None, None)
+    assert got[1] == ("interest", 102, "rule")  # nie-ręczne przelicza silnik
+    assert got[2] == ("transfer_in", 102, "manual")
+    assert got[3] == ("transfer_in", 102, "manual")  # kind ręczny nietknięty
+    assert conn.execute("SELECT slug FROM category WHERE id = 103").fetchone() == ("odsetki",)

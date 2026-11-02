@@ -28,6 +28,7 @@ class Kind(StrEnum):
     LOAN = "loan"  # rata kredytu
     CARD_REPAYMENT = "card_repayment"  # spłata karty kredytowej (obie strony)
     FEE = "fee"  # prowizje i opłaty banku
+    INTEREST = "interest"  # kapitalizacja odsetek i podatek od odsetek
     OTHER = "other"
 
 
@@ -43,6 +44,8 @@ TRANSFER_KINDS = frozenset(
         Kind.DIRECT_DEBIT,
     }
 )
+
+INTEREST_RE = re.compile(r"KAPITALIZACJA ODSETEK|PODATEK OD ODSETEK")
 
 # „Rodzaj transakcji” z CSV (po `fold`) → typ
 CSV_KINDS: dict[str, Kind] = {
@@ -94,6 +97,8 @@ _CSV_FALLBACK: tuple[tuple[re.Pattern[str], Kind], ...] = (
 def from_csv(value: str, amount: Decimal, *, card_account: bool, description: str = "") -> Kind:
     """Typ z kolumny „Rodzaj transakcji”. Wiersze karty kredytowej mają ją pustą."""
     key = fold(value)
+    if INTEREST_RE.search(fold(description)):
+        return Kind.INTEREST
     if not key:
         return _card_account_kind(description, amount) if card_account else Kind.OTHER
     if key in CSV_KINDS:
@@ -131,6 +136,8 @@ def from_api(
         return Kind.CARD_REPAYMENT if debit and not counterparty_name else Kind.OTHER
     if desc.startswith("WCZESN.SPL"):
         return Kind.CARD_REPAYMENT
+    if INTEREST_RE.search(desc):
+        return Kind.INTEREST
     if "LOAN REPAYMENT" in desc or desc.startswith("SPLATA RATY"):
         return Kind.LOAN
     if desc.startswith("/OPT/"):

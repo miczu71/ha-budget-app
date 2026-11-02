@@ -61,3 +61,27 @@ def test_api_heuristic_card_account() -> None:
     assert from_api("WCZESN.SPL.Z RACHUNKU: 123", C, card_account=True) is Kind.CARD_REPAYMENT
     assert from_api("Sklep Testowy    ", D, card_account=True) is Kind.CARD
     assert from_api("Sklep Testowy    ", C, card_account=True) is Kind.CARD_REFUND
+
+
+def test_api_interest_entries() -> None:
+    nrb = "PL00111122223333444455556666"
+    credit = from_api(
+        "Odsetki - Kapitalizacja odsetek", C, card_account=False, counterparty_account=nrb
+    )
+    tax = from_api("Podatek od odsetek", D, card_account=False, counterparty_account=nrb)
+    assert credit is Kind.INTEREST
+    assert tax is Kind.INTEREST
+
+
+def test_loan_installment_with_interest_text_is_not_interest() -> None:
+    desc = "SPLATA RATY KREDYTU ODSETKI: 4024.91PLN"
+    assert from_api(desc, D, card_account=False) is not Kind.INTEREST
+    assert from_csv("", D, card_account=False, description=desc) is not Kind.INTEREST
+
+
+def test_csv_interest_by_description() -> None:
+    assert (
+        from_csv("PRZELEW PRZYCHODZĄCY", C, card_account=False, description="Kapitalizacja odsetek")
+        is Kind.INTEREST
+    )
+    assert from_csv("", D, card_account=False, description="Podatek od odsetek") is Kind.INTEREST

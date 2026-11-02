@@ -540,3 +540,22 @@ def test_card_repayment_and_early_repayment_unchanged(conn: sqlite3.Connection) 
     assert group(conn, solo) is not None
     assert ledger.savings_transfer_ids(conn) == set()
     assert cat(conn, out)[:2] == (None, None)
+
+
+def test_interest_kind_gets_category_even_with_counterparty_account(
+    conn: sqlite3.Connection,
+) -> None:
+    credit = add(
+        conn,
+        "120.00",
+        "interest",
+        "Kapitalizacja odsetek",
+        counterparty_account="PL00111122223333444455556666",
+    )
+    tax = add(conn, "-19.00", "interest", "Podatek od odsetek")
+    manual = add(conn, "5.00", "interest", "Kapitalizacja odsetek", day="2026-09-11")
+    engine.set_manual(conn, manual, sid(conn, "inne-wplywy"))
+    engine.recategorize(conn)
+    assert cat(conn, credit)[:2] == ("odsetki", "kind")
+    assert cat(conn, tax)[:2] == ("odsetki", "kind")
+    assert cat(conn, manual)[:2] == ("inne-wplywy", "manual")

@@ -36,6 +36,7 @@ KIND_DEFAULTS = {
     Kind.CASH.value: "wyplaty-gotowki",
     Kind.FEE.value: "oplaty-bankowe",
     Kind.LOAN.value: "kredyt",
+    Kind.INTEREST.value: "odsetki",
 }
 SAVINGS_SLUG = "oszczednosci-przelewy"
 PREVIEW_SAMPLES = 10
@@ -207,6 +208,8 @@ def _classify(
         rule, merchant, key = found[t.id]
         if t.is_manual:
             result[t.id] = Assignment(t.current.category_id, "manual", None, merchant)
+        elif t.facts.kind == Kind.INTEREST.value and "odsetki" in slugs:
+            result[t.id] = Assignment(slugs["odsetki"], "kind", None, merchant)
         elif t.savings and SAVINGS_SLUG in slugs:
             result[t.id] = Assignment(slugs[SAVINGS_SLUG], "kind", None, merchant)
         elif t.transfer:
