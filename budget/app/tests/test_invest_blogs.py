@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -238,7 +238,9 @@ async def test_feed_failure_is_recorded_not_raised(conn: sqlite3.Connection) -> 
 
 async def test_expired_blog_offers_are_archived(conn: sqlite3.Connection) -> None:
     await blogs.refresh(conn, AI, NOW, getter(feed(DEPOSIT)), Fake(ANSWER))
-    await blogs.refresh(conn, AI, datetime(2026, 12, 30, 7, 0), getter(feed()), Fake())
+    # `created_at` bierze zegar bazy (db.now_iso), więc TTL liczymy od niego
+    later = datetime.now(UTC) + blogs.OFFER_TTL + timedelta(days=1)
+    await blogs.refresh(conn, AI, later, getter(feed()), Fake())
     assert rows(conn)[0]["archived_at"] is not None
 
 
