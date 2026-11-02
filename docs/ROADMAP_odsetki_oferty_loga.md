@@ -5,7 +5,8 @@ Repo `/config/addons/ha-budget-app` (PUBLIC, gałąź `main`, na produkcji 0.70.
 ## Status
 - **E1 ZROBIONE 2026-11-02** (commit a72df9b, lokalnie, bez pusha): typ `interest`, kategoria Odsetki (id 103), migracja 030, `ledger._analyze` pomija `interest`. Weryfikacja: verifier APPROVE, pytest 1350 ok, ruff i mypy czyste.
 - **Znany czerwony test sprzed E1:** `tests/test_invest_blogs.py::test_expired_blog_offers_are_archived` pada też na czystym main (data testu? dziś 2026-11-02). Do zbadania i naprawienia PRZED wydaniem (CI).
-- E1b, E2, E3, wydanie 0.71.0: do zrobienia (plan E1b: `docs/PLAN_odsetki_E1b.md`).
+- **E1b ZROBIONE 2026-11-02** (commit a33a69f, lokalnie, bez pusha): migracja 031 `savings_interest`, `savings.record_interest/delete_interest/interest_entries`, `estimate()` używa wpisu zamiast `net(gross)`, formularz na `/piggy`, karta w dzwonku 1.–7. dnia. Weryfikacja: verifier APPROVE (mutacje wykryte), pytest 1357 ok + 1 znany czerwony, ruff i mypy czyste. Odstępstwa: `CREATE TABLE IF NOT EXISTS` (test_sessions cofa user_version), lista 6 wpisów. Nieblokujące: brak walidacji miesiąca przed `opening_date`; testy inbox w `test_savings.py`.
+- E2, E3, wydanie 0.71.0: do zrobienia.
 
 ## Kontekst
 1. 31.10 VeloBank zaksięgował na koncie oszczędnościowym „Odsetki - Kapitalizacja odsetek” +149,03 zł i „Podatek od odsetek” −28,32 zł. Add-on uznaje je za zwykłe przelewy (`Kind.TRANSFER_IN/OUT`), więc user skategoryzował oba ręcznie. Decyzja: oba wpisy automatycznie trafiają do nowej podkategorii **Przychody → Odsetki**, więc kategoria pokazuje kwotę netto po podatku Belki.
