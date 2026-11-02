@@ -159,3 +159,10 @@ def test_years_from_first_day_to_today(conn: sqlite3.Connection) -> None:
     add(conn, "-10", "card", "B", day="2025-06-01")
     assert recap.years(conn, TODAY) == [2026, 2025, 2024]
     assert recap.years(conn, date(2025, 6, 1)) == [2025, 2024]
+
+
+def test_flex_free_streak_starts_at_first_transaction(conn: sqlite3.Connection) -> None:
+    add(conn, "-10", "card", "A", day="2026-03-01", category_id=110)
+    r = recap.build(conn, 2026, TODAY)
+    assert r.records.flex_free is not None
+    assert r.records.flex_free.start >= date(2026, 3, 1)

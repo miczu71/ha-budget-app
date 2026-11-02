@@ -27,7 +27,7 @@ def router(panel: Panel) -> APIRouter:
     async def recap_page(request: Request, year: str | None = None) -> HTMLResponse:
         today = panel.service.now().date()
         years = recap.years(panel.conn, today)
-        chosen = int(year) if year and year.isdigit() else None
+        chosen = int(year) if year and year.isascii() and year.isdigit() else None
         if chosen not in years:
             chosen = default_year(years, today)
         rec = recap.build(panel.conn, chosen, today)

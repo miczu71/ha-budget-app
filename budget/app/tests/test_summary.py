@@ -202,6 +202,17 @@ def test_yearly_due_once_on_january_first(conn: sqlite3.Connection) -> None:
     assert "yearly" not in [m.kind for m in summary.due(s, datetime(2027, 1, 2, 7, 0, tzinfo=WAW))]
 
 
+def test_yearly_failure_does_not_block_monthly(
+    conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(*_: object) -> None:
+        raise RuntimeError("x")
+
+    monkeypatch.setattr(summary, "yearly", boom)
+    now = datetime(2027, 1, 1, 7, 0, tzinfo=WAW)
+    assert [m.kind for m in summary.due(snap(conn), now)] == ["monthly"]
+
+
 def test_yearly_skipped_without_data(conn: sqlite3.Connection) -> None:
     now = datetime(2027, 1, 1, 7, 0, tzinfo=WAW)
     assert "yearly" not in [m.kind for m in summary.due(snap(conn), now)]

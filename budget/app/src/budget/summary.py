@@ -13,6 +13,7 @@ i o spłacie karty przed terminem (M15 E4, `card.DUE_REMIND_DAYS`) — ta kwota 
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from collections import defaultdict
 from collections.abc import Callable
@@ -42,6 +43,7 @@ from budget.snapshot import Snapshot
 from budget.spending import add_months, month_start, sums
 from budget.storage.db import kv_get, kv_set
 
+log = logging.getLogger(__name__)
 SEND_AT = time(7, 0)
 SENT_KEY = "summary_sent"
 WEEKLY, MONTHLY, CARD, CARD_DUE = "weekly", "monthly", "card", "card_due"
@@ -535,7 +537,11 @@ def due(
     if today.day == 1 and sent.get(MONTHLY) != f"{add_months(today, -1):%Y-%m}":
         out.append(monthly(snap, today))
     if today.month == 1 and today.day == 1 and sent.get(YEARLY) != str(today.year - 1):
-        year_msg = yearly(snap, today)
+        try:
+            year_msg = yearly(snap, today)
+        except Exception:  # błąd roczny nie może zabrać miesięcznego i tygodniowego
+            log.exception("Podsumowanie roczne nieudane")
+            year_msg = None
         if year_msg:
             out.append(year_msg)
     if today.weekday() == 0 and sent.get(WEEKLY) != today.isoformat():

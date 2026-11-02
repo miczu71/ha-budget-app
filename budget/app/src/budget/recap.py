@@ -217,7 +217,7 @@ def _records(
         biggest_expense=_pick(gross, labels),
         priciest_month=(priciest_month.month, priciest_month.expenses) if priciest_month else None,
         priciest_day=priciest_day,
-        flex_free=_flex_free(flex_days, start, end),
+        flex_free=_flex_free(flex_days, max(start, flex.first_day(conn) or start), end),
         biggest_income=_pick(received, labels),
     )
 

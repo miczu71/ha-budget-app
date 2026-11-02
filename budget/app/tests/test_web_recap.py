@@ -60,7 +60,7 @@ async def test_first_year_has_no_yoy_blocks(client: httpx.AsyncClient, service: 
     assert "Brak danych za 2024" in page and "Gdzie wydajesz więcej" not in page
 
 
-@pytest.mark.parametrize("bad", ["abc", "1999", "2999", "-1", ""])
+@pytest.mark.parametrize("bad", ["abc", "1999", "2999", "-1", "", "²"])
 async def test_invalid_year_falls_back_to_default(
     client: httpx.AsyncClient, service: Service, bad: str
 ) -> None:
