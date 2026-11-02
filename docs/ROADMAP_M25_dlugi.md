@@ -79,3 +79,12 @@ Nowy moduł `budget/app/src/budget/recap.py`, funkcja `build(conn, year, today) 
 - Na żywo po wydaniu: stopka v0.72.0; `/recap?year=2026` i `?year=2025` (Ingress — Playwright dostaje 401, więc
   devserve na kopii `~/budget_dev/prod` + oględziny usera); prognoza bez zmian przy aktualnym limicie
   (`sensor.budget_forecast_card_debt` jak przed wydaniem); log startu bez błędów (`ha_get_logs` add-onu).
+
+## Status
+- **E1 ZROBIONE 2026-11-02** (commit f605d81, lokalnie, bez pusha): `card.suspect_limit` (35 dni, wpływy BOOK dodatnie, Decimal),
+  `read_balances` zeruje podejrzaną nadpłatę i dolicza `fetched_at` ITAV, karta inbox `card_limit_check`, testy publishera
+  (ujemny `card_debt`), `_analyze` pomija `interest`, komentarz `charts.py` bez `txn-<id>`. Weryfikacja: `sonnet-worker`
+  w `wt`, claimcheck bez punktów, verifier APPROVE; pytest 1394 ok, ruff i mypy czyste.
+- Zmiana poza listą: `test_web_home.py` (kafelek karty: dodany zwrot 150 zł, bo nadpłata bez wpływów daje teraz 0).
+- Nieblokujące (verifier): test `fetched_at` nie rozróżnia (latest_balances zwraca jedną `fetched_at` na konto — zapis
+  starszego ITAV w praktyce nieosiągalny); asercja `test_analyze_skips_interest` słaba; test publishera regresyjny, nie czerwony.
