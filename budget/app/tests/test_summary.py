@@ -166,6 +166,47 @@ def test_due(conn: sqlite3.Connection, now: datetime, kinds: list[str]) -> None:
     assert [m.kind for m in summary.due(snap(conn), now)] == kinds
 
 
+def _year_2026(conn: sqlite3.Connection) -> None:
+    add(conn, "4000", "transfer_in", "Pensja", day="2025-01-01")
+    add(conn, "-100", "card", "LIDL XYZ POL", day="2025-03-01", category_id=110)
+    add(conn, "5000", "transfer_in", "Pensja", day="2026-01-02")
+    add(conn, "-900", "card", "LIDL XYZ POL", day="2026-03-01", category_id=110)
+    add(conn, "-50", "card", "SKLEP ABC XYZ", day="2026-04-01")
+
+
+def test_yearly_summarizes_previous_year(conn: sqlite3.Connection) -> None:
+    _year_2026(conn)
+    msg = summary.yearly(snap(conn), date(2027, 1, 1))
+    assert msg is not None
+    assert (msg.kind, msg.period, msg.title) == (summary.YEARLY, "2026", "Budżet — rok 2026")
+    assert msg.path == "/recap?year=2026"
+    lines = msg.text.splitlines()
+    assert lines[0] == f"Wpływy 5{NBSP}000{NBSP}zł, wydatki 950{NBSP}zł"
+    assert any(line.startswith("Największa zmiana: ") and "+" in line for line in lines)
+    assert any(line.startswith("Sprzedawca roku: ") for line in lines)
+
+
+def test_yearly_without_data_is_none(conn: sqlite3.Connection) -> None:
+    assert summary.yearly(snap(conn), date(2027, 1, 1)) is None
+
+
+def test_yearly_due_once_on_january_first(conn: sqlite3.Connection) -> None:
+    _year_2026(conn)
+    s = snap(conn)
+    now = datetime(2027, 1, 1, 7, 0, tzinfo=WAW)
+    kinds = [m.kind for m in summary.due(s, now)]
+    assert kinds == ["monthly", "yearly"]
+    for msg in summary.due(s, now):
+        summary.mark_sent(conn, msg)
+    assert summary.due(s, now) == []
+    assert "yearly" not in [m.kind for m in summary.due(s, datetime(2027, 1, 2, 7, 0, tzinfo=WAW))]
+
+
+def test_yearly_skipped_without_data(conn: sqlite3.Connection) -> None:
+    now = datetime(2027, 1, 1, 7, 0, tzinfo=WAW)
+    assert "yearly" not in [m.kind for m in summary.due(snap(conn), now)]
+
+
 def test_sent_is_not_repeated(conn: sqlite3.Connection) -> None:
     s = snap(conn)
     now = datetime(2027, 2, 1, 7, 0, tzinfo=WAW)
@@ -218,6 +259,16 @@ async def test_send_due_summaries_marks_sent(
     target, title, _, data = ha.sent[0]
     assert target == "notify.rodzina" and title.startswith("Budżet — tydzień")
     assert data == {"clickAction": "/app/x_budget", "url": "/app/x_budget"}
+
+
+async def test_yearly_click_opens_recap(service: Service, monkeypatch: pytest.MonkeyPatch) -> None:
+    ha = FakeHA()
+    _with_target(service, ha)
+    await service.send_summary(summary.Message("yearly", "2026", "t", "x", "/recap?year=2026"))
+    assert ha.sent[0][3] == {
+        "clickAction": "/app/x_budget/recap?year=2026",
+        "url": "/app/x_budget/recap?year=2026",
+    }
 
 
 async def test_no_target_no_send(service: Service, monkeypatch: pytest.MonkeyPatch) -> None:

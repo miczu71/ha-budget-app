@@ -101,3 +101,7 @@ Nowy moduł `budget/app/src/budget/recap.py`, funkcja `build(conn, year, today) 
   w `nav_layout.py`, style `.year-nav`, `tests/test_web_recap.py` (9). Weryfikacja: pytest 1414 ok, ruff i mypy czyste; devserve na kopii
   produkcyjnej: 390 i 1280 px bez przepełnienia, konsola czysta (poprawka: lista rekordów w `bar-rows`). Zrobiłem sam (UI, bez workera).
 - Odstępstwo: `test_nav_layout` — indeks po dodaniu zakładki (8:11). Brak ikon SVG w ekranie (nie były potrzebne).
+- **E4 ZROBIONE 2026-11-02**: `summary.yearly(snap, today) -> Message | None` (wpływy/wydatki, stopa oszczędności, największa zmiana
+  r/r, sprzedawca roku; `None` bez danych roku), `Message.path` + `service.send_summary` dokleja ją do `panel_url` (klik → `/recap?year=`),
+  `due()` 1.01 po 7:00 dla `sent[YEARLY] != poprzedni rok`. Testy: 5 nowych w `test_summary.py`. pytest 1419 ok, ruff i mypy czyste.
+  Zrobiłem sam (4 małe edycje, poniżej progu workera, bez planu wykonawcy).

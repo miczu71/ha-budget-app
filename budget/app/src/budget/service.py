@@ -245,6 +245,8 @@ class Service:
         if not target:
             raise ServiceError("Podsumowania wyłączone — ustaw opcję summary_notify_service.")
         url = self.notifier.panel_url
+        if url and msg.path:
+            url += msg.path
         data = {"clickAction": url, "url": url} if url else None
         try:
             await self.ha.notify(target, msg.title, msg.text, data)

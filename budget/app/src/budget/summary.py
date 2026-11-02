@@ -31,6 +31,7 @@ from budget import (
     promo_track,
     promo_watch,
     promo_watch_velo,
+    recap,
     review,
     rotation,
     savings,
@@ -44,6 +45,7 @@ from budget.storage.db import kv_get, kv_set
 SEND_AT = time(7, 0)
 SENT_KEY = "summary_sent"
 WEEKLY, MONTHLY, CARD, CARD_DUE = "weekly", "monthly", "card", "card_due"
+YEARLY = "yearly"
 PROMO = "savings_promo"
 PROMO_WINDOW, PROMO_CONFIRM = "promo_window", "promo_confirm"
 VELO_EDITION = "velo_edition"
@@ -77,6 +79,7 @@ class Message:
     period: str  # znacznik wysłanego okresu: dzień poniedziałku, RRRR-MM albo RRRR-MM-<dni>
     title: str
     text: str
+    path: str = ""  # podścieżka panelu, w którą prowadzi kliknięcie (np. "/recap?year=2026")
 
 
 def zl(amount: Decimal) -> str:
@@ -189,6 +192,30 @@ def monthly(snap: Snapshot, today: date) -> Message:
     lines.append(f"Do przejrzenia: {review.pending_count(snap.conn)}")
     lines += _networth_lines(snap, today)
     return Message(MONTHLY, f"{month:%Y-%m}", f"Budżet — {name}", "\n".join(lines))
+
+
+def yearly(snap: Snapshot, today: date) -> Message | None:
+    """Rok w liczbach za rok poprzedni (M25 E4); `None`, gdy księga nie ma tam danych."""
+    year = today.year - 1
+    r = recap.build(snap.conn, year, today)
+    if not r.income and not r.expenses:
+        return None
+    lines = [f"Wpływy {zl(r.income)}, wydatki {zl(r.expenses)}"]
+    if r.savings_rate is not None:
+        lines.append(
+            f"Stopa oszczędności: {(r.savings_rate * 100).quantize(Decimal(1), ROUND_HALF_UP)}%"
+        )
+    changes = r.rises + r.falls
+    if changes:
+        big = max(changes, key=lambda c: abs(c.delta))
+        sign = "+" if big.delta > 0 else "−"
+        lines.append(f"Największa zmiana: {big.category.name} {sign}{zl(abs(big.delta))} r/r")
+    if r.merchants:
+        top = r.merchants[0]
+        lines.append(f"Sprzedawca roku: {top.label} {zl(top.amount)} ({top.count} transakcji)")
+    return Message(
+        YEARLY, str(year), f"Budżet — rok {year}", "\n".join(lines), f"/recap?year={year}"
+    )
 
 
 def _networth_lines(snap: Snapshot, today: date) -> list[str]:
@@ -507,6 +534,10 @@ def due(
     out = []
     if today.day == 1 and sent.get(MONTHLY) != f"{add_months(today, -1):%Y-%m}":
         out.append(monthly(snap, today))
+    if today.month == 1 and today.day == 1 and sent.get(YEARLY) != str(today.year - 1):
+        year_msg = yearly(snap, today)
+        if year_msg:
+            out.append(year_msg)
     if today.weekday() == 0 and sent.get(WEEKLY) != today.isoformat():
         out.append(weekly(snap, today))
     cm = card.month_status(snap.conn, today) if card.remind_today(today) else None
