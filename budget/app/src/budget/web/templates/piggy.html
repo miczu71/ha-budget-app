@@ -124,6 +124,24 @@
     </form>
   </details>
   {% endif %}
+  {% if not est.as_of %}
+  <details class="piggy-new">
+    <summary>Odsetki dopisane przez bank</summary>
+    {% set entries = interest_entries.get(a.id, []) %}
+    {% if entries %}<ul class="rows">{% for e in entries[:6] %}
+      <li><div class="row"><span class="row-date">{{ e.month[5:] }}.{{ e.month[:4] }}</span><span class="row-title"></span><span class="row-amount">{{ e.amount | money("PLN") }}
+        <form class="inline" method="post" action="{{ base }}/savings/{{ a.id }}/interest/{{ e.id }}/delete" hx-boost="false"><button class="link">Usuń</button></form></span></div></li>
+    {% endfor %}</ul>{% else %}<p class="small muted">Brak wpisów — szacunek.</p>{% endif %}
+    <form class="rule-form piggy-form" method="post" action="{{ base }}/savings/{{ a.id }}/interest" hx-boost="false">
+      <div class="inline">
+        <label>Miesiąc<input type="month" name="month" value="{{ prev_month }}" max="{{ prev_month }}" required></label>
+        <label>Kwota<input name="amount" inputmode="decimal" size="10" required placeholder="netto, po podatku"></label>
+      </div>
+      <p class="small muted">Wpisz kwotę, którą bank dopisał po kapitalizacji (netto, po podatku). Zastępuje szacunek za ten miesiąc.</p>
+      <p class="actions-row"><button type="submit">Dopisz odsetki</button></p>
+    </form>
+  </details>
+  {% endif %}
   <form class="actions-row small" method="post" action="{{ base }}/savings/{{ a.id }}/archive">
     <a class="tap" href="{{ base }}/piggy?edit_savings={{ a.id }}#edit-savings">Zmień</a>
     <button class="link">Archiwizuj</button>

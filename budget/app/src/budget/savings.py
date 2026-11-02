@@ -330,6 +330,7 @@ def estimate(
     flows: dict[date, Decimal] = defaultdict(Decimal)
     for r in movements(conn, acc):
         flows[date.fromisoformat(r["day"])] -= Decimal(r["amount"])
+    recorded = {e.month: e.amount for e in interest_entries(conn, acc.id)}
     bal, earned, gross = acc.opening_balance, ZERO, ZERO
     day = acc.opening_date
     while day < today:
@@ -337,9 +338,61 @@ def estimate(
         bal += flows.get(day, ZERO)
         gross += daily(acc, bal, day)
         if (day + timedelta(days=1)).month != day.month:
-            capital = net(gross)
+            capital = recorded.get(f"{day:%Y-%m}", net(gross))
             bal, earned, gross = bal + capital, earned + capital, ZERO
     return Interest(bal, earned, net(gross))
+
+
+@dataclass(frozen=True)
+class InterestEntry:
+    id: int
+    account_id: int
+    month: str  # 'YYYY-MM' miesiąca kapitalizacji
+    amount: Decimal  # netto, tak jak dopisał bank
+
+
+def interest_entries(conn: sqlite3.Connection, account_id: int) -> list[InterestEntry]:
+    """Odsetki wpisane ręcznie (konto bez API), od najnowszego miesiąca."""
+    return [
+        InterestEntry(r["id"], r["account_id"], r["month"], Decimal(r["amount"]))
+        for r in conn.execute(
+            "SELECT * FROM savings_interest WHERE account_id = ? ORDER BY month DESC",
+            (account_id,),
+        )
+    ]
+
+
+def record_interest(
+    conn: sqlite3.Connection, account_id: int, month: str, amount: str, today: date, now: str
+) -> None:
+    """Odsetki, które bank faktycznie dopisał za zamknięty miesiąc; zastępują szacunek tego
+    miesiąca. Ponowny wpis za ten sam miesiąc nadpisuje. Tylko konto bez powiązania z księgą."""
+    try:
+        first = date.fromisoformat(f"{month}-01") if len(month) == 7 else None
+    except ValueError:
+        first = None
+    if first is None:
+        raise SavingsError("Podaj miesiąc jako RRRR-MM.")
+    if first >= month_start(today):
+        raise SavingsError("Kapitalizacja za ten miesiąc jeszcze nie nastąpiła.")
+    value = piggy.parse_amount(amount, "kwotę odsetek (netto)", allow_zero=True)
+    if value is None:
+        raise SavingsError("Podaj kwotę odsetek (netto), np. 12,34.")
+    acc = get(conn, account_id)
+    if linked_ledger_id(conn, acc) is not None:
+        raise SavingsError("Konto jest połączone z bankiem — odsetki przychodzą z synchronizacji.")
+    conn.execute(
+        "INSERT INTO savings_interest (account_id, month, amount, created_at) "
+        "VALUES (?, ?, ?, ?) "
+        "ON CONFLICT (account_id, month) DO UPDATE SET amount = excluded.amount",
+        (acc.id, month, str(value), now),
+    )
+
+
+def delete_interest(conn: sqlite3.Connection, account_id: int, entry_id: int) -> None:
+    conn.execute(
+        "DELETE FROM savings_interest WHERE id = ? AND account_id = ?", (entry_id, account_id)
+    )
 
 
 @dataclass(frozen=True)

@@ -14,7 +14,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Literal
 
 from budget import (
@@ -307,6 +307,30 @@ def savings_promo(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> 
     return out
 
 
+def savings_interest_due(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Pierwsze dni miesiąca: konto oszczędnościowe bez API czeka na wpis odsetek za poprzedni
+    miesiąc (zastępuje szacunek)."""
+    if ctx.today.day > 7:
+        return []
+    first = ctx.today.replace(day=1)
+    prev = first - timedelta(days=1)
+    out = []
+    for acc in savings.all_accounts(conn):
+        if (
+            savings.linked_ledger_id(conn, acc) is not None
+            or (acc.base_rate is None and acc.promo_rate is None)
+            or acc.opening_date >= first
+            or savings.estimate(conn, acc, ctx.today).total <= 0
+            or any(e.month == f"{prev:%Y-%m}" for e in savings.interest_entries(conn, acc.id))
+        ):
+            continue
+        title = f"Dopisz odsetki za {summary.MONTH_NAMES[prev.month - 1]} na koncie „{acc.name}”"
+        link = f"/piggy#savings-{acc.id}"
+        detail = "Wpisz kwotę z aplikacji banku — zastąpi szacunek."
+        out.append(Item("savings_interest", title, 1, link, "info", detail))
+    return out
+
+
 PROMO_BELL_DAYS = 10  # karta „wyzeruj KOP” od tylu dni przed początkiem okna badania (E7)
 
 
@@ -590,6 +614,7 @@ PROVIDERS: tuple[Provider, ...] = (
     forecast_low,
     piggy_transfer,
     savings_promo,
+    savings_interest_due,
     promo_cards,
     velo_promo_cards,
     rotation_card,

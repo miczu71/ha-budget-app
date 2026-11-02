@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import httpx
@@ -409,3 +409,50 @@ async def test_velo_refresh_failure_is_shown(client: httpx.AsyncClient) -> None:
     await client.post("/promo/velo/refresh")
     velo = (await client.get("/piggy")).text.split('id="velo"', 1)[1]
     assert "Błąd odczytu regulaminu" in velo and "503" in velo
+
+
+async def test_savings_interest_form_and_entry(client: httpx.AsyncClient, service: Service) -> None:
+    form = {
+        "name": "Konto A",
+        "account_number": NUMBER,
+        "opening_balance": "1000",
+        "opening_date": "2026-01-01",
+        "base_rate": "3",
+    }
+    assert (await client.post("/savings", data=form)).status_code == 303
+    page = (await client.get("/piggy")).text
+    assert "Odsetki dopisane przez bank" in page and "Brak wpisów" in page
+    prev = f"{service.now().date().replace(day=1) - timedelta(days=1):%Y-%m}"
+    r = await client.post("/savings/1/interest", data={"month": prev, "amount": "12,34"})
+    assert r.status_code == 303
+    page = (await client.get("/piggy")).text
+    assert "12,34" in page and "Brak wpisów" not in page
+    assert (await client.post("/savings/1/interest/1/delete")).status_code == 303
+    assert "Brak wpisów" in (await client.get("/piggy")).text
+    await client.post("/savings/1/interest", data={"month": "2999-01", "amount": "1"})
+    assert "jeszcze nie nastąpiła" in (await client.get("/piggy")).text
+
+
+async def test_linked_savings_has_no_interest_form(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    service.conn.execute(
+        "INSERT INTO account (kind, iban, currency, bank, created_at) "
+        "VALUES ('savings', ?, 'PLN', 'Bank A', '2026-01-01')",
+        ("PL" + NUMBER.replace(" ", ""),),
+    )
+    aid = int(service.conn.execute("SELECT max(id) FROM account").fetchone()[0])
+    service.conn.execute(
+        "INSERT INTO balance_snapshot (account_id, balance_type, amount, currency, fetched_at) "
+        "VALUES (?, 'ITAV', '100.00', 'PLN', '2026-10-20T06:00:00+00:00')",
+        (aid,),
+    )
+    form = {
+        "name": "Konto A",
+        "account_number": NUMBER,
+        "opening_balance": "1000",
+        "opening_date": "2026-01-01",
+    }
+    await client.post("/savings", data=form)
+    page = (await client.get("/piggy")).text
+    assert "Konto A" in page and "Odsetki dopisane przez bank" not in page

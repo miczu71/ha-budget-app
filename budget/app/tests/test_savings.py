@@ -343,3 +343,93 @@ def test_unlinked_or_without_snapshot_keeps_manual_path(conn: sqlite3.Connection
     assert savings.linked_ledger_id(conn, acc) is not None
     other = bank_account(conn, "PL99999999999999999999999999", "5.00")
     assert other and savings.estimate(conn, acc, date(2026, 9, 30)) == manual
+
+
+# --- ręczne odsetki dopisane przez bank (E1b) --------------------------------------------------
+
+
+def test_recorded_interest_replaces_estimate(conn: sqlite3.Connection) -> None:
+    aid = make(conn, base_rate="3", opening_date="2026-08-31", opening_balance="10000")
+    acc = savings.get(conn, aid)
+    today = date(2026, 10, 15)
+    base = savings.estimate(conn, acc, today)
+    savings.record_interest(conn, aid, "2026-09", "30,00", today, "2026-10-15T08:00:00+02:00")
+    est = savings.estimate(conn, acc, today)
+    sept_gross = sum(
+        (savings.daily(acc, Decimal(10000), date(2026, 9, d)) for d in range(1, 31)), Decimal(0)
+    )
+    assert est.earned - base.earned == Decimal("30.00") - savings.net(sept_gross)
+    assert savings.interest_entries(conn, aid)[0].amount == Decimal("30.00")
+    savings.delete_interest(conn, aid, savings.interest_entries(conn, aid)[0].id)
+    assert savings.estimate(conn, acc, today) == base
+    assert savings.interest_entries(conn, aid) == []
+
+
+def test_record_interest_upsert_and_order(conn: sqlite3.Connection) -> None:
+    aid = make(conn)
+    today = date(2026, 10, 15)
+    savings.record_interest(conn, aid, "2026-08", "1", today, "n")
+    savings.record_interest(conn, aid, "2026-09", "2", today, "n")
+    savings.record_interest(conn, aid, "2026-09", "5", today, "n")
+    got = savings.interest_entries(conn, aid)
+    assert [(e.month, e.amount) for e in got] == [("2026-09", Decimal(5)), ("2026-08", Decimal(1))]
+
+
+def test_record_interest_validation(conn: sqlite3.Connection) -> None:
+    aid = make(conn)
+    today = date(2026, 10, 15)
+    for month in ("2026-10", "2026-11", "xx", ""):
+        with pytest.raises(savings.SavingsError):
+            savings.record_interest(conn, aid, month, "1", today, "n")
+    with pytest.raises(savings.SavingsError, match="jeszcze nie nastąpiła"):
+        savings.record_interest(conn, aid, "2026-10", "1", today, "n")
+    with pytest.raises(piggy.PiggyError):
+        savings.record_interest(conn, aid, "2026-09", "-1", today, "n")
+    with pytest.raises(piggy.PiggyError):
+        savings.record_interest(conn, aid, "2026-09", "abc", today, "n")
+    with pytest.raises(savings.SavingsError):
+        savings.record_interest(conn, 999, "2026-09", "1", today, "n")
+    bank_account(conn, "PL" + DIGITS, "100.00")
+    with pytest.raises(savings.SavingsError, match="połączone z bankiem"):
+        savings.record_interest(conn, aid, "2026-09", "1", today, "n")
+    assert savings.interest_entries(conn, aid) == []
+
+
+def _due(conn: sqlite3.Connection, day: int) -> list[str]:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from budget import inbox
+
+    now = datetime(2026, 10, day, 9, tzinfo=ZoneInfo("Europe/Warsaw"))
+    return [
+        i.title
+        for i in inbox.items(Snapshot(conn), now, inbox.BalanceMemo())
+        if i.kind == "savings_interest"
+    ]
+
+
+def test_interest_card_conditions(conn: sqlite3.Connection) -> None:
+    aid = make(conn, base_rate="3", opening_date="2026-08-15", opening_balance="1000")
+    titles = _due(conn, 3)
+    assert len(titles) == 1 and "wrzesień" in titles[0] and "Oszczędnościowe" in titles[0]
+    assert _due(conn, 10) == []
+    savings.record_interest(
+        conn, aid, "2026-09", "2", date(2026, 10, 3), "2026-10-03T09:00:00+02:00"
+    )
+    assert _due(conn, 3) == []
+
+
+def test_interest_card_skips_zero_balance_no_rate_and_linked(conn: sqlite3.Connection) -> None:
+    aid = make(conn, base_rate="3", opening_date="2026-08-15", opening_balance="0")
+    assert _due(conn, 3) == []
+    conn.execute("UPDATE savings_account SET opening_balance = '1000'")
+    assert len(_due(conn, 3)) == 1
+    conn.execute("UPDATE savings_account SET base_rate = NULL")
+    assert _due(conn, 3) == []
+    conn.execute("UPDATE savings_account SET base_rate = '3'")
+    conn.execute("UPDATE savings_account SET opening_date = '2026-10-01' WHERE id = ?", (aid,))
+    assert _due(conn, 3) == []
+    conn.execute("UPDATE savings_account SET opening_date = '2026-08-15' WHERE id = ?", (aid,))
+    bank_account(conn, "PL" + DIGITS, "100.00")
+    assert _due(conn, 3) == []

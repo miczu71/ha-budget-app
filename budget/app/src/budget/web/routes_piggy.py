@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget import piggy, promo_track, promo_watch, promo_watch_velo, savings
 from budget.recurring import series as S
 from budget.spending import month_start
+from budget.storage.db import now_iso
 from budget.web.common import Panel
 
 
@@ -62,6 +65,8 @@ def router(panel: Panel) -> APIRouter:
             promo_days=promo_days(watch),
             promo_funds_max=savings.PROMO_FUNDS_MAX,
             edit_savings=next((a for a in accts if a.id == edit_savings), None),
+            interest_entries={a.id: savings.interest_entries(conn, a.id) for a in accts},
+            prev_month=f"{month_start(today) - timedelta(days=1):%Y-%m}",
         )
 
     async def save(request: Request, piggy_id: int | None) -> Response:
@@ -169,6 +174,28 @@ def router(panel: Panel) -> APIRouter:
         except piggy.PiggyError as exc:
             return panel.redirect(request, f"/piggy#savings-{account_id}", str(exc), "error")
         return panel.redirect(request, f"/piggy#savings-{account_id}", "Ustawiono promocję.")
+
+    @r.post("/savings/{account_id}/interest")
+    async def add_interest(request: Request, account_id: int) -> Response:
+        field = {k: str(v) for k, v in (await request.form()).items()}
+        back = f"/piggy#savings-{account_id}"
+        try:
+            savings.record_interest(
+                conn,
+                account_id,
+                field.get("month", ""),
+                field.get("amount", ""),
+                panel.service.now().date(),
+                now_iso(),
+            )
+        except piggy.PiggyError as exc:
+            return panel.redirect(request, back, str(exc), "error")
+        return panel.redirect(request, back, "Dopisano odsetki.")
+
+    @r.post("/savings/{account_id}/interest/{entry_id}/delete")
+    async def delete_interest(request: Request, account_id: int, entry_id: int) -> Response:
+        savings.delete_interest(conn, account_id, entry_id)
+        return panel.redirect(request, f"/piggy#savings-{account_id}", "Usunięto wpis.")
 
     @r.post("/savings/{account_id}/archive")
     async def archive_savings(request: Request, account_id: int) -> Response:
