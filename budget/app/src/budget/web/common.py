@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from html import escape
 from pathlib import Path
 from typing import Any
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup
 
-from budget import __version__, money, nav_layout, summary
+from budget import __version__, bank_logos, money, nav_layout, summary
 from budget.categorize.rules import OPS as RULE_OPS
 from budget.logging_utils import mask_iban
 from budget.service import Service
@@ -71,6 +73,19 @@ def plural(n: int, *forms: str) -> str:
     return forms[1] if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else forms[2]
 
 
+def bank_logo(name: str | None, base: str = "") -> Markup:
+    """Logo banku przy jego nazwie: `<img>` z pliku albo monogram; pusta nazwa → nic."""
+    clean = " ".join((name or "").split())
+    if not clean:
+        return Markup("")
+    slug = bank_logos.slug_for(clean)
+    if slug:
+        return Markup(
+            f'<img class="bank-logo" src="{escape(base)}/static/banks/{slug}.svg" alt="">'
+        )
+    return Markup(bank_logos.monogram_svg(clean))
+
+
 class Panel:
     """Stan i pomocnicze funkcje ekranów; jeden użytkownik, więc komunikat „flash” to lista."""
 
@@ -84,6 +99,7 @@ class Panel:
         t.env.filters["ts"] = lambda v: fmt_ts(v, service.tz)
         t.env.filters["iban"] = mask_iban
         t.env.filters["pldate"] = fmt_date
+        t.env.filters["bank_logo"] = bank_logo
         t.env.filters["when"] = summary.when
         t.env.globals["version"] = __version__
         t.env.globals["kind_labels"] = KIND_LABELS

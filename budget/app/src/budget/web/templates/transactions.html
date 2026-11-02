@@ -55,7 +55,7 @@
         <td class="num {{ 'neg' if t.amount.startswith('-') else 'pos' }}">{{ t.amount | money(t.currency) }}</td>
         <td class="cat" id="cat-{{ t.id }}">{% with editing=False, parts=splits.get(t.id), receipt=receipts.get(t.id) %}{% include "_txn_category.html" %}{% endwith %}</td>
         <td class="meta small">
-          {{ t.display_name or account_kinds.get(t.account_kind, t.account_kind) }} · {{ kind_labels.get(t.kind, t.kind) }}
+          {{ t.account_bank | bank_logo(base) }} {{ t.display_name or account_kinds.get(t.account_kind, t.account_kind) }} · {{ kind_labels.get(t.kind, t.kind) }}
           {% if t.counterparty_name and t.counterparty_name != t.merchant %} · {{ t.counterparty_name }}{% endif %}
           {% if t.orig_currency and t.orig_currency != t.currency %} · {{ t.orig_amount | money(t.orig_currency) }}{% endif %}
           {% if t.booking_date and t.booking_date != t.day %} · księg. {{ t.booking_date | pldate }}{% endif %}

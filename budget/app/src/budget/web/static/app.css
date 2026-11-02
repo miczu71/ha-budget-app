@@ -1082,3 +1082,6 @@ form.lidl-map select { width: 100%; }
 .offer-line { font-variant-numeric: tabular-nums; }
 .offer-cond { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .offer-more > summary { min-height: var(--tap); display: flex; align-items: center; cursor: pointer; color: var(--text-2); font-size: 14px; }
+
+/* Loga banków (E3): 20 px, kwadrat; monogram jest inline SVG tej samej klasy. */
+.bank-logo { width: 20px; height: 20px; border-radius: 4px; vertical-align: -4px; flex: none; object-fit: contain; margin-right: 4px; }
