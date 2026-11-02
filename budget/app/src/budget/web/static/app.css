@@ -1074,3 +1074,11 @@ form.lidl-map select { width: 100%; }
 .fc-line .nw-dot { fill: var(--text); stroke: var(--surface-1); stroke-width: 1.5; }
 .fc-line .nw-dot.approx { fill: var(--surface-1); stroke: var(--text); }
 @media (min-width: 720px) { .stats.stats-4 { grid-template-columns: repeat(4, 1fr); } }
+
+/* Zwięzły wiersz oferty (Budżet 0.71.0, E2): 3–4 linie, reszta w <details> */
+.offer-item { padding: 10px 0; border-top: 1px solid var(--line); }
+.offer-item p { margin: 0 0 2px; }
+.offer-head { display: flex; gap: 8px; align-items: baseline; min-width: 0; overflow-wrap: anywhere; }
+.offer-line { font-variant-numeric: tabular-nums; }
+.offer-cond { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.offer-more > summary { min-height: var(--tap); display: flex; align-items: center; cursor: pointer; color: var(--text-2); font-size: 14px; }

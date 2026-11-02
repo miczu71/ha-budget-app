@@ -97,6 +97,19 @@ async def test_banks_hide_new_client_offers_and_review_offers_can_be_confirmed(
     assert "Bank Beta" in (await client.get("/invest")).text
 
 
+async def test_review_offer_form_is_folded_into_details(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    from .test_invest_sources import NOW as NAIVE
+    from .test_invest_sources import PAGES, feed
+
+    await invest_sources.refresh(service.conn, NAIVE.replace(tzinfo=WARSAW), feed(PAGES))
+    page = (await client.get("/invest")).text
+    _, _, rest = page.partition("Do sprawdzenia")
+    row = rest.partition('<details class="offer-more">')[2].partition("</details>")[0]
+    assert "/confirm" in row and "Potwierdź" in row and "Odrzuć" in row
+
+
 async def test_source_error_is_visible_on_the_page(
     client: httpx.AsyncClient, service: Service
 ) -> None:

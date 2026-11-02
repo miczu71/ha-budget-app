@@ -200,34 +200,39 @@
   <h2>Oferty</h2>
   <p class="small muted">{% if sources_checked %}Obligacje, ranking lokat/kont i blogi pobrane {{ sources_checked.strftime('%d.%m %H:%M') }} (raz na dobę).{% else %}Obligacje, ranking lokat/kont i blogi zostaną pobrane przy najbliższym przebiegu add-onu (raz na dobę).{% endif %}{% if blogs_error %} <span class="badge warn">blogi: błąd od {{ blogs_error[1].strftime('%d.%m') }}</span> {{ blogs_error[0] }}{% endif %}{% if sources_error %} <span class="badge warn">błąd odczytu od {{ sources_error[1].strftime('%d.%m') }}</span> {{ sources_error[0] }}{% endif %}</p>
   {% macro offer_row(o) %}
-  <div class="stats">
-    <div class="stat"><span class="stat-label">{{ offer_kinds[o.kind] }}</span><span class="stat-value">{{ o.bank }}</span></div>
-    <div class="stat"><span class="stat-label">Stawka</span><span class="stat-value">{{ o.rate }}%</span><span class="small muted">{% if o.margin is not none %}+ marża {{ o.margin }} p.p.{% endif %}{% if o.months %} {{ o.months }} mies.{% endif %}{% if o.limit_amount %} do {{ o.limit_amount | money("PLN") }}{% endif %}</span></div>
-  </div>
-  {% if o.conditions %}<p class="small muted">{{ o.conditions }}</p>{% endif %}
-  <p class="small">{% if o.new_only %}<span class="badge {{ 'warn' if o.id in hidden else '' }}">tylko dla nowych klientów</span> {% endif %}{% if o.id in hidden %}<span class="muted">pominięta w porównaniu — jesteś klientem tego banku.</span> {% endif %}{% if o.source != 'manual' %}<span class="muted">{{ {'bonds': 'z oficjalnej strony', 'blog': 'z bloga (model AI)'}.get(o.source, 'z rankingu') }}</span>{% endif %}{% if o.url %} · <a href="{{ o.url }}" rel="noopener noreferrer" target="_blank">opis oferty</a>{% endif %}</p>
-  {% if o.status == 'review' %}
-  <form class="{{ 'rule-form piggy-form' if o.source == 'blog' else 'inline actions-row small' }}" method="post" action="{{ base }}/invest/offers/{{ o.id }}/confirm" hx-boost="false">
-    <div class="inline">
-      <label>Bank<input name="bank" value="{{ o.bank }}" maxlength="40" required></label>
-      {% if o.source == 'blog' %}
-      <label>Stawka (%)<input name="rate" value="{{ o.rate }}" inputmode="decimal" size="6" required></label>
-      <label>Okres (mies.)<input name="months" value="{{ o.months or '' }}" inputmode="numeric" size="4"></label>
-      <label>Limit kwoty<input name="limit_amount" value="{{ o.limit_amount or '' }}" inputmode="decimal" size="10"></label>
+  <div class="offer-item">
+    <p class="offer-head"><span class="muted small">{{ offer_kinds[o.kind] }}</span> <strong>{{ o.bank }}</strong></p>
+    <p class="offer-line"><strong>{{ o.rate }}%</strong>{% if o.margin is not none %} + marża {{ o.margin }} p.p.{% endif %}{% if o.months %} · {{ o.months }} mies.{% endif %}{% if o.limit_amount %} · do {{ o.limit_amount | money("PLN") }}{% endif %}</p>
+    {% if o.conditions %}<p class="offer-cond small muted">{{ o.conditions }}</p>{% endif %}
+    <p class="small">{% if o.new_only %}<span class="badge {{ 'warn' if o.id in hidden else '' }}">tylko dla nowych klientów</span> {% endif %}{% if o.source != 'manual' %}<span class="muted">{{ {'bonds': 'z oficjalnej strony', 'blog': 'z bloga (model AI)'}.get(o.source, 'z rankingu') }}</span>{% endif %}{% if o.url %}{% if o.source != 'manual' %} · {% endif %}<a href="{{ o.url }}" rel="noopener noreferrer" target="_blank">opis oferty</a>{% endif %}</p>
+    <details class="offer-more">
+      <summary>Szczegóły</summary>
+      {% if o.id in hidden %}<p class="small muted">Pominięta w porównaniu — jesteś klientem tego banku.</p>{% endif %}
+      {% if o.conditions %}<p class="small">{{ o.conditions }}</p>{% endif %}
+      {% if o.status == 'review' %}
+      <form class="{{ 'rule-form piggy-form' if o.source == 'blog' else 'inline actions-row small' }}" method="post" action="{{ base }}/invest/offers/{{ o.id }}/confirm" hx-boost="false">
+        <div class="inline">
+          <label>Bank<input name="bank" value="{{ o.bank }}" maxlength="40" required></label>
+          {% if o.source == 'blog' %}
+          <label>Stawka (%)<input name="rate" value="{{ o.rate }}" inputmode="decimal" size="6" required></label>
+          <label>Okres (mies.)<input name="months" value="{{ o.months or '' }}" inputmode="numeric" size="4"></label>
+          <label>Limit kwoty<input name="limit_amount" value="{{ o.limit_amount or '' }}" inputmode="decimal" size="10"></label>
+          {% endif %}
+        </div>
+        {% if o.source == 'blog' %}<label>Warunki<input name="conditions" value="{{ o.conditions }}" maxlength="300"></label>{% endif %}
+        <p class="actions-row"><button type="submit">{{ 'Potwierdź (po poprawkach)' if o.source == 'blog' else 'Potwierdź' }}</button></p>
+      </form>
       {% endif %}
-    </div>
-    {% if o.source == 'blog' %}<label>Warunki<input name="conditions" value="{{ o.conditions }}" maxlength="300"></label>{% endif %}
-    <p class="actions-row"><button type="submit">{{ 'Potwierdź (po poprawkach)' if o.source == 'blog' else 'Potwierdź' }}</button></p>
-  </form>
-  {% endif %}
-  {% if o.status == 'confirmed' and o.id not in tracked %}
-  <form class="actions-row small" method="post" action="{{ base }}/invest/offers/{{ o.id }}/track" hx-boost="false">
-    <button type="submit">Skorzystaj</button>
-  </form>
-  {% endif %}
-  <form class="actions-row small" method="post" action="{{ base }}/invest/offers/{{ o.id }}/archive">
-    <button class="link">{{ 'Odrzuć' if o.status == 'review' else 'Usuń' }}</button>
-  </form>
+      {% if o.status == 'confirmed' and o.id not in tracked %}
+      <form class="actions-row small" method="post" action="{{ base }}/invest/offers/{{ o.id }}/track" hx-boost="false">
+        <button type="submit">Skorzystaj</button>
+      </form>
+      {% endif %}
+      <form class="actions-row small" method="post" action="{{ base }}/invest/offers/{{ o.id }}/archive">
+        <button class="link">{{ 'Odrzuć' if o.status == 'review' else 'Usuń' }}</button>
+      </form>
+    </details>
+  </div>
   {% endmacro %}
   {% set review = offers | selectattr('status', 'equalto', 'review') | list %}
   {% if review %}
