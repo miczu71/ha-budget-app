@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.71.0
+
+**Odsetki, zwięzłe oferty, loga banków** — `docs/ROADMAP_odsetki_oferty_loga.md`.
+- Odsetki i podatek od odsetek z banku dostają typ „odsetki” i kategorię Przychody → Odsetki (kwota netto po
+  podatku Belki); migracja poprawia też wpisy historyczne.
+- Konto oszczędnościowe bez API: na `/piggy` można wpisać odsetki faktycznie dopisane przez bank (netto) —
+  zastępują szacunek za dany miesiąc; w dzwonku 1.–7. dnia miesiąca przypomnienie, gdy wpisu brak.
+- Inwestycje → Oferty: wiersz pokazuje bank, stawkę, okres i limit, a formularz poprawek i przyciski są pod
+  „Szczegóły”.
+- Loga banków przy nazwach w Inwestycjach, Skarbonkach, Kontach i Transakcjach (favicony oficjalnych stron,
+  monogram dla nieznanych banków).
+- Test archiwizacji ofert z blogów nie zależy już od stałej daty.
+
 ## 0.70.1
 
 **Kafelek „Karta” na górze Podsumowania** — zadłużenie jako minus (czerwone), nadwyżka na karcie (nadpłata)

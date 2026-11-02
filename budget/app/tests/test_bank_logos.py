@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from budget import bank_logos
+from budget import __version__, bank_logos
 from budget.web.common import bank_logo
 
 CASES = {
@@ -54,7 +54,7 @@ def test_word_boundaries() -> None:
 def test_filter_renders_img_for_known_bank() -> None:
     html = str(bank_logo("ING More", "/ingress"))
     assert 'class="bank-logo"' in html
-    assert 'src="/ingress/static/banks/ing.svg"' in html
+    assert f'src="/ingress/static/banks/ing.svg?v={__version__}"' in html
 
 
 def test_filter_renders_monogram_for_unknown_bank() -> None:

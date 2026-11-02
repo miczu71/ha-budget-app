@@ -81,7 +81,8 @@ def bank_logo(name: str | None, base: str = "") -> Markup:
     slug = bank_logos.slug_for(clean)
     if slug:
         return Markup(
-            f'<img class="bank-logo" src="{escape(base)}/static/banks/{slug}.svg" alt="">'
+            f'<img class="bank-logo" alt="" '
+            f'src="{escape(base)}/static/banks/{slug}.svg?v={__version__}">'
         )
     return Markup(bank_logos.monogram_svg(clean))
 
