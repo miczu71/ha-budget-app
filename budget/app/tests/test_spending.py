@@ -228,3 +228,28 @@ def test_merchants_label_is_most_common_spelling(conn: sqlite3.Connection) -> No
         add(conn, "-1.00", "card", "A", day=day, category_id=110, merchant=name)
     got = spending.merchants(conn, 110, date(2026, 9, 1), date(2026, 10, 1))
     assert [(m.label, m.count) for m in got] == [("Sklep X", 3)]
+
+
+def test_merchants_all_expenses_without_savings_excluded_or_income(
+    conn: sqlite3.Connection,
+) -> None:
+    add(conn, "-10.00", "card", "A", day="2026-09-02", merchant="Sklep A")  # bez kategorii
+    add(conn, "-20.00", "card", "B", day="2026-09-03", category_id=110, merchant="Sklep A")
+    add(
+        conn, "-50.00", "transfer_out", "Lokata", day="2026-09-04", category_id=220, merchant="Bank"
+    )
+    add(conn, "-60.00", "card", "Poza", day="2026-09-05", category_id=230, merchant="Poza")
+    add(conn, "100.00", "transfer_in", "Wpływ", day="2026-09-06", category_id=100, merchant="Firma")
+    t = add(conn, "-100.00", "card", "M", day="2026-09-07", category_id=110, merchant="Sklep M")
+    for line, cat, amount in ((0, 110, "-60.00"), (1, 111, "-40.00")):
+        conn.execute(
+            "INSERT INTO txn_split (txn_id, line, category_id, amount, source) "
+            "VALUES (?, ?, ?, ?, 'manual')",
+            (t, line, cat, amount),
+        )
+    got = spending.merchants(conn, None, date(2026, 9, 1), date(2026, 10, 1))
+    assert [(m.label, m.amount, m.count) for m in got] == [
+        ("Sklep M", Decimal("100.00"), 1),
+        ("Sklep A", Decimal("30.00"), 2),
+    ]
+    assert got[1].average == Decimal("15.00")

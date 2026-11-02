@@ -296,6 +296,10 @@ class Merchant:
     amount: Decimal  # dodatnia = wydano
     count: int
 
+    @property
+    def average(self) -> Decimal:
+        return (self.amount / self.count).quantize(Decimal("0.01"))
+
 
 MERCHANT_LABEL = 40  # limit znaków nazwy sprzedawcy (z „…”)
 
@@ -312,15 +316,26 @@ def _merchant_group(r: sqlite3.Row) -> tuple[str, str]:
     return fold(text), text or "—"
 
 
-def merchants(conn: sqlite3.Connection, leaf_id: int, start: date, end: date) -> list[Merchant]:
+def merchants(
+    conn: sqlite3.Connection, leaf_id: int | None, start: date, end: date
+) -> list[Merchant]:
     """Wydatki jednej podkategorii w okresie [start, end) zsumowane wg sprzedawcy (drill-down
-    wykresu); malejąco po kwocie. Część podziału (M29) liczy się do sprzedawcy transakcji."""
+    wykresu); malejąco po kwocie. `leaf_id=None`: wszystkie wydatki (sekcja „expenses”, bez
+    oszczędności, wyłączonych i przychodów; bez kategorii też). Część podziału (M29) liczy się
+    do sprzedawcy transakcji."""
+    leaves = taxonomy.leaves(conn) if leaf_id is None else {}
     amounts: dict[str, Decimal] = defaultdict(Decimal)
     names: dict[str, Counter[str]] = defaultdict(Counter)
     txns: dict[str, set[int]] = defaultdict(set)
     for r in _rows(conn, start, end, details=True):
         amount = Decimal(r["amount"])
-        if r["category_id"] != leaf_id or r["currency"] != BASE_CURRENCY or amount >= 0:
+        if r["currency"] != BASE_CURRENCY or amount >= 0:
+            continue
+        if leaf_id is None:
+            cid = r["category_id"]
+            if section(leaves.get(int(cid)) if cid is not None else None, amount) != "expenses":
+                continue
+        elif r["category_id"] != leaf_id:
             continue
         key, label = _merchant_group(r)
         amounts[key] -= amount
