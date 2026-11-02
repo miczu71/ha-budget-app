@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pct, change %}
+{% from "_charts.html" import month_chart with context %}
+{% set period = "date_from=" ~ r.start.isoformat() ~ "&date_to=" ~ last_day.isoformat() %}
+{% macro change_rows(items, title, empty) %}
+<section class="card">
+  <h2>{{ title }}</h2>
+  {% if items %}
+  <ul class="rows bar-rows">{% for c in items %}
+    <li><div class="row"><span class="row-title"><a class="tap" href="{{ base }}/transactions?category={{ c.category.id }}&{{ period }}">{{ c.category.name }}</a><span class="small block muted">było {{ c.prev | money("PLN") }}, jest {{ c.amount | money("PLN") }}</span></span><span class="row-amount {{ 'neg' if c.delta > 0 else 'pos' }}">{{ '+' if c.delta > 0 }}{{ c.delta | money("PLN") }}</span></div></li>
+  {% endfor %}</ul>
+  {% else %}<p class="muted">{{ empty }}</p>{% endif %}
+</section>
+{% endmacro %}
+{% block content %}
+<h1>Rok w liczbach — {{ r.year }}</h1>
+<nav class="year-nav" aria-label="Rok">
+  {% for y in years %}{% if y == r.year %}<strong class="year-link cur" aria-current="page">{{ y }}</strong>{% else %}<a class="year-link tap" href="{{ base }}/recap?year={{ y }}">{{ y }}</a>{% endif %}{% endfor %}
+</nav>
+
+{% if not years %}
+<section class="card"><p class="muted">Brak transakcji — podsumowanie pojawi się po pierwszym imporcie albo synchronizacji z bankiem.</p></section>
+{% else %}
+<section class="card flex-hero" id="recap-totals">
+  <h2>{{ r.start.isoformat() | pldate }} – {{ last_day.isoformat() | pldate }}{{ " (rok trwa)" if r.partial }}</h2>
+  <div class="stats stats-4">
+    <div class="stat"><span class="stat-label">Wpływy</span><span class="stat-value pos">{{ r.income | money("PLN") }}</span>{% if r.prev %}<span class="small">{{ change(r.income, r.prev.income) }}</span>{% endif %}</div>
+    <div class="stat"><span class="stat-label">Wydatki</span><span class="stat-value">{{ r.expenses | money("PLN") }}</span>{% if r.prev %}<span class="small">{{ change(r.expenses, r.prev.expenses, lower_is_better=True) }}</span>{% endif %}</div>
+    <div class="stat"><span class="stat-label">Bilans</span><span class="stat-value {{ 'neg' if r.income < r.expenses else 'pos' }}">{{ (r.income - r.expenses) | money("PLN") }}</span></div>
+    <div class="stat"><span class="stat-label">Stopa oszczędności</span><span class="stat-value">{{ pct(r.savings_rate) if r.savings_rate is not none else "—" }}</span></div>
+  </div>
+  {% if r.prev %}
+  <p class="small muted">Porównanie r/r z okresem {{ r.prev.start.isoformat() | pldate }} – {{ prev_last.isoformat() | pldate }}: wpływy {{ r.prev.income | money("PLN") }}, wydatki {{ r.prev.expenses | money("PLN") }}.</p>
+  {% else %}
+  <p class="small muted">Brak danych za {{ r.year - 1 }} — porównanie r/r jest niedostępne.</p>
+  {% endif %}
+  {% if r.best_month and r.worst_month and r.best_month.month != r.worst_month.month %}
+  <p class="small muted">Najlepsza stopa oszczędności: {{ label(r.best_month.month) }} ({{ pct(r.best_month.rate) }}), najsłabsza: {{ label(r.worst_month.month) }} ({{ pct(r.worst_month.rate) }}).</p>
+  {% endif %}
+</section>
+
+<section class="card" id="recap-months">
+  <h2>Miesiące</h2>
+  {% if chart.has_data %}{{ month_chart(chart, "Wpływy i wydatki w kolejnych miesiącach roku " ~ r.year) }}
+  <p class="small muted">Słupek prowadzi do Podsumowania tego miesiąca.</p>
+  {% else %}<p class="muted">Brak wpływów i wydatków w tym roku.</p>{% endif %}
+</section>
+
+{% if r.prev %}
+{{ change_rows(r.rises, "Gdzie wydajesz więcej", "Żadna kategoria nie wzrosła o co najmniej 200 zł.") }}
+{{ change_rows(r.falls, "Gdzie wydajesz mniej", "Żadna kategoria nie spadła o co najmniej 200 zł.") }}
+{% endif %}
+
+<section class="card" id="recap-merchants">
+  <h2>Sprzedawcy roku</h2>
+  {% if r.merchants %}
+  <ul class="rows bar-rows">{% for m in r.merchants %}
+    <li><div class="row"><span class="row-title">{{ m.label }}<span class="small block muted">{{ m.count }} {{ m.count | plural("transakcja", "transakcje", "transakcji") }}, średnio {{ m.average | money("PLN") }}</span></span><span class="row-amount">{{ m.amount | money("PLN") }}</span></div></li>
+  {% endfor %}</ul>
+  {% else %}<p class="muted">Brak wydatków w tym roku.</p>{% endif %}
+</section>
+
+<section class="card" id="recap-records">
+  <h2>Rekordy</h2>
+  {% set rec = r.records %}
+  <ul class="rows bar-rows">
+    {% if rec.biggest_expense %}<li><div class="row"><span class="row-title">Największy wydatek<span class="small block muted">{{ rec.biggest_expense.label }}, {{ rec.biggest_expense.day.isoformat() | pldate }}</span></span><span class="row-amount">{{ rec.biggest_expense.amount | money("PLN") }}</span></div></li>{% endif %}
+    {% if rec.biggest_income %}<li><div class="row"><span class="row-title">Największy wpływ<span class="small block muted">{{ rec.biggest_income.label }}, {{ rec.biggest_income.day.isoformat() | pldate }}</span></span><span class="row-amount">{{ rec.biggest_income.amount | money("PLN") }}</span></div></li>{% endif %}
+    {% if rec.priciest_month %}<li><div class="row"><span class="row-title">Najdroższy miesiąc<span class="small block muted">{{ label(rec.priciest_month[0]) }}</span></span><span class="row-amount">{{ rec.priciest_month[1] | money("PLN") }}</span></div></li>{% endif %}
+    {% if rec.priciest_day %}<li><div class="row"><span class="row-title">Najdroższy dzień<span class="small block muted">{{ rec.priciest_day[0].isoformat() | pldate }}</span></span><span class="row-amount">{{ rec.priciest_day[1] | money("PLN") }}</span></div></li>{% endif %}
+    {% if rec.flex_free %}<li><div class="row"><span class="row-title">Najdłuższa seria bez wydatków elastycznych<span class="small block muted">{{ rec.flex_free.start.isoformat() | pldate }} – {{ rec.flex_free.end.isoformat() | pldate }}</span></span><span class="row-amount">{{ rec.flex_free.days }} {{ rec.flex_free.days | plural("dzień", "dni", "dni") }}</span></div></li>{% endif %}
+  </ul>
+  {% if not (rec.biggest_expense or rec.biggest_income or rec.priciest_day) %}<p class="muted">Brak danych do rekordów.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

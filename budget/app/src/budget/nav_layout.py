@@ -23,6 +23,7 @@ TABS: dict[str, Tab] = {  # domyślna kolejność
     "invest": Tab("Inwestycje", "/invest", ("invest",)),
     "networth": Tab("Majątek", "/networth", ("networth",)),
     "year": Tab("Rok", "/year", ("year",)),
+    "recap": Tab("Rok w liczbach", "/recap", ("recap",)),
     "spending": Tab("Wydatki", "/spending", ("spending",)),
     "card": Tab("Karta", "/card", ("card",)),
     "ask": Tab("Zapytaj", "/ask", ("ask",)),

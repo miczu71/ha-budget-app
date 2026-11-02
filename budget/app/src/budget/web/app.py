@@ -37,6 +37,7 @@ from budget.web import (
     routes_loan,
     routes_networth,
     routes_piggy,
+    routes_recap,
     routes_recurring,
     routes_review,
     routes_rules,
@@ -112,6 +113,7 @@ def create_app(service: Service, *, dev: bool = False) -> FastAPI:
         routes_networth,
         routes_invest,
         routes_year,
+        routes_recap,
         routes_tabs,
     ):
         app.include_router(module.router(panel))

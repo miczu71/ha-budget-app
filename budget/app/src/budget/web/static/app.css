@@ -280,6 +280,9 @@ td.date { white-space: nowrap; }
 /* M4a: Wydatki, kategorie, reguły */
 .month-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .month-nav h1 { margin: 4px 0; text-align: center; }
+.year-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.year-link { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 16px; border: 1px solid var(--control-border); border-radius: var(--r-chip); text-decoration: none; color: var(--link); }
+.year-link.cur { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 .month-link { min-width: 90px; white-space: nowrap; }
 .month-link:last-child { text-align: right; }
 .grid.summary { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }

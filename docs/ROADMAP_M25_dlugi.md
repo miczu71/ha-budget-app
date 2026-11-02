@@ -95,3 +95,9 @@ Nowy moduł `budget/app/src/budget/recap.py`, funkcja `build(conn, year, today) 
 - Odstępstwa od planu (zaakceptowane): rok zamknięty porównuje z całym poprzednim rokiem (plan gubił 31.12 roku przestępnego);
   `months` przycięte do `end`; `priciest_month` bez bieżącego niepełnego miesiąca; `priciest_day` netto; `savings_rate` n=(today.year-year)*12+today.month.
 - Nieblokujące (verifier): 31.12 roku bieżącego → zakres równy zamkniętemu (bez skutku).
+- **E3 ZROBIONE 2026-11-02** (commit w historii po e9cc2a1, lokalnie, bez pusha): `web/routes_recap.py` (`/recap?year=`, domyślnie rok
+  bieżący, w styczniu poprzedni; niepoprawny rok → domyślny), `templates/recap.html` (sumy z r/r, stopa, wykres 12 mies. przez
+  `month_chart` z nowym parametrem `label`, zmiany kategorii z linkami do `/transactions`, sprzedawcy, rekordy), zakładka „Rok w liczbach”
+  w `nav_layout.py`, style `.year-nav`, `tests/test_web_recap.py` (9). Weryfikacja: pytest 1414 ok, ruff i mypy czyste; devserve na kopii
+  produkcyjnej: 390 i 1280 px bez przepełnienia, konsola czysta (poprawka: lista rekordów w `bar-rows`). Zrobiłem sam (UI, bez workera).
+- Odstępstwo: `test_nav_layout` — indeks po dodaniu zakładki (8:11). Brak ikon SVG w ekranie (nie były potrzebne).
