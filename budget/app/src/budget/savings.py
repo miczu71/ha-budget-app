@@ -368,11 +368,11 @@ def record_interest(
     """Odsetki, które bank faktycznie dopisał za zamknięty miesiąc; zastępują szacunek tego
     miesiąca. Ponowny wpis za ten sam miesiąc nadpisuje. Tylko konto bez powiązania z księgą."""
     try:
-        first = date.fromisoformat(f"{month}-01") if len(month) == 7 else None
+        if len(month) != 7:
+            raise ValueError(month)
+        first = date.fromisoformat(f"{month}-01")
     except ValueError:
-        first = None
-    if first is None:
-        raise SavingsError("Podaj miesiąc jako RRRR-MM.")
+        raise SavingsError("Podaj miesiąc jako RRRR-MM.") from None
     if first >= month_start(today):
         raise SavingsError("Kapitalizacja za ten miesiąc jeszcze nie nastąpiła.")
     value = piggy.parse_amount(amount, "kwotę odsetek (netto)", allow_zero=True)

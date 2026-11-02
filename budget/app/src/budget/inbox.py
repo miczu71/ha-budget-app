@@ -320,8 +320,8 @@ def savings_interest_due(conn: sqlite3.Connection, ctx: Context, memo: BalanceMe
             savings.linked_ledger_id(conn, acc) is not None
             or (acc.base_rate is None and acc.promo_rate is None)
             or acc.opening_date >= first
-            or savings.estimate(conn, acc, ctx.today).total <= 0
             or any(e.month == f"{prev:%Y-%m}" for e in savings.interest_entries(conn, acc.id))
+            or savings.estimate(conn, acc, ctx.today).total <= 0
         ):
             continue
         title = f"Dopisz odsetki za {summary.MONTH_NAMES[prev.month - 1]} na koncie „{acc.name}”"

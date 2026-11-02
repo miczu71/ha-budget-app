@@ -7,6 +7,7 @@ a „Boeing” nie. Pliki pochodzą z faviconów oficjalnych stron — źródła
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from html import escape
 from pathlib import Path
 from zlib import crc32
@@ -38,11 +39,13 @@ _PATTERNS = tuple(
 )
 
 
+@lru_cache(maxsize=256)
 def slug_for(name: str | None) -> str | None:
     folded = (name or "").casefold()
     return next((slug for slug, rx in _PATTERNS if rx.search(folded)), None)
 
 
+@lru_cache(maxsize=256)
 def monogram_svg(name: str) -> str:
     """Kwadratowy kafelek z inicjałami (do dwóch pierwszych słów); kolor stały dla nazwy."""
     words = re.findall(r"[^\W\d_]+", name)
