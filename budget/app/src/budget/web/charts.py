@@ -225,7 +225,7 @@ def _compact(value: float) -> str:
     return f"{value / 1000:g}k" if value >= 1000 else f"{value:g}"
 
 
-def month_bars(rows: Sequence[MonthTotals], selected: date) -> BarChart:
+def month_bars(rows: Sequence[MonthTotals], selected: date | None = None) -> BarChart:
     """Pary słupków (wpływy, wydatki) dla kolejnych miesięcy; skala wspólna, z „ładnym” maksimum."""
     plot_h = HEIGHT - TOP - BOTTOM
     top = nice_ceiling(max((float(max(r.income, r.expenses)) for r in rows), default=0.0))
