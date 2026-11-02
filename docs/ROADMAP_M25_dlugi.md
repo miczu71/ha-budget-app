@@ -88,3 +88,10 @@ Nowy moduł `budget/app/src/budget/recap.py`, funkcja `build(conn, year, today) 
 - Zmiana poza listą: `test_web_home.py` (kafelek karty: dodany zwrot 150 zł, bo nadpłata bez wpływów daje teraz 0).
 - Nieblokujące (verifier): test `fetched_at` nie rozróżnia (latest_balances zwraca jedną `fetched_at` na konto — zapis
   starszego ITAV w praktyce nieosiągalny); asercja `test_analyze_skips_interest` słaba; test publishera regresyjny, nie czerwony.
+- **E2 ZROBIONE 2026-11-02** (commit 2e29f7d, lokalnie, bez pusha; plan `docs/PLAN_M25_E2.md`): `recap.py` (`build`, `years`, dataklasy
+  Recap/Change/Pick/Streak/Records/PrevPeriod), `spending.merchants(leaf_id=None)` + `Merchant.average`, `tests/test_recap.py` (11) +1 test
+  w `test_spending.py`. Weryfikacja: `haiku-worker` w `wt`, testy czerwone przed kodem, claimcheck bez punktów, verifier APPROVE;
+  pytest 1405 ok, ruff i mypy czyste.
+- Odstępstwa od planu (zaakceptowane): rok zamknięty porównuje z całym poprzednim rokiem (plan gubił 31.12 roku przestępnego);
+  `months` przycięte do `end`; `priciest_month` bez bieżącego niepełnego miesiąca; `priciest_day` netto; `savings_rate` n=(today.year-year)*12+today.month.
+- Nieblokujące (verifier): 31.12 roku bieżącego → zakres równy zamkniętemu (bez skutku).
