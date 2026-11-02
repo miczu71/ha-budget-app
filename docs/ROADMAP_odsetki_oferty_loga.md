@@ -2,6 +2,11 @@
 
 Repo `/config/addons/ha-budget-app` (PUBLIC, gałąź `main`, na produkcji 0.70.1). Jedno wydanie na koniec: **0.71.0**.
 
+## Status
+- **E1 ZROBIONE 2026-11-02** (commit a72df9b, lokalnie, bez pusha): typ `interest`, kategoria Odsetki (id 103), migracja 030, `ledger._analyze` pomija `interest`. Weryfikacja: verifier APPROVE, pytest 1350 ok, ruff i mypy czyste.
+- **Znany czerwony test sprzed E1:** `tests/test_invest_blogs.py::test_expired_blog_offers_are_archived` pada też na czystym main (data testu? dziś 2026-11-02). Do zbadania i naprawienia PRZED wydaniem (CI).
+- E1b, E2, E3, wydanie 0.71.0: do zrobienia (plan E1b: `docs/PLAN_odsetki_E1b.md`).
+
 ## Kontekst
 1. 31.10 VeloBank zaksięgował na koncie oszczędnościowym „Odsetki - Kapitalizacja odsetek” +149,03 zł i „Podatek od odsetek” −28,32 zł. Add-on uznaje je za zwykłe przelewy (`Kind.TRANSFER_IN/OUT`), więc user skategoryzował oba ręcznie. Decyzja: oba wpisy automatycznie trafiają do nowej podkategorii **Przychody → Odsetki**, więc kategoria pokazuje kwotę netto po podatku Belki.
 2. Inwestycje → Oferty → „Do sprawdzenia”: każdy wiersz pokazuje od razu formularz z 5 polami i przyciskami, przez co sekcja jest zbyt rozbudowana. Docelowo każdy wiersz to kilka krótkich wierszy, a reszta jest rozwijana.
