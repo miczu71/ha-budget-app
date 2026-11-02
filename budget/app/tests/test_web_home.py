@@ -738,6 +738,9 @@ async def test_card_tile_shows_debt_as_minus_and_overpayment_as_plus(
             (kind, amount, at),
         )
     card.set_limit(service.conn, "5000")  # ITAV ponad limit = nadpłata 100 zł
+    add(  # zwrot na kartę tłumaczy nadpłatę (bez wpływów limit uchodzi za zaniżony)
+        service.conn, "150.00", "card_refund", "ZWROT", day=date.today().isoformat(), account=2
+    )
     page = (await client.get("/")).text
     tile = page[page.index('bal-label">Karta') :][:200]
     assert 'bal-value pos">+100' in tile

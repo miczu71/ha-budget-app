@@ -530,3 +530,14 @@ def test_card_overpayment_refund_reconciles(
     check = _card_check(conn, card_id)
     assert check.snapshot_checks[-1][1:] == (Decimal("-100.00"), Decimal("-100.00"))
     assert check.status == "OK"
+
+
+def test_analyze_skips_interest(conn: sqlite3.Connection, accounts: tuple[int, int]) -> None:
+    from .test_categorize_engine import add
+
+    cur, card_id = accounts
+    out = add(conn, "-50.00", "card_repayment", "SPLATA", day="2026-09-10", account=cur)
+    interest = add(conn, "50.00", "interest", "ODSETKI", day="2026-09-10", account=card_id)
+    groups, savings = ledger._analyze(conn)
+    assert interest not in groups and interest not in savings
+    assert out not in groups or groups[out] != groups.get(interest)

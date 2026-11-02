@@ -15,6 +15,7 @@ import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from typing import Literal
 
 from budget import (
@@ -261,6 +262,25 @@ def card_due(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[
             detail + " Kwota liczona ostrożnie — może być nieco wyższa niż w banku.",
         )
     ]
+
+
+def card_limit_check(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
+    """Nadpłata ponad limit karty bez wpływów na kartę — limit w ustawieniach pewnie za niski."""
+    account = card.card_account(conn)
+    if account is None:
+        return []
+    itav = ledger.latest_balances(conn, account).get("ITAV")
+    sus = card.suspect_limit(
+        conn, ctx.today, Decimal(itav["amount"]) if itav else None, card.get_limit(conn)
+    )
+    if sus is None:
+        return []
+    detail = (
+        f"Ustawiony limit {money.pl(sus.limit, 'PLN')}, bank pokazuje dostępne "
+        f"{money.pl(sus.available, 'PLN')} — nadpłata {money.pl(sus.overpaid, 'PLN')} "
+        "bez wpływów na kartę. Prognoza jej nie liczy."
+    )
+    return [Item("card_limit_check", "Sprawdź limit karty", 1, "/card", "warn", detail)]
 
 
 def forecast_low(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
@@ -611,6 +631,7 @@ PROVIDERS: tuple[Provider, ...] = (
     series_changes,
     card_payments,
     card_due,
+    card_limit_check,
     forecast_low,
     piggy_transfer,
     savings_promo,

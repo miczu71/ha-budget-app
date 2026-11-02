@@ -427,3 +427,30 @@ def test_inbox_operational_cards_per_bank() -> None:
     assert failing.title == "Nieudane synchronizacje — Mock ASPSP"
     assert failing.link == "/status" and failing.count == 2
     assert "sync_failures:Bank Drugi" not in by_kind
+
+
+def test_forecast_entities_publish_negative_card_debt() -> None:
+    from .test_categorize_engine import add
+    from .test_forecast import build, snapshot
+
+    conn = db.connect(":memory:")
+    now = "2026-10-01T00:00:00+00:00"
+    conn.execute(
+        "INSERT INTO account (id, kind, iban, currency, created_at) "
+        "VALUES (1, 'current', 'PL00111122223333444455556666', 'PLN', ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (2, 'card', 'PLN', ?)", (now,)
+    )
+    db.kv_set(conn, "card_limit", "10000.00")
+    add(conn, "150.00", "card_refund", "ZWROT", day=date.today().isoformat(), account=2)
+    at = "2026-10-03T10:00:00+02:00"
+    snapshot(conn, 1, "ITAV", "500.00", at)
+    snapshot(conn, 2, "ITBD", "0.00", at)
+    snapshot(conn, 2, "ITAV", "10100.00", at)
+    fc = build(conn)
+    assert fc is not None
+    entities = {e.key: e for e in ha_publisher.forecast_entities(fc)}
+    assert entities["forecast_card_debt"].state == "-100.00"
+    assert entities["forecast_free_now"].attributes["card_debt"] == "-100.00"

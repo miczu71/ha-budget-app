@@ -214,12 +214,14 @@ def read_balances(conn: sqlite3.Connection) -> Balances | None:
         debt = snaps.get("ITBD")
         if debt is not None:
             available = snaps.get("ITAV")
-            card_debt = card.debt_from(
-                Decimal(debt["amount"]),
-                Decimal(available["amount"]) if available else None,
-                card.get_limit(conn),
-            )
+            itav = Decimal(available["amount"]) if available else None
+            limit = card.get_limit(conn)
+            card_debt = card.debt_from(Decimal(debt["amount"]), itav, limit)
+            if card_debt < ZERO and card.suspect_limit(conn, date.today(), itav, limit):
+                card_debt = ZERO  # nadpłata bez wpływów = zaniżony limit, nie zwrot
             fetched.append(debt["fetched_at"])
+            if available:
+                fetched.append(available["fetched_at"])
     eur = None
     if accounts["fx"]:
         row = ledger.latest_balances(conn, accounts["fx"]["id"])

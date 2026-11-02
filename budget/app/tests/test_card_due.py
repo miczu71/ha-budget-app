@@ -165,3 +165,25 @@ async def test_card_screen_and_limit(service: Service, monkeypatch: pytest.Monke
     assert bad.status_code in (302, 303) and card.get_limit(c) == Decimal("1000.00")
     assert "Wykorzystanie" in limited and "30%" in limited and "width: 30%" in limited
     assert "Do spłaty" in home and "do 20.10" in home and "warn-text" in home
+
+
+def limit_items(c: sqlite3.Connection) -> list[inbox.Item]:
+    now = datetime(2026, 10, 12, 12, tzinfo=WAW)
+    items = inbox.items(Snapshot(c), now, inbox.BalanceMemo())
+    return [i for i in items if i.kind == "card_limit_check"]
+
+
+def test_limit_check_card_when_overpaid_without_inflows(conn: sqlite3.Connection) -> None:
+    card.set_limit(conn, "10000")
+    debt(conn, "0.00", "10100.00")
+    (item,) = limit_items(conn)
+    assert item.severity == "warn" and item.link == "/card" and item.title == "Sprawdź limit karty"
+    assert "10\u202f000,00\xa0zł" in item.detail and "100,00\xa0zł" in item.detail
+
+
+def test_limit_check_absent_with_refund_or_without_limit(conn: sqlite3.Connection) -> None:
+    debt(conn, "0.00", "10100.00")
+    assert limit_items(conn) == []  # bez limitu
+    card.set_limit(conn, "10000")
+    buy(conn, "2026-10-05", kind="card_refund", amount="150.00")
+    assert limit_items(conn) == []  # zwrot tłumaczy nadpłatę

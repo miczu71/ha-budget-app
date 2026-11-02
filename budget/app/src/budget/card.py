@@ -32,6 +32,7 @@ BOOKING_LAG = timedelta(days=2)
 REMIND_DAYS = (5, 1)  # przypomnienie na telefon tyle dni przed ostatnim dniem miesiąca
 DUE_DAY = 20  # termin spłaty: dzień miesiąca po zamknięciu cyklu
 DUE_REMIND_DAYS = (5, 1)  # przypomnienie o spłacie tyle dni przed terminem
+SUSPECT_DAYS = 35  # okno wpływów na kartę, którymi można wyjaśnić nadpłatę (zwrot, wpłata)
 LIMIT_KEY = "card_limit"  # kv: limit karty (tekst kwoty); bez niego sekcja limitu ukryta
 PAYMENT_WHERE = (
     f"t.account_id = ? AND t.kind = '{Kind.CARD.value}' AND t.status = 'BOOK' "
@@ -271,6 +272,39 @@ def debt_from(itbd: Decimal, itav: Decimal | None, limit: Decimal | None) -> Dec
     if itav is not None and limit is not None and itav > limit:
         return limit - itav
     return money.ZERO
+
+
+@dataclass(frozen=True)
+class SuspectLimit:
+    limit: Decimal
+    available: Decimal
+    overpaid: Decimal
+
+
+def suspect_limit(
+    conn: sqlite3.Connection, today: date, itav: Decimal | None, limit: Decimal | None
+) -> SuspectLimit | None:
+    """Limit wygląda na zaniżony: ITAV ponad limit (nadpłata), a na karcie nie było wpływów, które
+    by ją tłumaczyły (zaksięgowane uznania z ostatnich `SUSPECT_DAYS` dni nie sięgają nadpłaty)."""
+    account = card_account(conn)
+    if account is None or itav is None or limit is None:
+        return None
+    overpaid = itav - limit
+    if overpaid <= 0:
+        return None
+    since = (today - timedelta(days=SUSPECT_DAYS)).isoformat()
+    inflows = money.total(
+        r[0]
+        for r in conn.execute(
+            "SELECT amount FROM txn WHERE account_id = ? AND status = 'BOOK' "
+            "AND amount NOT LIKE '-%' AND booking_date >= ?",
+            (account, since),
+        )
+        if Decimal(r[0]) > 0
+    )
+    if overpaid > inflows:
+        return SuspectLimit(limit, itav, overpaid)
+    return None
 
 
 def set_limit(conn: sqlite3.Connection, text: str) -> None:

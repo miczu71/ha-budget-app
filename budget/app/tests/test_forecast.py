@@ -762,6 +762,7 @@ def test_no_payday_a_year_ago_means_no_comparison(conn: sqlite3.Connection) -> N
 
 def test_read_balances_card_overpayment_is_negative_debt(conn: sqlite3.Connection) -> None:
     card.set_limit(conn, "10000")
+    add(conn, "150.00", "card_refund", "ZWROT", day=date.today().isoformat(), account=2)
     snapshot(conn, 1, "ITAV", "500.00", "2026-10-03T10:00:00+02:00")
     snapshot(conn, 2, "ITBD", "0.00", "2026-10-03T10:00:00+02:00")
     snapshot(conn, 2, "ITAV", "10100.00", "2026-10-03T10:00:00+02:00")
@@ -769,3 +770,29 @@ def test_read_balances_card_overpayment_is_negative_debt(conn: sqlite3.Connectio
     assert b is not None and b.card_debt == Decimal("-100.00")
     fc = build(conn)
     assert fc is not None and fc.free_now == Decimal("600.00")
+
+
+def _overpaid_card(conn: sqlite3.Connection) -> None:
+    card.set_limit(conn, "10000")
+    snapshot(conn, 1, "ITAV", "500.00", "2026-10-03T10:00:00+02:00")
+    snapshot(conn, 2, "ITBD", "0.00", "2026-10-03T10:00:00+02:00")
+    snapshot(conn, 2, "ITAV", "10100.00", "2026-10-03T10:00:00+02:00")
+
+
+def test_read_balances_overpayment_without_inflows_is_suspect_limit(
+    conn: sqlite3.Connection,
+) -> None:
+    _overpaid_card(conn)
+    add(conn, "50.00", "card_refund", "ZWROT", day=date.today().isoformat(), account=2)  # < 100
+    b = forecast.read_balances(conn)
+    assert b is not None and b.card_debt == Decimal("0")
+
+
+def test_read_balances_fetched_at_is_the_oldest_snapshot_used(
+    conn: sqlite3.Connection,
+) -> None:
+    snapshot(conn, 1, "ITAV", "500.00", "2026-10-03T10:00:00+02:00")
+    snapshot(conn, 2, "ITBD", "30.00", "2026-10-03T08:00:00+02:00")
+    snapshot(conn, 2, "ITAV", "9970.00", "2026-10-03T08:00:00+02:00")
+    b = forecast.read_balances(conn)
+    assert b is not None and b.fetched_at == "2026-10-03T08:00:00+02:00"
