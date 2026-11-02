@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.72.0
+
+**Rok w liczbach + długi z ryzykiem błędu** — `docs/ROADMAP_M25_dlugi.md`.
+- Nowa zakładka „Rok w liczbach” (`/recap?year=`): wpływy i wydatki roku z porównaniem r/r do tego samego okresu,
+  wykres 12 miesięcy, stopa oszczędności, największe zmiany kategorii, sprzedawcy roku i rekordy; wybór roku.
+- 1 stycznia o 7:00 powiadomienie z podsumowaniem poprzedniego roku; kliknięcie otwiera ekran roku.
+- Prognoza nie liczy podejrzanej nadpłaty karty (nadpłata bez wpływów na kartę z ostatnich 35 dni); w „Do decyzji”
+  pojawia się karta „Sprawdź limit karty”. Wiek salda ITAV wchodzi do świeżości prognozy.
+- Testy: ujemny dług karty w publisherze, pomijanie odsetek w analizie.
+
 ## 0.71.0
 
 **Odsetki, zwięzłe oferty, loga banków** — `docs/ROADMAP_odsetki_oferty_loga.md`.

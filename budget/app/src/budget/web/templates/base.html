@@ -24,15 +24,18 @@
       if (d) d.open = true;
     });
 
-    // Głęboki link z dashboardu HA (`/app/<slug>/inbox`): HA ładuje w ramce tylko korzeń panelu, więc czytamy
-    // adres okna nadrzędnego (ten sam origin) i raz przechodzimy do „Do decyzji”. Znacznik trzyma adres,
+    // Głęboki link z dashboardu HA (`/app/<slug>/inbox` albo `/recap?year=`): HA ładuje w ramce tylko korzeń panelu, więc czytamy
+    // adres okna nadrzędnego (ten sam origin) i raz przechodzimy do „Do decyzji” / „Rok w liczbach”. Znacznik trzyma adres,
     // bo okno HA żyje między wejściami; gdy adres przestaje pasować, znacznik znika.
     try {
       if (top !== self) {
-        if (/^\/app\/[^/]+\/inbox\/?$/.test(top.location.pathname)) {
-          if (top.__budgetDeep !== top.location.pathname) {
-            top.__budgetDeep = top.location.pathname;
-            if (location.pathname !== "{{ base }}/inbox") location.replace("{{ base }}/inbox");
+        var deep = /^\/app\/[^/]+\/(inbox|recap)\/?$/.exec(top.location.pathname);
+        if (deep) {
+          var target = "{{ base }}/" + deep[1] + (deep[1] === "recap" ? top.location.search : "");
+          var seen = top.location.pathname + top.location.search;
+          if (top.__budgetDeep !== seen) {
+            top.__budgetDeep = seen;
+            if (location.pathname + location.search !== target) location.replace(target);
           }
         } else delete top.__budgetDeep;
       }
