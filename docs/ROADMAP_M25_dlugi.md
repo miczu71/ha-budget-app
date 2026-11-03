@@ -105,3 +105,9 @@ Nowy moduł `budget/app/src/budget/recap.py`, funkcja `build(conn, year, today) 
   r/r, sprzedawca roku; `None` bez danych roku), `Message.path` + `service.send_summary` dokleja ją do `panel_url` (klik → `/recap?year=`),
   `due()` 1.01 po 7:00 dla `sent[YEARLY] != poprzedni rok`. Testy: 5 nowych w `test_summary.py`. pytest 1419 ok, ruff i mypy czyste.
   Zrobiłem sam (4 małe edycje, poniżej progu workera, bez planu wykonawcy).
+- **Wydanie 0.72.0 ZROBIONE 2026-11-02** (tag `v0.72.0`, published 15:40; simplify 894bf3a, poprawki z przeglądu 692f4c4, bump 14cf1d6/5816623/15b42a4).
+- **Na żywo 2026-11-03:** add-on 0.72.0 działa (start 2026-11-02 16:47, logi bez błędów); `/recap?year=2026` przez Ingress renderuje się
+  (sumy z r/r, stopa oszczędności, wykres 12 mies., zmiany kategorii, stopka v0.72.0); `?year=2025` i `?year=abc` → 200 (niepoprawny rok → domyślny);
+  bez przewijania poziomego; konsola 0 błędów.
+- Do sprawdzenia dopiero 2027-01-01 po 7:00: powiadomienie roczne (`summary.yearly`, klik → `/recap?year=`).
+- **ROADMAPA ZAMKNIĘTA.**
