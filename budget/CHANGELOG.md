@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.72.1
+
+**Poprawka prognozy „Do wypłaty”** — fałszywe „Zabraknie” w dniu terminu wypłaty.
+- Wpływ z terminem dziś (np. wypłata) przestawał być wypłatą i znikał z prognozy, więc o północy saldo na
+  dzień następnej wypłaty spadało o całą kwotę. Teraz wpływy liczą się niezależnie od wyboru wypłaty:
+  oczekiwane (także do 5 dni po terminie) oraz spóźnione do 7 dni po terminie.
+- Wypłatą nadal jest tylko oczekiwany wpływ po dzisiejszym dniu, więc horyzont się nie zmienia.
+
 ## 0.72.0
 
 **Rok w liczbach + długi z ryzykiem błędu** — `docs/ROADMAP_M25_dlugi.md`.
