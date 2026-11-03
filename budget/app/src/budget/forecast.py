@@ -3,7 +3,9 @@
 Wolne środki dziś = saldo rachunku PLN (dostępne, już bez autoryzacji) − bieżące zadłużenie karty.
 Przyszłość: oczekiwane i spóźnione wydatki serii w ich terminach (spóźnione liczą się dziś),
 wpływy serii przed wypłatą. Prognoza liczy wyłącznie pozycje znane i zaplanowane (Flexu nie
-szacuje). Spóźniony wpływ nie jest wypłatą ani nie zwiększa salda — nie wiadomo, kiedy dotrze.
+szacuje). Spóźniony wpływ nie jest wypłatą; do `LATE_INFLOW_GRACE` po terminie liczy się dziś
+(przelew zwykle tylko się spóźnia), starszy nie zwiększa salda — nie wiadomo, kiedy dotrze.
+Oczekiwany wpływ z terminem dziś liczy się dziś, ale też nie jest wypłatą.
 Wypłata = najbliższy termin aktywnej
 serii wpływowej o największej oczekiwanej kwocie (mniejsze wpływy do dnia wypłaty włącznie wchodzą
 do salda — jak wydatki tego dnia, M21);
@@ -30,6 +32,7 @@ from budget.storage import db
 ZERO = Decimal(0)
 EXTRA_MONTHS = 2  # ile następnych miesięcy sprawdzamy, gdy bieżący nie ma już wypłaty
 STALE_AFTER = timedelta(hours=24)
+LATE_INFLOW_GRACE = timedelta(days=7)  # spóźniony wpływ liczy się dziś tak długo po terminie
 PAYDAY_KEY = "payday_series_id"  # kv: seria przychodów będąca wypłatą użytkownika (dzień resetu)
 CARD_DEBT_KEY = "forecast_card_debt"  # kv: czy odejmować zadłużenie karty (domyślnie tak)
 PERIOD_PLAN_KEY = "period_plan"  # kv: limit dzienny z początku okresu (M21 E4)
@@ -246,11 +249,20 @@ def safe_per_day(
 def _is_payday_candidate(d: schedule.Due, today: date) -> bool:
     """Oczekiwany wpływ po dzisiejszym dniu; spóźniony nie wiadomo, kiedy dotrze."""
     return (
-        d.series.direction == "in"
+        d.due is not None
+        and _counts_as_inflow(d, today)
         and d.status == schedule.EXPECTED
-        and d.due is not None
         and d.due > today
     )
+
+
+def _counts_as_inflow(d: schedule.Due, today: date) -> bool:
+    """Wpływ wchodzący do salda: oczekiwany od dziś albo spóźniony nie dłużej niż karencja."""
+    if d.series.direction != "in" or d.due is None:
+        return False
+    if d.status == schedule.EXPECTED:
+        return d.due >= today
+    return d.status == schedule.LATE and today - d.due <= LATE_INFLOW_GRACE
 
 
 def held(dues: Sequence[schedule.Due], pending: Decimal, as_of: date) -> frozenset[int]:
@@ -310,7 +322,15 @@ def project(
         ((day, d) for day, d in live if d.series.direction == "out" and day <= end),
         key=lambda p: p[0],
     )
-    inflows = sorted((p for p in paydays if p[0] <= end and p is not first), key=lambda p: p[0])
+    first_due = first[1] if first else None
+    inflows = sorted(
+        (
+            p
+            for p in live
+            if _counts_as_inflow(p[1], today) and p[0] <= end and p[1] is not first_due
+        ),
+        key=lambda p: p[0],
+    )
     result.outflows = [d for _, d in out if d.series.id not in covered | held]
     result.inflows = [d for _, d in inflows]
     result.piggy_out = piggy_out

@@ -71,7 +71,7 @@ def test_late_outflow_counts_today_late_inflow_is_ignored() -> None:
     p = run(
         [
             due(1, date(2026, 10, 1), "300", "out", sch.LATE),
-            due(2, date(2026, 10, 1), "900", "in", sch.LATE),
+            due(2, date(2026, 9, 20), "900", "in", sch.LATE),  # starszy niż karencja
             due(3, date(2026, 10, 6), "5000", "in"),
         ]
     )
@@ -110,6 +110,25 @@ def test_without_payday_horizon_is_end_of_month() -> None:
 def test_payday_today_is_not_the_horizon() -> None:
     p = run([due(1, TODAY, "5000", "in"), due(2, date(2026, 10, 12), "5000", "in")])
     assert p.payday == date(2026, 10, 12)
+
+
+def test_inflow_due_today_counts_today_without_becoming_the_horizon() -> None:
+    p = run([due(1, TODAY, "5000", "in"), due(2, date(2026, 10, 12), "800", "in")])
+    assert p.payday == date(2026, 10, 12)
+    assert [d.series.id for d in p.inflows] == [1]
+    assert p.days[0] == (TODAY, Decimal("6000.00"))
+
+
+def test_late_inflow_within_grace_counts_today_older_is_ignored() -> None:
+    dues = [
+        due(1, date(2026, 9, 27), "700", "in", sch.LATE),  # 6 dni po terminie
+        due(2, date(2026, 9, 25), "900", "in", sch.LATE),  # 8 dni po terminie
+        due(3, date(2026, 10, 12), "5000", "in"),
+    ]
+    p = run(dues)
+    assert p.payday == date(2026, 10, 12)  # spóźniony wpływ nie jest wypłatą
+    assert [d.series.id for d in p.inflows] == [1]
+    assert p.days[0] == (TODAY, Decimal("1700.00"))
 
 
 def test_skipped_and_paid_dues_do_not_count() -> None:
