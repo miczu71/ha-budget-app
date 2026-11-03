@@ -257,11 +257,12 @@ def _is_payday_candidate(d: schedule.Due, today: date) -> bool:
 
 
 def _counts_as_inflow(d: schedule.Due, today: date) -> bool:
-    """Wpływ wchodzący do salda: oczekiwany od dziś albo spóźniony nie dłużej niż karencja."""
+    """Wpływ wchodzący do salda: oczekiwany (także do `schedule.WINDOW` dni po terminie) albo
+    spóźniony nie dłużej niż karencja."""
     if d.series.direction != "in" or d.due is None:
         return False
     if d.status == schedule.EXPECTED:
-        return d.due >= today
+        return True
     return d.status == schedule.LATE and today - d.due <= LATE_INFLOW_GRACE
 
 

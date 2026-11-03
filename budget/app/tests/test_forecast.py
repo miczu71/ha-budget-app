@@ -119,6 +119,18 @@ def test_inflow_due_today_counts_today_without_becoming_the_horizon() -> None:
     assert p.days[0] == (TODAY, Decimal("6000.00"))
 
 
+def test_expected_inflow_past_due_still_counts_today() -> None:
+    p = run(
+        [
+            due(1, TODAY - sch.timedelta(days=2), "700", "in"),
+            due(2, date(2026, 10, 12), "5000", "in"),
+        ]
+    )
+    assert p.payday == date(2026, 10, 12)  # termin minął, więc nie jest wypłatą
+    assert [d.series.id for d in p.inflows] == [1]
+    assert p.days[0] == (TODAY, Decimal("1700.00"))
+
+
 def test_late_inflow_within_grace_counts_today_older_is_ignored() -> None:
     dues = [
         due(1, date(2026, 9, 27), "700", "in", sch.LATE),  # 6 dni po terminie
@@ -129,6 +141,21 @@ def test_late_inflow_within_grace_counts_today_older_is_ignored() -> None:
     assert p.payday == date(2026, 10, 12)  # spóźniony wpływ nie jest wypłatą
     assert [d.series.id for d in p.inflows] == [1]
     assert p.days[0] == (TODAY, Decimal("1700.00"))
+
+
+def test_late_inflow_grace_boundary_is_seven_days_inclusive() -> None:
+    on_edge = run([due(1, TODAY - sch.timedelta(days=7), "700", "in", sch.LATE)])
+    past_edge = run([due(1, TODAY - sch.timedelta(days=8), "700", "in", sch.LATE)])
+    assert on_edge.days[0] == (TODAY, Decimal("1700.00"))
+    assert past_edge.days[0] == (TODAY, Decimal("1000.00"))
+
+
+def test_inflow_without_payday_counts_in_end_of_month_horizon() -> None:
+    p = run([due(1, TODAY, "300", "in")])
+    assert p.payday is None and p.horizon_end == date(2026, 10, 31)
+    assert [d.series.id for d in p.inflows] == [1]
+    assert (p.events[0].day, p.events[0].amount) == (TODAY, Decimal(300))
+    assert p.at_payday == Decimal("1300.00")
 
 
 def test_skipped_and_paid_dues_do_not_count() -> None:
