@@ -81,8 +81,27 @@ Rollback wydania: `ha_manage_updates` nie cofa wersji, więc cofam przez `git re
   (wspólny `_analyze` przez `savings_transfer_ids`). Pierwsze żądanie po starcie add-onu jest zimne (`/status` 1561 ms), kolejne z pamięci.
 - Zostało na dzwonku `p_series_changes` ~75 ms (150 ms na `/inbox`), na `/` `h_flex` ~124 ms, `h_networth` ~53 ms, `h_forecast` ~55 ms.
 - Karty dzwonka bez zmian, panel renderuje się (zrzut), konsola 0 błędów, wersja 0.73.0 zgodna z tagiem.
-- **Otwarte: E5a** — `/` o ~15 ms ponad próg; najtańsze kroki: `p_series_changes` (75 ms, liczone też w dzwonku) albo `h_flex`
+- ~~Otwarte: E5a~~ → zrobione niżej (0.73.1). Pierwotnie: `/` o ~15 ms ponad próg; najtańsze kroki: `p_series_changes` (75 ms, liczone też w dzwonku) albo `h_flex`
   (124 ms). Zaczyna się od profilu tych dwóch na kopii z dosianymi danymi, potem plan etapu i wydanie 0.73.1 (osobny pomiar).
 - Nieblokujące z przeglądów: `summary.py:294,350`, `routes_invest.py:57,77`, `routes_piggy.py:35,41` nadal liczą `_analyze` od zera
   (rozwiązanie ogólne: memo w `ledger.savings_transfer_ids`); `rotation_card` liczy `savings_ids()` także bez oferty Velo (bez regresu —
   `tracks()` robił to w 0.72.1 i tak); szablon memo w `Snapshot` powtórzony 4× (helper przy następnym memo).
+
+## Wynik E5a (2026-11-04, produkcja 0.73.1, `Server-Timing`, mediana z 5 ciepłych żądań)
+
+Przyczyna: `changes.for_db` (karta `p_series_changes`, ~75 ms) liczyło `detect()` od zera na każdej stronie.
+Poprawka: `Snapshot.series_changes(today)` — memo po `(signature, dzień)`, bez zapisu w transakcji; `for_db` deleguje.
+Commity: `10076fd` (kod), `c7ac22a` (simplify), `a2640bc` (testy po `pr-test-analyzer`), `8737157` (bump 0.73.1).
+
+| Miara | 0.73.0 | 0.73.1 | Próg | |
+|---|---|---|---|---|
+| `/status` | 303 ms | **256 ms** | < 400 | ✓ |
+| `/` | 615 ms | **551 ms** | < 600 | ✓ |
+| `/inbox` | 282 ms | **131 ms** | < 600 | ✓ |
+| `p_series_changes` | ~75 ms | **0 ms** | — | |
+
+- Wszystkie progi M14 spełnione; **M14 zamknięte**. Testy 1439, ruff/mypy czyste, pubguard 0 flag.
+- Przeglądy: `code-review` i `silent-failure-hunter` bez błędów poprawności; `pr-test-analyzer` → 3 testy dopisane.
+- Na `/` zostają `h_flex` ~121 ms, `h_networth` ~53, `h_forecast` ~54 (poniżej progów, bez działania).
+- Nieblokujące (bez zmian): memo w `ledger.savings_transfer_ids` dla `summary.py`, `routes_invest.py`, `routes_piggy.py`;
+  helper `_memo` dla `Snapshot` (szablon 5×); `for_db` kopiuje tuple do listy.
