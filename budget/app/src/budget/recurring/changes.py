@@ -112,12 +112,7 @@ def detect(
 
 
 def for_db(snap: Snapshot, today: date) -> list[Change]:
-    active = S.all_series(snap.conn, ("active",))
-    if not active:
-        return []
-    members = snap.members()  # to samo co `S.assign(active, …)`, ale liczone raz do zapisu
-    acks, overrides = schedule.acks_from_db(snap.conn), schedule.overrides_from_db(snap.conn)
-    return detect(active, members, acks, today, overrides)
+    return list(snap.series_changes(today))  # liczone raz do zapisu (Snapshot)
 
 
 def ack(conn: sqlite3.Connection, series_id: int, period: str, kind: str) -> None:

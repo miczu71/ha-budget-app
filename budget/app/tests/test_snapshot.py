@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Sequence
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
 
 from budget import ledger
 from budget.categorize.rules import Conditions
+from budget.recurring import changes, schedule
 from budget.recurring import series as S
 from budget.service import Service
 from budget.snapshot import Snapshot
@@ -159,3 +162,61 @@ def test_savings_ids_match_ledger(service: Service) -> None:
     conn = service.conn
     _seed(conn)
     assert Snapshot(conn).savings_ids() == frozenset(ledger.savings_transfer_ids(conn))
+
+
+@pytest.fixture
+def detected(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    calls: list[int] = []
+    real = changes.detect
+
+    def counting(*args: Any, **kwargs: Any) -> list[changes.Change]:
+        calls.append(1)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(changes, "detect", counting)
+    return calls
+
+
+def test_series_changes_reused_until_write_or_new_day(
+    service: Service, detected: list[int]
+) -> None:
+    conn = service.conn
+    _seed(conn)
+    snap = Snapshot(conn)
+    today = date(2026, 10, 20)
+    first = snap.series_changes(today)
+    assert snap.series_changes(today) == first
+    assert len(detected) == 1  # drugie wywołanie z pamięci
+
+    snap.series_changes(date(2026, 10, 21))
+    assert len(detected) == 2  # inny dzień = inny wynik
+
+    add(conn, "-43.00", "transfer_out", "Abonament", "Qwertyflix Sp", day="2026-10-10")
+    snap.series_changes(date(2026, 10, 21))
+    assert len(detected) == 3  # zapis unieważnia
+
+
+def test_series_changes_not_cached_inside_transaction(
+    service: Service, detected: list[int]
+) -> None:
+    conn = service.conn
+    _seed(conn)
+    snap = Snapshot(conn)
+    conn.execute("BEGIN")
+    snap.series_changes(date(2026, 10, 20))
+    snap.series_changes(date(2026, 10, 20))
+    conn.execute("ROLLBACK")
+    assert len(detected) == 2
+
+
+def test_series_changes_match_for_db(service: Service) -> None:
+    conn = service.conn
+    _seed(conn)
+    today = date(2026, 10, 20)
+    assert list(Snapshot(conn).series_changes(today)) == changes.detect(
+        S.all_series(conn, ("active",)),
+        Snapshot(conn).members(),
+        schedule.acks_from_db(conn),
+        today,
+        schedule.overrides_from_db(conn),
+    )

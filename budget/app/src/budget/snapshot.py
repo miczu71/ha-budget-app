@@ -10,8 +10,13 @@ połączenia). Kosztowne sumy i drzewo kategorii nie są tu zapamiętywane — s
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
+from typing import TYPE_CHECKING
 
 from budget.recurring import series
+
+if TYPE_CHECKING:
+    from budget.recurring.changes import Change
 
 
 class Snapshot:
@@ -25,6 +30,8 @@ class Snapshot:
         self._piggy_ids: set[int] = set()
         self._savings_key: tuple[int, int] | None = None
         self._savings_ids: frozenset[int] = frozenset()
+        self._changes_key: tuple[tuple[int, int], date] | None = None
+        self._changes: tuple[Change, ...] = ()
 
     def signature(self) -> tuple[int, int]:
         return (self.conn.total_changes, self.conn.execute("PRAGMA data_version").fetchone()[0])
@@ -77,4 +84,29 @@ class Snapshot:
         found = frozenset(ledger.savings_transfer_ids(self.conn))
         if not self.conn.in_transaction:
             self._savings_key, self._savings_ids = key, found
+        return found
+
+    def series_changes(self, today: date) -> tuple[Change, ...]:
+        """Zmiany serii (`changes.detect`) dla dnia `today`, do pierwszego zapisu. Wynik zależy
+        tylko od bazy i dnia, więc kluczem jest sygnatura z datą (dzwonek liczył to na każdej
+        stronie, ~75 ms)."""
+        from budget.recurring import changes, schedule  # changes importuje Snapshot (cykl)
+
+        key = (self.signature(), today)
+        if key == self._changes_key:
+            return self._changes
+        active = series.all_series(self.conn, ("active",))
+        found = tuple(
+            changes.detect(
+                active,
+                self.members(),
+                schedule.acks_from_db(self.conn),
+                today,
+                schedule.overrides_from_db(self.conn),
+            )
+            if active
+            else ()
+        )
+        if not self.conn.in_transaction:
+            self._changes_key, self._changes = key, found
         return found
