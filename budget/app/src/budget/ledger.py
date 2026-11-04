@@ -1018,9 +1018,12 @@ def card_unbooked(conn: sqlite3.Connection, account_id: int) -> Decimal:
     """Część zadłużenia karty (ITBD), której nie ma w księdze: autoryzacje bez księgowania.
 
     Ta sama różnica, którą pokazuje kontrola salda (zmiana zadłużenia w banku − zmiana księgi
-    od migawki bazowej), tylko jako kwota ≥ 0. Bez dwóch migawek zwraca 0. Błędy wychodzą
-    ostrożnie: autoryzacja z migawki bazowej, księgowana później, albo transakcja tylko w księdze
-    zmniejszają wynik, więc „do spłaty” może wyjść za wysokie, ale nie za niskie.
+    od migawki bazowej), tylko jako kwota ≥ 0. Bez dwóch migawek zwraca 0.
+
+    Autoryzacja księguje się w ciągu dni, więc liczy się tylko przyrost różnicy z ostatnich
+    `IN_TRANSIT_DAYS`: różnica starsza (brakująca w księdze opłata, odsetki, zaległy import)
+    zostaje w „do spłaty” jak dawniej. Błąd w dół jest możliwy tylko dla świeżej, niewyjaśnionej
+    różnicy, i znika po tych dniach; autoryzacja czekająca dłużej (weekend) daje wynik za wysoki.
     """
     snapshots = conn.execute(
         "SELECT amount, fetched_at FROM balance_snapshot WHERE account_id = ? "
@@ -1033,11 +1036,20 @@ def card_unbooked(conn: sqlite3.Connection, account_id: int) -> Decimal:
         "SELECT snapshot_at FROM reconcile_base WHERE account_id = ?", (account_id,)
     ).fetchone()
     window = _since_base(snapshots, base["snapshot_at"] if base else None, itemgetter("fetched_at"))
-    # liczy się tylko pierwsza i ostatnia migawka okna — suma księgi to pełny skan transakcji
-    (_, first_bank, first_known), (_, last_bank, last_known) = _snapshot_sums(
-        conn, account_id, [window[0], window[-1]], is_card=True
-    )
-    return max((last_bank - first_bank) + (last_known - first_known), money.ZERO)
+    # różnica jest ustabilizowana, gdy trwa od ≥ IN_TRANSIT_DAYS: ostatnia migawka okna starsza
+    # o tyle od ostatniej; jej różnica nie jest „w drodze”, więc nie wolno jej odejmować
+    cutoff = datetime.fromisoformat(window[-1]["fetched_at"]) - timedelta(days=IN_TRANSIT_DAYS)
+    aged = [r for r in window if datetime.fromisoformat(r["fetched_at"]) <= cutoff]
+    # liczy się najwyżej 3 migawki okna — suma księgi to pełny skan transakcji
+    picked = [window[0], window[-1], *aged[-1:]]
+    sums = _snapshot_sums(conn, account_id, picked, is_card=True)
+    (_, first_bank, first_known), (_, last_bank, last_known) = sums[:2]
+    drift = (last_bank - first_bank) + (last_known - first_known)
+    settled = money.ZERO
+    if aged:
+        _, aged_bank, aged_known = sums[2]
+        settled = max((aged_bank - first_bank) + (aged_known - first_known), money.ZERO)
+    return max(drift - settled, money.ZERO)
 
 
 def latest_balances(conn: sqlite3.Connection, account_id: int) -> dict[str, sqlite3.Row]:

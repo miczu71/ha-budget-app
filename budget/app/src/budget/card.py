@@ -13,7 +13,8 @@ Spłata (E4): cykl = miesiąc kalendarzowy, termin spłaty `DUE_DAY` następnego
 wyciągu API nie podaje, więc zostało do spłaty = ITBD (zadłużenie teraz) − autoryzacje bez
 księgowania (`ledger.card_unbooked`; regulamin: wyciąg obejmuje kwoty zaksięgowane w cyklu, a
 zakup do rozliczenia tylko blokuje limit) − obciążenia karty zaksięgowane w bieżącym cyklu;
-obciążenia z pierwszych `BOOKING_LAG` dni cyklu liczą się do wyciągu. Błąd w górę.
+obciążenia z pierwszych `BOOKING_LAG` dni cyklu liczą się do wyciągu. Zwykle
+błąd w górę; w dół tylko przy świeżej, niewyjaśnionej różnicy.
 """
 
 from __future__ import annotations

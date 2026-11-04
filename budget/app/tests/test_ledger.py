@@ -6,6 +6,7 @@ import sqlite3
 from collections.abc import Iterator
 from datetime import date
 from decimal import Decimal
+from operator import itemgetter
 from pathlib import Path
 from typing import Any
 
@@ -595,6 +596,75 @@ def test_card_unbooked_zero_without_history_or_when_bank_below_ledger(
     assert ledger.card_unbooked(conn, card_id) == 0
 
 
+def test_card_unbooked_counts_from_reconcile_base(
+    conn: sqlite3.Connection, accounts: tuple[int, int]
+) -> None:
+    """Autoryzacja z pierwszej migawki zniknęła (anulowana) — bez bazy kontroli ta różnica
+    ukryłaby 50 zł długu; baza ustawiona po niej liczy tylko późniejszą zmianę."""
+    _, card_id = accounts
+    api(
+        conn,
+        card_id,
+        [tx("C1", "2026-10-05", "-300.00", "SKLEP")],
+        card=True,
+        at="2026-10-06T07:00:00+00:00",
+    )
+    _itbd(conn, card_id, "350.00", "2026-10-06T07:00:30+00:00")  # 50 zł autoryzacji
+    api(
+        conn,
+        card_id,
+        [tx("C2", "2026-10-20", "300.00", "SPLATA")],
+        card=True,
+        at="2026-10-20T07:00:00+00:00",
+    )
+    _itbd(conn, card_id, "0.00", "2026-10-20T07:00:30+00:00")  # autoryzacja anulowana
+    ledger.set_reconcile_base(conn, card_id)
+    _itbd(conn, card_id, "1969.65", "2026-11-04T21:30:00+00:00")
+    assert ledger.card_unbooked(conn, card_id) == Decimal("1969.65")
+    conn.execute("DELETE FROM reconcile_base")
+    assert ledger.card_unbooked(conn, card_id) == Decimal("1919.65")  # bez bazy zaniżone o 50
+
+
+def test_card_unbooked_zero_when_base_is_latest_snapshot(
+    conn: sqlite3.Connection, accounts: tuple[int, int]
+) -> None:
+    _, card_id = accounts
+    _closed_october(conn, card_id)
+    _itbd(conn, card_id, "1969.65", "2026-11-04T21:30:00+00:00")
+    ledger.set_reconcile_base(conn, card_id)  # baza = ostatnia migawka → brak odniesienia
+    assert ledger.card_unbooked(conn, card_id) == 0
+
+
+def test_since_base_window() -> None:
+    rows = [("2026-10-01",), ("2026-10-05",), ("2026-10-09",)]
+    first = itemgetter(0)
+    assert ledger._since_base(rows, None, first) == rows
+    assert ledger._since_base(rows, "2026-10-05", first) == rows[1:]
+    assert ledger._since_base(rows, "2026-11-01", first) == rows[-1:]  # baza świeższa niż migawki
+
+
+def test_card_unbooked_with_limit_overpayment_is_not_negative(
+    conn: sqlite3.Connection, accounts: tuple[int, int]
+) -> None:
+    """Zwrot ponad zadłużenie: ITBD = 0, nadpłata tylko w ITAV > limit — nie zawyża „do spłaty”."""
+    _, card_id = accounts
+    card.set_limit(conn, "10000")
+    _itbd(conn, card_id, "0.00", "2026-10-01T07:00:00+00:00")
+    _itav(conn, card_id, "10000.00", "2026-10-01T07:00:00+00:00")
+    api(
+        conn,
+        card_id,
+        [tx("C1", "2026-10-02", "100.00", "ZWROT")],
+        card=True,
+        at="2026-10-02T07:00:00+00:00",
+    )
+    _itbd(conn, card_id, "0.00", "2026-10-02T07:00:30+00:00")
+    _itav(conn, card_id, "10100.00", "2026-10-02T07:00:30+00:00")
+    assert ledger.card_unbooked(conn, card_id) == 0
+    cd = card.due_status(conn, date(2026, 10, 12))
+    assert cd is not None and cd.left == 0
+
+
 def test_card_overpayment_refund_reconciles(
     conn: sqlite3.Connection, accounts: tuple[int, int]
 ) -> None:
@@ -626,3 +696,17 @@ def test_analyze_skips_interest(conn: sqlite3.Connection, accounts: tuple[int, i
     groups, savings = ledger._analyze(conn)
     assert interest not in groups and interest not in savings
     assert out not in groups or groups[out] != groups.get(interest)
+
+
+def test_card_unbooked_ignores_stuck_difference(
+    conn: sqlite3.Connection, accounts: tuple[int, int]
+) -> None:
+    """Różnica ITBD bez pokrycia w księdze, trwająca ≥ IN_TRANSIT_DAYS (np. brakująca opłata),
+    nie jest autoryzacją w drodze — zostaje w „do spłaty”; świeży przyrost nadal się odejmuje."""
+    _, card_id = accounts
+    _closed_october(conn, card_id)
+    _itbd(conn, card_id, "40.00", "2026-10-25T07:00:00+00:00")
+    _itbd(conn, card_id, "40.00", "2026-11-04T07:00:00+00:00")
+    assert ledger.card_unbooked(conn, card_id) == Decimal("0.00")
+    _itbd(conn, card_id, "140.00", "2026-11-04T21:30:00+00:00")
+    assert ledger.card_unbooked(conn, card_id) == Decimal("100.00")
