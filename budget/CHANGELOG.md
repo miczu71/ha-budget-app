@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.73.0
+
+**Szybszy panel (M14)** — dzwonek nie liczy już całej księgi przy każdym wejściu na stronę.
+- Karty rotacji Velobanku i śledzenia promocji liczyły przelewy na oszczędności (pełny przebieg po transakcjach)
+  osobno przy każdym renderowaniu, na `/inbox` nawet dwa razy. Teraz wynik jest zapamiętany do pierwszego zapisu
+  w bazie (`Snapshot.savings_ids`), więc kolejne strony biorą go z pamięci. Treść kart się nie zmienia.
+- Wewnętrznie: refaktor stałej karencji spóźnionego wpływu w prognozie (bez zmiany zachowania).
+
 ## 0.72.1
 
 **Poprawka prognozy „Do wypłaty”** — fałszywe „Zabraknie” w dniu terminu wypłaty.
