@@ -12,6 +12,7 @@ from __future__ import annotations
 import calendar
 import sqlite3
 from collections.abc import Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -165,7 +166,7 @@ def _progress(
     r: sqlite3.Row,
     t: sqlite3.Row,
     today: date,
-    savings: set[int],  # przelew z własnych oszczędności to nie wpływ
+    savings: AbstractSet[int],  # przelew z własnych oszczędności to nie wpływ
 ) -> Decimal | None:
     if not t["ledger"] or r["kind"] not in ("payments", "income", "cashless"):
         return None
@@ -189,7 +190,9 @@ def _progress(
     )
 
 
-def _track(conn: sqlite3.Connection, t: sqlite3.Row, today: date, savings: set[int]) -> Track:
+def _track(
+    conn: sqlite3.Connection, t: sqlite3.Row, today: date, savings: AbstractSet[int]
+) -> Track:
     conds = tuple(
         Condition(
             r["id"],
@@ -218,14 +221,20 @@ def _track(conn: sqlite3.Connection, t: sqlite3.Row, today: date, savings: set[i
 
 
 def tracks(
-    conn: sqlite3.Connection, *, status: str | None = None, today: date | None = None
+    conn: sqlite3.Connection,
+    *,
+    status: str | None = None,
+    today: date | None = None,
+    savings: AbstractSet[int] | None = None,
 ) -> list[Track]:
     """Śledzenia od najbliższego końca; `status` None = wszystkie.
 
-    `today` wyznacza miesiąc liczników miesięcznych (domyślnie dzień systemowy)."""
+    `today` wyznacza miesiąc liczników miesięcznych (domyślnie dzień systemowy).
+    `savings` to gotowe `ledger.savings_transfer_ids` (np. z `Snapshot`); None = policz."""
     today = today or date.today()
     where, args = ("WHERE status = ?", (status,)) if status else ("", ())
-    savings = ledger.savings_transfer_ids(conn)  # raz na wywołanie, nie na każdy warunek
+    if savings is None:  # raz na wywołanie, nie na każdy warunek
+        savings = ledger.savings_transfer_ids(conn)
     return [
         _track(conn, t, today, savings)
         for t in conn.execute(
@@ -234,15 +243,24 @@ def tracks(
     ]
 
 
-def active_for_bank(conn: sqlite3.Connection, bank_like: str, today: date) -> Track | None:
+def active_for_bank(
+    conn: sqlite3.Connection,
+    bank_like: str,
+    today: date,
+    savings: AbstractSet[int] | None = None,
+) -> Track | None:
     """Aktywna edycja banku, którego nazwa zawiera `bank_like` (bez wielkości liter), z `today`
-    w okresie; przy kilku ta o najpóźniejszym końcu."""
+    w okresie; przy kilku ta o najpóźniejszym końcu. `savings` jak w `tracks`."""
     row = conn.execute(
         "SELECT * FROM promo_track WHERE status = 'active' AND instr(lower(bank), lower(?)) > 0 "
         "AND start_date <= ? AND end_date >= ? ORDER BY end_date DESC, id DESC LIMIT 1",
         (bank_like, today.isoformat(), today.isoformat()),
     ).fetchone()
-    return _track(conn, row, today, ledger.savings_transfer_ids(conn)) if row else None
+    if row is None:
+        return None
+    if savings is None:
+        savings = ledger.savings_transfer_ids(conn)
+    return _track(conn, row, today, savings)
 
 
 def start(conn: sqlite3.Connection, offer_id: int, today: date) -> int:

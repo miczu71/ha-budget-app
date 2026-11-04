@@ -444,7 +444,7 @@ def velo_promo_cards(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) 
 
 def rotation_card(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
     """Koniec promocji Velobanku blisko: dokąd przelać środki (M32 E4); bez edycji — brak karty."""
-    rec = rotation.recommend(conn, ctx.today)
+    rec = rotation.recommend(conn, ctx.today, ctx.snap.savings_ids())
     if rec is None:
         return []
     title = f"Velobank: przelej {summary.zl(rec.amount)} na {rec.account} (+{summary.zl(rec.gain)})"
@@ -595,7 +595,8 @@ def cashless_card(t: promo_track.Track, counter: promo_track.Condition, today: d
 def promo_track_due(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
     """Promocja w toku: warunki spełnione (odbierz premię) albo koniec blisko lub minął (M22 E5)."""
     out = []
-    for t in promo_track.tracks(conn, status="active", today=ctx.today):
+    savings = ctx.snap.savings_ids()
+    for t in promo_track.tracks(conn, status="active", today=ctx.today, savings=savings):
         days = t.days_left(ctx.today)
         counter = t.cashless
         if counter and days >= 0:  # edycja z licznikiem miesięcznym (M32 E2): „zrób jeszcze N”

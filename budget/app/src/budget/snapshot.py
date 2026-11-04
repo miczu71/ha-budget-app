@@ -23,6 +23,8 @@ class Snapshot:
         self._members: dict[int, list[series.Candidate]] = {}
         self._piggy_key: tuple[int, int] | None = None
         self._piggy_ids: set[int] = set()
+        self._savings_key: tuple[int, int] | None = None
+        self._savings_ids: frozenset[int] = frozenset()
 
     def signature(self) -> tuple[int, int]:
         return (self.conn.total_changes, self.conn.execute("PRAGMA data_version").fetchone()[0])
@@ -62,4 +64,17 @@ class Snapshot:
         found = piggy.txn_ids(self.conn) | savings.txn_ids(self.conn)
         if not self.conn.in_transaction:
             self._piggy_key, self._piggy_ids = key, found
+        return found
+
+    def savings_ids(self) -> frozenset[int]:
+        """Przelewy na/z oszczędności (`ledger.savings_transfer_ids`), do pierwszego zapisu.
+        Kosztowny `ledger._analyze` — wspólny dla dzwonka (karty Velobanku i promocji)."""
+        from budget import ledger  # import leniwy jak w piggy_ids (unika cyklu)
+
+        key = self.signature()
+        if key == self._savings_key:
+            return self._savings_ids
+        found = frozenset(ledger.savings_transfer_ids(self.conn))
+        if not self.conn.in_transaction:
+            self._savings_key, self._savings_ids = key, found
         return found

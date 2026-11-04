@@ -6,10 +6,12 @@ import sqlite3
 from collections.abc import Sequence
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
 
+from budget import ledger
 from budget.categorize.rules import Conditions
 from budget.recurring import series as S
 from budget.service import Service
@@ -108,3 +110,51 @@ async def test_pages_share_one_pass_over_the_ledger(
     for path in ("/", "/budget", "/recurring", "/inbox", "/", "/budget"):
         assert (await client.get(path)).status_code == 200
     assert len(computed) == 1, "każda strona liczy przynależność do serii od nowa"
+
+
+@pytest.fixture
+def analyzed(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """Liczba przebiegów `ledger._analyze` (źródło `savings_transfer_ids`)."""
+    calls: list[int] = []
+    real = ledger._analyze
+
+    def counting(*args: Any, **kwargs: Any) -> Any:
+        calls.append(1)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(ledger, "_analyze", counting)
+    return calls
+
+
+def test_savings_ids_reused_until_write(service: Service, analyzed: list[int]) -> None:
+    conn = service.conn
+    _seed(conn)
+    snap = Snapshot(conn)
+    before = len(analyzed)
+    first = snap.savings_ids()
+    assert snap.savings_ids() == first
+    assert len(analyzed) - before == 1
+
+    add(conn, "-43.00", "transfer_out", "Abonament", "Qwertyflix Sp", day="2026-10-02")
+    mid = len(analyzed)
+    snap.savings_ids()
+    assert len(analyzed) - mid == 1
+
+
+def test_savings_ids_not_cached_inside_transaction(service: Service, analyzed: list[int]) -> None:
+    conn = service.conn
+    _seed(conn)
+    snap = Snapshot(conn)
+    before = len(analyzed)
+    conn.execute("BEGIN")
+    add(conn, "-43.00", "transfer_out", "Abonament", "Qwertyflix Sp", day="2026-10-02")
+    snap.savings_ids()
+    snap.savings_ids()
+    conn.execute("ROLLBACK")
+    assert len(analyzed) - before == 2
+
+
+def test_savings_ids_match_ledger(service: Service) -> None:
+    conn = service.conn
+    _seed(conn)
+    assert Snapshot(conn).savings_ids() == frozenset(ledger.savings_transfer_ids(conn))

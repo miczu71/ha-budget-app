@@ -8,6 +8,7 @@ kont banku Velobank, konta docelowe z `savings`. Pieniądze jako `Decimal`.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -105,13 +106,16 @@ def _candidate(
     )
 
 
-def recommend(conn: sqlite3.Connection, today: date) -> Recommendation | None:
+def recommend(
+    conn: sqlite3.Connection, today: date, savings_ids: AbstractSet[int] | None = None
+) -> Recommendation | None:
     """Najlepsze konto docelowe w ostatnich 14 dniach promocji Velobanku; None, gdy edycja
-    wstrzymana, poza oknem, brak salda albo zysk < 1 zł."""
+    wstrzymana, poza oknem, brak salda albo zysk < 1 zł. `savings_ids` jak w `promo_track.tracks`.
+    """
     offer = promo_watch_velo.rates(conn)
     if offer is None:
         return None
-    edition = promo_track.active_for_bank(conn, VELO_NAME, today)
+    edition = promo_track.active_for_bank(conn, VELO_NAME, today, savings_ids)
     ends = edition.end if edition else offer.ends_by()
     if not 0 <= (ends - today).days <= WINDOW_DAYS:
         return None

@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from budget import card, inbox, invest, promo_track, summary
+from budget import card, inbox, invest, ledger, promo_track, summary
 from budget.piggy import PiggyError
 from budget.settings import Settings
 from budget.snapshot import Snapshot
@@ -337,3 +337,30 @@ def test_active_for_bank_skips_inactive_and_out_of_range(conn: sqlite3.Connectio
     _edition(conn, "Bank Millennium", "2026-10-25", "2027-01-31")  # jeszcze się nie zaczęła
     _edition(conn, "Bank Millennium", "2026-08-01", "2026-10-18")  # już się skończyła
     assert promo_track.active_for_bank(conn, "millennium", TODAY) is None
+
+
+def test_tracks_with_given_savings_match_computed(
+    conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    conn.execute(
+        "INSERT INTO savings_account (name, account_number, opening_date, created_at) "
+        "VALUES ('Konto X', '00123456789012345678901234', '2026-01-01', '2026-01-01T00:00:00')"
+    )
+    tid = promo_track.start(conn, offer(conn), TODAY)
+    promo_track.add_condition(conn, tid, "income", "Wpływy", "1000")
+    add(
+        conn,
+        "1200.00",
+        "transfer_in",
+        day="2026-10-25",
+        counterparty_account="PL00123456789012345678901234",
+    )
+    add(conn, "300.00", "transfer_in", day="2026-10-26")
+    ids = ledger.savings_transfer_ids(conn)
+    assert promo_track.tracks(conn, savings=ids) == promo_track.tracks(conn)
+
+    def boom(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError("savings_transfer_ids liczone mimo podanego savings")
+
+    monkeypatch.setattr(ledger, "savings_transfer_ids", boom)
+    promo_track.tracks(conn, savings=set())  # nie może sięgać do księgi
