@@ -220,3 +220,19 @@ def test_series_changes_match_for_db(service: Service) -> None:
         today,
         schedule.overrides_from_db(conn),
     )
+
+
+def test_series_changes_nonempty_and_ack_invalidates(service: Service) -> None:
+    conn = service.conn
+    _seed(conn)  # brak płatności za październik
+    today = date(2026, 10, 20)
+    snap = Snapshot(conn)
+    found = snap.series_changes(today)
+    assert [c.kind for c in found] == [changes.LATE]
+    changes.ack(conn, found[0].series.id, found[0].period, changes.LATE)
+    assert snap.series_changes(today) == ()  # decyzja (zapis) unieważnia pamięć
+
+
+def test_series_changes_without_active_series(service: Service, detected: list[int]) -> None:
+    assert Snapshot(service.conn).series_changes(date(2026, 10, 20)) == ()
+    assert detected == []
