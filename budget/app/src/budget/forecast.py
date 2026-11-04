@@ -32,7 +32,10 @@ from budget.storage import db
 ZERO = Decimal(0)
 EXTRA_MONTHS = 2  # ile następnych miesięcy sprawdzamy, gdy bieżący nie ma już wypłaty
 STALE_AFTER = timedelta(hours=24)
-LATE_INFLOW_GRACE = timedelta(days=7)  # spóźniony wpływ liczy się dziś tak długo po terminie
+# Spóźniony wpływ (status LATE zaczyna się po `schedule.WINDOW` dniach) liczy się dziś jeszcze
+# 2 dni dłużej, czyli do 7 dni po terminie; wyprowadzone z WINDOW, żeby zmiana jednego nie
+# przesuwała po cichu drugiego.
+LATE_INFLOW_GRACE = timedelta(days=schedule.WINDOW + 2)
 PAYDAY_KEY = "payday_series_id"  # kv: seria przychodów będąca wypłatą użytkownika (dzień resetu)
 CARD_DEBT_KEY = "forecast_card_debt"  # kv: czy odejmować zadłużenie karty (domyślnie tak)
 PERIOD_PLAN_KEY = "period_plan"  # kv: limit dzienny z początku okresu (M21 E4)
