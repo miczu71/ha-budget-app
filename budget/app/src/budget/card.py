@@ -238,7 +238,7 @@ class CardDue:
     available: Decimal | None  # ITAV (opóźnione — tylko do porównania)
     limit: Decimal | None
     today: date
-    unbooked: Decimal = money.ZERO  # część ITBD bez księgowania (autoryzacje) — nie z wyciągu
+    unbooked: Decimal  # część ITBD bez księgowania (autoryzacje) — nie z wyciągu
 
     @property
     def days_left(self) -> int:

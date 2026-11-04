@@ -21,11 +21,12 @@ import json
 import re
 import sqlite3
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from operator import itemgetter
 from typing import Any
 
 from budget import card, csv_import, money
@@ -951,7 +952,7 @@ def check_balances(conn: sqlite3.Connection) -> list[BalanceCheck]:
         elif len(known_sums) >= 2:
             base_at = bases.get(account_id)
             if base_at is not None:
-                known_sums = [k for k in known_sums if k[0] >= base_at] or known_sums[-1:]
+                known_sums = _since_base(known_sums, base_at, itemgetter(0))
                 check.base_at = base_at
             sign = -1 if acc["kind"] == "card" else 1
             first_at, first_bank, first_known = known_sums[0]
@@ -971,6 +972,13 @@ def check_balances(conn: sqlite3.Connection) -> list[BalanceCheck]:
             check.note = "brak salda otwarcia i < 2 migawek — kontrola przy kolejnym pobraniu"
         out.append(check)
     return out
+
+
+def _since_base[T](rows: list[T], base_at: str | None, at: Callable[[T], str]) -> list[T]:
+    """Migawki od bazy kontroli (`reconcile_base`); gdy żadna nie jest tak świeża — ostatnia."""
+    if base_at is None:
+        return rows
+    return [r for r in rows if at(r) >= base_at] or rows[-1:]
 
 
 def _snapshot_sums(
@@ -1019,16 +1027,16 @@ def card_unbooked(conn: sqlite3.Connection, account_id: int) -> Decimal:
         "AND balance_type = 'ITBD' ORDER BY fetched_at",
         (account_id,),
     ).fetchall()
-    sums = _snapshot_sums(conn, account_id, snapshots, is_card=True)
-    if len(sums) < 2:
+    if len(snapshots) < 2:
         return money.ZERO
     base = conn.execute(
         "SELECT snapshot_at FROM reconcile_base WHERE account_id = ?", (account_id,)
     ).fetchone()
-    if base is not None:
-        sums = [s for s in sums if s[0] >= str(base["snapshot_at"])] or sums[-1:]
-    _, first_bank, first_known = sums[0]
-    _, last_bank, last_known = sums[-1]
+    window = _since_base(snapshots, base["snapshot_at"] if base else None, itemgetter("fetched_at"))
+    # liczy się tylko pierwsza i ostatnia migawka okna — suma księgi to pełny skan transakcji
+    (_, first_bank, first_known), (_, last_bank, last_known) = _snapshot_sums(
+        conn, account_id, [window[0], window[-1]], is_card=True
+    )
     return max((last_bank - first_bank) + (last_known - first_known), money.ZERO)
 
 
