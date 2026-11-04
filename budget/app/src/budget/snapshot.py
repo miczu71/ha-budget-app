@@ -96,17 +96,13 @@ class Snapshot:
         if key == self._changes_key:
             return self._changes
         active = series.all_series(self.conn, ("active",))
-        found = tuple(
-            changes.detect(
-                active,
-                self.members(),
+        found: tuple[Change, ...] = ()
+        if active:
+            acks, overrides = (
                 schedule.acks_from_db(self.conn),
-                today,
                 schedule.overrides_from_db(self.conn),
             )
-            if active
-            else ()
-        )
+            found = tuple(changes.detect(active, self.members(), acks, today, overrides))
         if not self.conn.in_transaction:
             self._changes_key, self._changes = key, found
         return found
