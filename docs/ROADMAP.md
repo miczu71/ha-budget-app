@@ -56,6 +56,7 @@ jawne „go” przed następnym).
 | M33 | **Okres od wypłaty i nieregularne w puli** — dzień wypłaty otwiera nowy okres ([wypłata, następna wypłata), r/r liczone tak samo), nieregularne zmniejszają „Zostało” faktycznie wydaną kwotą (`FlexMonth.charged`, zwrot netto nie powiększa puli, brak uzupełniasz sam z oszczędności), kafelek „Akcje” bez niezawiązanych | wywiad 2026-10-28 (`ROADMAP_M33.md`, decyzje 32–33); E1–E3 + wydanie 0.67.0 na żywo 2026-10-28 (hero 1 340,83 zł, `flex_remaining` 551,88 zł) |
 | M34 | **Hero „ponad zaplanowane” + kafelek Akcje bez dopisków** — linia `fc.at_payday` w hero Do wypłaty, kafelek Akcje tylko z kwotą | rozmowa 2026-10-28 (`PLAN_M34_akcje_hero.md`); 0.68.0 |
 | M35 | **Poza planem (2026-11-03):** prognoza liczy wpływ z terminem dziś i spóźniony do 7 dni (okno 5 dni po terminie) | 0.72.1 (CHANGELOG); refaktor karencji `fa5ff0a` bez wydania |
+| M36 | **Poza planem (2026-11-04):** karta — „do spłaty” nie liczy autoryzacji bez księgowania (`PLAN_M36_card_unbooked.md`) | 0.73.2 (CHANGELOG) |
 
 Mapowanie starego planu (SPEC §10) na nowy: storage+dedup → M2; sync_service, panel, pakowanie,
 HA publisher (podstawy) → M3; kategoryzacja → M4/M7; `budget_engine` → M5; import CSV → M2;

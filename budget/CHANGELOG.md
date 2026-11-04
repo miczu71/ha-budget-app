@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.73.2
+
+**Karta: „do spłaty” nie liczy zakupów, których bank jeszcze nie zaksięgował (M36).**
+- Zadłużenie z banku zawiera autoryzacje bez księgowania; panel pokazywał je w całości jako dług z zamkniętego
+  cyklu, choć trafią na kolejny wyciąg (regulamin: wyciąg obejmuje kwoty zaksięgowane w cyklu). Teraz
+  `Do spłaty` odejmuje świeży przyrost zadłużenia, którego nie ma w księdze (`ledger.card_unbooked`).
+- Różnica starsza niż 3 dni (np. brakująca opłata) zostaje w kwocie jak dawniej. Ekran Karta mówi, ile
+  odjęto; kwota jest szacunkiem i może różnić się od aplikacji banku.
+
 ## 0.73.1
 
 **Szybsza strona główna (M14)** — dzwonek nie przelicza już zmian płatności cyklicznych przy każdym wejściu.
