@@ -10,9 +10,10 @@ API ma tylko datę księgowania (zakup zwykle 2 dni wcześniej), a cennik nie m�
 bank bierze — liczba to mniejsza z dwóch: po dacie księgowania i po dacie księgowania − 2 dni.
 
 Spłata (E4): cykl = miesiąc kalendarzowy, termin spłaty `DUE_DAY` następnego miesiąca. Kwoty
-wyciągu API nie podaje, więc zostało do spłaty = ITBD (zadłużenie teraz) − obciążenia karty
-zaksięgowane w bieżącym cyklu; obciążenia z pierwszych `BOOKING_LAG` dni cyklu liczą się do
-wyciągu. Błąd zawsze w górę (także autoryzacje w ITBD spoza księgi).
+wyciągu API nie podaje, więc zostało do spłaty = ITBD (zadłużenie teraz) − autoryzacje bez
+księgowania (`ledger.card_unbooked`; regulamin: wyciąg obejmuje kwoty zaksięgowane w cyklu, a
+zakup do rozliczenia tylko blokuje limit) − obciążenia karty zaksięgowane w bieżącym cyklu;
+obciążenia z pierwszych `BOOKING_LAG` dni cyklu liczą się do wyciągu. Błąd w górę.
 """
 
 from __future__ import annotations
@@ -237,6 +238,7 @@ class CardDue:
     available: Decimal | None  # ITAV (opóźnione — tylko do porównania)
     limit: Decimal | None
     today: date
+    unbooked: Decimal = money.ZERO  # część ITBD bez księgowania (autoryzacje) — nie z wyciągu
 
     @property
     def days_left(self) -> int:
@@ -338,13 +340,15 @@ def due_status(conn: sqlite3.Connection, today: date) -> CardDue | None:
         )
     )
     debt = max(snaps["ITBD"], money.ZERO)
+    unbooked = min(ledger.card_unbooked(conn, account), debt)
     return CardDue(
-        left=max(debt + new, money.ZERO),  # `new` ujemne
+        left=max(debt - unbooked + new, money.ZERO),  # `new` ujemne
         due=start.replace(day=DUE_DAY),
         debt=debt,
         available=snaps.get("ITAV"),
         limit=get_limit(conn),
         today=today,
+        unbooked=unbooked,
     )
 
 

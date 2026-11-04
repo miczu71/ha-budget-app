@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -508,6 +509,90 @@ def test_card_check_base_snapshot(conn: sqlite3.Connection, accounts: tuple[int,
     assert check.status == "OK" and check.base_at == "2026-10-06T19:30:30+00:00"
     _itbd(conn, card, "377.67", "2026-10-07T19:30:30+00:00")
     assert _card_check(conn, card).status == "OK"
+
+
+def _closed_october(conn: sqlite3.Connection, card_id: int) -> None:
+    """Zakup 5.10 (−300) spłacony 20.10 — cykl październikowy do zera."""
+    api(
+        conn,
+        card_id,
+        [tx("C1", "2026-10-05", "-300.00", "SKLEP")],
+        card=True,
+        at="2026-10-06T07:00:00+00:00",
+    )
+    _itbd(conn, card_id, "300.00", "2026-10-06T07:00:30+00:00")
+    api(
+        conn,
+        card_id,
+        [tx("C2", "2026-10-20", "300.00", "SPLATA")],
+        card=True,
+        at="2026-10-20T07:00:00+00:00",
+    )
+    _itbd(conn, card_id, "0.00", "2026-10-20T07:00:30+00:00")
+
+
+def test_card_unbooked_authorizations_are_not_cycle_debt(
+    conn: sqlite3.Connection, accounts: tuple[int, int]
+) -> None:
+    """ITBD rośnie o listopadowe autoryzacje, których bank jeszcze nie zaksięgował — to nie
+    jest dług zamkniętego (październikowego) cyklu, tylko wyciągu z 20.12."""
+    _, card_id = accounts
+    _closed_october(conn, card_id)
+    _itbd(conn, card_id, "1969.65", "2026-11-04T21:30:00+00:00")
+    assert ledger.card_unbooked(conn, card_id) == Decimal("1969.65")
+    cd = card.due_status(conn, date(2026, 11, 4))
+    assert cd is not None and cd.left == 0 and cd.debt == Decimal("1969.65")
+    assert cd.unbooked == Decimal("1969.65")
+
+
+def test_card_unbooked_shrinks_when_booked_and_cycle_debt_stays(
+    conn: sqlite3.Connection, accounts: tuple[int, int]
+) -> None:
+    _, card_id = accounts
+    _closed_october(conn, card_id)
+    # część autoryzacji zaksięgowana 5.11, reszta dalej czeka; w ITBD nadal 1969,65
+    api(
+        conn,
+        card_id,
+        [tx("C3", "2026-11-05", "-500.00", "SKLEP")],
+        card=True,
+        at="2026-11-05T07:00:00+00:00",
+    )
+    _itbd(conn, card_id, "1969.65", "2026-11-05T07:00:30+00:00")
+    assert ledger.card_unbooked(conn, card_id) == Decimal("1469.65")
+    cd = card.due_status(conn, date(2026, 11, 6))
+    assert cd is not None and cd.left == 0
+    # niespłacony zakup z października dalej liczy się do wyciągu
+    api(
+        conn,
+        card_id,
+        [tx("C4", "2026-10-25", "-80.00", "SKLEP")],
+        card=True,
+        at="2026-11-06T07:00:00+00:00",
+    )
+    _itbd(conn, card_id, "2049.65", "2026-11-06T07:00:30+00:00")
+    cd = card.due_status(conn, date(2026, 11, 6))
+    assert cd is not None and cd.left == Decimal("80.00")
+
+
+def test_card_unbooked_zero_without_history_or_when_bank_below_ledger(
+    conn: sqlite3.Connection, accounts: tuple[int, int]
+) -> None:
+    _, card_id = accounts
+    _itbd(conn, card_id, "125.00", "2026-10-12T10:00:00+00:00")  # jedna migawka: brak odniesienia
+    assert ledger.card_unbooked(conn, card_id) == 0
+    cd = card.due_status(conn, date(2026, 10, 12))
+    assert cd is not None and cd.left == Decimal("125.00") and cd.unbooked == 0
+    # bank ma mniej niż księga (np. zwrot tylko w księdze) → nie zaniżamy kwoty
+    _itbd(conn, card_id, "100.00", "2026-10-13T10:00:00+00:00")
+    api(
+        conn,
+        card_id,
+        [tx("C5", "2026-10-13", "-40.00", "SKLEP")],
+        card=True,
+        at="2026-10-13T09:00:00+00:00",
+    )
+    assert ledger.card_unbooked(conn, card_id) == 0
 
 
 def test_card_overpayment_refund_reconciles(

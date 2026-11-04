@@ -944,29 +944,7 @@ def check_balances(conn: sqlite3.Connection) -> list[BalanceCheck]:
             "AND balance_type = 'ITBD' ORDER BY fetched_at",
             (account_id,),
         ).fetchall()
-        limit = card.get_limit(conn) if acc["kind"] == "card" else None
-        available = (  # nadpłata karty (ITBD = 0) widoczna tylko w ITAV z tego samego pobrania
-            {
-                r["fetched_at"]: Decimal(r["amount"])
-                for r in conn.execute(
-                    "SELECT amount, fetched_at FROM balance_snapshot "
-                    "WHERE account_id = ? AND balance_type = 'ITAV'",
-                    (account_id,),
-                )
-            }
-            if limit
-            else {}
-        )
-        known_sums = [
-            (
-                s["fetched_at"],
-                card.debt_from(Decimal(s["amount"]), available.get(s["fetched_at"]), limit)
-                if limit
-                else Decimal(s["amount"]),
-                _known_sum(conn, account_id, s["fetched_at"]),
-            )
-            for s in snapshots
-        ]
+        known_sums = _snapshot_sums(conn, account_id, snapshots, is_card=acc["kind"] == "card")
         if opening is not None:
             for at, bank, known in known_sums:
                 check.snapshot_checks.append((at, bank, opening[1] + known))
@@ -993,6 +971,65 @@ def check_balances(conn: sqlite3.Connection) -> list[BalanceCheck]:
             check.note = "brak salda otwarcia i < 2 migawek — kontrola przy kolejnym pobraniu"
         out.append(check)
     return out
+
+
+def _snapshot_sums(
+    conn: sqlite3.Connection,
+    account_id: int,
+    snapshots: list[sqlite3.Row],
+    *,
+    is_card: bool,
+) -> list[tuple[str, Decimal, Decimal]]:
+    """(chwila migawki, saldo banku, suma księgi znana w tej chwili) dla każdej migawki ITBD."""
+    limit = card.get_limit(conn) if is_card else None
+    available = (  # nadpłata karty (ITBD = 0) widoczna tylko w ITAV z tego samego pobrania
+        {
+            r["fetched_at"]: Decimal(r["amount"])
+            for r in conn.execute(
+                "SELECT amount, fetched_at FROM balance_snapshot "
+                "WHERE account_id = ? AND balance_type = 'ITAV'",
+                (account_id,),
+            )
+        }
+        if limit
+        else {}
+    )
+    return [
+        (
+            s["fetched_at"],
+            card.debt_from(Decimal(s["amount"]), available.get(s["fetched_at"]), limit)
+            if limit
+            else Decimal(s["amount"]),
+            _known_sum(conn, account_id, s["fetched_at"]),
+        )
+        for s in snapshots
+    ]
+
+
+def card_unbooked(conn: sqlite3.Connection, account_id: int) -> Decimal:
+    """Część zadłużenia karty (ITBD), której nie ma w księdze: autoryzacje bez księgowania.
+
+    Ta sama różnica, którą pokazuje kontrola salda (zmiana zadłużenia w banku − zmiana księgi
+    od migawki bazowej), tylko jako kwota ≥ 0. Bez dwóch migawek zwraca 0. Błędy wychodzą
+    ostrożnie: autoryzacja z migawki bazowej, księgowana później, albo transakcja tylko w księdze
+    zmniejszają wynik, więc „do spłaty” może wyjść za wysokie, ale nie za niskie.
+    """
+    snapshots = conn.execute(
+        "SELECT amount, fetched_at FROM balance_snapshot WHERE account_id = ? "
+        "AND balance_type = 'ITBD' ORDER BY fetched_at",
+        (account_id,),
+    ).fetchall()
+    sums = _snapshot_sums(conn, account_id, snapshots, is_card=True)
+    if len(sums) < 2:
+        return money.ZERO
+    base = conn.execute(
+        "SELECT snapshot_at FROM reconcile_base WHERE account_id = ?", (account_id,)
+    ).fetchone()
+    if base is not None:
+        sums = [s for s in sums if s[0] >= str(base["snapshot_at"])] or sums[-1:]
+    _, first_bank, first_known = sums[0]
+    _, last_bank, last_known = sums[-1]
+    return max((last_bank - first_bank) + (last_known - first_known), money.ZERO)
 
 
 def latest_balances(conn: sqlite3.Connection, account_id: int) -> dict[str, sqlite3.Row]:

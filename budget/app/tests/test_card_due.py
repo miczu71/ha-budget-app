@@ -60,12 +60,16 @@ def test_cycle_boundary_counts_toward_statement(conn: sqlite3.Connection) -> Non
     assert cd is not None and cd.left == Decimal("360.00")
 
 
-def test_paid_off_and_overdue(conn: sqlite3.Connection) -> None:
+def test_paid_off(conn: sqlite3.Connection) -> None:
     buy(conn, "2026-10-05", amount="-40.00")
     debt(conn, "40.00")
     paid = card.due_status(conn, date(2026, 10, 25))
     assert paid is not None and paid.left == 0 and not paid.overdue
-    snapshot(conn, CARD, "ITBD", "100.00", "2026-10-25T10:00:00+00:00")  # liczy się najnowsza
+
+
+def test_overdue_after_due_day(conn: sqlite3.Connection) -> None:
+    buy(conn, "2026-10-05", amount="-40.00")
+    debt(conn, "100.00")  # wyciąg 60 niespłacone + 40 z bieżącego cyklu
     late = card.due_status(conn, date(2026, 10, 25))
     assert late is not None and late.left == Decimal("60.00") and late.overdue
 
@@ -165,6 +169,23 @@ async def test_card_screen_and_limit(service: Service, monkeypatch: pytest.Monke
     assert bad.status_code in (302, 303) and card.get_limit(c) == Decimal("1000.00")
     assert "Wykorzystanie" in limited and "30%" in limited and "width: 30%" in limited
     assert "Do spłaty" in home and "do 20.10" in home and "warn-text" in home
+
+
+async def test_card_screen_explains_unbooked(
+    service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    c = service.conn
+    c.execute(
+        "INSERT INTO account (id, kind, currency, created_at) VALUES (2, 'card', 'PLN', ?)",
+        (now_iso(),),
+    )
+    monkeypatch.setattr(service, "now", lambda: datetime(2026, 11, 4, 12, 0, tzinfo=WAW))
+    snapshot(c, CARD, "ITBD", "0.00", "2026-10-20T10:00:00+00:00")
+    snapshot(c, CARD, "ITBD", "500.00", "2026-11-04T10:00:00+00:00")  # autoryzacje z listopada
+    async with _client(service) as client:
+        page = (await client.get("/card")).text
+    assert "Spłacone" in page and "500,00" in page
+    assert "zakupów, których bank jeszcze nie zaksięgował" in page
 
 
 def limit_items(c: sqlite3.Connection) -> list[inbox.Item]:

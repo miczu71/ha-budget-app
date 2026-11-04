@@ -30,7 +30,7 @@
     <div class="hero-amount">{% if not cd.left %}Spłacone{% else %}{{ cd.left | money("PLN") }}{% endif %}</div>
     <p class="muted">{% if cd.overdue %}Termin minął {{ cd.due.strftime('%d.%m') }} — tyle zostało z zamkniętego cyklu; spłać, żeby ograniczyć odsetki.{% elif cd.left %}Tyle zostało do spłaty z zamkniętego cyklu, żeby nie zapłacić odsetek.{% else %}Zamknięty cykl jest spłacony — do {{ cd.due.strftime('%d.%m') }} nic więcej nie trzeba.{% endif %}</p>
   </div>
-  <p class="small muted">Liczone ostrożnie: zadłużenie z banku minus zakupy zaksięgowane w tym cyklu (bez pierwszych 2 dni) — może wyjść nieco więcej niż w aplikacji banku, nigdy mniej.</p>
+  <p class="small muted">Liczone ostrożnie: zadłużenie z banku minus zakupy zaksięgowane w tym cyklu (bez pierwszych 2 dni){% if cd.unbooked %} i minus {{ cd.unbooked | money("PLN") }} zakupów, których bank jeszcze nie zaksięgował (wejdą na następny wyciąg){% endif %} — może wyjść nieco więcej niż w aplikacji banku.</p>
 </section>
 <section class="card card-limit">
   <h2>Limit</h2>
