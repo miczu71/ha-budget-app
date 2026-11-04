@@ -67,3 +67,22 @@ Rollback wydania: `ha_manage_updates` nie cofa wersji, więc cofam przez `git re
   `/` < 600, `/inbox` < 600 ms), konsola bez błędów. Karty dzwonka te same co przed wydaniem (porównanie listy tytułów
   z pomiaru E3). Logi add-onu bez błędów (`haiku-scout`).
 - Wynik i tabela przed/po w `ROADMAP_M14_dzwonek.md` + wiersz M14 w `ROADMAP.md` ze statusem ✅, gdy progi są spełnione.
+
+## Wynik E3+E4 (2026-11-04, produkcja 0.73.0, `Server-Timing`, mediana z 5 ciepłych żądań)
+
+| Miara | Przed (0.72.1) | Po (0.73.0) | Próg | |
+|---|---|---|---|---|
+| dzwonek (`inbox`) | ~1170 ms | **~140 ms** | < 150 | ✓ |
+| `/status` | ~1350 ms | **303 ms** | < 400 | ✓ |
+| `/inbox` | ~2300 ms | **282 ms** | < 600 | ✓ |
+| `/` | ~1640 ms | **615 ms** | < 600 | ✗ (o ~15 ms) |
+
+- `p_rotation_card` 510 → 5 ms, `p_promo_track_due` 510 → 5 ms (na `/inbox` ~10 ms): przyczyna potwierdzona
+  (wspólny `_analyze` przez `savings_transfer_ids`). Pierwsze żądanie po starcie add-onu jest zimne (`/status` 1561 ms), kolejne z pamięci.
+- Zostało na dzwonku `p_series_changes` ~75 ms (150 ms na `/inbox`), na `/` `h_flex` ~124 ms, `h_networth` ~53 ms, `h_forecast` ~55 ms.
+- Karty dzwonka bez zmian, panel renderuje się (zrzut), konsola 0 błędów, wersja 0.73.0 zgodna z tagiem.
+- **Otwarte: E5a** — `/` o ~15 ms ponad próg; najtańsze kroki: `p_series_changes` (75 ms, liczone też w dzwonku) albo `h_flex`
+  (124 ms). Zaczyna się od profilu tych dwóch na kopii z dosianymi danymi, potem plan etapu i wydanie 0.73.1 (osobny pomiar).
+- Nieblokujące z przeglądów: `summary.py:294,350`, `routes_invest.py:57,77`, `routes_piggy.py:35,41` nadal liczą `_analyze` od zera
+  (rozwiązanie ogólne: memo w `ledger.savings_transfer_ids`); `rotation_card` liczy `savings_ids()` także bez oferty Velo (bez regresu —
+  `tracks()` robił to w 0.72.1 i tak); szablon memo w `Snapshot` powtórzony 4× (helper przy następnym memo).
