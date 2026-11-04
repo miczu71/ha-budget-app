@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.73.1
+
+**Szybsza strona główna (M14)** — dzwonek nie przelicza już zmian płatności cyklicznych przy każdym wejściu.
+- Karty „inna kwota / spóźniona / ustała” liczyły się od zera na każdej stronie (~75 ms). Teraz wynik jest
+  zapamiętany do pierwszego zapisu w bazie lub zmiany dnia (`Snapshot.series_changes`). Treść kart się nie zmienia.
+
 ## 0.73.0
 
 **Szybszy panel (M14)** — dzwonek nie liczy już całej księgi przy każdym wejściu na stronę.
