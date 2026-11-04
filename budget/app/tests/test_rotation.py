@@ -5,7 +5,6 @@ from __future__ import annotations
 import sqlite3
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -319,26 +318,15 @@ def test_recommend_with_given_savings_matches_computed(setup: sqlite3.Connection
     assert rotation.recommend(setup, TODAY, savings_ids=ids) == rotation.recommend(setup, TODAY)
 
 
-def test_bell_cards_share_one_analysis(
-    setup: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_bell_cards_share_one_analysis(setup: sqlite3.Connection, analyzed: list[int]) -> None:
     promo_track.start_edition(
         setup, "VeloBank", "Edycja X", date(2027, 1, 15), date(2027, 2, 12), 5
     )
-    calls: list[int] = []
-    real = ledger._analyze
-
-    def counting(*args: Any, **kwargs: Any) -> Any:
-        calls.append(1)
-        return real(*args, **kwargs)
-
-    monkeypatch.setattr(ledger, "_analyze", counting)
     ctx = inbox.Context(datetime(2027, 2, 5, 8, tzinfo=WAW), Snapshot(setup))
     memo = inbox.BalanceMemo()
     assert inbox.rotation_card(setup, ctx, memo)
     inbox.promo_track_due(setup, ctx, memo)
-    assert len(calls) <= 1
-    first = len(calls)
+    assert len(analyzed) == 1
     inbox.rotation_card(setup, ctx, memo)
     inbox.promo_track_due(setup, ctx, memo)
-    assert len(calls) == first
+    assert len(analyzed) == 1

@@ -225,18 +225,18 @@ def tracks(
     *,
     status: str | None = None,
     today: date | None = None,
-    savings: AbstractSet[int] | None = None,
+    savings_ids: AbstractSet[int] | None = None,
 ) -> list[Track]:
     """Śledzenia od najbliższego końca; `status` None = wszystkie.
 
     `today` wyznacza miesiąc liczników miesięcznych (domyślnie dzień systemowy).
-    `savings` to gotowe `ledger.savings_transfer_ids` (np. z `Snapshot`); None = policz."""
+    `savings_ids` to gotowe `ledger.savings_transfer_ids` (np. z `Snapshot`); None = policz."""
     today = today or date.today()
     where, args = ("WHERE status = ?", (status,)) if status else ("", ())
-    if savings is None:  # raz na wywołanie, nie na każdy warunek
-        savings = ledger.savings_transfer_ids(conn)
+    if savings_ids is None:  # raz na wywołanie, nie na każdy warunek
+        savings_ids = ledger.savings_transfer_ids(conn)
     return [
-        _track(conn, t, today, savings)
+        _track(conn, t, today, savings_ids)
         for t in conn.execute(
             f"SELECT * FROM promo_track {where} ORDER BY end_date, id", args
         ).fetchall()
@@ -247,10 +247,10 @@ def active_for_bank(
     conn: sqlite3.Connection,
     bank_like: str,
     today: date,
-    savings: AbstractSet[int] | None = None,
+    savings_ids: AbstractSet[int] | None = None,
 ) -> Track | None:
     """Aktywna edycja banku, którego nazwa zawiera `bank_like` (bez wielkości liter), z `today`
-    w okresie; przy kilku ta o najpóźniejszym końcu. `savings` jak w `tracks`."""
+    w okresie; przy kilku ta o najpóźniejszym końcu. `savings_ids` jak w `tracks`."""
     row = conn.execute(
         "SELECT * FROM promo_track WHERE status = 'active' AND instr(lower(bank), lower(?)) > 0 "
         "AND start_date <= ? AND end_date >= ? ORDER BY end_date DESC, id DESC LIMIT 1",
@@ -258,9 +258,12 @@ def active_for_bank(
     ).fetchone()
     if row is None:
         return None
-    if savings is None:
-        savings = ledger.savings_transfer_ids(conn)
-    return _track(conn, row, today, savings)
+    return _track(
+        conn,
+        row,
+        today,
+        ledger.savings_transfer_ids(conn) if savings_ids is None else savings_ids,
+    )
 
 
 def start(conn: sqlite3.Connection, offer_id: int, today: date) -> int:

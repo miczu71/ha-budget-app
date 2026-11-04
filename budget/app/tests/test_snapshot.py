@@ -6,7 +6,6 @@ import sqlite3
 from collections.abc import Sequence
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
 
 import httpx
 import pytest
@@ -110,20 +109,6 @@ async def test_pages_share_one_pass_over_the_ledger(
     for path in ("/", "/budget", "/recurring", "/inbox", "/", "/budget"):
         assert (await client.get(path)).status_code == 200
     assert len(computed) == 1, "każda strona liczy przynależność do serii od nowa"
-
-
-@pytest.fixture
-def analyzed(monkeypatch: pytest.MonkeyPatch) -> list[int]:
-    """Liczba przebiegów `ledger._analyze` (źródło `savings_transfer_ids`)."""
-    calls: list[int] = []
-    real = ledger._analyze
-
-    def counting(*args: Any, **kwargs: Any) -> Any:
-        calls.append(1)
-        return real(*args, **kwargs)
-
-    monkeypatch.setattr(ledger, "_analyze", counting)
-    return calls
 
 
 def test_savings_ids_reused_until_write(service: Service, analyzed: list[int]) -> None:

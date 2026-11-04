@@ -595,8 +595,9 @@ def cashless_card(t: promo_track.Track, counter: promo_track.Condition, today: d
 def promo_track_due(conn: sqlite3.Connection, ctx: Context, memo: BalanceMemo) -> list[Item]:
     """Promocja w toku: warunki spełnione (odbierz premię) albo koniec blisko lub minął (M22 E5)."""
     out = []
-    savings = ctx.snap.savings_ids()
-    for t in promo_track.tracks(conn, status="active", today=ctx.today, savings=savings):
+    for t in promo_track.tracks(
+        conn, status="active", today=ctx.today, savings_ids=ctx.snap.savings_ids()
+    ):
         days = t.days_left(ctx.today)
         counter = t.cashless
         if counter and days >= 0:  # edycja z licznikiem miesięcznym (M32 E2): „zrób jeszcze N”

@@ -357,10 +357,10 @@ def test_tracks_with_given_savings_match_computed(
     )
     add(conn, "300.00", "transfer_in", day="2026-10-26")
     ids = ledger.savings_transfer_ids(conn)
-    assert promo_track.tracks(conn, savings=ids) == promo_track.tracks(conn)
+    assert promo_track.tracks(conn, savings_ids=ids) == promo_track.tracks(conn)
 
     def boom(*_args: Any, **_kwargs: Any) -> None:
         raise AssertionError("savings_transfer_ids liczone mimo podanego savings")
 
     monkeypatch.setattr(ledger, "savings_transfer_ids", boom)
-    promo_track.tracks(conn, savings=set())  # nie może sięgać do księgi
+    promo_track.tracks(conn, savings_ids=set())  # nie może sięgać do księgi

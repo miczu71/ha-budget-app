@@ -1,10 +1,12 @@
 from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from budget import ledger
 from budget.eb_client import EBClient
 
 BASE = "https://eb.test"
@@ -41,3 +43,17 @@ def clock() -> FakeClock:
 async def eb(private_pem: bytes, clock: FakeClock) -> AsyncIterator[EBClient]:
     async with httpx.AsyncClient() as http:
         yield EBClient("app-kid-1", private_pem, base_url=BASE, http=http, clock=clock)
+
+
+@pytest.fixture
+def analyzed(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """Liczba przebiegów `ledger._analyze` (źródło `savings_transfer_ids`)."""
+    calls: list[int] = []
+    real = ledger._analyze
+
+    def counting(*args: Any, **kwargs: Any) -> Any:
+        calls.append(1)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(ledger, "_analyze", counting)
+    return calls
