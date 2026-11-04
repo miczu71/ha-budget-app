@@ -126,6 +126,22 @@ def test_savings_ids_reused_until_write(service: Service, analyzed: list[int]) -
     assert len(analyzed) - mid == 1
 
 
+def test_savings_ids_other_connection_write_invalidates(
+    tmp_path: Path, analyzed: list[int]
+) -> None:
+    path = tmp_path / "ledger.db"
+    one, two = db.connect(path), db.connect(path)
+    _seed(one)
+    snap = Snapshot(one)
+    snap.savings_ids()
+    before = len(analyzed)
+    snap.savings_ids()
+    assert len(analyzed) == before  # bez zapisu: z pamięci
+    add(two, "-43.00", "transfer_out", "Abonament", "Qwertyflix Sp", day="2026-10-02")
+    snap.savings_ids()
+    assert len(analyzed) == before + 1  # zapis z innego połączenia (data_version) unieważnia
+
+
 def test_savings_ids_not_cached_inside_transaction(service: Service, analyzed: list[int]) -> None:
     conn = service.conn
     _seed(conn)
