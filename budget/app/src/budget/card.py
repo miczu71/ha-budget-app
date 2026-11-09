@@ -30,6 +30,8 @@ from budget.kinds import Kind
 from budget.spending import add_months, month_start
 from budget.storage.db import kv_get, kv_set, now_iso
 
+_TZ = ZoneInfo("Europe/Warsaw")  # granica cyklu rozliczeniowego karty
+
 THRESHOLD = 5
 BOOKING_LAG = timedelta(days=2)
 REMIND_DAYS = (5, 1)  # przypomnienie na telefon tyle dni przed ostatnim dniem miesiąca
@@ -333,7 +335,7 @@ def due_status(conn: sqlite3.Connection, today: date) -> CardDue | None:
     if "ITBD" not in snaps:
         return None
     start = month_start(today)
-    cycle_start = datetime.combine(start, datetime.min.time(), tzinfo=ZoneInfo("Europe/Warsaw"))
+    cycle_start = datetime.combine(start, datetime.min.time(), tzinfo=_TZ)
     new = money.total(
         r[0]
         for r in conn.execute(
