@@ -286,6 +286,7 @@ async def test_forecast_card_debt_switch_swaps_body_and_summary_only(
     page = (await client.get("/")).text
     form = page.split("/forecast/card-debt", 1)[1].split(">", 1)[0]
     assert 'hx-target="#payday-hero"' in form and 'hx-select="#payday-hero"' in form
+    assert all(f'id="{i}"' in page for i in ("payday-hero", "fc-body", "fc-sum"))  # cele OOB
     assert 'hx-select-oob="#fc-body,#fc-sum"' in form  # <details> zostaje: rozwinięcie przeżywa
 
 

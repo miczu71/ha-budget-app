@@ -729,3 +729,15 @@ def test_card_unbooked_keeps_authorization_waiting_longer_than_transit_window(
     )  # 5 dni później, nadal niezaksięgowana
     cd = card.due_status(conn, date(2026, 11, 9))
     assert cd is not None and cd.unbooked == Decimal("100.00") and cd.left == 0
+
+
+def test_card_unbooked_snapshot_at_cycle_start_belongs_to_the_cycle(
+    conn: sqlite3.Connection, accounts: tuple[int, int]
+) -> None:
+    """Granica cyklu w strefie lokalnej: migawka 31.10 22:59 UTC (23:59 CET) jest jeszcze sprzed
+    cyklu, więc jej różnica (40) zostaje w „do spłaty”, a przyrost do 140 jest autoryzacją."""
+    _, card_id = accounts
+    _closed_october(conn, card_id)
+    _itbd(conn, card_id, "40.00", "2026-10-31T22:59:00+00:00")
+    _itbd(conn, card_id, "140.00", "2026-11-04T21:30:00+00:00")
+    assert ledger.card_unbooked(conn, card_id, CYCLE_START) == Decimal("100.00")

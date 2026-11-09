@@ -14,7 +14,8 @@ wyciągu API nie podaje, więc zostało do spłaty = ITBD (zadłużenie teraz) �
 księgowania (`ledger.card_unbooked`; regulamin: wyciąg obejmuje kwoty zaksięgowane w cyklu, a
 zakup do rozliczenia tylko blokuje limit) − obciążenia karty zaksięgowane w bieżącym cyklu;
 obciążenia z pierwszych `BOOKING_LAG` dni cyklu liczą się do wyciągu. Zwykle
-błąd w górę; w dół tylko przy świeżej, niewyjaśnionej różnicy.
+błąd w górę; w dół tylko gdy niewyjaśniona różnica powstała w bieżącym cyklu (albo brak migawki
+sprzed cyklu), bo cała taka różnica jest traktowana jak autoryzacja.
 """
 
 from __future__ import annotations
