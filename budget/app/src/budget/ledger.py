@@ -1014,16 +1014,16 @@ def _snapshot_sums(
     ]
 
 
-def card_unbooked(conn: sqlite3.Connection, account_id: int) -> Decimal:
+def card_unbooked(conn: sqlite3.Connection, account_id: int, cycle_start: datetime) -> Decimal:
     """Część zadłużenia karty (ITBD), której nie ma w księdze: autoryzacje bez księgowania.
 
     Ta sama różnica, którą pokazuje kontrola salda (zmiana zadłużenia w banku − zmiana księgi
     od migawki bazowej), tylko jako kwota ≥ 0. Bez dwóch migawek zwraca 0.
 
-    Autoryzacja księguje się w ciągu dni, więc liczy się tylko przyrost różnicy z ostatnich
-    `IN_TRANSIT_DAYS`: różnica starsza (brakująca w księdze opłata, odsetki, zaległy import)
-    zostaje w „do spłaty” jak dawniej. Błąd w dół jest możliwy tylko dla świeżej, niewyjaśnionej
-    różnicy, i znika po tych dniach; autoryzacja czekająca dłużej (weekend) daje wynik za wysoki.
+    Wyciąg obejmuje kwoty zaksięgowane w cyklu, więc autoryzacja z bieżącego cyklu (od
+    `cycle_start`) nie jest długiem do spłaty, jak długo by nie czekała na księgowanie. Różnica
+    istniejąca już przed początkiem cyklu (brakująca opłata, odsetki, zaległy import) zostaje
+    w „do spłaty” jak dawniej. Bez migawki sprzed cyklu cała różnica liczy się jako autoryzacja.
     """
     snapshots = conn.execute(
         "SELECT amount, fetched_at FROM balance_snapshot WHERE account_id = ? "
@@ -1036,19 +1036,17 @@ def card_unbooked(conn: sqlite3.Connection, account_id: int) -> Decimal:
         "SELECT snapshot_at FROM reconcile_base WHERE account_id = ?", (account_id,)
     ).fetchone()
     window = _since_base(snapshots, base["snapshot_at"] if base else None, itemgetter("fetched_at"))
-    # różnica jest ustabilizowana, gdy trwa od ≥ IN_TRANSIT_DAYS: ostatnia migawka okna starsza
-    # o tyle od ostatniej; jej różnica nie jest „w drodze”, więc nie wolno jej odejmować
-    cutoff = datetime.fromisoformat(window[-1]["fetched_at"]) - timedelta(days=IN_TRANSIT_DAYS)
-    aged = [r for r in window if datetime.fromisoformat(r["fetched_at"]) <= cutoff]
+    # ostatnia migawka sprzed cyklu: różnica do niej jest starsza niż cykl, nie wolno jej odejmować
+    before = [r for r in window if datetime.fromisoformat(r["fetched_at"]) < cycle_start]
     # liczy się najwyżej 3 migawki okna — suma księgi to pełny skan transakcji
-    picked = [window[0], window[-1], *aged[-1:]]
+    picked = [window[0], window[-1], *before[-1:]]
     sums = _snapshot_sums(conn, account_id, picked, is_card=True)
     (_, first_bank, first_known), (_, last_bank, last_known) = sums[:2]
     drift = (last_bank - first_bank) + (last_known - first_known)
     settled = money.ZERO
-    if aged:
-        _, aged_bank, aged_known = sums[2]
-        settled = max((aged_bank - first_bank) + (aged_known - first_known), money.ZERO)
+    if before:
+        _, before_bank, before_known = sums[2]
+        settled = max((before_bank - first_bank) + (before_known - first_known), money.ZERO)
     return max(drift - settled, money.ZERO)
 
 

@@ -21,8 +21,9 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from budget import money
 from budget.kinds import Kind
@@ -332,6 +333,7 @@ def due_status(conn: sqlite3.Connection, today: date) -> CardDue | None:
     if "ITBD" not in snaps:
         return None
     start = month_start(today)
+    cycle_start = datetime.combine(start, datetime.min.time(), tzinfo=ZoneInfo("Europe/Warsaw"))
     new = money.total(
         r[0]
         for r in conn.execute(
@@ -341,7 +343,7 @@ def due_status(conn: sqlite3.Connection, today: date) -> CardDue | None:
         )
     )
     debt = max(snaps["ITBD"], money.ZERO)
-    unbooked = min(ledger.card_unbooked(conn, account), debt)
+    unbooked = min(ledger.card_unbooked(conn, account, cycle_start), debt)
     return CardDue(
         left=max(debt - unbooked + new, money.ZERO),  # `new` ujemne
         due=start.replace(day=DUE_DAY),

@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from operator import itemgetter
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -19,6 +20,7 @@ from budget.storage import db
 CUR_IBAN = "PL00111122223333444455556666"
 CARD_IBAN = "PL00999988887777666655554444"
 CARD_NO = "1234XXXXXXXX5678"
+CYCLE_START = datetime(2026, 11, 1, tzinfo=ZoneInfo("Europe/Warsaw"))
 CARD_NO_2 = "9999XXXXXXXX0000"
 FIXTURE = Path(__file__).parent / "fixtures" / "millenet_sample.csv"
 HEADER = (
@@ -540,7 +542,7 @@ def test_card_unbooked_authorizations_are_not_cycle_debt(
     _, card_id = accounts
     _closed_october(conn, card_id)
     _itbd(conn, card_id, "1969.65", "2026-11-04T21:30:00+00:00")
-    assert ledger.card_unbooked(conn, card_id) == Decimal("1969.65")
+    assert ledger.card_unbooked(conn, card_id, CYCLE_START) == Decimal("1969.65")
     cd = card.due_status(conn, date(2026, 11, 4))
     assert cd is not None and cd.left == 0 and cd.debt == Decimal("1969.65")
     assert cd.unbooked == Decimal("1969.65")
@@ -560,7 +562,7 @@ def test_card_unbooked_shrinks_when_booked_and_cycle_debt_stays(
         at="2026-11-05T07:00:00+00:00",
     )
     _itbd(conn, card_id, "1969.65", "2026-11-05T07:00:30+00:00")
-    assert ledger.card_unbooked(conn, card_id) == Decimal("1469.65")
+    assert ledger.card_unbooked(conn, card_id, CYCLE_START) == Decimal("1469.65")
     cd = card.due_status(conn, date(2026, 11, 6))
     assert cd is not None and cd.left == 0
     # niespłacony zakup z października dalej liczy się do wyciągu
@@ -581,7 +583,7 @@ def test_card_unbooked_zero_without_history_or_when_bank_below_ledger(
 ) -> None:
     _, card_id = accounts
     _itbd(conn, card_id, "125.00", "2026-10-12T10:00:00+00:00")  # jedna migawka: brak odniesienia
-    assert ledger.card_unbooked(conn, card_id) == 0
+    assert ledger.card_unbooked(conn, card_id, CYCLE_START) == 0
     cd = card.due_status(conn, date(2026, 10, 12))
     assert cd is not None and cd.left == Decimal("125.00") and cd.unbooked == 0
     # bank ma mniej niż księga (np. zwrot tylko w księdze) → nie zaniżamy kwoty
@@ -593,7 +595,7 @@ def test_card_unbooked_zero_without_history_or_when_bank_below_ledger(
         card=True,
         at="2026-10-13T09:00:00+00:00",
     )
-    assert ledger.card_unbooked(conn, card_id) == 0
+    assert ledger.card_unbooked(conn, card_id, CYCLE_START) == 0
 
 
 def test_card_unbooked_counts_from_reconcile_base(
@@ -620,9 +622,11 @@ def test_card_unbooked_counts_from_reconcile_base(
     _itbd(conn, card_id, "0.00", "2026-10-20T07:00:30+00:00")  # autoryzacja anulowana
     ledger.set_reconcile_base(conn, card_id)
     _itbd(conn, card_id, "1969.65", "2026-11-04T21:30:00+00:00")
-    assert ledger.card_unbooked(conn, card_id) == Decimal("1969.65")
+    assert ledger.card_unbooked(conn, card_id, CYCLE_START) == Decimal("1969.65")
     conn.execute("DELETE FROM reconcile_base")
-    assert ledger.card_unbooked(conn, card_id) == Decimal("1919.65")  # bez bazy zaniżone o 50
+    assert ledger.card_unbooked(conn, card_id, CYCLE_START) == Decimal(
+        "1919.65"
+    )  # bez bazy zaniżone o 50
 
 
 def test_card_unbooked_zero_when_base_is_latest_snapshot(
@@ -632,7 +636,7 @@ def test_card_unbooked_zero_when_base_is_latest_snapshot(
     _closed_october(conn, card_id)
     _itbd(conn, card_id, "1969.65", "2026-11-04T21:30:00+00:00")
     ledger.set_reconcile_base(conn, card_id)  # baza = ostatnia migawka → brak odniesienia
-    assert ledger.card_unbooked(conn, card_id) == 0
+    assert ledger.card_unbooked(conn, card_id, CYCLE_START) == 0
 
 
 def test_since_base_window() -> None:
@@ -660,7 +664,7 @@ def test_card_unbooked_with_limit_overpayment_is_not_negative(
     )
     _itbd(conn, card_id, "0.00", "2026-10-02T07:00:30+00:00")
     _itav(conn, card_id, "10100.00", "2026-10-02T07:00:30+00:00")
-    assert ledger.card_unbooked(conn, card_id) == 0
+    assert ledger.card_unbooked(conn, card_id, CYCLE_START) == 0
     cd = card.due_status(conn, date(2026, 10, 12))
     assert cd is not None and cd.left == 0
 
@@ -707,6 +711,21 @@ def test_card_unbooked_ignores_stuck_difference(
     _closed_october(conn, card_id)
     _itbd(conn, card_id, "40.00", "2026-10-25T07:00:00+00:00")
     _itbd(conn, card_id, "40.00", "2026-11-04T07:00:00+00:00")
-    assert ledger.card_unbooked(conn, card_id) == Decimal("0.00")
+    assert ledger.card_unbooked(conn, card_id, CYCLE_START) == Decimal("0.00")
     _itbd(conn, card_id, "140.00", "2026-11-04T21:30:00+00:00")
-    assert ledger.card_unbooked(conn, card_id) == Decimal("100.00")
+    assert ledger.card_unbooked(conn, card_id, CYCLE_START) == Decimal("100.00")
+
+
+def test_card_unbooked_keeps_authorization_waiting_longer_than_transit_window(
+    conn: sqlite3.Connection, accounts: tuple[int, int]
+) -> None:
+    """Autoryzacja z bieżącego cyklu, która czeka na księgowanie dłużej niż IN_TRANSIT_DAYS
+    (sklep internetowy, weekend), nie jest długiem wyciągu płatnego 20. — wejdzie na następny."""
+    _, card_id = accounts
+    _closed_october(conn, card_id)
+    _itbd(conn, card_id, "100.00", "2026-11-04T07:00:00+00:00")
+    _itbd(
+        conn, card_id, "100.00", "2026-11-09T07:00:00+00:00"
+    )  # 5 dni później, nadal niezaksięgowana
+    cd = card.due_status(conn, date(2026, 11, 9))
+    assert cd is not None and cd.unbooked == Decimal("100.00") and cd.left == 0
