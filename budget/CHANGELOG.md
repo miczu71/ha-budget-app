@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.74.0
+
+**Karta: autoryzacje bieżącego cyklu nie są „do spłaty”; przełącznik karty na Podsumowaniu (M37).**
+- `Do spłaty` odejmuje całą różnicę zadłużenia powstałą od początku bieżącego cyklu (od 1. dnia miesiąca),
+  a nie tylko przyrost z ostatnich 3 dni. Autoryzacja czekająca na księgowanie dłużej (sklep internetowy,
+  weekend) nie wraca już do kwoty z poprzedniego wyciągu. Różnica sprzed cyklu (brakująca opłata, odsetki)
+  zostaje w kwocie jak dawniej.
+- Przełącznik „Odejmij zadłużenie karty” przeniesiony z kafelka Prognoza do nagłówka karty „Do wypłaty”.
+  **Domyślnie jest wyłączony**: bez wybranego ustawienia prognoza, encje `sensor.budget_forecast_*`
+  i dzwonek „prognoza poniżej bufora” liczą wolne środki bez zadłużenia karty. Zapamiętany wcześniej wybór
+  zostaje bez zmian.
+
 ## 0.73.2
 
 **Karta: „do spłaty” nie liczy zakupów, których bank jeszcze nie zaksięgował (M36).**
