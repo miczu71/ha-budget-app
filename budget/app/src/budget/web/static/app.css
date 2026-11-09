@@ -518,6 +518,9 @@ label.search input {
 
 /* M5a: Budżet */
 .flex-hero h2 { color: var(--muted); font-weight: 400; font-size: 14px; margin-bottom: 2px; }
+.hero-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 4px 16px; flex-wrap: wrap; }
+.hero-head h2 { margin: 0; }
+.hero-head form { margin: 0; }
 .hero-amount {
   font: 350 clamp(40px, 12vw, 56px) / 1.1 var(--font-display);
   letter-spacing: -0.03em;

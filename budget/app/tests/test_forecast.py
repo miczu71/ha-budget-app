@@ -367,10 +367,10 @@ def test_build_without_card_debt(conn: sqlite3.Connection) -> None:
 
 
 def test_settings_read_from_kv(conn: sqlite3.Connection) -> None:
-    assert forecast.payday_series_id(conn) is None and forecast.include_card_debt(conn)
+    assert forecast.payday_series_id(conn) is None and not forecast.include_card_debt(conn)
     db.kv_set(conn, forecast.PAYDAY_KEY, 7)
-    db.kv_set(conn, forecast.CARD_DEBT_KEY, False)
-    assert forecast.payday_series_id(conn) == 7 and not forecast.include_card_debt(conn)
+    db.kv_set(conn, forecast.CARD_DEBT_KEY, True)
+    assert forecast.payday_series_id(conn) == 7 and forecast.include_card_debt(conn)
 
 
 # --- encje, dzwonek i memo (E2) -------------------------------------------------------------
@@ -446,6 +446,7 @@ def test_memo_computes_once_per_database_state(
     conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     seeded(conn)
+    db.kv_set(conn, forecast.CARD_DEBT_KEY, True)
     snap, calls = Snapshot(conn), []
     real = forecast.for_today
 

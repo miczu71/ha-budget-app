@@ -3,8 +3,14 @@
 {% set unit = "bufora" if fc.buffer else "zera" %}
 {% set spd = fc.safe_per_day %}
 {% set rr = not fc.below_buffer and fc.period_start %}
-<section class="card flex-hero payday-hero">
-  <h2>{% if fc.payday %}Do wypłaty — {{ fc.payday.strftime('%d.%m') }}{% if fc.payday_manual %} (data ręczna){% endif %}{% else %}Do końca miesiąca{% endif %}{% if fc.days_left %} · za {{ fc.days_left }} {{ "dzień" if fc.days_left == 1 else "dni" }}{% endif %}</h2>
+<section class="card flex-hero payday-hero" id="payday-hero">
+  <div class="hero-head">
+    <h2>{% if fc.payday %}Do wypłaty — {{ fc.payday.strftime('%d.%m') }}{% if fc.payday_manual %} (data ręczna){% endif %}{% else %}Do końca miesiąca{% endif %}{% if fc.days_left %} · za {{ fc.days_left }} {{ "dzień" if fc.days_left == 1 else "dni" }}{% endif %}</h2>
+    <form method="post" action="{{ base }}/forecast/card-debt" hx-post="{{ base }}/forecast/card-debt" hx-trigger="change" hx-target="#payday-hero" hx-select="#payday-hero" hx-select-oob="#fc-body,#fc-sum" hx-swap="outerHTML">
+      <label class="check switch"><input type="checkbox" role="switch" name="include" value="1" {{ "checked" if fc.card_debt_included }}><span>Odejmij zadłużenie karty</span></label>
+      <noscript><button class="secondary">Zastosuj</button></noscript>
+    </form>
+  </div>
   {% if spd is not none and spd > 0 %}
   <div class="hero-amount pos">{{ spd | money("PLN") }} <span class="hero-unit">dziennie</span></div>
   {% endif %}

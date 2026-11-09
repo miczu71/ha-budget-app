@@ -11,6 +11,7 @@ from budget.ask import sources
 from budget.categorize import engine
 from budget.money import pl
 from budget.snapshot import Snapshot
+from budget.storage import db
 
 from .test_card import CARD, buy
 from .test_categorize_engine import add, conn, sid
@@ -39,6 +40,7 @@ def test_registry_names_are_unique_and_described() -> None:
 
 def test_payday_matches_forecast(conn: sqlite3.Connection) -> None:
     seeded(conn)
+    db.kv_set(conn, forecast.CARD_DEBT_KEY, True)  # domyślnie karta nie jest odejmowana
     now = at(3)
     fc = forecast.for_today(Snapshot(conn), TODAY, now)
     assert fc is not None

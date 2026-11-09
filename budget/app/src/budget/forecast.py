@@ -37,7 +37,7 @@ STALE_AFTER = timedelta(hours=24)
 # przesuwała po cichu drugiego.
 LATE_INFLOW_GRACE = timedelta(days=schedule.WINDOW + 2)
 PAYDAY_KEY = "payday_series_id"  # kv: seria przychodów będąca wypłatą użytkownika (dzień resetu)
-CARD_DEBT_KEY = "forecast_card_debt"  # kv: czy odejmować zadłużenie karty (domyślnie tak)
+CARD_DEBT_KEY = "forecast_card_debt"  # kv: czy odejmować zadłużenie karty (domyślnie nie)
 PERIOD_PLAN_KEY = "period_plan"  # kv: limit dzienny z początku okresu (M21 E4)
 PAST, NOW, NEXT = "past", "now", "next"  # stan tygodnia okresu
 PIGGY_LABEL = "Do skarbonek"
@@ -185,7 +185,7 @@ def payday_series_id(conn: sqlite3.Connection) -> int | None:
 
 
 def include_card_debt(conn: sqlite3.Connection) -> bool:
-    return db.kv_get(conn, CARD_DEBT_KEY) is not False
+    return db.kv_get(conn, CARD_DEBT_KEY) is True
 
 
 def read_balances(conn: sqlite3.Connection) -> Balances | None:

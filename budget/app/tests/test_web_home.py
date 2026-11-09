@@ -249,6 +249,7 @@ async def test_home_shows_forecast_with_card_debt_row(
     client: httpx.AsyncClient, service: Service
 ) -> None:
     _balances(service.conn)
+    db.kv_set(service.conn, forecast.CARD_DEBT_KEY, True)
     page = (await client.get("/")).text
     assert "Do końca miesiąca" in page and "Starczy · zapas" in page
     for text in ("Rachunek", "karta", "Wolne dziś"):
@@ -258,7 +259,11 @@ async def test_home_shows_forecast_with_card_debt_row(
     for amount in ("9136.98", "377.67", "8759.31"):
         assert fmt_money(amount, "PLN") in page
     assert "poniżej" not in page and "dziennie" in page
-    assert 'role="switch"' in page and 'name="include"' in page and "checked" in page
+    hero = page.split('id="payday-hero"', 1)[1].split("</section>", 1)[0]
+    assert 'role="switch"' in hero and 'name="include" value="1" checked' in hero
+    assert (
+        'role="switch"' not in page.split('id="fc"', 1)[1]
+    )  # w kafelku Prognoza przełącznika już nie ma
 
 
 async def test_forecast_is_collapsed_with_result_in_summary(
@@ -280,8 +285,8 @@ async def test_forecast_card_debt_switch_swaps_body_and_summary_only(
     _balances(service.conn)
     page = (await client.get("/")).text
     form = page.split("/forecast/card-debt", 1)[1].split(">", 1)[0]
-    assert 'hx-target="#fc-body"' in form and 'hx-select="#fc-body"' in form
-    assert 'hx-select-oob="#fc-sum"' in form  # <details> zostaje: rozwinięcie przeżywa
+    assert 'hx-target="#payday-hero"' in form and 'hx-select="#payday-hero"' in form
+    assert 'hx-select-oob="#fc-body,#fc-sum"' in form  # <details> zostaje: rozwinięcie przeżywa
 
 
 async def test_forecast_card_row_is_visible_without_debt(
@@ -483,14 +488,14 @@ async def test_card_debt_checkbox_is_remembered(
 ) -> None:
     _balances(service.conn)
     page = (await client.get("/")).text
+    assert 'name="include" value="1" checked' not in page and "nie odjęta" in page  # domyślnie
+    assert fmt_money("9136.98", "PLN") in page  # wolne środki bez odjęcia karty
+    resp = await client.post("/forecast/card-debt", data={"include": "1"})
+    assert resp.status_code == 303 and forecast.include_card_debt(service.conn)
+    page = (await client.get("/")).text
     assert 'name="include" value="1" checked' in page and "nie odjęta" not in page
     resp = await client.post("/forecast/card-debt", data={})  # odznaczony checkbox nic nie wysyła
     assert resp.status_code == 303 and not forecast.include_card_debt(service.conn)
-    page = (await client.get("/")).text
-    assert "nie odjęta" in page and 'name="include" value="1" checked' not in page
-    assert fmt_money("9136.98", "PLN") in page  # wolne środki bez odjęcia karty
-    await client.post("/forecast/card-debt", data={"include": "1"})
-    assert forecast.include_card_debt(service.conn)
 
 
 async def test_bell_and_service_report_forecast_shortfall(
@@ -680,6 +685,7 @@ async def test_hero_left_above_planned_is_red_when_negative(
     client: httpx.AsyncClient, service: Service
 ) -> None:
     _balances(service.conn, account="10.00")
+    db.kv_set(service.conn, forecast.CARD_DEBT_KEY, True)
     fc = service.forecast()
     assert fc is not None and fc.at_payday < 0
     line = _left_line((await client.get("/")).text)
