@@ -476,3 +476,22 @@ async def test_lidl_receipt_link_choice_and_category_map(
     new = {**m, "kids": taxonomy.by_slug(conn)["drogeria"].id}
     await client.post("/categories/lidl", data={k: str(v) for k, v in new.items()})
     assert lidl_link.category_map(conn) == new
+
+
+async def test_foreign_lidl_receipt_chip_shows_country_and_original(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    import json
+
+    conn = service.conn
+    ids = _seed(conn)  # LIDL −50,00
+    add(conn, "-51.00", "card", "LIDL UL. X XYZ POL", day=DAY)  # druga płatność w tolerancji 5%
+    path = service.settings.lidl_receipts_path
+    path.parent.mkdir(parents=True)
+    receipt = {"id": "cz1", "day": DAY, "paid": 50.0, "url_path": "/paragony/cz1",
+               "parts": {"food": 50.0}, "country": "CZ", "currency": "CZK",
+               "paid_orig": 175.4}  # fmt: skip
+    path.write_text(json.dumps({"version": 1, "receipts": [receipt]}), encoding="utf-8")
+    service.link_lidl()  # dwie płatności na jeden paragon — do wyboru
+    editor = (await client.get(f"/transactions/{ids['lidl']}/category")).text
+    assert "CZ" in editor and "CZK" in editor and "Undefined" not in editor

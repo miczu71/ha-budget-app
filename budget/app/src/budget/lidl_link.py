@@ -51,6 +51,8 @@ class Receipt:
     parts: dict[str, Decimal]
     cash: bool = False  # zapłacony gotówką: bez płatności w banku
     country: str = "PL"  # zagraniczny: `paid` w PLN po NBP, kwota z banku może się różnić
+    currency: str = "PLN"  # waluta oryginału (chip wyboru w _txn_category.html)
+    paid_orig: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -80,6 +82,13 @@ def load(path: Path) -> list[Receipt]:
                 continue
             cash = "got" in str(r.get("payment") or "").lower()  # „Gotówka”
             country = r.get("country")
+            currency = r.get("currency")
+            try:
+                paid_orig = (
+                    money.parse(str(r["paid_orig"])) if r.get("paid_orig") is not None else None
+                )
+            except ValueError:
+                paid_orig = None
             out.append(
                 Receipt(
                     str(r["id"]),
@@ -88,6 +97,8 @@ def load(path: Path) -> list[Receipt]:
                     parts,
                     cash,
                     country.upper() if isinstance(country, str) and country else "PL",
+                    currency if isinstance(currency, str) and currency else "PLN",
+                    paid_orig,
                 )
             )
         except (KeyError, TypeError, AttributeError, ValueError):  # AmountError to ValueError
