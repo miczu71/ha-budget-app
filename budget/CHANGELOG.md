@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.75.0
+
+**Paragony Lidl z zagranicy (CZ, IT) w Budżecie.**
+- Parowanie paragonu zagranicznego z płatnością kartą: kwota z banku może różnić się od kwoty paragonu
+  w PLN (kurs banku) do 5%; paragony polskie nadal co do grosza. Po sparowaniu podział na kategorie jest
+  skalowany do kwoty z banku.
+- Na liście wyboru paragonu przy niejednoznacznym dopasowaniu widać kraj i kwotę oryginalną (np. „CZ · 2 225,61 CZK”).
+- Wymaga add-onu Lidl 1.1.0 z włączoną opcją `extra_countries`; bez niej nic się nie zmienia.
+- Dopasowanie paragonów polskich nadal używa indeksu po kwocie (bez skanu wszystkich transakcji).
+
 ## 0.74.0
 
 **Karta: autoryzacje bieżącego cyklu nie są „do spłaty”; przełącznik karty na Podsumowaniu (M37).**
