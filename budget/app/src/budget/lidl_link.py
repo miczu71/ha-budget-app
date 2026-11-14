@@ -50,6 +50,9 @@ class Receipt:
     paid: Decimal
     parts: dict[str, Decimal]
     cash: bool = False  # zapłacony gotówką: bez płatności w banku
+    country: str = "PL"  # zagraniczny: `paid` w PLN po NBP, kwota z banku może się różnić
+    currency: str = "PLN"
+    paid_orig: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -78,7 +81,26 @@ def load(path: Path) -> list[Receipt]:
             if paid is None:
                 continue
             cash = "got" in str(r.get("payment") or "").lower()  # „Gotówka”
-            out.append(Receipt(str(r["id"]), date.fromisoformat(r["day"]), paid, parts, cash))
+            country = r.get("country")
+            currency = r.get("currency")
+            try:
+                paid_orig = (
+                    money.parse(str(r["paid_orig"])) if r.get("paid_orig") is not None else None
+                )
+            except ValueError:
+                paid_orig = None
+            out.append(
+                Receipt(
+                    str(r["id"]),
+                    date.fromisoformat(r["day"]),
+                    paid,
+                    parts,
+                    cash,
+                    country.upper() if isinstance(country, str) and country else "PL",
+                    currency if isinstance(currency, str) and currency else "PLN",
+                    paid_orig,
+                )
+            )
         except (KeyError, TypeError, AttributeError, ValueError):  # AmountError to ValueError
             continue
     return out
@@ -107,6 +129,16 @@ def _near(receipt: Receipt, day: str) -> bool:
     return abs(date.fromisoformat(day) - receipt.day) <= WINDOW
 
 
+FOREIGN_TOLERANCE = Decimal("0.05")
+
+
+def _amount_ok(receipt: Receipt, bank_amount: Decimal) -> bool:
+    """Kwota z banku (dodatnia): polski co do grosza, zagraniczny w tolerancji 5% (kurs banku)."""
+    if receipt.country == "PL":
+        return receipt.paid == bank_amount
+    return abs(bank_amount - receipt.paid) <= FOREIGN_TOLERANCE * receipt.paid
+
+
 def match(conn: sqlite3.Connection, receipts: list[Receipt]) -> MatchResult:
     """Łączy pary jednoznaczne po obu stronach; paragon i transakcja najwyżej raz."""
     pending = _free(conn, receipts)
@@ -114,20 +146,20 @@ def match(conn: sqlite3.Connection, receipts: list[Receipt]) -> MatchResult:
     if pending:
         lo = min(r.day for r in pending) - WINDOW
         hi = max(r.day for r in pending) + WINDOW
-        by_amount: dict[Decimal, list[tuple[int, str]]] = {}
+        candidates: list[tuple[int, Decimal, str]] = []
         for t, amount, day in conn.execute(
             f"SELECT id, amount, coalesce(tx_date, booking_date) FROM txn WHERE {_EXPENSE} "
             "AND coalesce(tx_date, booking_date) BETWEEN ? AND ? "
             "AND id NOT IN (SELECT txn_id FROM txn_lidl) ORDER BY 3, id",
             (lo.isoformat(), hi.isoformat()),
         ):
-            by_amount.setdefault(-Decimal(amount), []).append((int(t), day))
+            candidates.append((int(t), -Decimal(amount), day))
         rejected = _rejected(conn)
         for r in pending:
             found[r.id] = [
                 t
-                for t, day in by_amount.get(r.paid, [])
-                if _near(r, day) and (t, r.id) not in rejected
+                for t, amount, day in candidates
+                if _amount_ok(r, amount) and _near(r, day) and (t, r.id) not in rejected
             ]
     claims = Counter(t for tids in found.values() for t in tids)
     pairs = []
@@ -155,7 +187,7 @@ def receipts_for_txn(conn: sqlite3.Connection, path: Path, txn_id: int) -> list[
     return [
         r
         for r in _free(conn, load(path))
-        if r.paid == -Decimal(row[0]) and _near(r, row[1]) and r.id not in rejected
+        if _amount_ok(r, -Decimal(row[0])) and _near(r, row[1]) and r.id not in rejected
     ]
 
 
@@ -195,12 +227,15 @@ def _apply(
     jedna = zwykła kategoria. Ręcznej kategorii ani podziału użytkownika nie ruszamy, a późniejsza
     zmiana użytkownika wygrywa (nic nie stosujemy ponownie). Zwraca zł poza spożywczymi."""
     row = conn.execute(
-        "SELECT category_id, category_source FROM txn WHERE id = ?", (txn_id,)
+        "SELECT category_id, category_source, amount FROM txn WHERE id = ?", (txn_id,)
     ).fetchone()
     if row is None or row["category_source"] == "manual":
         return Decimal(0)
+    receipt_parts = receipt.parts
+    if receipt.country != "PL":
+        receipt_parts = _scaled(receipt.parts, -Decimal(row["amount"]))
     sums: dict[int, Decimal] = {}
-    for part, amount in receipt.parts.items():
+    for part, amount in receipt_parts.items():
         cat = cmap.get(part, cmap["food"])
         sums[cat] = sums.get(cat, Decimal(0)) - amount
     parts = sorted(((c, a) for c, a in sums.items() if a), key=lambda p: -abs(p[1]))
@@ -215,6 +250,17 @@ def _apply(
         log.info("Paragon Lidl %s: bez podziału (%s)", receipt.id, exc)
         return Decimal(0)
     return sum((-a for c, a in parts if c != cmap["food"]), Decimal(0))
+
+
+def _scaled(parts: dict[str, Decimal], target: Decimal) -> dict[str, Decimal]:
+    """Części proporcjonalnie do kwoty z banku; różnica groszy trafia do największej części."""
+    total = sum(parts.values(), Decimal(0))
+    if not total or not parts:
+        return parts
+    out = {k: (v * target / total).quantize(money.CENT) for k, v in parts.items()}
+    biggest = max(parts, key=lambda k: abs(parts[k]))
+    out[biggest] += target - sum(out.values(), Decimal(0))
+    return out
 
 
 def category_map(conn: sqlite3.Connection) -> dict[str, int]:

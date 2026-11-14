@@ -174,3 +174,59 @@ def test_cash_receipt_is_skipped_and_unlink_remembers_pair(
     lidl_link.unlink(conn, t)
     assert lidl_link.links(conn) == {} and split.get(conn, t) == []
     assert lidl_link.match(conn, receipts).linked == 0  # odrzucona para nie wraca
+
+
+def _foreign(rid: str, day: str, paid: float, **parts: float) -> dict[str, object]:
+    return {**_r(rid, day, paid, **parts), "country": "CZ", "currency": "CZK", "paid_orig": 175.4}
+
+
+def test_load_without_new_fields_is_polish(tmp_path: Path) -> None:
+    (r,) = lidl_link.load(_file(tmp_path, _r("a", "2026-09-02", 12.5)))
+    assert (r.country, r.currency, r.paid_orig) == ("PL", "PLN", None)
+    (f,) = lidl_link.load(_file(tmp_path, _foreign("f", "2026-09-02", 30.0)))
+    assert (f.country, f.currency, f.paid_orig) == ("CZ", "CZK", Decimal("175.40"))
+    bad = {**_r("b", "2026-09-02", 5.0), "country": 5, "paid_orig": "x"}
+    (b,) = lidl_link.load(_file(tmp_path, bad))
+    assert (b.country, b.paid_orig) == ("PL", None)
+
+
+def test_foreign_receipt_matches_within_tolerance(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    t = add(conn, "-31.20", "card", "LIDL Miasto A", day="2026-09-03")  # 4% więcej
+    receipts = lidl_link.load(_file(tmp_path, _foreign("f", "2026-09-02", 30.0)))
+    assert lidl_link.match(conn, receipts).linked == 1
+    assert lidl_link.links(conn) == {t: "f"}
+
+
+def test_foreign_receipt_outside_tolerance_not_linked(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    t = add(conn, "-31.80", "card", "LIDL Miasto A", day="2026-09-03")  # 6% więcej
+    receipts = lidl_link.load(_file(tmp_path, _foreign("f", "2026-09-02", 30.0)))
+    assert lidl_link.match(conn, receipts).linked == 0
+    assert lidl_link.receipts_for_txn(conn, tmp_path / "receipts.json", t) == []
+
+
+def test_foreign_two_candidates_ambiguous(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    add(conn, "-30.50", "card", "LIDL Miasto A", day="2026-09-03")
+    add(conn, "-29.80", "card", "LIDL Miasto A", day="2026-09-04")
+    receipts = lidl_link.load(_file(tmp_path, _foreign("f", "2026-09-02", 30.0)))
+    res = lidl_link.match(conn, receipts)
+    assert (res.linked, res.ambiguous) == (0, 1)
+
+
+def test_polish_receipt_still_exact(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    add(conn, "-31.00", "card", "LIDL Miasto A", day="2026-09-03")
+    receipts = lidl_link.load(_file(tmp_path, _r("a", "2026-09-02", 30.0)))
+    assert lidl_link.match(conn, receipts).linked == 0
+
+
+def test_foreign_parts_scaled_to_bank_amount(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    from budget import split
+
+    t = add(conn, "-31.00", "card", "LIDL Miasto A", day="2026-09-03")
+    receipts = lidl_link.load(
+        _file(tmp_path, _foreign("f", "2026-09-02", 30.0, food=20.0, drugstore=7.0, kids=3.0))
+    )
+    assert lidl_link.match(conn, receipts).linked == 1
+    parts = split.get(conn, t)
+    assert len(parts) == 3 and sum(a for _, a in parts) == Decimal("-31.00")
