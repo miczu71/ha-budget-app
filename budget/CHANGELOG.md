@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.76.0
+
+- Przy paragonie Lidl z zagranicy (CZ, IT) obok „paragon Lidl” jest link „ceny za granicą” do zakładki Kraje
+  add-onu Lidl (porównanie cen z polskimi). Polskie paragony bez zmian.
+- Wymaga add-onu Lidl 1.2.0.
+
 ## 0.75.0
 
 **Paragony Lidl z zagranicy (CZ, IT) w Budżecie.**
