@@ -230,3 +230,29 @@ def test_foreign_parts_scaled_to_bank_amount(conn: sqlite3.Connection, tmp_path:
     assert lidl_link.match(conn, receipts).linked == 1
     parts = split.get(conn, t)
     assert len(parts) == 3 and sum(a for _, a in parts) == Decimal("-31.00")
+
+
+def test_foreign_receipt_exactly_at_tolerance_is_linked(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    add(conn, "-31.50", "card", "LIDL Miasto A", day="2026-09-03")  # dokładnie 5% więcej
+    receipts = lidl_link.load(_file(tmp_path, _foreign("f", "2026-09-02", 30.0)))
+    assert lidl_link.match(conn, receipts).linked == 1
+
+
+def test_polish_and_foreign_receipt_claiming_one_txn_stay_manual(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    add(conn, "-30.00", "card", "LIDL Miasto A", day="2026-09-03")
+    receipts = lidl_link.load(
+        _file(tmp_path, _r("a", "2026-09-02", 30.0), _foreign("f", "2026-09-02", 30.0))
+    )
+    res = lidl_link.match(conn, receipts)
+    assert (res.linked, res.ambiguous) == (0, 2)
+    assert lidl_link.links(conn) == {}
+
+
+def test_scaled_with_zero_total_or_no_parts_is_unchanged() -> None:
+    zero = {"food": Decimal("5.00"), "deposit": Decimal("-5.00")}
+    assert lidl_link._scaled(zero, Decimal("-30.00")) == zero
+    assert lidl_link._scaled({}, Decimal("-30.00")) == {}
