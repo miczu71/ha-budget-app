@@ -51,8 +51,6 @@ class Receipt:
     parts: dict[str, Decimal]
     cash: bool = False  # zapłacony gotówką: bez płatności w banku
     country: str = "PL"  # zagraniczny: `paid` w PLN po NBP, kwota z banku może się różnić
-    currency: str = "PLN"
-    paid_orig: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -82,13 +80,6 @@ def load(path: Path) -> list[Receipt]:
                 continue
             cash = "got" in str(r.get("payment") or "").lower()  # „Gotówka”
             country = r.get("country")
-            currency = r.get("currency")
-            try:
-                paid_orig = (
-                    money.parse(str(r["paid_orig"])) if r.get("paid_orig") is not None else None
-                )
-            except ValueError:
-                paid_orig = None
             out.append(
                 Receipt(
                     str(r["id"]),
@@ -97,8 +88,6 @@ def load(path: Path) -> list[Receipt]:
                     parts,
                     cash,
                     country.upper() if isinstance(country, str) and country else "PL",
-                    currency if isinstance(currency, str) and currency else "PLN",
-                    paid_orig,
                 )
             )
         except (KeyError, TypeError, AttributeError, ValueError):  # AmountError to ValueError
@@ -147,6 +136,7 @@ def match(conn: sqlite3.Connection, receipts: list[Receipt]) -> MatchResult:
         lo = min(r.day for r in pending) - WINDOW
         hi = max(r.day for r in pending) + WINDOW
         candidates: list[tuple[int, Decimal, str]] = []
+        by_amount: dict[Decimal, list[tuple[int, str]]] = {}
         for t, amount, day in conn.execute(
             f"SELECT id, amount, coalesce(tx_date, booking_date) FROM txn WHERE {_EXPENSE} "
             "AND coalesce(tx_date, booking_date) BETWEEN ? AND ? "
@@ -154,13 +144,14 @@ def match(conn: sqlite3.Connection, receipts: list[Receipt]) -> MatchResult:
             (lo.isoformat(), hi.isoformat()),
         ):
             candidates.append((int(t), -Decimal(amount), day))
+            by_amount.setdefault(-Decimal(amount), []).append((int(t), day))
         rejected = _rejected(conn)
         for r in pending:
-            found[r.id] = [
-                t
-                for t, amount, day in candidates
-                if _amount_ok(r, amount) and _near(r, day) and (t, r.id) not in rejected
-            ]
+            if r.country == "PL":  # co do grosza: indeks po kwocie zamiast skanu
+                same = by_amount.get(r.paid, [])
+            else:
+                same = [(t, day) for t, amount, day in candidates if _amount_ok(r, amount)]
+            found[r.id] = [t for t, day in same if _near(r, day) and (t, r.id) not in rejected]
     claims = Counter(t for tids in found.values() for t in tids)
     pairs = []
     for r in pending:
