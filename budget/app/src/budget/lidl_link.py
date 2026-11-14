@@ -114,6 +114,11 @@ def links(conn: sqlite3.Connection, txn_ids: list[int] | None = None) -> dict[in
     return {int(t): str(r) for t, r in conn.execute(sql, args)}
 
 
+def foreign_ids(path: Path, ids: set[str]) -> set[str]:
+    """Spośród `ids` te paragony, które są spoza Polski (link do zakładki Kraje w Lidlu)."""
+    return {r.id for r in load(path) if r.id in ids and r.country != "PL"} if ids else set()
+
+
 def _free(conn: sqlite3.Connection, receipts: list[Receipt]) -> list[Receipt]:
     used = set(links(conn).values())
     return [r for r in receipts if r.id not in used and r.paid > 0 and not r.cash]

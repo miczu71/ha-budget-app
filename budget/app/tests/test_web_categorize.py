@@ -495,3 +495,31 @@ async def test_foreign_lidl_receipt_chip_shows_country_and_original(
     service.link_lidl()  # dwie płatności na jeden paragon — do wyboru
     editor = (await client.get(f"/transactions/{ids['lidl']}/category")).text
     assert "CZ" in editor and "CZK" in editor and "Undefined" not in editor
+
+
+async def test_foreign_lidl_receipt_links_to_countries_tab(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    import json
+
+    _seed(service.conn)  # jedna płatność LIDL −50,00 → paragon łączy się automatycznie
+    path = service.settings.lidl_receipts_path
+    path.parent.mkdir(parents=True)
+
+    def page(country: str) -> None:
+        receipt = {
+            "id": "r1",
+            "day": DAY,
+            "paid": 50.0,
+            "parts": {"food": 50.0},
+            "country": country,
+        }
+        path.write_text(json.dumps({"version": 1, "receipts": [receipt]}), encoding="utf-8")
+
+    page("CZ")
+    assert service.link_lidl().linked == 1  # type: ignore[union-attr]
+    html = (await client.get("/transactions")).text
+    assert "/paragony/r1" in html and "/kraje" in html and "ceny za granicą" in html
+    page("PL")  # ten sam paragon jako polski: bez linku
+    html = (await client.get("/transactions")).text
+    assert "/paragony/r1" in html and "ceny za granicą" not in html
