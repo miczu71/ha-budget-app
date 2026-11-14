@@ -16,6 +16,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
+from functools import lru_cache
 from pathlib import Path
 
 from budget import money, split
@@ -116,7 +117,17 @@ def links(conn: sqlite3.Connection, txn_ids: list[int] | None = None) -> dict[in
 
 def foreign_ids(path: Path, ids: set[str]) -> set[str]:
     """Spośród `ids` te paragony, które są spoza Polski (link do zakładki Kraje w Lidlu)."""
-    return {r.id for r in load(path) if r.id in ids and r.country != "PL"} if ids else set()
+    try:
+        stamp = path.stat().st_mtime_ns
+    except OSError:
+        return set()
+    return ids & _foreign_set(str(path), stamp) if ids else set()
+
+
+@lru_cache(maxsize=2)
+def _foreign_set(path: str, _mtime_ns: int) -> frozenset[str]:
+    """Wszystkie zagraniczne paragony z pliku; `_mtime_ns` unieważnia cache po nowym eksporcie."""
+    return frozenset(r.id for r in load(Path(path)) if r.country != "PL")
 
 
 def _free(conn: sqlite3.Connection, receipts: list[Receipt]) -> list[Receipt]:
