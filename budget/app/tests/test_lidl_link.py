@@ -256,3 +256,80 @@ def test_scaled_with_zero_total_or_no_parts_is_unchanged() -> None:
     zero = {"food": Decimal("5.00"), "deposit": Decimal("-5.00")}
     assert lidl_link._scaled(zero, Decimal("-30.00")) == zero
     assert lidl_link._scaled({}, Decimal("-30.00")) == {}
+
+
+def _chain(rid: str, day: str, paid: float, chain: str, **parts: float) -> dict[str, object]:
+    return {**_r(rid, day, paid, **parts), "chain": chain}
+
+
+def test_load_reads_chain_and_defaults_to_lidl(tmp_path: Path) -> None:
+    (a,) = lidl_link.load(_file(tmp_path, _r("a", "2026-09-02", 12.5)))
+    assert a.chain == "lidl"  # stary eksport bez pola
+    (b,) = lidl_link.load(_file(tmp_path, _chain("b", "2026-09-02", 5.0, "biedronka", food=5.0)))
+    assert b.chain == "biedronka"
+    (c,) = lidl_link.load(_file(tmp_path, _chain("c", "2026-09-02", 5.0, "zabka", food=5.0)))
+    assert c.chain == "lidl"  # nieznana sieć nie trafia do Biedronki
+
+
+def test_biedronka_receipt_links_biedronka_expense(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    t = add(conn, "-15.40", "card", "BIEDRONKA 1234 POL", day="2026-09-03")
+    j = add(conn, "-8.10", "card", "JERONIMO MARTINS POLSKA SA", day="2026-09-03")
+    receipts = lidl_link.load(
+        _file(
+            tmp_path,
+            _chain("b1", "2026-09-02", 15.4, "biedronka", food=15.4),
+            _chain("b2", "2026-09-02", 8.1, "biedronka", food=8.1),
+        )
+    )
+    assert lidl_link.match(conn, receipts).linked == 2
+    assert lidl_link.links(conn) == {t: "b1", j: "b2"}
+
+
+def test_receipt_never_links_other_chain(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    bio_t = add(conn, "-12.50", "card", "BIEDRONKA 1 POL", day="2026-09-03")
+    lidl_only = _file(tmp_path, _r("l", "2026-09-02", 12.5))
+    assert lidl_link.match(conn, lidl_link.load(lidl_only)).linked == 0  # Lidl ≠ Biedronka
+    assert lidl_link.receipts_for_txn(conn, lidl_only, bio_t) == []
+    add(conn, "-9.90", "card", "LIDL SKLEP X POL", day="2026-09-05")
+    bio_paragon = _file(tmp_path, _chain("b", "2026-09-05", 9.9, "biedronka", food=9.9))
+    assert lidl_link.match(conn, lidl_link.load(bio_paragon)).linked == 0  # Biedronka ≠ Lidl
+    assert lidl_link.links(conn) == {}
+
+
+def test_same_amount_both_chains_each_pairs_own(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    lidl_t = add(conn, "-12.50", "card", "LIDL SKLEP X POL", day="2026-09-03")
+    bio_t = add(conn, "-12.50", "card", "BIEDRONKA 1 POL", day="2026-09-03")
+    receipts = lidl_link.load(
+        _file(
+            tmp_path,
+            _r("l", "2026-09-02", 12.5),
+            _chain("b", "2026-09-02", 12.5, "biedronka", food=12.5),
+        )
+    )
+    assert lidl_link.match(conn, receipts).linked == 2
+    assert lidl_link.links(conn) == {lidl_t: "l", bio_t: "b"}
+
+
+def test_receipts_for_txn_filters_by_expense_chain(
+    conn: sqlite3.Connection, tmp_path: Path
+) -> None:
+    bio_t = add(conn, "-7.00", "card", "BIEDRONKA 1 POL", day="2026-09-05")
+    path = _file(
+        tmp_path,
+        _r("l", "2026-09-05", 7.0),
+        _chain("b", "2026-09-05", 7.0, "biedronka", food=7.0),
+    )
+    assert [r.id for r in lidl_link.receipts_for_txn(conn, path, bio_t)] == ["b"]
+
+
+def test_chains_maps_receipt_ids_to_chain(tmp_path: Path) -> None:
+    path = _file(
+        tmp_path,
+        _r("l", "2026-09-02", 12.5),
+        _chain("b", "2026-09-02", 5.0, "biedronka", food=5.0),
+    )
+    assert lidl_link.chains(path, {"l", "b", "x"}) == {"l": "lidl", "b": "biedronka"}
+    assert lidl_link.chains(tmp_path / "brak.json", {"l"}) == {}
+    assert lidl_link.chains(path, set()) == {}

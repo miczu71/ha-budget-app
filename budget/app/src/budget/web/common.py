@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
 
-from budget import __version__, bank_logos, money, nav_layout, summary
+from budget import __version__, bank_logos, money, nav_layout, store_logos, summary
 from budget.categorize.rules import OPS as RULE_OPS
 from budget.logging_utils import mask_iban
 from budget.service import Service
@@ -87,6 +87,17 @@ def bank_logo(name: str | None, base: str = "") -> Markup:
     return Markup(bank_logos.monogram_svg(clean))
 
 
+def store_logo(chain: str | None, base: str = "") -> Markup:
+    """Logo sieci przy paragonie; nieznana sieć → nic."""
+    slug = store_logos.slug_for(chain)
+    if not slug:
+        return Markup("")
+    return Markup(
+        f'<img class="store-logo" alt="" '
+        f'src="{escape(base)}/static/stores/{slug}.svg?v={__version__}">'
+    )
+
+
 class Panel:
     """Stan i pomocnicze funkcje ekranów; jeden użytkownik, więc komunikat „flash” to lista."""
 
@@ -101,6 +112,7 @@ class Panel:
         t.env.filters["iban"] = mask_iban
         t.env.filters["pldate"] = fmt_date
         t.env.filters["bank_logo"] = bank_logo
+        t.env.filters["store_logo"] = store_logo
         t.env.filters["when"] = summary.when
         t.env.globals["version"] = __version__
         t.env.globals["kind_labels"] = KIND_LABELS

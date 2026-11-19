@@ -37,11 +37,18 @@ CATEGORIES = {
     "kids": ("Dla dzieci", "dzieci-zakupy"),
     "nonfood": ("Inne", "zakupy-inne"),
 }
-# wydatek w Lidlu: tekst jak w wyszukiwaniu Transakcji (`fold` bez ogonków, z kontrahentem)
-_EXPENSE = (
-    "status = 'BOOK' AND transfer_group IS NULL AND amount LIKE '-%' AND fold(description || ' ' "
-    "|| coalesce(counterparty_name, '') || ' ' || coalesce(merchant, '')) LIKE '%lidl%'"
-)
+# sieć paragonu (pole `chain`) → wzorce w tekście wydatku (`fold`, jak `LIKE` w Transakcjach)
+CHAIN_PATTERNS = {"lidl": ("lidl",), "biedronka": ("biedronka", "jeronimo")}
+
+
+def _expense(chain: str) -> str:
+    """Wydatek w sieci: tekst jak w wyszukiwaniu Transakcji (`fold` bez ogonków, z kontrahentem)."""
+    text = (
+        "fold(description || ' ' || coalesce(counterparty_name, '') || ' ' "
+        "|| coalesce(merchant, ''))"
+    )
+    any_pattern = " OR ".join(f"{text} LIKE '%{p}%'" for p in CHAIN_PATTERNS[chain])
+    return f"status = 'BOOK' AND transfer_group IS NULL AND amount LIKE '-%' AND ({any_pattern})"
 
 
 @dataclass(frozen=True)
@@ -54,6 +61,7 @@ class Receipt:
     country: str = "PL"  # zagraniczny: `paid` w PLN po NBP, kwota z banku może się różnić
     currency: str = "PLN"  # waluta oryginału (chip wyboru w _txn_category.html)
     paid_orig: Decimal | None = None
+    chain: str = "lidl"  # sieć (`lidl`/`biedronka`); paragon łączy się tylko z wydatkiem tej sieci
 
 
 @dataclass(frozen=True)
@@ -90,6 +98,7 @@ def load(path: Path) -> list[Receipt]:
                 )
             except ValueError:
                 paid_orig = None
+            chain = r.get("chain")
             out.append(
                 Receipt(
                     str(r["id"]),
@@ -100,6 +109,7 @@ def load(path: Path) -> list[Receipt]:
                     country.upper() if isinstance(country, str) and country else "PL",
                     currency if isinstance(currency, str) and currency else "PLN",
                     paid_orig,
+                    chain if isinstance(chain, str) and chain in CHAIN_PATTERNS else "lidl",
                 )
             )
         except (KeyError, TypeError, AttributeError, ValueError):  # AmountError to ValueError
@@ -162,23 +172,25 @@ def match(conn: sqlite3.Connection, receipts: list[Receipt]) -> MatchResult:
     if pending:
         lo = min(r.day for r in pending) - WINDOW
         hi = max(r.day for r in pending) + WINDOW
-        candidates: list[tuple[int, Decimal, str]] = []
-        by_amount: dict[Decimal, list[tuple[int, str]]] = {}
-        for t, amount, day in conn.execute(
-            f"SELECT id, amount, coalesce(tx_date, booking_date) FROM txn WHERE {_EXPENSE} "
-            "AND coalesce(tx_date, booking_date) BETWEEN ? AND ? "
-            "AND id NOT IN (SELECT txn_id FROM txn_lidl) ORDER BY 3, id",
-            (lo.isoformat(), hi.isoformat()),
-        ):
-            candidates.append((int(t), -Decimal(amount), day))
-            by_amount.setdefault(-Decimal(amount), []).append((int(t), day))
         rejected = _rejected(conn)
-        for r in pending:
-            if r.country == "PL":  # co do grosza: indeks po kwocie zamiast skanu
-                same = by_amount.get(r.paid, [])
-            else:
-                same = [(t, day) for t, amount, day in candidates if _amount_ok(r, amount)]
-            found[r.id] = [t for t, day in same if _near(r, day) and (t, r.id) not in rejected]
+        for chain in {r.chain for r in pending}:  # paragon sieci X tylko do wydatku sieci X
+            candidates: list[tuple[int, Decimal, str]] = []
+            by_amount: dict[Decimal, list[tuple[int, str]]] = {}
+            for t, amount, day in conn.execute(
+                f"SELECT id, amount, coalesce(tx_date, booking_date) "
+                f"FROM txn WHERE {_expense(chain)} "
+                "AND coalesce(tx_date, booking_date) BETWEEN ? AND ? "
+                "AND id NOT IN (SELECT txn_id FROM txn_lidl) ORDER BY 3, id",
+                (lo.isoformat(), hi.isoformat()),
+            ):
+                candidates.append((int(t), -Decimal(amount), day))
+                by_amount.setdefault(-Decimal(amount), []).append((int(t), day))
+            for r in (p for p in pending if p.chain == chain):
+                if r.country == "PL":  # co do grosza: indeks po kwocie zamiast skanu
+                    same = by_amount.get(r.paid, [])
+                else:
+                    same = [(t, day) for t, amount, day in candidates if _amount_ok(r, amount)]
+                found[r.id] = [t for t, day in same if _near(r, day) and (t, r.id) not in rejected]
     claims = Counter(t for tids in found.values() for t in tids)
     pairs = []
     for r in pending:
@@ -193,20 +205,42 @@ def match(conn: sqlite3.Connection, receipts: list[Receipt]) -> MatchResult:
 
 def receipts_for_txn(conn: sqlite3.Connection, path: Path, txn_id: int) -> list[Receipt]:
     """Wolne paragony pasujące do tej (niepołączonej) transakcji — wybór przy niejednoznacznych.
-    Plik czytamy tylko dla wydatku w Lidlu."""
-    row = conn.execute(
-        f"SELECT amount, coalesce(tx_date, booking_date) FROM txn WHERE id = ? AND {_EXPENSE} "
-        "AND id NOT IN (SELECT txn_id FROM txn_lidl)",
-        (txn_id,),
-    ).fetchone()
-    if row is None:
+    Plik czytamy tylko dla wydatku w sieci (Lidl albo Biedronka); paragony innej sieci odpadają."""
+    for chain in CHAIN_PATTERNS:
+        row = conn.execute(
+            f"SELECT amount, coalesce(tx_date, booking_date) "
+            f"FROM txn WHERE id = ? AND {_expense(chain)} "
+            "AND id NOT IN (SELECT txn_id FROM txn_lidl)",
+            (txn_id,),
+        ).fetchone()
+        if row is not None:
+            break
+    else:
         return []
     rejected = {r for t, r in _rejected(conn) if t == txn_id}
     return [
         r
         for r in _free(conn, load(path))
-        if _amount_ok(r, -Decimal(row[0])) and _near(r, row[1]) and r.id not in rejected
+        if r.chain == chain
+        and _amount_ok(r, -Decimal(row[0]))
+        and _near(r, row[1])
+        and r.id not in rejected
     ]
+
+
+def chains(path: Path, ids: set[str]) -> dict[str, str]:
+    """Spośród `ids` paragon → sieć (`lidl`/`biedronka`); paragony spoza pliku pomijamy."""
+    try:
+        stamp = path.stat().st_mtime_ns
+    except OSError:
+        return {}
+    return {i: c for i, c in _chain_map(str(path), stamp) if i in ids}
+
+
+@lru_cache(maxsize=2)
+def _chain_map(path: str, _mtime_ns: int) -> tuple[tuple[str, str], ...]:
+    """Wszystkie paragony z pliku jako pary (id, sieć); `_mtime_ns` unieważnia cache."""
+    return tuple((r.id, r.chain) for r in load(Path(path)))
 
 
 def unlink(conn: sqlite3.Connection, txn_id: int) -> None:

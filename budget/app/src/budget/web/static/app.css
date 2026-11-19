@@ -1091,3 +1091,5 @@ form.lidl-map select { width: 100%; }
 
 /* Loga banków (E3): 20 px, kwadrat; monogram jest inline SVG tej samej klasy. */
 .bank-logo { width: 20px; height: 20px; border-radius: 4px; vertical-align: -4px; flex: none; object-fit: contain; margin-right: 4px; }
+/* Logo sieci przy paragonie (E28.3): jak logo banku. */
+.store-logo { width: 20px; height: 20px; border-radius: 4px; vertical-align: -4px; flex: none; object-fit: contain; margin-right: 4px; }

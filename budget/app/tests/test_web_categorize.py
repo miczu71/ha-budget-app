@@ -452,13 +452,14 @@ async def test_lidl_receipt_link_choice_and_category_map(
         ).fetchone()[:],
     )
     editor = (await client.get(f"/transactions/{ids['lidl']}/category")).text
-    assert "Pasujący paragon Lidl" in editor and '{"ticket_id": "p1"}' in editor
+    assert "Pasujący paragon" in editor and '{"ticket_id": "p1"}' in editor
     r = await client.post(f"/transactions/{ids['lidl']}/lidl", data={"ticket_id": "p1"})
     assert "2 kategorie" in r.text and "/app/f0987e0f_lidl/paragony/p1" in r.text
     assert lidl_link.links(conn) == {ids["lidl"]: "p1"}
     assert "Pasujący paragon" not in (await client.get(f"/transactions/{twin}/category")).text
     page = (await client.get("/transactions")).text
-    assert 'target="_top">paragon Lidl</a>' in page and "to nie ten paragon" in page
+    assert 'target="_top"><img class="store-logo"' in page and ">paragon</a>" in page
+    assert "to nie ten paragon" in page
     r = await client.post(f"/transactions/{ids['lidl']}/lidl", data={"action": "unlink"})
     assert "paragon Lidl" not in r.text and lidl_link.links(conn) == {}
     assert service.link_lidl() == lidl_link.MatchResult(
@@ -523,3 +524,28 @@ async def test_foreign_lidl_receipt_links_to_countries_tab(
     page("PL")  # ten sam paragon jako polski: bez linku
     html = (await client.get("/transactions")).text
     assert "/paragony/r1" in html and "ceny za granicą" not in html
+
+
+async def test_biedronka_receipt_card_has_logo_and_link(
+    client: httpx.AsyncClient, service: Service
+) -> None:
+    import json
+
+    from budget import lidl_link
+
+    conn = service.conn
+    _seed(conn)  # konto dla `add`
+    bio = add(conn, "-15.40", "card", "BIEDRONKA 1234 POL", day=DAY)
+    path = service.settings.lidl_receipts_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # zagraniczny, żeby sprawdzić, że „ceny za granicą” znika dla sieci innej niż Lidl
+    receipt = {"id": "b1", "day": DAY, "paid": 15.4, "url_path": "/paragony/b1",
+               "chain": "biedronka", "country": "CZ", "currency": "CZK", "paid_orig": 65.0,
+               "parts": {"food": 15.4}}  # fmt: skip
+    path.write_text(json.dumps({"version": 1, "receipts": [receipt]}), encoding="utf-8")
+    assert service.link_lidl().linked == 1  # type: ignore[union-attr]
+    assert lidl_link.links(conn) == {bio: "b1"}
+    html = (await client.get("/transactions")).text
+    assert '<img class="store-logo" alt="" src="' in html and "/static/stores/biedronka.svg" in html
+    assert "/app/f0987e0f_lidl/paragony/b1" in html and ">paragon</a>" in html
+    assert "ceny za granicą" not in html and "to nie ten paragon" in html

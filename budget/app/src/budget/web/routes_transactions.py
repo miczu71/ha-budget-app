@@ -170,6 +170,7 @@ def router(panel: Panel) -> APIRouter:
             splits=split_parts(conn, [int(t["id"]) for t in rows]),
             receipts=(links := lidl_link.links(conn, [int(t["id"]) for t in rows])),
             foreign_receipts=foreign_receipts(set(links.values())),
+            receipt_chains=receipt_chains(set(links.values())),
             repeatable={c.id for c in page_txns},
             total=total,
             page_no=page,  # `page` = nazwa ekranu w base.html (aktywna zakładka)
@@ -233,6 +234,9 @@ def router(panel: Panel) -> APIRouter:
 
     def foreign_receipts(ids: set[str]) -> set[str]:
         return lidl_link.foreign_ids(panel.service.settings.lidl_receipts_path, ids)
+
+    def receipt_chains(ids: set[str]) -> dict[str, str]:
+        return lidl_link.chains(panel.service.settings.lidl_receipts_path, ids)
 
     def lidl_choices(txn_id: int) -> list[lidl_link.Receipt]:
         """Paragony Lidl do wyboru, gdy dopasowanie nie było jednoznaczne (M29 E5)."""
@@ -321,6 +325,7 @@ def router(panel: Panel) -> APIRouter:
             parts=split_parts(conn, [tid]).get(tid),
             receipt=(receipt := lidl_link.links(conn, [tid]).get(tid)),
             foreign_receipts=foreign_receipts({receipt} if receipt else set()),
+            receipt_chains=receipt_chains({receipt} if receipt else set()),
         )
 
     @r.post("/transactions/{txn_id}/lidl", response_class=HTMLResponse)
