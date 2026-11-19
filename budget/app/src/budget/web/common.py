@@ -93,7 +93,7 @@ def store_logo(chain: str | None, base: str = "") -> Markup:
     if not slug:
         return Markup("")
     return Markup(
-        f'<img class="store-logo" alt="" '
+        f'<img class="store-logo" alt="{slug.capitalize()}" '
         f'src="{escape(base)}/static/stores/{slug}.svg?v={__version__}">'
     )
 

@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+
+import pytest
 
 from budget import lidl_link
 
@@ -267,8 +270,31 @@ def test_load_reads_chain_and_defaults_to_lidl(tmp_path: Path) -> None:
     assert a.chain == "lidl"  # stary eksport bez pola
     (b,) = lidl_link.load(_file(tmp_path, _chain("b", "2026-09-02", 5.0, "biedronka", food=5.0)))
     assert b.chain == "biedronka"
-    (c,) = lidl_link.load(_file(tmp_path, _chain("c", "2026-09-02", 5.0, "zabka", food=5.0)))
-    assert c.chain == "lidl"  # nieznana sieć nie trafia do Biedronki
+
+
+def test_load_skips_receipt_with_unknown_chain(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    path = _file(
+        tmp_path,
+        _chain("c", "2026-09-02", 5.0, "zabka", food=5.0),
+        _chain("d", "2026-09-02", 6.0, "lidl", food=6.0),
+    )
+    with caplog.at_level("WARNING"):
+        assert [r.id for r in lidl_link.load(path)] == [
+            "d"
+        ]  # nieznanej sieci nie zgadujemy jako Lidla
+    assert "nieznaną siecią" in caplog.text
+
+
+def test_meta_cache_follows_file_change(tmp_path: Path) -> None:
+    path = _file(tmp_path, _chain("a", "2026-09-02", 5.0, "lidl", food=5.0))
+    assert lidl_link.chains(path, {"a"}) == {"a": "lidl"}
+    _file(tmp_path, _chain("a", "2026-09-02", 5.0, "biedronka", food=5.0))
+    stat = path.stat()
+    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))  # nowy eksport = nowy mtime
+    assert lidl_link.chains(path, {"a"}) == {"a": "biedronka"}
+    assert lidl_link.chains(tmp_path / "brak.json", {"a"}) == {}
 
 
 def test_biedronka_receipt_links_biedronka_expense(

@@ -461,7 +461,7 @@ async def test_lidl_receipt_link_choice_and_category_map(
     assert 'target="_top"><img class="store-logo"' in page and ">paragon</a>" in page
     assert "to nie ten paragon" in page
     r = await client.post(f"/transactions/{ids['lidl']}/lidl", data={"action": "unlink"})
-    assert "paragon Lidl" not in r.text and lidl_link.links(conn) == {}
+    assert 'class="lidl-link small"' not in r.text and lidl_link.links(conn) == {}
     assert service.link_lidl() == lidl_link.MatchResult(
         1, 0, 0, Decimal("20.00")
     )  # odrzucona para nie wraca
@@ -546,6 +546,9 @@ async def test_biedronka_receipt_card_has_logo_and_link(
     assert service.link_lidl().linked == 1  # type: ignore[union-attr]
     assert lidl_link.links(conn) == {bio: "b1"}
     html = (await client.get("/transactions")).text
-    assert '<img class="store-logo" alt="" src="' in html and "/static/stores/biedronka.svg" in html
+    assert (
+        '<img class="store-logo" alt="Biedronka" src="' in html
+        and "/static/stores/biedronka.svg" in html
+    )
     assert "/app/f0987e0f_lidl/paragony/b1" in html and ">paragon</a>" in html
     assert "ceny za granicą" not in html and "to nie ten paragon" in html

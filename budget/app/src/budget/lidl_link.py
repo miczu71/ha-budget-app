@@ -83,6 +83,7 @@ def load(path: Path) -> list[Receipt]:
         log.warning("Paragony Lidl: nieczytelny %s (%s)", path, exc)
         return []
     out = []
+    unknown_chain = 0
     for r in (data.get("receipts") if isinstance(data, dict) else None) or []:
         try:
             paid = money.parse(str(r["paid"]))
@@ -99,6 +100,11 @@ def load(path: Path) -> list[Receipt]:
             except ValueError:
                 paid_orig = None
             chain = r.get("chain")
+            if chain in (None, ""):
+                chain = "lidl"  # eksport sprzed E28 (tylko Lidl)
+            elif chain not in CHAIN_PATTERNS:
+                unknown_chain += 1  # nieznana sieć: nie zgadujemy Lidla, paragon pomijamy
+                continue
             out.append(
                 Receipt(
                     str(r["id"]),
@@ -109,11 +115,13 @@ def load(path: Path) -> list[Receipt]:
                     country.upper() if isinstance(country, str) and country else "PL",
                     currency if isinstance(currency, str) and currency else "PLN",
                     paid_orig,
-                    chain if isinstance(chain, str) and chain in CHAIN_PATTERNS else "lidl",
+                    chain,
                 )
             )
         except (KeyError, TypeError, AttributeError, ValueError):  # AmountError to ValueError
             continue
+    if unknown_chain:
+        log.warning("Paragony: pominięto %d z nieznaną siecią (pole chain)", unknown_chain)
     return out
 
 
