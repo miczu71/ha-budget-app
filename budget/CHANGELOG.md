@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.77.0
+
+**Paragony Biedronki obok Lidla (E28.3).**
+- Paragon z add-onu „Zakupy (Lidl + Biedronka)” łączy się z płatnością w swojej sieci: Lidl z wydatkiem „Lidl”,
+  Biedronka z „Biedronka”/„Jeronimo”. Paragon jednej sieci nigdy nie łączy się z płatnością drugiej;
+  podział na kategorie z paragonu działa tak samo dla obu.
+- Przy sparowanej transakcji logo sieci i link „paragon” (zamiast „paragon Lidl”); „ceny za granicą” tylko dla Lidla.
+- Paragon z nieznaną siecią w eksporcie jest pomijany (z ostrzeżeniem w logu), a nie zgadywany jako Lidl.
+- Wymaga add-onu „Zakupy (Lidl + Biedronka)” 1.3.0 (pole `chain` w eksporcie); starszy eksport traktowany jak Lidl.
+- Logo Biedronki to favicon 16×16 px w pliku SVG (brak oficjalnego wektora), źródła w `web/static/stores/SOURCES.md`.
+
 ## 0.76.0
 
 - Przy paragonie Lidl z zagranicy (CZ, IT) obok „paragon Lidl” jest link „ceny za granicą” do zakładki Kraje
