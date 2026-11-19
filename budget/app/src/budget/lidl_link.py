@@ -125,19 +125,30 @@ def links(conn: sqlite3.Connection, txn_ids: list[int] | None = None) -> dict[in
     return {int(t): str(r) for t, r in conn.execute(sql, args)}
 
 
-def foreign_ids(path: Path, ids: set[str]) -> set[str]:
-    """Spośród `ids` te paragony, które są spoza Polski (link do zakładki Kraje w Lidlu)."""
+def _meta(path: Path) -> dict[str, tuple[str, str]]:
+    """Paragon → (kraj, sieć) dla pliku; jeden cache po mtime (nowy eksport go unieważnia)."""
     try:
         stamp = path.stat().st_mtime_ns
     except OSError:
-        return set()
-    return ids & _foreign_set(str(path), stamp) if ids else set()
+        return {}
+    return _meta_cached(str(path), stamp)
 
 
 @lru_cache(maxsize=2)
-def _foreign_set(path: str, _mtime_ns: int) -> frozenset[str]:
-    """Wszystkie zagraniczne paragony z pliku; `_mtime_ns` unieważnia cache po nowym eksporcie."""
-    return frozenset(r.id for r in load(Path(path)) if r.country != "PL")
+def _meta_cached(path: str, _mtime_ns: int) -> dict[str, tuple[str, str]]:
+    return {r.id: (r.country, r.chain) for r in load(Path(path))}
+
+
+def foreign_ids(path: Path, ids: set[str]) -> set[str]:
+    """Spośród `ids` te paragony, które są spoza Polski (link do zakładki Kraje w Lidlu)."""
+    meta = _meta(path) if ids else {}
+    return {i for i in ids if meta.get(i, ("PL", ""))[0] != "PL"}
+
+
+def chains(path: Path, ids: set[str]) -> dict[str, str]:
+    """Spośród `ids` paragon → sieć (`lidl`/`biedronka`); paragony spoza pliku pomijamy."""
+    meta = _meta(path) if ids else {}
+    return {i: meta[i][1] for i in ids if i in meta}
 
 
 def _free(conn: sqlite3.Connection, receipts: list[Receipt]) -> list[Receipt]:
@@ -203,9 +214,8 @@ def match(conn: sqlite3.Connection, receipts: list[Receipt]) -> MatchResult:
     return MatchResult(len(pairs), len(found) - len(pairs) - unmatched, unmatched, moved)
 
 
-def receipts_for_txn(conn: sqlite3.Connection, path: Path, txn_id: int) -> list[Receipt]:
-    """Wolne paragony pasujące do tej (niepołączonej) transakcji — wybór przy niejednoznacznych.
-    Plik czytamy tylko dla wydatku w sieci (Lidl albo Biedronka); paragony innej sieci odpadają."""
+def _txn_chain(conn: sqlite3.Connection, txn_id: int) -> tuple[str, sqlite3.Row] | None:
+    """Sieć niepołączonej transakcji (pierwsza pasująca) i jej (kwota, dzień); `None` = nie sieć."""
     for chain in CHAIN_PATTERNS:
         row = conn.execute(
             f"SELECT amount, coalesce(tx_date, booking_date) "
@@ -214,9 +224,17 @@ def receipts_for_txn(conn: sqlite3.Connection, path: Path, txn_id: int) -> list[
             (txn_id,),
         ).fetchone()
         if row is not None:
-            break
-    else:
+            return chain, row
+    return None
+
+
+def receipts_for_txn(conn: sqlite3.Connection, path: Path, txn_id: int) -> list[Receipt]:
+    """Wolne paragony pasujące do tej (niepołączonej) transakcji — wybór przy niejednoznacznych.
+    Plik czytamy tylko dla wydatku w sieci (Lidl albo Biedronka); paragony innej sieci odpadają."""
+    found = _txn_chain(conn, txn_id)
+    if found is None:
         return []
+    chain, row = found
     rejected = {r for t, r in _rejected(conn) if t == txn_id}
     return [
         r
@@ -226,21 +244,6 @@ def receipts_for_txn(conn: sqlite3.Connection, path: Path, txn_id: int) -> list[
         and _near(r, row[1])
         and r.id not in rejected
     ]
-
-
-def chains(path: Path, ids: set[str]) -> dict[str, str]:
-    """Spośród `ids` paragon → sieć (`lidl`/`biedronka`); paragony spoza pliku pomijamy."""
-    try:
-        stamp = path.stat().st_mtime_ns
-    except OSError:
-        return {}
-    return {i: c for i, c in _chain_map(str(path), stamp) if i in ids}
-
-
-@lru_cache(maxsize=2)
-def _chain_map(path: str, _mtime_ns: int) -> tuple[tuple[str, str], ...]:
-    """Wszystkie paragony z pliku jako pary (id, sieć); `_mtime_ns` unieważnia cache."""
-    return tuple((r.id, r.chain) for r in load(Path(path)))
 
 
 def unlink(conn: sqlite3.Connection, txn_id: int) -> None:
