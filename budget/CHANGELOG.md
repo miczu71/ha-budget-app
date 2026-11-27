@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.77.1
+
+**Płatności kartą Velobank.**
+- Zakup kartą z konta w Velobanku („Operacja kartą …”) był liczony jako przelew, więc licznik transakcji
+  bezgotówkowych w śledzonej promocji pokazywał 0. Teraz to płatność kartą (a uznanie — zwrot na kartę).
+- Zapisane już operacje poprawiają się przy najbliższej synchronizacji.
+
 ## 0.77.0
 
 **Paragony Biedronki obok Lidla (E28.3).**
