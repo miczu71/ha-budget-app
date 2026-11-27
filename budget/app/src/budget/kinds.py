@@ -148,6 +148,8 @@ def from_api(
         return Kind.PHONE_TRANSFER
     if desc.startswith("BANKOMAT") and not counterparty_account:
         return Kind.CASH
+    if desc.startswith("OPERACJA KARTA "):  # Velobank: „Operacja kartą … na kwotę …”
+        return Kind.CARD if debit else Kind.CARD_REFUND
     if CARD_DESC_RE.search(desc):
         if desc.startswith(("UL ", "UL.")):
             return Kind.CASH  # wypłata kartą w bankomacie: opis to sam adres

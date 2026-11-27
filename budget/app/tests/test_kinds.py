@@ -46,6 +46,21 @@ def test_csv_card_rows_have_empty_kind() -> None:
         ("Wynagrodzenie", C, "FIRMA", "PL001", Kind.TRANSFER_IN),
         ("Czynsz", D, "WSPÓLNOTA", "PL001", Kind.TRANSFER_OUT),
         ("Kebab 123", D, "Kebab 123", None, Kind.BLIK),
+        # Velobank: zakup kartą z kontem kontrahenta
+        (
+            "Operacja kartą 0000 xxxx xxxx 0000 na kwotę 10,00 PLN w SKLEP X",
+            D,
+            "Sklep X",
+            "PL001",
+            Kind.CARD,
+        ),
+        (
+            "Operacja kartą 0000 xxxx xxxx 0000 na kwotę 10,00 PLN w SKLEP X",
+            C,
+            "Sklep X",
+            "PL001",
+            Kind.CARD_REFUND,
+        ),
     ],
 )
 def test_api_heuristic_current_account(
