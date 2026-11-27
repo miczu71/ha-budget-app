@@ -18,7 +18,7 @@ from typing import Any
 
 from budget.countries import card_origin
 from budget.kinds import CARD_KINDS, Kind
-from budget.normalize import fold
+from budget.normalize import VELO_CARD_PREFIX_RE, fold
 
 KIND_LABELS = {
     Kind.CARD.value: "płatność kartą",
@@ -58,7 +58,7 @@ class Txn:
 
 def scrub(text: str | None) -> str:
     """Tekst bez IBAN-ów, e-maili i ciągów cyfr (≥ 5 znaków), skrócony."""
-    text = _IBAN_RE.sub(" ", text or "")
+    text = _IBAN_RE.sub(" ", VELO_CARD_PREFIX_RE.sub("", text or ""))
     text = _EMAIL_RE.sub(" ", text)
     text = _DIGITS_RE.sub(" ", text)
     return _SPACE_RE.sub(" ", text).strip(" ,.;:-/")[:TEXT_MAX]

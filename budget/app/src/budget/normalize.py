@@ -16,6 +16,11 @@ NBSP = "\xa0"
 CARD_DESC_RE = re.compile(r"\s([A-Z]{3})\s+(\d{4}-\d{2}-\d{2})\s*$")
 # Prefiks komunikatu BLIK w API („/OPT/X///// …”, zwrot: „/OPF/…”)
 _BLIK_PREFIX_RE = re.compile(r"^/OP[A-Z]/\S*\s*")
+# Velobank: „Operacja kartą … na kwotę X PLN w SPRZEDAWCA, MIASTO, KRAJ” — przed sprzedawcą
+# stoi stały prefiks z końcówką numeru karty
+VELO_CARD_PREFIX_RE = re.compile(
+    r"^\s*operacja\s+kart\S+\s.*?\sna\s+kwot\S+\s.*?\sw\s+", re.IGNORECASE
+)
 _TOKEN_RE = re.compile(r"[A-Z0-9][A-Z0-9&'.-]*")
 _ADDRESS = frozenset({"UL", "UL.", "AL", "AL.", "OS", "ULICA", "ALEJA"})
 # Słowa, które nie identyfikują sprzedawcy
@@ -72,7 +77,7 @@ def card_desc_date(text: str | None) -> str | None:
 
 def merchant_tokens(text: str | None) -> list[str]:
     """Znaczące słowa początku opisu (bez prefiksów BLIK, numerów i słów-wypełniaczy)."""
-    folded = _BLIK_PREFIX_RE.sub("", fold(text))
+    folded = _BLIK_PREFIX_RE.sub("", VELO_CARD_PREFIX_RE.sub("", fold(text)))
     folded = folded.split(",")[0]  # opis z eksportu karty: „SPRZEDAWCA , MIASTO , KRAJ”
     folded = folded.replace(".", " ")  # domeny („www.sklep.pl”) i skróty („UL.”, „S.A.”)
     out = []
